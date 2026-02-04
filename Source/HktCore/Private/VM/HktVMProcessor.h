@@ -32,8 +32,6 @@ public:
     virtual void Tick(int32 CurrentFrame, float DeltaSeconds) override;
     virtual void NotifyIntentEvent(const FHktIntentEvent& Event) override;
     virtual void NotifyCollision(FHktEntityId WatchedEntity, FHktEntityId HitEntity) override;
-    virtual void NotifyAnimEnd(FHktEntityId Entity) override;
-    virtual void NotifyMoveEnd(FHktEntityId Entity) override;
 
 private:
     // Phase 1
@@ -57,6 +55,7 @@ private:
     TArray<FHktVMStore> StorePool;
     
     TArray<FHktIntentEvent> PendingEvents;
+    TArray<FHktPendingEvent> PendingExternalEvents;
     TArray<FHktVMHandle> PendingVMs;
     TArray<FHktVMHandle> ActiveVMs;
     TArray<FHktVMHandle> CompletedVMs;

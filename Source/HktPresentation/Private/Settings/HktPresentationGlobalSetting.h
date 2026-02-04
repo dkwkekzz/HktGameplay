@@ -11,6 +11,7 @@ class UMaterialInterface;
 class UNiagaraSystem;
 class UUserWidget;
 class UTexture2D;
+class UHktLoginWidgetDataAsset;
 
 /**
  * HktPresentation 전역 설정
@@ -54,10 +55,4 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category = "HUD", meta = (DisplayName = "HUD Widget Class"))
 	TSoftClassPtr<UUserWidget> HUDWidgetClass;
-
-	// === 로그인 화면 ===
-
-	/** 로그인 화면 배경 텍스처 (일러스트 등). 비어 있으면 기본 배경 사용 */
-	UPROPERTY(Config, EditAnywhere, Category = "Login", meta = (DisplayName = "Login Background Texture"))
-	TSoftObjectPtr<UTexture2D> LoginBackgroundTexture;
 };

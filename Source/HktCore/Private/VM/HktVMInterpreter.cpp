@@ -48,8 +48,6 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::JumpIf: Op_JumpIf(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::JumpIfNot: Op_JumpIfNot(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::WaitCollision: return Op_WaitCollision(Runtime, Inst.Src1);
-    case EOpCode::WaitAnimEnd: return Op_WaitAnimEnd(Runtime, Inst.Src1);
-    case EOpCode::WaitMoveEnd: return Op_WaitMoveEnd(Runtime, Inst.Src1);
     case EOpCode::LoadConst: Op_LoadConst(Runtime, Inst._Dst, Inst.GetSignedImm20()); break;
     case EOpCode::LoadConstHigh: Op_LoadConstHigh(Runtime, Inst.Dst, Inst.Imm12); break;
     case EOpCode::LoadStore: Op_LoadStore(Runtime, Inst.Dst, Inst.Imm12); break;
@@ -96,48 +94,6 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     return EVMStatus::Running;
 }
 
-// Notifications
-void FHktVMInterpreter::NotifyCollision(FHktVMRuntime& Runtime, EntityId HitEntity)
-{
-    if (Runtime.EventWait.Type == EWaitEventType::Collision)
-    {
-        Runtime.SetRegEntity(Reg::Hit, HitEntity);
-        Runtime.EventWait.Reset();
-        Runtime.Status = EVMStatus::Ready;
-    }
-}
-
-void FHktVMInterpreter::NotifyAnimEnd(FHktVMRuntime& Runtime)
-{
-    if (Runtime.EventWait.Type == EWaitEventType::AnimationEnd)
-    {
-        Runtime.EventWait.Reset();
-        Runtime.Status = EVMStatus::Ready;
-    }
-}
-
-void FHktVMInterpreter::NotifyMoveEnd(FHktVMRuntime& Runtime)
-{
-    if (Runtime.EventWait.Type == EWaitEventType::MovementEnd)
-    {
-        Runtime.EventWait.Reset();
-        Runtime.Status = EVMStatus::Ready;
-    }
-}
-
-void FHktVMInterpreter::UpdateTimer(FHktVMRuntime& Runtime, float DeltaSeconds)
-{
-    if (Runtime.EventWait.Type == EWaitEventType::Timer)
-    {
-        Runtime.EventWait.RemainingTime -= DeltaSeconds;
-        if (Runtime.EventWait.RemainingTime <= 0.0f)
-        {
-            Runtime.EventWait.Reset();
-            Runtime.Status = EVMStatus::Ready;
-        }
-    }
-}
-
 // Control Flow
 void FHktVMInterpreter::Op_Nop(FHktVMRuntime& Runtime) {}
 EVMStatus FHktVMInterpreter::Op_Halt(FHktVMRuntime& Runtime) { return EVMStatus::Completed; }
@@ -149,8 +105,6 @@ void FHktVMInterpreter::Op_JumpIfNot(FHktVMRuntime& Runtime, RegisterIndex Cond,
 
 // Event Wait
 EVMStatus FHktVMInterpreter::Op_WaitCollision(FHktVMRuntime& Runtime, RegisterIndex WatchEntity) { Runtime.EventWait.Type = EWaitEventType::Collision; Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity); return EVMStatus::WaitingEvent; }
-EVMStatus FHktVMInterpreter::Op_WaitAnimEnd(FHktVMRuntime& Runtime, RegisterIndex Entity) { Runtime.EventWait.Type = EWaitEventType::AnimationEnd; Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(Entity); return EVMStatus::WaitingEvent; }
-EVMStatus FHktVMInterpreter::Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterIndex Entity) { Runtime.EventWait.Type = EWaitEventType::MovementEnd; Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(Entity); return EVMStatus::WaitingEvent; }
 
 // Data
 void FHktVMInterpreter::Op_LoadConst(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 Value) { Runtime.SetReg(Dst, Value); }

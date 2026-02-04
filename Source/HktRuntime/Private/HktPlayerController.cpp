@@ -5,8 +5,8 @@
 #include "Components/HktIntentBuilderComponent.h"
 #include "Components/HktVisibleStashComponent.h"
 #include "Components/HktVMProcessorComponent.h"
+#include "DataAssets/HktInputAction.h"
 #include "HktGameMode.h"
-#include "HktInputAction.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 

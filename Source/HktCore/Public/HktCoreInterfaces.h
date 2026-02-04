@@ -168,14 +168,8 @@ public:
     /** Intent 이벤트 알림 */
     virtual void NotifyIntentEvent(const FHktIntentEvent& Event) = 0;
     
-    /** 충돌 알림 */
+    /** 충돌 알림 (큐에 적재, Execute에서 일괄 처리) */
     virtual void NotifyCollision(FHktEntityId WatchedEntity, FHktEntityId HitEntity) = 0;
-    
-    /** 애니메이션 종료 알림 */
-    virtual void NotifyAnimEnd(FHktEntityId Entity) = 0;
-    
-    /** 이동 종료 알림 */
-    virtual void NotifyMoveEnd(FHktEntityId Entity) = 0;
 };
 
 //=============================================================================

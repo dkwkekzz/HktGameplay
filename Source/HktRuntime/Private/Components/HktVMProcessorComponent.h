@@ -50,12 +50,6 @@ public:
     /** 충돌 알림 */
     void NotifyCollision(FHktEntityId WatchedEntity, FHktEntityId HitEntity);
     
-    /** 애니메이션 종료 알림 */
-    void NotifyAnimEnd(FHktEntityId Entity);
-    
-    /** 이동 종료 알림 */
-    void NotifyMoveEnd(FHktEntityId Entity);
-
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

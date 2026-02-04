@@ -93,19 +93,3 @@ void UHktVMProcessorComponent::NotifyCollision(FHktEntityId WatchedEntity, FHktE
         VMProcessor->NotifyCollision(WatchedEntity, HitEntity);
     }
 }
-
-void UHktVMProcessorComponent::NotifyAnimEnd(FHktEntityId Entity)
-{
-    if (VMProcessor)
-    {
-        VMProcessor->NotifyAnimEnd(Entity);
-    }
-}
-
-void UHktVMProcessorComponent::NotifyMoveEnd(FHktEntityId Entity)
-{
-    if (VMProcessor)
-    {
-        VMProcessor->NotifyMoveEnd(Entity);
-    }
-}

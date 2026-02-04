@@ -142,18 +142,6 @@ FFlowBuilder& FFlowBuilder::WaitCollision(RegisterIndex WatchEntity)
     return *this;
 }
 
-FFlowBuilder& FFlowBuilder::WaitAnimEnd(RegisterIndex Entity)
-{
-    Emit(FInstruction::Make(EOpCode::WaitAnimEnd, 0, Entity, 0, 0));
-    return *this;
-}
-
-FFlowBuilder& FFlowBuilder::WaitMoveEnd(RegisterIndex Entity)
-{
-    Emit(FInstruction::Make(EOpCode::WaitMoveEnd, 0, Entity, 0, 0));
-    return *this;
-}
-
 // ============================================================================
 // Data Operations
 // ============================================================================

@@ -1,104 +1,114 @@
 #include "HktAssetSubsystem.h"
-#include "Engine/AssetManager.h"
-#include "AssetRegistry/AssetData.h"
+#include "HktTagDataAsset.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Engine/AssetManager.h"
 
 void UHktAssetSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-
-    // 인덱스 구축
-    BuildAssetIndex();
+    RebuildTagMap();
 }
 
 void UHktAssetSubsystem::Deinitialize()
 {
-    AssetIndex.Empty();
-    bIsIndexBuilt = false;
     Super::Deinitialize();
 }
 
-void UHktAssetSubsystem::QueryDataAssetByTag(const FGameplayTag& InTag, FOnQueryDataComplete Callback) const
+UHktAssetSubsystem* UHktAssetSubsystem::Get(UWorld* World)
 {
-    // 1. 유효하지 않은 태그 처리
-    if (!InTag.IsValid())
+    if (World && World->GetGameInstance())
     {
-        Callback.ExecuteIfBound(nullptr);
-        return;
+        return World->GetGameInstance()->GetSubsystem<UHktAssetSubsystem>();
     }
-
-    // 2. 인덱스 검색 (TMap Find)
-    const FSoftObjectPath* FoundPath = AssetIndex.Find(InTag);
-    if (!FoundPath)
-    {
-        // 태그에 매핑된 에셋이 없음
-        Callback.ExecuteIfBound(nullptr);
-        return;
-    }
-
-    // 3. 비동기 로딩 요청 (단일 에셋)
-    FStreamableManager& Streamable = UAssetManager::Get().GetStreamableManager();
-    
-    // FSoftObjectPath는 포인터가 아닌 값으로 복사하여 람다에 전달
-    FSoftObjectPath PathToLoad = *FoundPath;
-
-    Streamable.RequestAsyncLoad(
-        PathToLoad,
-        FStreamableDelegate::CreateLambda([Callback, PathToLoad]()
-        {
-            UDataAsset* LoadedAsset = nullptr;
-            
-            if (UObject* ResolvedObj = PathToLoad.ResolveObject())
-            {
-                LoadedAsset = Cast<UDataAsset>(ResolvedObj);
-            }
-
-            Callback.ExecuteIfBound(LoadedAsset);
-        })
-    );
+    return nullptr;
 }
 
-void UHktAssetSubsystem::BuildAssetIndex()
+void UHktAssetSubsystem::RebuildTagMap()
 {
-    if (bIsIndexBuilt)
-    {
-        return;
-    }
+    TagToPathMap.Empty();
 
     FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
     IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-    TArray<FAssetData> AssetDataList;
-    
-    // 특정 파생 클래스가 아닌, 모든 UDataAsset 기반 에셋을 대상으로 검색합니다.
-    // 이렇게 하면 HktActionDataAsset 뿐만 아니라 다른 타입의 DataAsset도 태그만 있다면 자동으로 인덱싱됩니다.
-    FTopLevelAssetPath ClassPath = UDataAsset::StaticClass()->GetClassPathName();
-    AssetRegistry.GetAssetsByClass(ClassPath, AssetDataList, true);
+    FARFilter Filter;
+    Filter.ClassPaths.Add(UHktTagDataAsset::StaticClass()->GetClassPathName());
+    Filter.bRecursiveClasses = true;
 
-    const FName TagName = TEXT("ActionTag");
+    TArray<FAssetData> AssetList;
+    AssetRegistry.GetAssets(Filter, AssetList);
 
-    for (const FAssetData& Data : AssetDataList)
+    for (const FAssetData& AssetData : AssetList)
     {
-        // 에셋 레지스트리에 'ActionTag' 메타데이터가 있는지 확인
-        if (Data.TagsAndValues.Contains(TagName))
+        FString TagString;
+        if (AssetData.GetTagValue(FName("IdentifierTag"), TagString))
         {
-            FAssetTagValueRef ValueRef = Data.TagsAndValues.FindTag(TagName);
-            FGameplayTag ActionTag = FGameplayTag::RequestGameplayTag(ValueRef.AsName());
-
-            if (ActionTag.IsValid())
+            FGameplayTag FoundTag = FGameplayTag::RequestGameplayTag(FName(*TagString));
+            if (FoundTag.IsValid())
             {
-                // 중복 태그 감지 및 처리
-                if (AssetIndex.Contains(ActionTag))
-                {
-                    // 어떤 에셋이 덮어쓰여지는지 로그로 명확히 남겨 디버깅을 돕습니다.
-                    UE_LOG(LogTemp, Warning, TEXT("UHktAssetSubsystem: Duplicate Tag [%s] detected. Asset [%s] will overwrite existing entry."), 
-                        *ActionTag.ToString(), 
-                        *Data.AssetName.ToString());
-                }
-                AssetIndex.Add(ActionTag, Data.ToSoftObjectPath());
+                // SoftObjectPath만 저장하여 메모리 절약
+                TagToPathMap.Add(FoundTag, AssetData.ToSoftObjectPath());
             }
         }
     }
+}
 
-    bIsIndexBuilt = true;
+UHktTagDataAsset* UHktAssetSubsystem::LoadAssetSync(FGameplayTag Tag)
+{
+    if (!Tag.IsValid()) return nullptr;
+
+    if (const FSoftObjectPath* Path = TagToPathMap.Find(Tag))
+    {
+        if (Path->IsValid())
+        {
+            // ResolveObject는 이미 메모리에 있는 경우 빠르게 가져옵니다.
+            if (UObject* ResolvedObj = Path->ResolveObject())
+            {
+                return Cast<UHktTagDataAsset>(ResolvedObj);
+            }
+            // 메모리에 없다면 동기 로드 (프레임 드랍 주의)
+            return Cast<UHktTagDataAsset>(Path->TryLoad());
+        }
+    }
+    return nullptr;
+}
+
+void UHktAssetSubsystem::LoadAssetAsync(FGameplayTag Tag, FStreamableDelegate DelegateToCall)
+{
+    if (!Tag.IsValid())
+    {
+        DelegateToCall.ExecuteIfBound();
+        return;
+    }
+
+    if (const FSoftObjectPath* Path = TagToPathMap.Find(Tag))
+    {
+        if (Path->IsValid())
+        {
+            StreamableManager.RequestAsyncLoad(*Path, DelegateToCall);
+            return;
+        }
+    }
+    
+    // 실패 시에도 델리게이트는 실행해주는 것이 안전할 수 있음 (상황에 따라 다름)
+    UE_LOG(LogTemp, Warning, TEXT("[HktAssetSubsystem] Async Load Failed: Tag not found %s"), *Tag.ToString());
+}
+
+void UHktAssetSubsystem::LoadAssetAsync(FGameplayTag Tag, TFunction<void(UHktTagDataAsset*)> OnLoaded)
+{
+    // C++ 람다 편의 함수 구현
+    // FStreamableDelegate를 생성하여 내부적으로 연결합니다.
+    FStreamableDelegate Delegate = FStreamableDelegate::CreateUObject(this, &UHktAssetSubsystem::OnAssetLoadedInternal, Tag, OnLoaded);
+    LoadAssetAsync(Tag, Delegate);
+}
+
+void UHktAssetSubsystem::OnAssetLoadedInternal(FGameplayTag Tag, TFunction<void(UHktTagDataAsset*)> Callback)
+{
+    // 로딩이 완료된 시점에 호출됩니다.
+    // 이때는 이미 메모리에 올라와 있으므로 LoadAssetSync가 즉시 리턴됩니다.
+    UHktTagDataAsset* LoadedAsset = LoadAssetSync(Tag);
+    
+    if (Callback)
+    {
+        Callback(LoadedAsset);
+    }
 }

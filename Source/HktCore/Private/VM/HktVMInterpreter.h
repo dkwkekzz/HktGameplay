@@ -20,12 +20,6 @@ public:
     
     /** VM을 yield/완료/실패까지 실행 */
     EVMStatus Execute(FHktVMRuntime& Runtime);
-    
-    /** 이벤트 완료 알림 (외부에서 호출) */
-    void NotifyCollision(FHktVMRuntime& Runtime, EntityId HitEntity);
-    void NotifyAnimEnd(FHktVMRuntime& Runtime);
-    void NotifyMoveEnd(FHktVMRuntime& Runtime);
-    void UpdateTimer(FHktVMRuntime& Runtime, float DeltaSeconds);
 
 private:
     EVMStatus ExecuteInstruction(FHktVMRuntime& Runtime, const FInstruction& Inst);
@@ -41,8 +35,6 @@ private:
     
     // ===== Event Wait =====
     EVMStatus Op_WaitCollision(FHktVMRuntime& Runtime, RegisterIndex WatchEntity);
-    EVMStatus Op_WaitAnimEnd(FHktVMRuntime& Runtime, RegisterIndex Entity);
-    EVMStatus Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterIndex Entity);
     
     // ===== Data Operations =====
     void Op_LoadConst(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 Value);

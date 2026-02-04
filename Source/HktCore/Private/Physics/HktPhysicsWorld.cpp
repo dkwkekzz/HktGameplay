@@ -27,60 +27,48 @@ void FHktPhysicsWorld::Initialize(IHktStashInterface* InStash)
 {
     Stash = InStash;
     bActiveCollidersDirty = true;
-    bTickEnabled = true;
-    
+
     UE_LOG(LogTemp, Log, TEXT("[PhysicsWorld] Initialized"));
 }
 
 void FHktPhysicsWorld::Shutdown()
 {
-    OnCollisionDetected.Unbind();
     WatchedEntities.Empty();
     ActiveColliders.Empty();
     Stash = nullptr;
-    
+
     UE_LOG(LogTemp, Log, TEXT("[PhysicsWorld] Shutdown"));
 }
 
 // ============================================================================
-// IHktTickable 구현
+// Watch 기반 충돌 감지
 // ============================================================================
 
-void FHktPhysicsWorld::Tick(float DeltaSeconds)
-{
-    DetectCollisions();
-}
-
-// ============================================================================
-// 충돌 감지 (내부)
-// ============================================================================
-
-void FHktPhysicsWorld::DetectCollisions()
+int32 FHktPhysicsWorld::DetectWatchedCollisions(TArray<FHktCollisionPair>& OutCollisions)
 {
     if (!Stash || WatchedEntities.Num() == 0)
     {
-        return;
+        return 0;
     }
-    
+
     RefreshActiveColliders();
-    
-    // WatchedEntities 복사 (콜백 중 변경 가능성)
-    TArray<FHktEntityId> WatchedCopy = WatchedEntities.Array();
-    
-    for (FHktEntityId WatchedEntity : WatchedCopy)
+
+    int32 CollisionCount = 0;
+
+    for (FHktEntityId WatchedEntity : WatchedEntities)
     {
         if (!IsValidCollider(WatchedEntity))
         {
             continue;
         }
-        
+
         // Watch 엔티티 정보 캐싱
         const FVector WatchedPos = GetEntityPosition(WatchedEntity);
         const EHktColliderType WatchedType = GetColliderType(WatchedEntity);
         const float WatchedRadius = GetColliderRadius(WatchedEntity);
-        const float WatchedHalfHeight = (WatchedType == EHktColliderType::Capsule) 
+        const float WatchedHalfHeight = (WatchedType == EHktColliderType::Capsule)
             ? GetCapsuleHalfHeight(WatchedEntity) : 0.f;
-        
+
         // 모든 활성 충돌체와 비교
         for (FHktEntityId OtherEntity : ActiveColliders)
         {
@@ -88,36 +76,38 @@ void FHktPhysicsWorld::DetectCollisions()
             {
                 continue;
             }
-            
+
             if (!CanCollide(WatchedEntity, OtherEntity))
             {
                 continue;
             }
-            
+
             const FVector OtherPos = GetEntityPosition(OtherEntity);
             const EHktColliderType OtherType = GetColliderType(OtherEntity);
             const float OtherRadius = GetColliderRadius(OtherEntity);
             const float OtherHalfHeight = (OtherType == EHktColliderType::Capsule)
                 ? GetCapsuleHalfHeight(OtherEntity) : 0.f;
-            
+
             if (HktPhysics::OverlapColliders(
                 WatchedType, WatchedPos, WatchedRadius, WatchedHalfHeight,
                 OtherType, OtherPos, OtherRadius, OtherHalfHeight))
             {
-                // 충돌 발생! 콜백 호출
-                if (OnCollisionDetected.IsBound())
-                {
-                    OnCollisionDetected.Execute(WatchedEntity, OtherEntity);
-                }
-                
+                FHktCollisionPair Pair;
+                Pair.EntityA = WatchedEntity;
+                Pair.EntityB = OtherEntity;
+                OutCollisions.Add(Pair);
+                ++CollisionCount;
+
                 UE_LOG(LogTemp, Verbose, TEXT("[PhysicsWorld] Collision: %d <-> %d"),
                     WatchedEntity.RawValue, OtherEntity.RawValue);
-                
+
                 // 첫 번째 충돌만 보고
                 break;
             }
         }
     }
+
+    return CollisionCount;
 }
 
 int32 FHktPhysicsWorld::DetectAllCollisions(TArray<FHktCollisionPair>& OutPairs)
@@ -597,8 +587,8 @@ int32 FHktPhysicsWorld::GetActiveColliderCount() const
 FString FHktPhysicsWorld::GetDebugString() const
 {
     RefreshActiveColliders();
-    return FString::Printf(TEXT("[PhysicsWorld] Active=%d, Watched=%d, TickEnabled=%s"),
-        ActiveColliders.Num(), WatchedEntities.Num(), bTickEnabled ? TEXT("Y") : TEXT("N"));
+    return FString::Printf(TEXT("[PhysicsWorld] Active=%d, Watched=%d"),
+        ActiveColliders.Num(), WatchedEntities.Num());
 }
 
 FString FHktPhysicsWorld::GetColliderDebugString(FHktEntityId Entity) const

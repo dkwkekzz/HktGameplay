@@ -11,6 +11,7 @@
 #include "Styling/SlateBrush.h"
 
 class SEditableTextBox;
+class UHktWidgetLoginHudDataAsset;
 
 DECLARE_DELEGATE_TwoParams(FOnHktLoginRequested, const FString&, const FString&);
 
@@ -18,20 +19,25 @@ DECLARE_DELEGATE_TwoParams(FOnHktLoginRequested, const FString&, const FString&)
  * 로그인 화면 Slate 위젯.
  * ID/비밀번호 입력, 로그인 버튼. 배경 Brush는 인자로 전달 가능.
  */
-class HKTPRESENTATION_API SHktLoginWidget : public SCompoundWidget
+class HKTPRESENTATION_API SHktLoginHudWidget : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SHktLoginWidget) {}
+	SLATE_BEGIN_ARGS(SHktLoginHudWidget) {}
 		/** 로그인 버튼 클릭 시 (ID, PW) */
 		SLATE_EVENT(FOnHktLoginRequested, OnLoginRequested)
 		/** 배경 Brush (일러스트 등). 없으면 비움 */
 		SLATE_ARGUMENT(TOptional<FSlateBrush>, BackgroundBrush)
+		/** 로그인 위젯용 데이터 에셋 (미디어 등 이미 로드된 상태로 전달) */
+		SLATE_ARGUMENT(UHktWidgetLoginHudDataAsset*, LoginWidgetDataAsset)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 
 private:
 	FReply OnLoginClicked();
+
+	/** 데이터 에셋에서 미디어를 꺼내 동영상 배경 적용 */
+	void ApplyVideoFromDataAsset(UHktWidgetLoginHudDataAsset* DataAsset);
 
 	TSharedPtr<SEditableTextBox> IdTextBox;
 	TSharedPtr<SEditableTextBox> PasswordTextBox;

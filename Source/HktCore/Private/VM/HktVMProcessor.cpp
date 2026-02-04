@@ -57,46 +57,16 @@ void FHktVMProcessor::NotifyIntentEvent(const FHktIntentEvent& Event)
 }
 
 // ============================================================================
-// Event Notifications
+// Event Notification (큐에 적재만, Execute에서 일괄 처리)
 // ============================================================================
 
-void FHktVMProcessor::NotifyCollision(EntityId WatchedEntity, EntityId HitEntity)
+void FHktVMProcessor::NotifyCollision(FHktEntityId WatchedEntity, FHktEntityId HitEntity)
 {
-    RuntimePool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
-    {
-        if (Runtime.Status == EVMStatus::WaitingEvent &&
-            Runtime.EventWait.Type == EWaitEventType::Collision &&
-            Runtime.EventWait.WatchedEntity == WatchedEntity)
-        {
-            Interpreter->NotifyCollision(Runtime, HitEntity);
-        }
-    });
-}
-
-void FHktVMProcessor::NotifyAnimEnd(EntityId Entity)
-{
-    RuntimePool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
-    {
-        if (Runtime.Status == EVMStatus::WaitingEvent &&
-            Runtime.EventWait.Type == EWaitEventType::AnimationEnd &&
-            Runtime.EventWait.WatchedEntity == Entity)
-        {
-            Interpreter->NotifyAnimEnd(Runtime);
-        }
-    });
-}
-
-void FHktVMProcessor::NotifyMoveEnd(EntityId Entity)
-{
-    RuntimePool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
-    {
-        if (Runtime.Status == EVMStatus::WaitingEvent &&
-            Runtime.EventWait.Type == EWaitEventType::MovementEnd &&
-            Runtime.EventWait.WatchedEntity == Entity)
-        {
-            Interpreter->NotifyMoveEnd(Runtime);
-        }
-    });
+    FHktPendingEvent Event;
+    Event.Type = EWaitEventType::Collision;
+    Event.WatchedEntity = WatchedEntity;
+    Event.HitEntity = HitEntity;
+    PendingExternalEvents.Add(Event);
 }
 
 // ============================================================================
@@ -118,22 +88,6 @@ void FHktVMProcessor::Build(int32 CurrentFrame)
     
     ActiveVMs.Append(PendingVMs);
     PendingVMs.Reset();
-    
-    // Yielded VM 재활성화
-    RuntimePool.ForEachActive([](FHktVMHandle Handle, FHktVMRuntime& Runtime)
-    {
-        if (Runtime.Status == EVMStatus::Yielded)
-        {
-            if (Runtime.WaitFrames <= 0)
-            {
-                Runtime.Status = EVMStatus::Ready;
-            }
-            else
-            {
-                Runtime.WaitFrames--;
-            }
-        }
-    });
 }
 
 TArray<FHktIntentEvent> FHktVMProcessor::PullIntentEvents()
@@ -230,20 +184,66 @@ TOptional<FHktVMHandle> FHktVMProcessor::TryCreateVM(const FHktIntentEvent& Even
 
 void FHktVMProcessor::Execute(float DeltaSeconds)
 {
+    // 외부 이벤트를 로컬로 이동 (순회 중 새 이벤트 추가 방지)
+    TArray<FHktPendingEvent> ExternalEvents = MoveTemp(PendingExternalEvents);
+    PendingExternalEvents.Reset();
+
+    // 단일 ForEachActive — 이벤트 매칭 + 상태 전환을 한 번의 순회로
     RuntimePool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
     {
-        if (Runtime.Status == EVMStatus::WaitingEvent &&
-            Runtime.EventWait.Type == EWaitEventType::Timer)
+        // 1) WaitingEvent VM: 외부 이벤트 매칭 또는 타이머 업데이트
+        if (Runtime.Status == EVMStatus::WaitingEvent)
         {
-            Interpreter->UpdateTimer(Runtime, DeltaSeconds);
+            if (Runtime.EventWait.Type == EWaitEventType::Timer)
+            {
+                Runtime.EventWait.RemainingTime -= DeltaSeconds;
+                if (Runtime.EventWait.RemainingTime <= 0.0f)
+                {
+                    Runtime.EventWait.Reset();
+                    Runtime.Status = EVMStatus::Ready;
+                }
+            }
+            else
+            {
+                // 큐에서 매칭되는 이벤트 검색
+                for (int32 i = ExternalEvents.Num() - 1; i >= 0; --i)
+                {
+                    if (ExternalEvents[i].Type == Runtime.EventWait.Type &&
+                        ExternalEvents[i].WatchedEntity == Runtime.EventWait.WatchedEntity)
+                    {
+                        if (ExternalEvents[i].Type == EWaitEventType::Collision)
+                        {
+                            Runtime.SetRegEntity(Reg::Hit, ExternalEvents[i].HitEntity);
+                        }
+                        Runtime.EventWait.Reset();
+                        Runtime.Status = EVMStatus::Ready;
+                        ExternalEvents.RemoveAtSwap(i);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 2) Yielded VM: 프레임 카운트다운
+        if (Runtime.Status == EVMStatus::Yielded)
+        {
+            if (Runtime.WaitFrames <= 0)
+            {
+                Runtime.Status = EVMStatus::Ready;
+            }
+            else
+            {
+                Runtime.WaitFrames--;
+            }
         }
     });
-    
+
+    // VM 실행
     for (int32 i = ActiveVMs.Num() - 1; i >= 0; --i)
     {
         FHktVMHandle Handle = ActiveVMs[i];
         EVMStatus Status = ExecuteUntilYield(Handle, DeltaSeconds);
-        
+
         if (Status == EVMStatus::Completed || Status == EVMStatus::Failed)
         {
             CompletedVMs.Add(Handle);

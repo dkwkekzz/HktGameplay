@@ -83,8 +83,16 @@ enum class EWaitEventType : uint8
     None,
     Timer,
     Collision,
-    AnimationEnd,
-    MovementEnd,
+};
+
+/**
+ * FHktPendingEvent - 외부에서 주입된 이벤트 (큐에 적재, Execute에서 일괄 처리)
+ */
+struct FHktPendingEvent
+{
+    EWaitEventType Type = EWaitEventType::None;
+    FHktEntityId WatchedEntity = InvalidEntityId;
+    FHktEntityId HitEntity = InvalidEntityId;  // Collision 전용
 };
 
 // ============================================================================
@@ -104,8 +112,6 @@ enum class EOpCode : uint8
     
     // Event Wait
     WaitCollision,          // 충돌 이벤트 대기
-    WaitAnimEnd,            // 애니메이션 종료 대기
-    WaitMoveEnd,            // 이동 완료 대기
     
     // Data Operations
     LoadConst,              // 상수 → 레지스터

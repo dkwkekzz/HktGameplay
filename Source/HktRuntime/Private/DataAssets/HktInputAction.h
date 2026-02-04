@@ -18,7 +18,7 @@ enum class EHktActionTargetType : uint8
 };
 
 UCLASS(BlueprintType)
-class HKTASSET_API UHktInputAction : public UInputAction
+class HKTRUNTIME_API UHktInputAction : public UInputAction
 {
 	GENERATED_BODY()
 

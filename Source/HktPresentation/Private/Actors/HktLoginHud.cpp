@@ -1,12 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktLoginHud.h"
-#include "Slates/SHktLoginWidget.h"
 #include "HktUserEventConsumer.h"
-#include "Settings/HktPresentationGlobalSetting.h"
+#include "DataAssets/HktWidgetLoginHudDataAsset.h"
+#include "HktAssetSubsystem.h"
+#include "HktGameplayTags.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/Texture2D.h"
+#include "Engine/World.h"
+#include "Misc/Optional.h"
 
 AHktLoginHud::AHktLoginHud()
 {
@@ -37,20 +40,6 @@ void AHktLoginHud::AddLoginWidgetToViewport()
 		return;
 	}
 
-	TOptional<FSlateBrush> BackgroundBrush;
-	const UHktPresentationGlobalSetting* Settings = GetDefault<UHktPresentationGlobalSetting>();
-	if (Settings && Settings->LoginBackgroundTexture.IsValid())
-	{
-		if (UTexture2D* Tex = Settings->LoginBackgroundTexture.LoadSynchronous())
-		{
-			FSlateBrush Brush;
-			Brush.SetResourceObject(Tex);
-			Brush.ImageSize = FVector2D(Tex->GetSizeX(), Tex->GetSizeY());
-			Brush.DrawAs = ESlateBrushDrawType::Image;
-			BackgroundBrush = Brush;
-		}
-	}
-
 	FOnHktLoginRequested OnLogin;
 	OnLogin.BindLambda([this](const FString& ID, const FString& PW)
 	{
@@ -63,9 +52,45 @@ void AHktLoginHud::AddLoginWidgetToViewport()
 		}
 	});
 
-	LoginWidgetSlate = SNew(SHktLoginWidget)
+	UHktAssetSubsystem* Subsystem = UHktAssetSubsystem::Get(GetWorld());
+	if (!Subsystem)
+	{
+		return;
+	}
+	
+	Subsystem->LoadAssetAsync(HktGameplayTags::Widget_LoginHud, [this, OnLogin, Subsystem](UHktTagDataAsset* Asset)
+	{
+		UHktWidgetLoginHudDataAsset* Config = Cast<UHktWidgetLoginHudDataAsset>(Asset);
+		if (!Config)
+		{
+			return;
+		}
+
+		TOptional<FSlateBrush> BackgroundBrush;
+		if (UTexture2D* Tex = Config->LoginBackgroundTexture)
+		{
+			FSlateBrush Brush;
+			Brush.SetResourceObject(Tex);
+			Brush.ImageSize = FVector2D(Tex->GetSizeX(), Tex->GetSizeY());
+			Brush.DrawAs = ESlateBrushDrawType::Image;
+			BackgroundBrush = Brush;
+		}
+
+		CreateAndAddLoginWidget(OnLogin, BackgroundBrush, Config);
+	});
+}
+
+void AHktLoginHud::CreateAndAddLoginWidget(
+	const FOnHktLoginRequested& OnLogin,
+	const TOptional<FSlateBrush>& BackgroundBrush,
+	UHktWidgetLoginHudDataAsset* LoginWidgetDataAsset)
+{
+	if (!GEngine || !GEngine->GameViewport) { return; }
+
+	LoginWidgetSlate = SNew(SHktLoginHudWidget)
 		.OnLoginRequested(OnLogin)
-		.BackgroundBrush(BackgroundBrush);
+		.BackgroundBrush(BackgroundBrush)
+		.LoginWidgetDataAsset(LoginWidgetDataAsset);
 
 	GEngine->GameViewport->AddViewportWidgetContent(LoginWidgetSlate.ToSharedRef());
 }

@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "Slates/SHktLoginHudWidget.h"
 #include "HktLoginHud.generated.h"
 
-class SHktLoginWidget;
+class UHktWidgetLoginHudDataAsset;
 
 /**
  * 로그인 맵 전용 HUD.
@@ -26,6 +27,7 @@ protected:
 
 private:
 	void AddLoginWidgetToViewport();
+	void CreateAndAddLoginWidget(const FOnHktLoginRequested& OnLogin, const TOptional<struct FSlateBrush>& BackgroundBrush, UHktWidgetLoginHudDataAsset* LoginWidgetDataAsset);
 	void RemoveLoginWidgetFromViewport();
 
 	TSharedPtr<class SWidget> LoginWidgetSlate;
