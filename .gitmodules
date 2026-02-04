@@ -1,0 +1,3 @@
+[submodule "Plugins/HktBase"]
+	path = Plugins/HktBase
+	url = https://github.com/dkwkekzz/HktBase.git
