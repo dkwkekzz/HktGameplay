@@ -21,9 +21,36 @@ void AHktEntryPlayerController::BeginPlay()
 
 void AHktEntryPlayerController::RequestLogin(const FString& ID, const FString& PW)
 {
-	// TODO: 실제 웹 API 호출 (HTTP 등). 성공 시 OnLoginSuccess(Token, UserID) 호출
-	// 현재는 목(mock) 구현: 바로 성공으로 처리
-	OnLoginSuccess(TEXT("MockToken_") + ID, ID);
+	// 클라이언트에서 호출 → 서버로 RPC
+	Server_RequestLogin(ID, PW);
+}
+
+bool AHktEntryPlayerController::Server_RequestLogin_Validate(const FString& ID, const FString& PW)
+{
+	return !ID.IsEmpty();
+}
+
+void AHktEntryPlayerController::Server_RequestLogin_Implementation(const FString& ID, const FString& PW)
+{
+	// 서버에서 로그인 검증 (TODO: 실제 웹 API/DB 연동)
+	// 현재는 목(mock): 유효한 ID면 성공
+	const bool bSuccess = !ID.IsEmpty();
+	const FString Token = bSuccess ? (TEXT("MockToken_") + ID) : FString();
+	const FString UserID = bSuccess ? ID : FString();
+
+	Client_ReceiveLoginResult(bSuccess, Token, UserID);
+}
+
+void AHktEntryPlayerController::Client_ReceiveLoginResult_Implementation(bool bSuccess, const FString& Token, const FString& InUserID)
+{
+	if (bSuccess)
+	{
+		OnLoginSuccess(Token, InUserID);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("HktEntryPlayerController: Login failed (server rejected)"));
+	}
 }
 
 void AHktEntryPlayerController::OnLoginSuccess(const FString& Token, const FString& InUserID)
