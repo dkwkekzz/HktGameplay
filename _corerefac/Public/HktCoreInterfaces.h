@@ -156,20 +156,36 @@ public:
  *
  * 외부 모듈(HktRuntime 등)에서 VMProcessor를 사용하기 위한 인터페이스
  * 실제 구현은 HktCore의 FHktVMProcessor에서 제공
+ *
+ * "Resolve Now, React Later" 패턴:
+ * - Tick(): IntentEvent 큐 처리 (유저 입력)
+ * - ProcessSystemEvents(): 지연된 SystemEvent 처리 (충돌 반응 등)
  */
 class HKTCORE_API IHktVMProcessorInterface
 {
 public:
     virtual ~IHktVMProcessorInterface() = default;
 
-    /** 프레임 처리 (Build → Execute → Cleanup 파이프라인) */
+    /** 프레임 처리 (IntentEvent 큐 비우기) */
     virtual void Tick(int32 CurrentFrame, float DeltaSeconds) = 0;
 
     /** Intent 이벤트 알림 */
     virtual void NotifyIntentEvent(const FHktIntentEvent& Event) = 0;
 
-    /** 충돌 알림 (큐에 적재, Execute에서 일괄 처리) */
-    virtual void NotifyCollision(FHktEntityId WatchedEntity, FHktEntityId HitEntity) = 0;
+    /**
+     * SystemEvent 배치 처리 (지연된 충돌 이벤트 등)
+     *
+     * SimulationWorld에서 이전 프레임에 생성된 SystemEvent를
+     * 현재 프레임 시작 시 호출하여 처리합니다.
+     *
+     * @param Events - 처리할 SystemEvent 배열
+     * @param CurrentFrame - 현재 프레임 번호
+     * @param DeltaSeconds - 프레임 간 시간
+     */
+    virtual void ProcessSystemEvents(
+        const TArray<FHktSystemEvent>& Events,
+        int32 CurrentFrame,
+        float DeltaSeconds) = 0;
 };
 
 //=============================================================================

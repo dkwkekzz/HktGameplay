@@ -57,16 +57,25 @@ void FHktVMProcessor::NotifyIntentEvent(const FHktIntentEvent& Event)
 }
 
 // ============================================================================
-// Event Notification (큐에 적재만, Execute에서 일괄 처리)
+// SystemEvent Batch Processing (Resolve Now, React Later 패턴)
 // ============================================================================
 
-void FHktVMProcessor::NotifyCollision(FHktEntityId WatchedEntity, FHktEntityId HitEntity)
+void FHktVMProcessor::ProcessSystemEvents(
+    const TArray<FHktSystemEvent>& Events,
+    int32 CurrentFrame,
+    float DeltaSeconds)
 {
-    FHktPendingEvent Event;
-    Event.Type = EWaitEventType::Collision;
-    Event.WatchedEntity = WatchedEntity;
-    Event.HitEntity = HitEntity;
-    PendingExternalEvents.Add(Event);
+    if (Events.Num() == 0)
+    {
+        return;
+    }
+
+    // Phase 1: SystemEvent로부터 VM 생성
+    BuildSystemEvents(Events, CurrentFrame);
+
+    // Phase 2 & 3: 실행 및 정리
+    Execute(DeltaSeconds);
+    Cleanup(CurrentFrame);
 }
 
 // ============================================================================
@@ -95,6 +104,94 @@ TArray<FHktIntentEvent> FHktVMProcessor::PullIntentEvents()
     TArray<FHktIntentEvent> Result = MoveTemp(PendingEvents);
     PendingEvents.Reset();
     return Result;
+}
+
+void FHktVMProcessor::BuildSystemEvents(const TArray<FHktSystemEvent>& Events, int32 CurrentFrame)
+{
+    for (const FHktSystemEvent& Event : Events)
+    {
+        TOptional<FHktVMHandle> Handle = TryCreateVMForSystemEvent(Event, CurrentFrame);
+        if (Handle.IsSet())
+        {
+            PendingVMs.Add(Handle.GetValue());
+        }
+    }
+
+    ActiveVMs.Append(PendingVMs);
+    PendingVMs.Reset();
+}
+
+TOptional<FHktVMHandle> FHktVMProcessor::TryCreateVMForSystemEvent(const FHktSystemEvent& Event, int32 CurrentFrame)
+{
+    if (!Stash)
+    {
+        return {};
+    }
+
+    // SystemEvent는 SourceEntity가 유효하지 않을 수 있음 (월드 이벤트 등)
+    // 단, 충돌 이벤트의 경우 SourceEntity가 유효해야 함
+    if (Event.SourceEntity != InvalidEntityId && !Stash->IsValidEntity(Event.SourceEntity))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SystemEvent VM creation failed: SourceEntity %d not valid"),
+            Event.SourceEntity.RawValue);
+        return {};
+    }
+
+    const FHktVMProgram* Program = FHktVMProgramRegistry::Get().FindProgram(Event.EventTag);
+    if (!Program)
+    {
+        // SystemEvent 태그에 대응하는 프로그램이 없으면 무시 (정상 케이스일 수 있음)
+        UE_LOG(LogTemp, Verbose, TEXT("No program registered for SystemEvent %s"), *Event.EventTag.ToString());
+        return {};
+    }
+
+    FHktVMHandle Handle = RuntimePool.Allocate();
+    if (!Handle.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SystemEvent VM creation failed: Pool exhausted"));
+        return {};
+    }
+
+    FHktVMRuntime* Runtime = RuntimePool.Get(Handle);
+    check(Runtime);
+
+    // Store 할당
+    FHktVMStore& Store = StorePool[Handle.Index];
+    Store.Stash = Stash;
+    Store.SourceEntity = Event.SourceEntity;
+    Store.TargetEntity = Event.TargetEntity;
+    Store.ClearPendingWrites();
+    Store.LocalCache.Reset();
+
+    // Runtime 초기화
+    Runtime->Program = Program;
+    Runtime->Store = &Store;
+    Runtime->PC = 0;
+    Runtime->Status = EVMStatus::Ready;
+    Runtime->CreationFrame = CurrentFrame;
+    Runtime->WaitFrames = 0;
+    Runtime->EventWait.Reset();
+    Runtime->SpatialQuery.Reset();
+    FMemory::Memzero(Runtime->Registers, sizeof(Runtime->Registers));
+
+#if !UE_BUILD_SHIPPING
+    Runtime->SourceEventId = 0;  // SystemEvent는 EventId가 없음
+#endif
+
+    Runtime->SetRegEntity(Reg::Self, Event.SourceEntity);
+    Runtime->SetRegEntity(Reg::Target, Event.TargetEntity);
+
+    // SystemEvent의 Location과 Param 설정
+    Store.Write(PropertyId::TargetPosX, FMath::RoundToInt(Event.Location.X));
+    Store.Write(PropertyId::TargetPosY, FMath::RoundToInt(Event.Location.Y));
+    Store.Write(PropertyId::TargetPosZ, FMath::RoundToInt(Event.Location.Z));
+    Store.Write(PropertyId::Param0, Event.Param0);
+    Store.Write(PropertyId::Param1, Event.Param1);
+
+    UE_LOG(LogTemp, Log, TEXT("SystemEvent VM created: %s (Source=%d, Target=%d)"),
+        *Event.EventTag.ToString(), Event.SourceEntity.RawValue, Event.TargetEntity.RawValue);
+
+    return Handle;
 }
 
 TOptional<FHktVMHandle> FHktVMProcessor::TryCreateVM(const FHktIntentEvent& Event, int32 CurrentFrame)

@@ -82,4 +82,13 @@ private:
 
     /** 충돌 이벤트 태그 (ON_COLLISION) */
     FGameplayTag CollisionEventTag;
+
+    /**
+     * 다음 프레임에 처리할 SystemEvent 버퍼
+     *
+     * "Resolve Now, React Later" 패턴:
+     * - 현재 프레임에서 충돌 등으로 생성된 SystemEvent는 즉시 처리하지 않음
+     * - 다음 프레임 시작 시 ProcessSystemEvents()로 일괄 처리
+     */
+    TArray<FHktSystemEvent> DeferredSystemEvents;
 };

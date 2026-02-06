@@ -63,6 +63,19 @@ public:
      */
     void UpdateEntityPositions();
 
+    /**
+     * 충돌 감지 + 즉시 Depenetration + SystemEvent 생성
+     *
+     * "Resolve Now, React Later" 패턴:
+     * - [Immediate] 위치 depenetration: 충돌한 엔티티들을 수학적으로 분리
+     * - [Deferred] SystemEvent 생성: 게임플레이 반응은 다음 프레임에 처리
+     *
+     * @param State - 위치 수정을 위한 WorldState 참조
+     * @param OutEvents - 생성된 충돌 이벤트 (다음 프레임에 VM으로 처리)
+     * @return 감지된 충돌 수
+     */
+    int32 ResolveOverlapsAndGenEvents(FHktWorldState& State, TArray<FHktSystemEvent>& OutEvents);
+
     /** 엔티티 생성 시 셀 초기화 */
     void OnEntityAllocated(FHktEntityId Entity);
 
@@ -148,6 +161,9 @@ public:
     /** 활성 충돌체 목록 갱신 플래그 설정 */
     void MarkActiveCollidersDirty() { bActiveCollidersDirty = true; }
 
+    /** 충돌 이벤트 태그 설정 (SimulationWorld 초기화 시 호출) */
+    void SetCollisionEventTag(const FGameplayTag& InTag) { CollisionEventTag = InTag; }
+
     // ========================================================================
     // 디버그
     // ========================================================================
@@ -193,4 +209,7 @@ private:
     TMap<FIntPoint, TSet<FHktEntityId>> CellToEntities;
     TArray<FIntPoint> EntityCells;
     TArray<FHktCellChangeEvent> PendingCellChangeEvents;
+
+    // Collision Event Tag (for SystemEvent generation)
+    FGameplayTag CollisionEventTag;
 };

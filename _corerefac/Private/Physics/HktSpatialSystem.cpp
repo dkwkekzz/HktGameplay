@@ -216,6 +216,66 @@ void FHktSpatialSystem::UpdateEntityCell(FHktEntityId Entity, FIntPoint NewCell)
 }
 
 // ============================================================================
+// Resolve Now, React Later - 충돌 해결 및 이벤트 생성
+// ============================================================================
+
+int32 FHktSpatialSystem::ResolveOverlapsAndGenEvents(
+    FHktWorldState& State,
+    TArray<FHktSystemEvent>& OutEvents)
+{
+    TArray<FHktCollisionPair> Collisions;
+    DetectWatchedCollisions(Collisions);
+
+    int32 ResolvedCount = 0;
+
+    for (const FHktCollisionPair& Pair : Collisions)
+    {
+        FHktCollisionResult Result;
+        if (!TestEntityCollision(Pair.EntityA, Pair.EntityB, Result))
+        {
+            continue;
+        }
+
+        // ============================================================
+        // [Immediate] Position Depenetration
+        // 수학적으로 즉시 분리 → 시각적 떨림 방지
+        // ============================================================
+        FVector PosA, PosB;
+        if (State.TryGetPosition(Pair.EntityA, PosA) &&
+            State.TryGetPosition(Pair.EntityB, PosB))
+        {
+            const float HalfPenetration = Result.PenetrationDepth * 0.5f;
+            PosA -= Result.ContactNormal * HalfPenetration;
+            PosB += Result.ContactNormal * HalfPenetration;
+
+            State.SetPosition(Pair.EntityA, PosA);
+            State.SetPosition(Pair.EntityB, PosB);
+
+            UE_LOG(LogTemp, Verbose, TEXT("[SpatialSystem] Depenetrated: %d <-> %d, Depth=%.2f"),
+                Pair.EntityA.RawValue, Pair.EntityB.RawValue, Result.PenetrationDepth);
+        }
+
+        // ============================================================
+        // [Deferred] Generate Collision SystemEvent
+        // 게임플레이 로직(HP 감소, 사망 등)은 다음 프레임에 처리
+        // ============================================================
+        if (CollisionEventTag.IsValid())
+        {
+            FHktSystemEvent CollisionEvent;
+            CollisionEvent.EventTag = CollisionEventTag;
+            CollisionEvent.SourceEntity = Pair.EntityA;
+            CollisionEvent.TargetEntity = Pair.EntityB;
+            CollisionEvent.Location = Result.ContactPoint;
+            OutEvents.Add(CollisionEvent);
+        }
+
+        ++ResolvedCount;
+    }
+
+    return ResolvedCount;
+}
+
+// ============================================================================
 // Watch 기반 충돌 감지
 // ============================================================================
 
