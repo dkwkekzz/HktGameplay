@@ -1,21 +1,31 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktPersistentTickComponent.h"
-#include "HktFilePersistentTickProvider.h"
+#include "HktPersistentFrameComponent.h"
+#include "HktPersistentFrameProvider.h"
 
-UHktPersistentTickComponent::UHktPersistentTickComponent()
+UHktPersistentFrameComponent::UHktPersistentFrameComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
-    Provider = MakeUnique<FHktFilePersistentTickProvider>();
+    Provider = MakeUnique<FHktFilePersistentFrameManager>();
 }
 
-void UHktPersistentTickComponent::BeginPlay()
+void UHktPersistentFrameComponent::BeginPlay()
 {
     Super::BeginPlay();
     ReserveNextBatch();
 }
 
-int64 UHktPersistentTickComponent::AdvanceFrame()
+bool UHktPersistentFrameComponent::IsInitialized() const
+{
+    return bIsInitialized;
+}
+
+int64 UHktPersistentFrameComponent::GetFrameNumber() const
+{
+    return CurrentFrame;
+}
+
+void UHktPersistentFrameComponent::AdvanceFrame()
 {
     if (!bIsInitialized)
     {
