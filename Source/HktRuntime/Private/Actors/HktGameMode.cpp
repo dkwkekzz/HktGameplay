@@ -1,5 +1,5 @@
 #include "HktGameMode.h"
-#include "HktPlayerController.h"
+#include "HktInGamePlayerController.h"
 #include "HktPlayerState.h"
 #include "Components/HktMasterStashComponent.h"
 #include "Components/HktGridRelevancyComponent.h"
@@ -68,7 +68,7 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
 {
     Super::PostLogin(NewPlayer);
 
-    AHktPlayerController* HktPC = Cast<AHktPlayerController>(NewPlayer);
+    AHktInGamePlayerController* HktPC = Cast<AHktInGamePlayerController>(NewPlayer);
     if (!HktPC) return;
 
     FString PlayerId = GetPlayerId(NewPlayer);
@@ -91,7 +91,7 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
 
 void AHktGameMode::Logout(AController* Exiting)
 {
-    AHktPlayerController* HktPC = Cast<AHktPlayerController>(Exiting);
+    AHktInGamePlayerController* HktPC = Cast<AHktInGamePlayerController>(Exiting);
     if (HktPC)
     {
         SavePlayerEntities(HktPC);
@@ -140,7 +140,7 @@ int32 AHktGameMode::GenerateEventId()
     return NextEventId++;
 }
 
-void AHktGameMode::LoadPlayerEntities(AHktPlayerController* PC, FHktPlayerRecord& Record)
+void AHktGameMode::LoadPlayerEntities(AHktInGamePlayerController* PC, FHktPlayerRecord& Record)
 {
     if (!MasterStash || !PlayerDatabase || !PC)
     {
@@ -209,7 +209,7 @@ void AHktGameMode::LoadPlayerEntities(AHktPlayerController* PC, FHktPlayerRecord
         Record.OwnedEntities.Num(), *PlayerId);
 }
 
-void AHktGameMode::SavePlayerEntities(AHktPlayerController* PC)
+void AHktGameMode::SavePlayerEntities(AHktInGamePlayerController* PC)
 {
     if (!MasterStash || !PlayerDatabase || !PC)
     {
@@ -268,7 +268,7 @@ void AHktGameMode::SavePlayerEntities(AHktPlayerController* PC)
     UE_LOG(LogTemp, Log, TEXT("HktGameMode: Saved entities for player %s"), *PlayerId);
 }
 
-FVector AHktGameMode::GetSpawnLocationForPlayer_Implementation(AHktPlayerController* PC)
+FVector AHktGameMode::GetSpawnLocationForPlayer_Implementation(AHktInGamePlayerController* PC)
 {
     return FVector(0.0f, 0.0f, 100.0f);
 }
@@ -299,7 +299,7 @@ void AHktGameMode::ProcessFrame()
         GridRelevancy->UpdateRelevancy();
     }
 
-    const TArray<AHktPlayerController*>& AllClients = GridRelevancy->GetAllClients();
+    const TArray<AHktInGamePlayerController*>& AllClients = GridRelevancy->GetAllClients();
     
     // 1. Intent 가져오기 (락 최소화)
     {
@@ -334,7 +334,7 @@ void AHktGameMode::ProcessFrame()
 
     ParallelFor(NumClients, [&](int32 ClientIndex)
     {
-        AHktPlayerController* PC = AllClients[ClientIndex];
+        AHktInGamePlayerController* PC = AllClients[ClientIndex];
         FHktFrameBatch& Batch = Batches[ClientIndex];
         ProcessFrameClientBatch(PC, Batch);
     });
@@ -392,7 +392,7 @@ void AHktGameMode::ProcessFrameEventCell()
     }
 }
 
-void AHktGameMode::ProcessFrameClientBatch(AHktPlayerController*& PC, FHktFrameBatch& Batch)
+void AHktGameMode::ProcessFrameClientBatch(AHktInGamePlayerController*& PC, FHktFrameBatch& Batch)
 {
     Batch.FrameNumber = GetFrameNumber();
 

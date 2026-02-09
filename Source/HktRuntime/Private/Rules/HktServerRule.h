@@ -15,10 +15,10 @@ public:
     virtual int64 GetPlayerUid() const = 0;
 
     // Existing Users: Batch(Input)를 받아 시뮬레이션 수행
-    virtual void Client_ReceiveFrameBatch(const FHktFrameBatch& Batch) = 0;
+    virtual void SendFrameBatch(const FHktFrameBatch& Batch) = 0;
 
     // Newbie Users: State(Result)를 받아 즉시 동기화 (Batch 처리 생략)
-    virtual void Client_ReceiveInitialState(const FHktGroupSimulationState& InitialState) = 0;
+    virtual void SendInitialSimulationState(const FHktGroupSimulationState& InitialState) = 0;
 };
 
 //=============================================================================
@@ -68,7 +68,6 @@ public:
     virtual IHktSimulator& GetSimulator() = 0;
     virtual const TArray<int64>& GetPlayerUids() const = 0;
     virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const = 0;
-    virtual const FHktGroupSimulationState& GetCurrentSimulationState() const = 0;
 };
 
 //=============================================================================
@@ -154,16 +153,29 @@ public:
     virtual void OnReceived_FireIntentEvent(const FHktIntentEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector) override;
     virtual void OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) override;
     virtual void OnLogout_ExitWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) override;
+    virtual void OnEvent_RequestAutosave(int64 PlayerUid) override;
+    virtual void OnTick_ProcessPendingConnections(IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktWorldDatabase& InDB, TFunction<IHktWorldPlayer*(const FHktPlayerRecord&)> PlayerFactory) override;
     virtual void OnTick_ExecuteFrame(const IHktPersistentFrame& InFrame, const IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& OutBuilder) override;
     virtual void OnTick_SendFrameBatch(const IHktRelevancyGraph& InGraph, const IHktBatchBuilder& InBuilder) override;
 
 private:
-    // [최적화] 무거운 구조체 대신 UniquePtr를 사용하여 큐 복사 비용 최소화 (8바이트 복사)
-    TQueue<TUniquePtr<FHktPlayerRecord>, EQueueMode::Mpsc> PendingLoginResults;
+    // [구조 변경] 로그인 결과에 플레이어 포인터를 함께 저장하기 위한 구조체
+    struct FPendingLoginResult
+    {
+        IHktWorldPlayer* Player = nullptr;
+        TUniquePtr<FHktPlayerRecord> Record;
+    };
 
+    // [최적화] 구조체를 담는 큐로 변경
+    TQueue<FPendingLoginResult, EQueueMode::Mpsc> PendingLoginResults;
+    
     // 로그아웃 요청 큐 (Uid)
     TQueue<int64, EQueueMode::Mpsc> PendingLogoutRequests;
 
     // 수시 저장(Autosave) 요청 큐
     TQueue<int64, EQueueMode::Mpsc> PendingAutosaveRequests;
+
+    // [상용 최적화] Autosave 중복 요청 방지용 Set & Lock
+    FCriticalSection AutosaveQueueLock;
+    TSet<int64> QueuedAutosaveUids;
 };

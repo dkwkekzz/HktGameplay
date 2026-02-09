@@ -11,7 +11,7 @@ class UHktGridRelevancyComponent;
 class UHktVMProcessorComponent;
 class UHktPlayerDatabaseComponent;
 class UHktPersistentTickComponent;
-class AHktPlayerController;
+class AHktInGamePlayerController;
 class IHktStashInterface;
 
 /**
@@ -40,13 +40,13 @@ public:
     int32 GenerateEventId();
 
     /** 플레이어의 엔티티들을 MasterStash에 로드하고 Spawn 이벤트 발행 */
-    void LoadPlayerEntities(AHktPlayerController* PC, FHktPlayerRecord& Record);
+    void LoadPlayerEntities(AHktInGamePlayerController* PC, FHktPlayerRecord& Record);
     
     /** 로그아웃 시 엔티티 상태를 DB에 저장 */
-    void SavePlayerEntities(AHktPlayerController* PC);
+    void SavePlayerEntities(AHktInGamePlayerController* PC);
     
     UFUNCTION(BlueprintNativeEvent, Category = "Hkt")
-    FVector GetSpawnLocationForPlayer(AHktPlayerController* PC);
+    FVector GetSpawnLocationForPlayer(AHktInGamePlayerController* PC);
 
 protected:
     virtual void BeginPlay() override;
@@ -57,7 +57,7 @@ protected:
 
     void ProcessFrame();
     void ProcessFrameEventCell();
-    void ProcessFrameClientBatch(AHktPlayerController*& PC, FHktFrameBatch& Batch);
+    void ProcessFrameClientBatch(AHktInGamePlayerController*& PC, FHktFrameBatch& Batch);
 
     virtual FString GetPlayerId(APlayerController* PC) const;
 

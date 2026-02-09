@@ -19,14 +19,9 @@ UHktRuleSubsystem* UHktRuleSubsystem::Get(UWorld* World)
     return nullptr;
 }
 
-void UHktRuleSubsystem::RegisterServerRule(TSharedPtr<IHktServerRule> InRule)
+void UHktRuleSubsystem::SetServerRule(TSharedPtr<IHktServerRule> InRule)
 {
     ServerRule = InRule;
-}
-
-void UHktRuleSubsystem::UnregisterServerRule()
-{
-    ServerRule.Reset();
 }
 
 TSharedPtr<IHktServerRule> UHktRuleSubsystem::GetServerRule() const
@@ -34,14 +29,9 @@ TSharedPtr<IHktServerRule> UHktRuleSubsystem::GetServerRule() const
     return ServerRule;
 }  
 
-void UHktRuleSubsystem::RegisterClientRule(TSharedPtr<IHktClientRule> InRule)
+void UHktRuleSubsystem::SetClientRule(TSharedPtr<IHktClientRule> InRule)
 {
     ClientRule = InRule;
-}
-
-void UHktRuleSubsystem::UnregisterClientRule()
-{
-    ClientRule.Reset();
 }
 
 TSharedPtr<IHktClientRule> UHktRuleSubsystem::GetClientRule() const

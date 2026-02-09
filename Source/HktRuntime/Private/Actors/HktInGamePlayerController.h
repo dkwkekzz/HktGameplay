@@ -21,12 +21,12 @@ struct FHktFrameBatch;
  * 입력을 받아 Intent를 조립하고 PlayerState로 제출하는 컨트롤러.
  */
 UCLASS()
-class HKTRUNTIME_API AHktPlayerController : public APlayerController, public IHktModelProvider
+class HKTRUNTIME_API AHktInGamePlayerController : public APlayerController, public IHktModelProvider
 {
     GENERATED_BODY()
 
 public:
-    AHktPlayerController();
+    AHktInGamePlayerController();
 
     // === Intent 전송 (클라이언트) ===
     

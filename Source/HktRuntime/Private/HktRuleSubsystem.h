@@ -19,12 +19,10 @@ public:
 
     static UHktRuleSubsystem* Get(UWorld* World);
 
-    void RegisterServerRule(TSharedPtr<IHktServerRule> InRule);
-    void UnregisterServerRule();
+    void SetServerRule(TSharedPtr<IHktServerRule> InRule);
     TSharedPtr<IHktServerRule> GetServerRule() const;
 
-    void RegisterClientRule(TSharedPtr<IHktClientRule> InRule);
-    void UnregisterClientRule();
+    void SetClientRule(TSharedPtr<IHktClientRule> InRule);
     TSharedPtr<IHktClientRule> GetClientRule() const;
 
 private:

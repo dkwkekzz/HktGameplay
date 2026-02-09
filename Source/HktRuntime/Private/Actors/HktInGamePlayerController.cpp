@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktPlayerController.h"
+#include "HktInGamePlayerController.h"
 #include "HktPlayerState.h"
 #include "Components/HktIntentBuilderComponent.h"
 #include "Components/HktVisibleStashComponent.h"
@@ -14,14 +14,14 @@
 #include "HktInsightsDataCollector.h"
 #endif
 
-AHktPlayerController::AHktPlayerController()
+AHktInGamePlayerController::AHktInGamePlayerController()
 {
     bShowMouseCursor = true;
     bEnableClickEvents = true;
     bEnableMouseOverEvents = true;
 }
 
-void AHktPlayerController::BeginPlay()
+void AHktInGamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
@@ -47,7 +47,7 @@ void AHktPlayerController::BeginPlay()
         {
             VMProcessorComponent->Initialize(VisibleStashComponent->GetStashInterface());
 
-            UE_LOG(LogTemp, Log, TEXT("HktPlayerController: Client initialized with VisibleStash and VMProcessor"));
+            UE_LOG(LogTemp, Log, TEXT("HktInGamePlayerController: Client initialized with VisibleStash and VMProcessor"));
         }
     }
 
@@ -59,7 +59,7 @@ void AHktPlayerController::BeginPlay()
     }
 }
 
-void AHktPlayerController::SetupInputComponent()
+void AHktInGamePlayerController::SetupInputComponent()
 {
     Super::SetupInputComponent();
 
@@ -68,18 +68,18 @@ void AHktPlayerController::SetupInputComponent()
         return;
 
     if (SubjectAction)
-        EnhancedInput->BindAction(SubjectAction, ETriggerEvent::Triggered, this, &AHktPlayerController::OnSubjectAction);
+        EnhancedInput->BindAction(SubjectAction, ETriggerEvent::Triggered, this, &AHktInGamePlayerController::OnSubjectAction);
 
     if (TargetAction)
-        EnhancedInput->BindAction(TargetAction, ETriggerEvent::Triggered, this, &AHktPlayerController::OnTargetAction);
+        EnhancedInput->BindAction(TargetAction, ETriggerEvent::Triggered, this, &AHktInGamePlayerController::OnTargetAction);
 
     if (ZoomAction)
-        EnhancedInput->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &AHktPlayerController::OnZoom);
+        EnhancedInput->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &AHktInGamePlayerController::OnZoom);
 
     for (int32 i = 0; i < SlotActions.Num(); ++i)
     {
         if (SlotActions[i])
-            EnhancedInput->BindAction(SlotActions[i], ETriggerEvent::Triggered, this, &AHktPlayerController::OnSlotAction, i);
+            EnhancedInput->BindAction(SlotActions[i], ETriggerEvent::Triggered, this, &AHktInGamePlayerController::OnSlotAction, i);
     }
 }
 
@@ -87,7 +87,7 @@ void AHktPlayerController::SetupInputComponent()
 // Input Handlers
 //-----------------------------------------------------------------------------
 
-void AHktPlayerController::OnSubjectAction(const FInputActionValue& Value)
+void AHktInGamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 {
     if (IntentBuilderComponent)
     {
@@ -96,7 +96,7 @@ void AHktPlayerController::OnSubjectAction(const FInputActionValue& Value)
     }
 }
 
-void AHktPlayerController::OnSlotAction(const FInputActionValue& Value, int32 SlotIndex)
+void AHktInGamePlayerController::OnSlotAction(const FInputActionValue& Value, int32 SlotIndex)
 {
     if (!IntentBuilderComponent)
         return;
@@ -111,7 +111,7 @@ void AHktPlayerController::OnSlotAction(const FInputActionValue& Value, int32 Sl
     }
 }
 
-void AHktPlayerController::OnTargetAction(const FInputActionValue& Value)
+void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
 {
     if (!IntentBuilderComponent)
         return;
@@ -126,7 +126,7 @@ void AHktPlayerController::OnTargetAction(const FInputActionValue& Value)
     }
 }
 
-void AHktPlayerController::OnZoom(const FInputActionValue& Value)
+void AHktInGamePlayerController::OnZoom(const FInputActionValue& Value)
 {
     if (Value.GetValueType() == EInputActionValueType::Axis1D)
     {
@@ -134,7 +134,7 @@ void AHktPlayerController::OnZoom(const FInputActionValue& Value)
     }
 }
 
-bool AHktPlayerController::SendIntent()
+bool AHktInGamePlayerController::SendIntent()
 {
     if (HasAuthority())
     {
@@ -164,12 +164,12 @@ bool AHktPlayerController::SendIntent()
 
 // === C2S RPC ===
 
-bool AHktPlayerController::Server_ReceiveIntent_Validate(const FHktIntentEvent& Event)
+bool AHktInGamePlayerController::Server_ReceiveIntent_Validate(const FHktIntentEvent& Event)
 {
     return Event.IsValid();
 }
 
-void AHktPlayerController::Server_ReceiveIntent_Implementation(const FHktIntentEvent& Event)
+void AHktInGamePlayerController::Server_ReceiveIntent_Implementation(const FHktIntentEvent& Event)
 {
     // HktInsights: 서버에서 Intent 수신 기록 (Received 상태)
     HKT_INSIGHTS_RECORD_INTENT_WITH_STATE(
@@ -189,7 +189,7 @@ void AHktPlayerController::Server_ReceiveIntent_Implementation(const FHktIntentE
 
 // === S2C RPC ===
 
-void AHktPlayerController::SendBatchToOwningClient(const FHktFrameBatch& Batch)
+void AHktInGamePlayerController::SendBatchToOwningClient(const FHktFrameBatch& Batch)
 {
     if (HasAuthority())
     {
@@ -197,7 +197,7 @@ void AHktPlayerController::SendBatchToOwningClient(const FHktFrameBatch& Batch)
     }
 }
 
-void AHktPlayerController::Client_ReceiveBatch_Implementation(const FHktFrameBatch& Batch)
+void AHktInGamePlayerController::Client_ReceiveBatch_Implementation(const FHktFrameBatch& Batch)
 {
     if (!VisibleStashComponent)
     {
@@ -235,7 +235,7 @@ namespace
     constexpr uint16 OwnerPlayerHash = 52;
 }
 
-int32 AHktPlayerController::GetMyPlayerHash() const
+int32 AHktInGamePlayerController::GetMyPlayerHash() const
 {
     if (!bPlayerHashCached)
     {
@@ -261,7 +261,7 @@ int32 AHktPlayerController::GetMyPlayerHash() const
     return CachedPlayerHash;
 }
 
-bool AHktPlayerController::IsMyEntity(FHktEntityId EntityId) const
+bool AHktInGamePlayerController::IsMyEntity(FHktEntityId EntityId) const
 {
     IHktStashInterface* Stash = GetStashInterface();
     if (!Stash || !Stash->IsValidEntity(EntityId))
@@ -278,7 +278,7 @@ bool AHktPlayerController::IsMyEntity(FHktEntityId EntityId) const
     return false;
 }
 
-TArray<FHktEntityId> AHktPlayerController::GetMyEntities() const
+TArray<FHktEntityId> AHktInGamePlayerController::GetMyEntities() const
 {
     TArray<FHktEntityId> Result;
     
@@ -302,7 +302,7 @@ TArray<FHktEntityId> AHktPlayerController::GetMyEntities() const
     return Result;
 }
 
-FHktEntityId AHktPlayerController::GetPrimaryEntity() const
+FHktEntityId AHktInGamePlayerController::GetPrimaryEntity() const
 {
     TArray<FHktEntityId> MyEntities = GetMyEntities();
     return MyEntities.Num() > 0 ? MyEntities[0] : InvalidEntityId;
@@ -310,7 +310,7 @@ FHktEntityId AHktPlayerController::GetPrimaryEntity() const
 
 // === IHktModelProvider 구현 ===
 
-IHktStashInterface* AHktPlayerController::GetStashInterface() const
+IHktStashInterface* AHktInGamePlayerController::GetStashInterface() const
 {
     if (HasAuthority())
     {
@@ -323,27 +323,27 @@ IHktStashInterface* AHktPlayerController::GetStashInterface() const
     return VisibleStashComponent ? VisibleStashComponent->GetStashInterface() : nullptr;
 }
 
-FHktEntityId AHktPlayerController::GetSelectedSubject() const
+FHktEntityId AHktInGamePlayerController::GetSelectedSubject() const
 {
     return IntentBuilderComponent ? IntentBuilderComponent->GetSubjectEntityId() : InvalidEntityId;
 }
 
-FHktEntityId AHktPlayerController::GetSelectedTarget() const
+FHktEntityId AHktInGamePlayerController::GetSelectedTarget() const
 {
     return IntentBuilderComponent ? IntentBuilderComponent->GetTargetEntityId() : InvalidEntityId;
 }
 
-FVector AHktPlayerController::GetTargetLocation() const
+FVector AHktInGamePlayerController::GetTargetLocation() const
 {
     return IntentBuilderComponent ? IntentBuilderComponent->GetTargetLocation() : FVector::ZeroVector;
 }
 
-FGameplayTag AHktPlayerController::GetSelectedCommand() const
+FGameplayTag AHktInGamePlayerController::GetSelectedCommand() const
 {
     return IntentBuilderComponent ? IntentBuilderComponent->GetEventTag() : FGameplayTag();
 }
 
-bool AHktPlayerController::IsIntentValid() const
+bool AHktInGamePlayerController::IsIntentValid() const
 {
     return IntentBuilderComponent ? IntentBuilderComponent->IsValid() : false;
 }

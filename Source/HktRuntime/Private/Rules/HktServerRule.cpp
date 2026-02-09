@@ -29,13 +29,16 @@ void FHktDefaultServerRule::OnReceived_FireIntentEvent(const FHktIntentEvent& In
 // --- 로그인: Relevancy에 플레이어 등록, DB에서 엔티티 로드/스폰, 스폰 이벤트 발행 ---
 void FHktDefaultServerRule::OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB)
 {
-	const int64 PlayerUid = InPlayer.GetPlayerUid();
-	InDB.LoadPlayerRecordAsync(PlayerUid, [this](TUniquePtr<FHktPlayerRecord> RecordPtr)
+	const int64 PlayerUid = InPlayer->GetPlayerUid();
+    
+    // InPlayer 포인터는 람다 캡처로 전달 (PostLogin 시점의 객체가 유효하다고 가정)
+    InDB.LoadPlayerRecordAsync(PlayerUid, [this, InPlayer](TUniquePtr<FHktPlayerRecord> RecordPtr)
     {
-        // DB 로드 완료 (Worker Thread) -> 포인터 소유권을 큐로 이전 (Move)
+        // DB 로드 완료 (Worker Thread)
         if (RecordPtr.IsValid())
         {
-            PendingLoginResults.Enqueue(MoveTemp(RecordPtr));
+            // 플레이어 객체와 로드된 기록을 함께 큐에 넣음
+            PendingLoginResults.Enqueue({ InPlayer, MoveTemp(RecordPtr) });
         }
     });
 }
@@ -47,6 +50,92 @@ void FHktDefaultServerRule::OnLogout_ExitWorldPlayer(const IHktWorldPlayer& InPl
 	InDB.SavePlayerRecordAsync(InPlayer.MakePlayerRecord());
 
 	PendingLogoutRequests.Enqueue(InPlayer.GetPlayerUid());
+}
+
+// [상용 최적화] 수시 저장 요청 (Game Logic or Timer)
+// - 중복 요청(Debouncing) 처리 적용
+// - 여러 스레드에서 호출 가능하므로 Lock 사용
+void FHktDefaultServerRule::OnEvent_RequestAutosave(int64 PlayerUid)
+{
+    FScopeLock Lock(&AutosaveQueueLock);
+    
+    // 이미 대기열에 있다면 추가하지 않음 (이전 요청이 처리될 때 최신 상태가 저장되므로 안전)
+    if (!QueuedAutosaveUids.Contains(PlayerUid))
+    {
+        QueuedAutosaveUids.Add(PlayerUid);
+        PendingAutosaveRequests.Enqueue(PlayerUid);
+    }
+}
+
+    // ------------------------------------------------------------------------
+    // [Phase 2] 메인 스레드 프레임 시작 전 처리 (Pre-Tick)
+    // ------------------------------------------------------------------------
+void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
+    IHktRelevancyGraph& InGraph,
+    IHktIntentCollector& InCollector,
+    IHktWorldDatabase& InDB,
+    TFunction<IHktWorldPlayer*(const FHktPlayerRecord&)> PlayerFactory)
+{
+    // 1. 로그인 처리 (DB 로드 완료된 유저들)
+	FPendingLoginResult LoginResult;
+	while (PendingLoginResults.Dequeue(LoginResult)) // Dequeue 시 구조체 복사 (UniquePtr 이동)
+	{
+		if (!LoginResult.Record.IsValid() || !LoginResult.Player) continue;
+
+		IHktWorldPlayer* NewPlayer = LoginResult.Player;
+		const FHktPlayerRecord& Record = *LoginResult.Record;
+
+		// 이미 생성된 플레이어를 해당 위치의 그룹에 등록
+		const int32 StartGroupIdx = InGraph.GetGroupIndexByLocation(Record.LastPosition);
+
+		InGraph.RegisterPlayer(NewPlayer, StartGroupIdx);
+		InCollector.EnterWorldPlayer(StartGroupIdx, Record.PlayerUid);
+
+		if (Record.PendingEvents.Num() > 0)
+		{
+			InCollector.PushIntents(Record.PlayerUid, Record.PendingEvents);
+		}
+	}
+
+    // 2. 로그아웃 처리
+    int64 LogoutUid;
+    while (PendingLogoutRequests.Dequeue(LogoutUid))
+    {
+        IHktWorldPlayer* Player = InGraph.GetWorldPlayer(LogoutUid);
+        if (!Player) continue;
+
+        // [최적화] MakePlayerRecord는 내부 TArray를 RVO로 반환
+        // SavePlayerRecordAsync에 MoveTemp로 전달하여 내부 버퍼 포인터만 이동시킴 (복사 X)
+        FHktPlayerRecord SaveRecord = Player->MakePlayerRecord();
+        InDB.SavePlayerRecordAsync(MoveTemp(SaveRecord));
+
+        InGraph.UnregisterPlayer(LogoutUid);
+    }
+
+    // 3. [상용 최적화] 수시 저장 처리 (Autosave)
+    int64 AutosaveUid;
+    int32 ProcessCount = 0;
+    const int32 MaxAutosavePerFrame = 20; // 프레임당 처리량 제한 (서버 틱 유지)
+
+    while (ProcessCount < MaxAutosavePerFrame && PendingAutosaveRequests.Dequeue(AutosaveUid))
+    {
+        // 처리 시작: Set에서 제거하여 다음 요청을 받을 준비 (Lock 보호)
+        {
+            FScopeLock Lock(&AutosaveQueueLock);
+            QueuedAutosaveUids.Remove(AutosaveUid);
+        }
+
+        IHktWorldPlayer* Player = InGraph.GetWorldPlayer(AutosaveUid);
+        if (!Player) continue; // 이미 나간 유저면 무시
+
+        // 현재 상태 스냅샷 생성 (Main Thread 안전함)
+        FHktPlayerRecord SaveRecord = Player->MakePlayerRecord();
+        
+        // 비동기 저장 요청 (MoveTemp로 소유권 이전)
+        InDB.SavePlayerRecordAsync(MoveTemp(SaveRecord));
+        
+        ProcessCount++;
+    }
 }
 
 void FHktDefaultServerRule::OnTick_ExecuteFrame(
@@ -89,7 +178,7 @@ void FHktDefaultServerRule::OnTick_ExecuteFrame(
 			// [핵심 변경] 시뮬레이션이 끝난 "직후"의 그룹 전체 상태를 통째로 복사
 			// Global State를 참조하지 않고, 방금 연산이 끝난 Group 자체의 State를 가져옴
 			FHktGroupSimulationState& TargetState = OutBuilder.CreateOrGetNewbieState(GroupIndex);
-			TargetState = Group.GetCurrentSimulationState();
+			TargetState = GroupSimulator.GetSimulationState();
 			
 			// (방어 코드) State의 FrameNumber가 현재 프레임과 일치하는지 확인
 			// TargetState.LastProcessedFrameNumber == CurrentFrameNumber 여야 함
@@ -131,109 +220,13 @@ void FHktDefaultServerRule::OnTick_SendFrameBatch(
 			// Case A: 신규 유저 -> "결과(State)"를 받음. (이번 프레임 연산 생략)
 			if (bHasNewbies && NewbieOwners.Contains(Player->GetPlayerUid()) && NewbieState)
 			{
-				Player->Client_ReceiveInitialState(*NewbieState);
+				Player->SendInitialSimulationState(*NewbieState);
 			}
 			// Case B: 기존 유저 -> "입력(Batch)"을 받음. (직접 시뮬레이션 수행)
 			else
 			{
-				Player->Client_ReceiveFrameBatch(GroupBatch);
+				Player->SendFrameBatch(GroupBatch);
 			}
 		}
 	}
 }
-
-void FHktDefaultServerRule::OnTick_ExecuteFrame(IHktPersistentFrame& InFrame, IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& OutBuilder)
-{
-	InFrame.AdvanceFrame();
-
-	InGraph.UpdateRelevancy();
-
-	TArray<int64> EnteredPlayerUids;
-	InCollector.GetEnteredPlayers(EnteredPlayerUids);
-	for (int64 PlayerUid : EnteredPlayerUids)
-	{
-		InGraph.RegisterPlayer(PlayerUid);
-	}
-
-	TArray<int64> ExitedPlayerUids;
-	InCollector.GetExitedPlayers(ExitedPlayerUids);
-	for (int64 PlayerUid : ExitedPlayerUids)
-	{
-		InGraph.UnregisterPlayer(PlayerUid);
-	}
-
-	for (int32 i = 0; i < InGraph.GetNumRelevancyGroups(); i++)
-	{
-        FHktFrameBatch GroupBatch;
-		GroupBatch.FrameNumber = InFrame.GetFrameNumber();
-
-		IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(i);
-		for (const IHktWorldPlayer* Player : Group.GetPlayers())
-		{
-			const int64 PlayerUid = Player->GetPlayerUid();
-			InCollector.GetIntents(PlayerUid, GroupBatch.Events);
-			InCollector.GetEntitySnapshots(PlayerUid, GroupBatch.Snapshots);
-
-			FHktFrameBatch PlayerBatch = GroupBatch;
-			PlayerBatch.Snapshots.Add(InState.CreateEntitySnapshot(Player->GetEntityId()));
-		}
-
-		IHktSimulator& GroupSimulator = Group.GetSimulator();
-		GroupSimulator.Execute(GroupBatch);
-	}
-}
-
-void FHktDefaultServerRule::OnTick_SendFrameBatch(const IHktRelevancyGraph& InGraph, const IHktBatchBuilder& InBuilder)
-{
-
-}
-
-// --- 셀 단위 FrameBatch: 해당 셀의 모든 엔티티 스냅샷을 매번 전송. 플레이어별로 호출되므로, 이 플레이어가 관심 있는 셀들을 찾아 셀마다 배치 전송 ---
-void FHktDefaultServerRule::OnTick_SendFrameBatch(const IHktRelevancyGraph& InGraph, IHktWorldState& InState, IHktWorldPlayer& InPlayer)
-{
-    const int32 FrameNumber = InState.GetCurrentFrameNumber();
-    const TArray<FHktWorldCell>& Cells = InGraph.GetAllInterestedCells();
-
-    for (const FHktWorldCell& Cell : Cells)
-    {
-        const TArray<IHktWorldPlayer*>& PlayersInCell = InGraph.GetPlayersByCell(Cell);
-        // 이 플레이어가 이 셀에 포함되는지 확인 (포인터 비교)
-        bool bPlayerInCell = false;
-        for (IHktWorldPlayer* P : PlayersInCell)
-        {
-            if (P == &InPlayer)
-            {
-                bPlayerInCell = true;
-                break;
-            }
-        }
-        if (!bPlayerInCell)
-        {
-            continue;
-        }
-
-        FHktFrameBatch Batch;
-        Batch.FrameNumber = FrameNumber;
-        // 명세: 주어진 셀의 모든 엔티티 스냅샷을 매번 보낸다.
-        Batch.Snapshots = InState.GetEntitySnapshotsByCell(Cell);
-        // 문제: 셀별 이벤트/RemovedEntities는 현재 인터페이스에 없음. GetEventsByCell(Cell), GetRemovedEntitiesByCell(Cell) 등이 필요하면 IHktWorldState 확장 필요.
-        // Batch.Events / Batch.RemovedEntities 는 구현체에서 채우거나, 오케스트레이터가 배치에 세팅 후 전달하는 방식으로 보완 가능.
-
-        if (!Batch.IsEmpty())
-        {
-            InPlayer.SendFrameBatch(Batch);
-        }
-    }
-}
-
-// --- 셀 단위 시뮬레이션 실행: 각 관심 셀에 대해 FrameBatch를 구성해 Execute 호출. (InState가 없어 현재는 프레임 번호만 넣은 배치 1회 호출) ---
-void FHktDefaultServerRule::OnTick_ExecuteFrame(const IHktPersistentFrame& InFrame, const IHktRelevancyGraph& InGraph, IHktSimulator& InSimulator)
-{
-    // 문제: IHktSimulator::Execute(FHktFrameBatch) 는 셀별 배치를 받도록 바뀌었으나, OnTick_ExecuteFrame 시그니처에 IHktWorldState가 없어
-    // 셀별 스냅샷/이벤트로 배치를 구성할 수 없음. 오케스트레이터가 (InFrame, InGraph, InState, InSimulator) 로 한 번에 넘기거나,
-    // 셀별 Execute 호출은 오케스트레이터에서 GetAllInterestedCells() → GetEntitySnapshotsByCell(Cell) 로 배치 구성 후 Execute(Batch) 호출하는 방식 권장.
-    FHktFrameBatch Batch;
-    Batch.FrameNumber = static_cast<int32>(InFrame.GetFrameNumber());
-    InSimulator.Execute(Batch);
-}
-

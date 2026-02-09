@@ -12,16 +12,12 @@
  * UI 입력만 처리하며, RequestLogin 성공 시 GameInstance에 토큰 저장 후 인게임 맵으로 전환.
  */
 UCLASS()
-class HKTRUNTIME_API AHktEntryPlayerController : public APlayerController, public IHktUserEventConsumer
+class HKTRUNTIME_API AHktLoginPlayerController : public APlayerController, public IHktUserEventConsumer
 {
 	GENERATED_BODY()
 
 public:
-	AHktEntryPlayerController();
-
-	/** 로그인 요청 (ID/PW). 클라이언트에서 호출 → 서버 RPC → 검증 후 클라이언트 RPC로 결과 수신 */
-	UFUNCTION(BlueprintCallable, Category = "Hkt|Login")
-	void RequestLogin(const FString& ID, const FString& PW);
+	AHktLoginPlayerController();
 
 	/** [서버] 로그인 요청 수신. 검증 후 Client_ReceiveLoginResult 호출 */
 	UFUNCTION(Server, Reliable, WithValidation)

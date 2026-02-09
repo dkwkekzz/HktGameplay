@@ -50,16 +50,7 @@ public:
     virtual int32 GetNumSlots() const = 0;
 };
 
-// ============================================================================
-// IHktWorldState - 클라이언트 월드 상태 (VisibleStash 래퍼)
-// ============================================================================
-class IHktWorldState
-{
-public:
-    virtual ~IHktWorldState() = default;
-    virtual void ApplyEntitySnapshot(const FHktEntitySnapshot& Snapshot) = 0;
-    virtual void RemoveEntity(FHktEntityId Entity) = 0;
-};
+class IHktSimulator;
 
 // ============================================================================
 // FHktDefaultClientRule - IHktClientRule 기본 구현
@@ -86,5 +77,13 @@ public:
     virtual void OnUserEvent_TargetInputAction(const IHktTargetSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder) override;
     virtual void OnUserEvent_CommandInputAction(const IHktCommandContainer& InContainer, int32 InSlotIndex, IHktIntentBuilder& InBuilder) override;
     virtual void OnUserEvent_ZoomInputAction(float InDelta) override;
-    virtual void OnReceived_FrameBatch(const FHktFrameBatch& InBatch, IHktWorldState& InState, IHktSimulator& InSimulator) override;
+    
+    /** 신규 유저: 그룹 시뮬레이션 결과를 받아 즉시 동기화 (접속 직후 1회) */
+    virtual void OnReceived_InitialSimulationState(const FHktGroupSimulationState& InState, IHktSimulator& InSimulator) override;
+
+    /** 기존 유저: FrameBatch(입력)를 받아 로컬 시뮬레이션 수행 (매 프레임) */
+    virtual void OnReceived_FrameBatch(const FHktFrameBatch& InBatch, IHktSimulator& InSimulator) override;
+
+private:
+    TArray<FHktFrameBatch> PendingFrameBatches;
 };
