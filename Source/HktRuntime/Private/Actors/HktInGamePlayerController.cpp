@@ -1,18 +1,17 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktInGamePlayerController.h"
-#include "HktPlayerState.h"
+#include "HktRuleSubsystem.h"
+#include "HktRuleInterfaces.h"
+#include "Rules/HktClientRule.h"
 #include "Components/HktIntentBuilderComponent.h"
 #include "Components/HktVisibleStashComponent.h"
 #include "Components/HktVMProcessorComponent.h"
+#include "Components/HktCommandContainerComponent.h"
 #include "DataAssets/HktInputAction.h"
 #include "HktGameMode.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
-
-#if WITH_HKT_INSIGHTS
-#include "HktInsightsDataCollector.h"
-#endif
 
 AHktInGamePlayerController::AHktInGamePlayerController()
 {
@@ -25,6 +24,7 @@ void AHktInGamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
+    // Enhanced Input 설정
     if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
     {
         if (DefaultMappingContext)
@@ -32,31 +32,44 @@ void AHktInGamePlayerController::BeginPlay()
             Subsystem->AddMappingContext(DefaultMappingContext, 0);
         }
     }
-    
-    // 클라이언트에서만 VisibleStashComponent 및 VMProcessorComponent 생성
-    if (!HasAuthority())
+
+    // 클라이언트 전용 컴포넌트 생성
+    if (GetWorld()->GetNetMode() == ENetMode::NM_Standalone || !HasAuthority())
     {
-        VisibleStashComponent = NewObject<UHktVisibleStashComponent>(this, TEXT("VisibleStashComponent"));
+        // IntentBuilder: IHktIntentBuilder + IHktSubjectSelectionPolicy + IHktTargetSelectionPolicy 구현
+        IntentBuilderComponent = NewObject<UHktIntentBuilderComponent>(this, TEXT("IntentBuilder"));
+        IntentBuilderComponent->RegisterComponent();
+
+        // VisibleStash: 로컬 시뮬레이터의 백엔드
+        VisibleStashComponent = NewObject<UHktVisibleStashComponent>(this, TEXT("VisibleStash"));
         VisibleStashComponent->RegisterComponent();
 
-        VMProcessorComponent = NewObject<UHktVMProcessorComponent>(this, TEXT("VMProcessorComponent"));
+        // VMProcessor: IHktSimulator 래핑
+        VMProcessorComponent = NewObject<UHktVMProcessorComponent>(this, TEXT("VMProcessor"));
         VMProcessorComponent->RegisterComponent();
 
-        // VMProcessor를 VisibleStash와 연결
+        // CommandContainer: IHktCommandContainer 구현 (SlotActions 래핑)
+        CommandContainerComponent = NewObject<UHktCommandContainerComponent>(this, TEXT("CommandContainer"));
+        CommandContainerComponent->RegisterComponent();
+        CommandContainerComponent->SetSlotActions(SlotActions);
+
+        // VMProcessor 초기화
         if (VMProcessorComponent && VisibleStashComponent)
         {
             VMProcessorComponent->Initialize(VisibleStashComponent->GetStashInterface());
-
-            UE_LOG(LogTemp, Log, TEXT("HktInGamePlayerController: Client initialized with VisibleStash and VMProcessor"));
         }
     }
 
-    if (GetWorld()->GetNetMode() == ENetMode::NM_Standalone
-        || !HasAuthority())
+    // 기본 ClientRule 등록 (아직 없다면)
+    if (UHktRuleSubsystem* RuleSS = UHktRuleSubsystem::Get(GetWorld()))
     {
-        IntentBuilderComponent = NewObject<UHktIntentBuilderComponent>(this, TEXT("IntentBuilderComponent"));
-        IntentBuilderComponent->RegisterComponent();
+        if (!RuleSS->GetClientRule())
+        {
+            RuleSS->SetClientRule(MakeShared<FHktDefaultClientRule>());
+        }
     }
+
+    UE_LOG(LogTemp, Log, TEXT("[HktInGamePC] BeginPlay - ClientRule connected"));
 }
 
 void AHktInGamePlayerController::SetupInputComponent()
@@ -64,8 +77,7 @@ void AHktInGamePlayerController::SetupInputComponent()
     Super::SetupInputComponent();
 
     UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent);
-    if (!EnhancedInput) 
-        return;
+    if (!EnhancedInput) return;
 
     if (SubjectAction)
         EnhancedInput->BindAction(SubjectAction, ETriggerEvent::Triggered, this, &AHktInGamePlayerController::OnSubjectAction);
@@ -83,86 +95,111 @@ void AHktInGamePlayerController::SetupInputComponent()
     }
 }
 
-//-----------------------------------------------------------------------------
-// Input Handlers
-//-----------------------------------------------------------------------------
+// ============================================================================
+// 입력 핸들러 → ClientRule 이벤트 발행
+// ============================================================================
 
 void AHktInGamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 {
-    if (IntentBuilderComponent)
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule || !IntentBuilderComponent) return;
+
+    // IntentBuilderComponent는 IHktSubjectSelectionPolicy + IHktIntentBuilder를 동시에 구현
+    Rule->OnUserEvent_SubjectInputAction(
+        *static_cast<IHktSubjectSelectionPolicy*>(IntentBuilderComponent),
+        *static_cast<IHktIntentBuilder*>(IntentBuilderComponent)
+    );
+
+    SubjectChangedDelegate.Broadcast(IntentBuilderComponent->GetSubjectEntityId());
+}
+
+void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
+{
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule || !IntentBuilderComponent) return;
+
+    Rule->OnUserEvent_TargetInputAction(
+        *static_cast<IHktTargetSelectionPolicy*>(IntentBuilderComponent),
+        *static_cast<IHktIntentBuilder*>(IntentBuilderComponent)
+    );
+
+    TargetChangedDelegate.Broadcast(IntentBuilderComponent->GetTargetEntityId());
+
+    // IntentBuilder가 Submit 했다면 (Rule 내부에서 Submit 호출)
+    // Submit 결과를 서버로 전송
+    if (IntentBuilderComponent->HasPendingSubmit())
     {
-        IntentBuilderComponent->CreateSubjectAction();
-        SubjectChangedDelegate.Broadcast(IntentBuilderComponent->GetSubjectEntityId());
+        FHktIntentEvent Event = IntentBuilderComponent->ConsumePendingSubmit();
+        Server_ReceiveIntent(Event);
+        IntentSubmittedDelegate.Broadcast(Event);
     }
 }
 
 void AHktInGamePlayerController::OnSlotAction(const FInputActionValue& Value, int32 SlotIndex)
 {
-    if (!IntentBuilderComponent)
-        return;
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule || !IntentBuilderComponent || !CommandContainerComponent) return;
 
-    IntentBuilderComponent->CreateCommandAction(SlotActions[SlotIndex]->EventTag);
+    Rule->OnUserEvent_CommandInputAction(
+        *static_cast<IHktCommandContainer*>(CommandContainerComponent),
+        SlotIndex,
+        *static_cast<IHktIntentBuilder*>(IntentBuilderComponent)
+    );
+
     CommandChangedDelegate.Broadcast(IntentBuilderComponent->GetEventTag());
-    
-    // Target이 필요 없으면 바로 제출
-    if (!IntentBuilderComponent->IsTargetRequired() && IntentBuilderComponent->IsReadyToSubmit())
-    {
-        SendIntent();
-    }
-}
 
-void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
-{
-    if (!IntentBuilderComponent)
-        return;
-
-    IntentBuilderComponent->CreateTargetAction();
-    TargetChangedDelegate.Broadcast(IntentBuilderComponent->GetTargetEntityId());
-    
-    // Target 설정 완료 시 바로 제출
-    if (IntentBuilderComponent->IsReadyToSubmit())
+    // Target 불필요한 커맨드에서 Rule이 Submit 했을 수 있음
+    if (IntentBuilderComponent->HasPendingSubmit())
     {
-        SendIntent();
+        FHktIntentEvent Event = IntentBuilderComponent->ConsumePendingSubmit();
+        Server_ReceiveIntent(Event);
+        IntentSubmittedDelegate.Broadcast(Event);
     }
 }
 
 void AHktInGamePlayerController::OnZoom(const FInputActionValue& Value)
 {
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule) return;
+
     if (Value.GetValueType() == EInputActionValueType::Axis1D)
     {
-        WheelInputDelegate.Broadcast(Value.Get<float>());
+        float Delta = Value.Get<float>();
+        Rule->OnUserEvent_ZoomInputAction(Delta);
+        WheelInputDelegate.Broadcast(Delta);
     }
 }
 
-bool AHktInGamePlayerController::SendIntent()
+// ============================================================================
+// S2C RPC → ClientRule 이벤트 발행
+// ============================================================================
+
+void AHktInGamePlayerController::Client_ReceiveFrameBatch_Implementation(const FHktFrameBatch& Batch)
 {
-    if (HasAuthority())
-    {
-        return false;
-    }
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule || !VMProcessorComponent) return;
 
-    if (!IntentBuilderComponent)
-    {
-        return false;
-    }
+    // VMProcessorComponent가 IHktSimulator를 래핑
+    IHktSimulator* Simulator = VMProcessorComponent->GetSimulatorInterface();
+    if (!Simulator) return;
 
-    FHktIntentEvent Event;
-    if (!IntentBuilderComponent->SubmitIntent(Event))
-    {
-        return false;
-    }
-
-    // HktInsights: Intent 전송 기록 (Sent 상태)
-    HKT_INSIGHTS_UPDATE_INTENT_STATE(Event.EventId, EHktInsightsEventState::Sent);
-
-    Server_ReceiveIntent(Event);
-
-    IntentSubmittedDelegate.Broadcast(Event);
-
-    return true;
+    Rule->OnReceived_FrameBatch(Batch, *Simulator);
 }
 
-// === C2S RPC ===
+void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const FHktGroupSimulationState& State)
+{
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule || !VMProcessorComponent) return;
+
+    IHktSimulator* Simulator = VMProcessorComponent->GetSimulatorInterface();
+    if (!Simulator) return;
+
+    Rule->OnReceived_InitialSimulationState(State, *Simulator);
+}
+
+// ============================================================================
+// C2S RPC
+// ============================================================================
 
 bool AHktInGamePlayerController::Server_ReceiveIntent_Validate(const FHktIntentEvent& Event)
 {
@@ -171,179 +208,32 @@ bool AHktInGamePlayerController::Server_ReceiveIntent_Validate(const FHktIntentE
 
 void AHktInGamePlayerController::Server_ReceiveIntent_Implementation(const FHktIntentEvent& Event)
 {
-    // HktInsights: 서버에서 Intent 수신 기록 (Received 상태)
-    HKT_INSIGHTS_RECORD_INTENT_WITH_STATE(
-        Event.EventId,
-        Event.EventTag,
-        static_cast<int32>(Event.SourceEntity),
-        static_cast<int32>(Event.TargetEntity),
-        Event.Location,
-        EHktInsightsEventState::Received
-    );
-
     if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
     {
-        GM->PushIntent(Event);
-    }
-}
-
-// === S2C RPC ===
-
-void AHktInGamePlayerController::SendBatchToOwningClient(const FHktFrameBatch& Batch)
-{
-    if (HasAuthority())
-    {
-        Client_ReceiveBatch(Batch);
-    }
-}
-
-void AHktInGamePlayerController::Client_ReceiveBatch_Implementation(const FHktFrameBatch& Batch)
-{
-    if (!VisibleStashComponent)
-    {
-        return;
-    }
-
-    IHktStashInterface* Stash = VisibleStashComponent->GetStashInterface();
-
-    // 1. 제거된 엔티티
-    for (FHktEntityId EntityId : Batch.RemovedEntities)
-    {
-        VisibleStashComponent->FreeEntity(EntityId);
-        EntityDestroyedDelegate.Broadcast(EntityId);
-    }
-
-    // 2. 새 스냅샷 적용
-    for (const FHktEntitySnapshot& Snapshot : Batch.Snapshots)
-    {
-        VisibleStashComponent->ApplyEntitySnapshot(Snapshot);
-        EntityCreatedDelegate.Broadcast(Snapshot.EntityId);
-    }
-
-    // 3. 이벤트 실행 (VMProcessor)
-    if (VMProcessorComponent && VMProcessorComponent->IsInitialized())
-    {
-        // 모든 이벤트를 VMProcessor에 알림
-        VMProcessorComponent->NotifyIntentEvents(Batch.FrameNumber, Batch.Events);
-    }
-}
-
-// === 소유 엔티티 ===
-
-namespace
-{
-    constexpr uint16 OwnerPlayerHash = 52;
-}
-
-int32 AHktInGamePlayerController::GetMyPlayerHash() const
-{
-    if (!bPlayerHashCached)
-    {
-        FString PlayerId;
+        // PlayerUid는 서버 측에서 결정 (조작 방지)
+        int64 PlayerUid = 0;
         if (PlayerState)
         {
             FUniqueNetIdRepl UniqueId = PlayerState->GetUniqueId();
             if (UniqueId.IsValid())
             {
-                PlayerId = UniqueId->ToString();
+                PlayerUid = GetTypeHash(UniqueId->ToString());
             }
         }
-        
-        if (PlayerId.IsEmpty())
-        {
-            PlayerId = FString::Printf(TEXT("Local_%s"), *GetName());
-        }
-        
-        CachedPlayerHash = GetTypeHash(PlayerId);
-        bPlayerHashCached = true;
+        GM->PushIntent(PlayerUid, Event);
     }
-    
-    return CachedPlayerHash;
 }
 
-bool AHktInGamePlayerController::IsMyEntity(FHktEntityId EntityId) const
+// ============================================================================
+// Helpers
+// ============================================================================
+
+IHktClientRule* AHktInGamePlayerController::GetClientRule() const
 {
-    IHktStashInterface* Stash = GetStashInterface();
-    if (!Stash || !Stash->IsValidEntity(EntityId))
+    if (UHktRuleSubsystem* RuleSS = UHktRuleSubsystem::Get(GetWorld()))
     {
-        return false;
+        TSharedPtr<IHktClientRule> Rule = RuleSS->GetClientRule();
+        return Rule.Get();
     }
-    
-    int32 EntityOwnerHash = Stash->GetProperty(EntityId, OwnerPlayerHash);
-    if (EntityOwnerHash != 0 && EntityOwnerHash == GetMyPlayerHash())
-    {
-        return true;
-    }
-    
-    return false;
-}
-
-TArray<FHktEntityId> AHktInGamePlayerController::GetMyEntities() const
-{
-    TArray<FHktEntityId> Result;
-    
-    IHktStashInterface* Stash = GetStashInterface();
-    if (!Stash)
-    {
-        return Result;
-    }
-    
-    int32 MyHash = GetMyPlayerHash();
-    
-    Stash->ForEachEntity([&](FHktEntityId EntityId)
-    {
-        int32 EntityOwnerHash = Stash->GetProperty(EntityId, OwnerPlayerHash);
-        if (EntityOwnerHash == MyHash)
-        {
-            Result.Add(EntityId);
-        }
-    });
-    
-    return Result;
-}
-
-FHktEntityId AHktInGamePlayerController::GetPrimaryEntity() const
-{
-    TArray<FHktEntityId> MyEntities = GetMyEntities();
-    return MyEntities.Num() > 0 ? MyEntities[0] : InvalidEntityId;
-}
-
-// === IHktModelProvider 구현 ===
-
-IHktStashInterface* AHktInGamePlayerController::GetStashInterface() const
-{
-    if (HasAuthority())
-    {
-        if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
-        {
-            return GM->GetStashInterface();
-        }
-    }
-
-    return VisibleStashComponent ? VisibleStashComponent->GetStashInterface() : nullptr;
-}
-
-FHktEntityId AHktInGamePlayerController::GetSelectedSubject() const
-{
-    return IntentBuilderComponent ? IntentBuilderComponent->GetSubjectEntityId() : InvalidEntityId;
-}
-
-FHktEntityId AHktInGamePlayerController::GetSelectedTarget() const
-{
-    return IntentBuilderComponent ? IntentBuilderComponent->GetTargetEntityId() : InvalidEntityId;
-}
-
-FVector AHktInGamePlayerController::GetTargetLocation() const
-{
-    return IntentBuilderComponent ? IntentBuilderComponent->GetTargetLocation() : FVector::ZeroVector;
-}
-
-FGameplayTag AHktInGamePlayerController::GetSelectedCommand() const
-{
-    return IntentBuilderComponent ? IntentBuilderComponent->GetEventTag() : FGameplayTag();
-}
-
-bool AHktInGamePlayerController::IsIntentValid() const
-{
-    return IntentBuilderComponent ? IntentBuilderComponent->IsValid() : false;
+    return nullptr;
 }

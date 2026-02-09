@@ -1,101 +1,114 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "HktRelevancyProvider.h"
+#include "Rules/HktServerRule.h"
 #include "HktRuntimeTypes.h"
 #include "HktGridRelevancyComponent.generated.h"
 
-class AHktPlayerController;
+class AHktInGamePlayerController;
 class UHktMasterStashComponent;
 
-/**
- * 플레이어별 그리드 캐시 정보
- */
-USTRUCT()
-struct FHktPlayerGridCache
+// ============================================================================
+// FHktWorldPlayerAdapter - IHktWorldPlayer의 컴포넌트 내부 구현
+//
+// AHktInGamePlayerController를 래핑하여 IHktWorldPlayer 인터페이스 제공.
+// Actor가 인터페이스를 직접 구현하지 않도록 어댑터 패턴 사용.
+// ============================================================================
+class FHktWorldPlayerAdapter : public IHktWorldPlayer
 {
-    GENERATED_BODY()
+public:
+    FHktWorldPlayerAdapter(AHktInGamePlayerController* InPC, int64 InPlayerUid);
 
-    FIntPoint CurrentCell = FIntPoint(INT_MAX, INT_MAX);
-    FVector LastLocation = FVector::ZeroVector;
+    virtual int64 GetPlayerUid() const override { return PlayerUid; }
+    virtual void SendFrameBatch(const FHktFrameBatch& Batch) override;
+    virtual void SendInitialSimulationState(const FHktGroupSimulationState& InitialState) override;
 
-    // 구독 중인 셀 (O(1) 조회용 Set)
-    TSet<FIntPoint> SubscribedCellSet;
+    AHktInGamePlayerController* GetPlayerController() const { return PC.Get(); }
+    bool IsValid() const { return PC.IsValid(); }
 
-    // 현재 보이는 엔티티 (Relevancy 범위 내)
-    TSet<FHktEntityId> VisibleEntities;
+private:
+    TWeakObjectPtr<AHktInGamePlayerController> PC;
+    int64 PlayerUid = 0;
+};
 
-    // 이번 프레임에 새로 보이는 엔티티 (스냅샷 필요)
-    TArray<FHktEntityId> EnteredEntities;
+// ============================================================================
+// FHktRelevancyGroupImpl - IHktRelevancyGroup의 컴포넌트 내부 구현
+// ============================================================================
+class FHktRelevancyGroupImpl : public IHktRelevancyGroup
+{
+public:
+    virtual IHktSimulator& GetSimulator() override;
+    virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }
+    virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const override { return CachedPlayers; }
 
-    // 이번 프레임에 벗어난 엔티티 (제거 알림)
-    TArray<FHktEntityId> ExitedEntities;
+    void SetSimulator(IHktSimulator* InSimulator) { Simulator = InSimulator; }
+    void AddPlayer(int64 Uid, IHktWorldPlayer* Player);
+    void RemovePlayer(int64 Uid);
+    void ClearCaches();
 
-    void BeginFrame()
-    {
-        EnteredEntities.Reset();
-        ExitedEntities.Reset();
-    }
+private:
+    IHktSimulator* Simulator = nullptr;
+    TArray<int64> PlayerUids;
+    TArray<IHktWorldPlayer*> CachedPlayers;
 };
 
 /**
- * UHktGridRelevancyComponent
+ * UHktGridRelevancyComponent - IHktRelevancyGraph 구현
  *
- * 이벤트 기반 그리드 Relevancy 정책
- * - 엔티티 셀 변경 이벤트를 받아 클라이언트별 Relevancy 업데이트
- * - 매 틱 전체 순회 없이 O(변경 수) 처리
+ * 아키텍처:
+ *   - 컴포넌트는 인터페이스 구현에 집중
+ *   - Actor(GameMode)는 이 컴포넌트를 Rule에 IHktRelevancyGraph로 전달
+ *   - IHktWorldPlayer 어댑터도 이 컴포넌트가 소유/관리
+ *
+ * 역할:
+ *   - IHktRelevancyGraph: 그룹 관리, 플레이어 등록/해제
+ *   - IHktWorldPlayer 래퍼 생명주기 관리
+ *   - 셀 기반 공간 분할 Relevancy
  */
 UCLASS(ClassGroup=(HktSimulation), meta=(BlueprintSpawnableComponent))
-class HKTRUNTIME_API UHktGridRelevancyComponent : public UActorComponent, public IHktRelevancyProvider
+class HKTRUNTIME_API UHktGridRelevancyComponent : public UActorComponent, public IHktRelevancyGraph
 {
     GENERATED_BODY()
 
 public:
     UHktGridRelevancyComponent();
 
-    // === IHktRelevancyProvider 구현 ===
+    // === IHktRelevancyGraph 구현 ===
 
-    virtual void RegisterClient(AHktPlayerController* Client) override;
-    virtual void UnregisterClient(AHktPlayerController* Client) override;
-    virtual const TArray<AHktPlayerController*>& GetAllClients() const override { return ValidClients; }
-
-    virtual void GetRelevantClientsAtLocation(
-        const FVector& Location,
-        TArray<AHktPlayerController*>& OutRelevantClients
-    ) override;
-
-    virtual void GetAllRelevantClients(TArray<AHktPlayerController*>& OutRelevantClients) override
-    {
-        OutRelevantClients = ValidClients;
-    }
-
+    virtual void RegisterPlayer(IHktWorldPlayer* Player, int32 GroupIndex) override;
+    virtual void UnregisterPlayer(int64 PlayerUid) override;
     virtual void UpdateRelevancy() override;
+    virtual IHktWorldPlayer* GetWorldPlayer(int64 PlayerUid) const override;
+    virtual int32 GetGroupIndexByLocation(const FVector& Location) const override;
+    virtual int32 NumRelevancyGroup() const override;
+    virtual IHktRelevancyGroup& GetRelevancyGroup(int32 Index) override;
+    virtual const IHktRelevancyGroup& GetRelevancyGroup(int32 Index) const override;
 
-    // === 셀 조회 ===
+    // === WorldPlayer 어댑터 관리 (GameMode에서 호출) ===
 
-    // 위치 → 셀 변환
-    FIntPoint LocationToCell(const FVector& Location) const;
+    /** PostLogin 시: PlayerController를 등록하고 WorldPlayer 어댑터를 생성/반환 */
+    IHktWorldPlayer* RegisterAndWrapClient(AHktInGamePlayerController* Client);
 
-    // 클라이언트가 해당 셀에 관심 있는지 O(1) 체크
-    bool IsClientInterestedInCell(AHktPlayerController* Client, FIntPoint Cell) const;
+    /** Logout 시: 클라이언트 등록 해제 */
+    void UnregisterClient(AHktInGamePlayerController* Client);
 
-    // 글로벌 이벤트용
-    bool IsClientInterestedInGlobal(AHktPlayerController* Client) const { return true; }
+    /** PlayerController로 WorldPlayer 어댑터 조회 */
+    IHktWorldPlayer* FindWorldPlayer(AHktInGamePlayerController* Client) const;
 
-    // === 엔티티 Relevancy 조회 ===
+    /** PlayerUid로 WorldPlayer 어댑터 조회 */
+    IHktWorldPlayer* FindWorldPlayerByUid(int64 PlayerUid) const;
 
-    /** 클라이언트의 Relevancy 범위 내 모든 엔티티 조회 */
-    TArray<FHktEntityId> GetEntitiesInRelevancy(AHktPlayerController* Client) const;
+    /** Record 기반으로 WorldPlayer 생성 (OnTick_ProcessPendingConnections의 PlayerFactory용) */
+    IHktWorldPlayer* CreateWorldPlayerFromRecord(const FHktPlayerRecord& Record);
 
-    /** 클라이언트에게 이번 프레임에 새로 보이는 엔티티 조회 (스냅샷 전송용) */
-    TArray<FHktEntityId> GetNewlyVisibleEntities(AHktPlayerController* Client) const;
-
-    /** 클라이언트의 Relevancy를 벗어난 엔티티 조회 (제거 전송용) */
-    TArray<FHktEntityId> GetRemovedEntities(AHktPlayerController* Client) const;
-
-    /** MasterStash 설정 */
+    // === MasterStash 설정 ===
     void SetMasterStash(UHktMasterStashComponent* InMasterStash);
+
+    // === 셀 유틸 ===
+    FIntPoint LocationToCell(const FVector& Location) const;
 
     // === 설정 ===
 
@@ -106,27 +119,20 @@ public:
     int32 InterestRadius = 1;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hkt|Grid")
-    float MovementThreshold = 100.0f;
+    int32 NumGroups = 1;
 
 protected:
-    FVector GetPlayerLocation(AHktPlayerController* PC) const;
-
-    /** 플레이어 구독 셀 업데이트 (셀 변경 시) */
-    void UpdatePlayerSubscription(AHktPlayerController* PC, FHktPlayerGridCache& Cache);
-
-    /** 셀 변경 이벤트 처리 */
-    void ProcessCellChangeEvents();
-
-    /** 새 클라이언트의 초기 Relevancy 구축 */
-    void InitializeClientRelevancy(AHktPlayerController* PC, FHktPlayerGridCache& Cache);
+    virtual void BeginPlay() override;
 
 private:
-    TArray<TWeakObjectPtr<AHktPlayerController>> RegisteredClients;
-    TArray<AHktPlayerController*> ValidClients;
-    TMap<AHktPlayerController*, FHktPlayerGridCache> PlayerCaches;
+    // WorldPlayer 어댑터 (컴포넌트가 소유)
+    TMap<int64, TUniquePtr<FHktWorldPlayerAdapter>> WorldPlayers;
 
-    // 새로 등록된 클라이언트 (초기 스냅샷 필요)
-    TArray<AHktPlayerController*> NewClients;
+    // PlayerController → PlayerUid 매핑
+    TMap<TWeakObjectPtr<AHktInGamePlayerController>, int64> PCToUidMap;
+
+    // RelevancyGroup 구현체
+    TArray<FHktRelevancyGroupImpl> Groups;
 
     UPROPERTY()
     TWeakObjectPtr<UHktMasterStashComponent> MasterStash;

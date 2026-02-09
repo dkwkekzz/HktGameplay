@@ -10,17 +10,29 @@ class UHktMasterStashComponent;
 class UHktGridRelevancyComponent;
 class UHktVMProcessorComponent;
 class UHktPlayerDatabaseComponent;
-class UHktPersistentTickComponent;
+class UHktPersistentFrameComponent;
+class UHktIntentCollectorComponent;
+class UHktBatchBuilderComponent;
 class AHktInGamePlayerController;
+class IHktServerRule;
 class IHktStashInterface;
 
 /**
- * AHktGameMode
- * 
- * 서버 GameMode
- * - PlayerDatabase로 플레이어 데이터 관리
- * - PostLogin 시 엔티티 로드 및 Spawn 이벤트 발행
- * - 클라이언트 단위 병렬 처리
+ * AHktGameMode - 서버 오케스트레이터
+ *
+ * 아키텍처 원칙:
+ *   - Actor는 "이벤트 발행"에 집중 (인터페이스를 직접 구현하지 않음)
+ *   - 로직 흐름은 ServerRule이 인터페이스를 통해 결정
+ *   - Component가 인터페이스 구현을 담당
+ *
+ * 이벤트 → Rule 매핑:
+ *   PostLogin()    → Rule->OnLogin_EnterWorldPlayer()
+ *   Logout()       → Rule->OnLogout_ExitWorldPlayer()
+ *   Tick()         → Rule->OnTick_ProcessPendingConnections()
+ *                  → Rule->OnTick_ExecuteFrame()
+ *                  → Rule->OnTick_SendFrameBatch()
+ *   ReceiveIntent  → Rule->OnReceived_FireIntentEvent()
+ *   RequestLogin   → Rule->OnReceived_Authentication()
  */
 UCLASS()
 class HKTRUNTIME_API AHktGameMode : public AGameModeBase
@@ -30,71 +42,48 @@ class HKTRUNTIME_API AHktGameMode : public AGameModeBase
 public:
     AHktGameMode();
 
-    UFUNCTION(BlueprintPure, Category = "Hkt")
-    int32 GetFrameNumber() const;
-    IHktStashInterface* GetStashInterface() const;
+    // === 외부 접근 ===
 
-    void PushIntent(const FHktIntentEvent& Event);
-    
-    UFUNCTION(BlueprintCallable, Category = "Hkt")
-    int32 GenerateEventId();
-
-    /** 플레이어의 엔티티들을 MasterStash에 로드하고 Spawn 이벤트 발행 */
-    void LoadPlayerEntities(AHktInGamePlayerController* PC, FHktPlayerRecord& Record);
-    
-    /** 로그아웃 시 엔티티 상태를 DB에 저장 */
-    void SavePlayerEntities(AHktInGamePlayerController* PC);
-    
-    UFUNCTION(BlueprintNativeEvent, Category = "Hkt")
-    FVector GetSpawnLocationForPlayer(AHktInGamePlayerController* PC);
+    /** Intent를 IntentCollector에 푸시 (PlayerController에서 호출) */
+    void PushIntent(int64 PlayerUid, const FHktIntentEvent& Event);
 
 protected:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
-    
     virtual void PostLogin(APlayerController* NewPlayer) override;
     virtual void Logout(AController* Exiting) override;
 
-    void ProcessFrame();
-    void ProcessFrameEventCell();
-    void ProcessFrameClientBatch(AHktInGamePlayerController*& PC, FHktFrameBatch& Batch);
-
-    virtual FString GetPlayerId(APlayerController* PC) const;
+    // === Rule 조회 ===
+    IHktServerRule* GetServerRule() const;
 
 protected:
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt")
-    UHktMasterStashComponent* MasterStash;
+    // === 인터페이스 구현 컴포넌트들 (Rule의 파라미터로 전달됨) ===
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt")
-    UHktGridRelevancyComponent* GridRelevancy;
+    /** IHktPersistentFrame 구현 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
+    TObjectPtr<UHktPersistentFrameComponent> PersistentFrameComponent;
 
-    /** VM 프로세서 컴포넌트 (서버 시뮬레이션 실행) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt")
-    UHktVMProcessorComponent* VMProcessor;
+    /** MasterStash (IHktSimulator의 백엔드로 사용) */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
+    TObjectPtr<UHktMasterStashComponent> MasterStashComponent;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt")
-    UHktPlayerDatabaseComponent* PlayerDatabase;
+    /** IHktRelevancyGraph 구현 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
+    TObjectPtr<UHktGridRelevancyComponent> GridRelevancyComponent;
 
-    /** 영구 프레임 번호 (DB/파일 배치 할당) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt")
-    UHktPersistentTickComponent* PersistentTick;
+    /** IHktWorldDatabase 구현 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
+    TObjectPtr<UHktPlayerDatabaseComponent> PlayerDatabaseComponent;
 
-private:
-    int32 NextEventId = 1;
+    /** IHktIntentCollector 구현 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
+    TObjectPtr<UHktIntentCollectorComponent> IntentCollectorComponent;
 
-    // Intent 수집 (락 보호)
-    TArray<FHktIntentEvent> CollectedIntents;
-    FCriticalSection IntentLock;
+    /** IHktBatchBuilder 구현 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
+    TObjectPtr<UHktBatchBuilderComponent> BatchBuilderComponent;
 
-    // 프레임 처리용 (매 프레임 재사용)
-    TArray<FHktIntentEvent> FrameIntents;
-    
-    // 이벤트별 셀 인덱스 캐시 (병렬 접근용)
-    struct FEventCellInfo
-    {
-        FIntPoint Cell;
-        bool bIsGlobal;
-        bool bHasValidLocation;
-    };
-    TArray<FEventCellInfo> EventCellCache;
+    /** VM 프로세서 (서버 시뮬레이션) */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
+    TObjectPtr<UHktVMProcessorComponent> VMProcessorComponent;
 };

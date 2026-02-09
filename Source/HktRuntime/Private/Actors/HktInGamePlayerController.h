@@ -6,8 +6,8 @@
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
 #include "HktCoreTypes.h"
-#include "HktModelProvider.h"
-#include "HktPlayerController.generated.h"
+#include "HktRuntimeDelegates.h"
+#include "HktInGamePlayerController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
@@ -15,64 +15,76 @@ class UHktInputAction;
 class UHktIntentBuilderComponent;
 class UHktVisibleStashComponent;
 class UHktVMProcessorComponent;
+class UHktCommandContainerComponent;
+class IHktClientRule;
 struct FHktFrameBatch;
+struct FHktGroupSimulationState;
 
 /**
- * 입력을 받아 Intent를 조립하고 PlayerState로 제출하는 컨트롤러.
+ * AHktInGamePlayerController - 클라이언트 오케스트레이터
+ *
+ * 아키텍처 원칙:
+ *   - Actor는 "이벤트 발행"에 집중 (인터페이스를 직접 구현하지 않음)
+ *   - 입력 이벤트 → ClientRule에 위임
+ *   - 서버 수신 이벤트 → ClientRule에 위임
+ *   - Component가 인터페이스 구현을 담당
+ *
+ * 이벤트 → Rule 매핑:
+ *   OnSubjectAction  → Rule->OnUserEvent_SubjectInputAction()
+ *   OnTargetAction   → Rule->OnUserEvent_TargetInputAction()
+ *   OnSlotAction     → Rule->OnUserEvent_CommandInputAction()
+ *   OnZoom           → Rule->OnUserEvent_ZoomInputAction()
+ *   Client_ReceiveFrameBatch        → Rule->OnReceived_FrameBatch()
+ *   Client_ReceiveInitialState      → Rule->OnReceived_InitialSimulationState()
  */
 UCLASS()
-class HKTRUNTIME_API AHktInGamePlayerController : public APlayerController, public IHktModelProvider
+class HKTRUNTIME_API AHktInGamePlayerController : public APlayerController
 {
     GENERATED_BODY()
 
 public:
     AHktInGamePlayerController();
 
-    // === Intent 전송 (클라이언트) ===
-    
-    UFUNCTION(BlueprintCallable, Category = "Hkt")
-    bool SendIntent();
+    // === S2C RPC (서버 → 클라이언트) ===
 
-    // === C2S RPC ===
-    
+    UFUNCTION(Client, Reliable)
+    void Client_ReceiveFrameBatch(const FHktFrameBatch& Batch);
+
+    UFUNCTION(Client, Reliable)
+    void Client_ReceiveInitialState(const FHktGroupSimulationState& State);
+
+    // === C2S RPC (클라이언트 → 서버) ===
+
     UFUNCTION(Server, Reliable, WithValidation)
     void Server_ReceiveIntent(const FHktIntentEvent& Event);
 
-    // === S2C RPC ===
-    
-    void SendBatchToOwningClient(const FHktFrameBatch& Batch);
+    // === 델리게이트 (Presentation 레이어 연결용) ===
 
-    UFUNCTION(Client, Reliable)
-    void Client_ReceiveBatch(const FHktFrameBatch& Batch);
-
-    // === 소유 엔티티 (클라이언트에서 계산) ===
-    
-    /** 내 엔티티인지 확인 (OwnerPlayerHash 또는 Owner.Self 태그) */
-    UFUNCTION(BlueprintPure, Category = "Hkt|Entity")
-    bool IsMyEntity(FHktEntityId EntityId) const;
-    
-    /** 내 소유 엔티티들 반환 */
-    UFUNCTION(BlueprintPure, Category = "Hkt|Entity")
-    TArray<FHktEntityId> GetMyEntities() const;
-    
-    /** 현재 선택된 내 엔티티 (첫 번째 소유 엔티티) */
-    UFUNCTION(BlueprintPure, Category = "Hkt|Entity")
-    FHktEntityId GetPrimaryEntity() const;
+    FOnHktSubjectChanged& OnSubjectChanged() { return SubjectChangedDelegate; }
+    FOnHktTargetChanged& OnTargetChanged() { return TargetChangedDelegate; }
+    FOnHktCommandChanged& OnCommandChanged() { return CommandChangedDelegate; }
+    FOnHktIntentSubmitted& OnIntentSubmitted() { return IntentSubmittedDelegate; }
+    FOnHktWheelInput& OnWheelInput() { return WheelInputDelegate; }
+    FOnHktEntityCreated& OnEntityCreated() { return EntityCreatedDelegate; }
+    FOnHktEntityDestroyed& OnEntityDestroyed() { return EntityDestroyedDelegate; }
 
 protected:
     virtual void BeginPlay() override;
     virtual void SetupInputComponent() override;
 
-    //-------------------------------------------------------------------------
-    // Input Handlers
-    //-------------------------------------------------------------------------
+    // === 입력 핸들러 (이벤트 발행 → Rule 위임) ===
 
     void OnSubjectAction(const FInputActionValue& Value);
     void OnTargetAction(const FInputActionValue& Value);
     void OnSlotAction(const FInputActionValue& Value, int32 SlotIndex);
     void OnZoom(const FInputActionValue& Value);
 
+    // === Rule 조회 ===
+    IHktClientRule* GetClientRule() const;
+
 protected:
+    // === Input ===
+
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TObjectPtr<UInputMappingContext> DefaultMappingContext;
 
@@ -87,30 +99,27 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TArray<TObjectPtr<UHktInputAction>> SlotActions;
-    
-    /** Intent 빌더 컴포넌트 (클라이언트 로컬 입력 조립용) */
+
+    // === 인터페이스 구현 컴포넌트들 (Rule의 파라미터로 전달됨) ===
+
+    /** IHktIntentBuilder 구현 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
     TObjectPtr<UHktIntentBuilderComponent> IntentBuilderComponent;
 
-    // VisibleStashComponent (클라이언트 전용)
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt")
+    /** VisibleStash (클라이언트 전용) */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
     TObjectPtr<UHktVisibleStashComponent> VisibleStashComponent;
-    
-    /** VM 프로세서 컴포넌트 (클라이언트 로컬 시뮬레이션 실행) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt")
+
+    /** VM 프로세서 (클라이언트 로컬 시뮬레이션) */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
     TObjectPtr<UHktVMProcessorComponent> VMProcessorComponent;
 
-    /** 내 PlayerHash 계산 */
-    int32 GetMyPlayerHash() const;
+    /** IHktCommandContainer 구현 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
+    TObjectPtr<UHktCommandContainerComponent> CommandContainerComponent;
 
 private:
-    mutable int32 CachedPlayerHash = 0;
-    mutable bool bPlayerHashCached = false;
-
-    //-------------------------------------------------------------------------
-    // IHktControlProvider 델리게이트
-    //-------------------------------------------------------------------------
-
+    // 델리게이트
     FOnHktSubjectChanged SubjectChangedDelegate;
     FOnHktTargetChanged TargetChangedDelegate;
     FOnHktCommandChanged CommandChangedDelegate;
@@ -118,23 +127,4 @@ private:
     FOnHktWheelInput WheelInputDelegate;
     FOnHktEntityCreated EntityCreatedDelegate;
     FOnHktEntityDestroyed EntityDestroyedDelegate;
-
-public:
-    //-------------------------------------------------------------------------
-    // IHktControlProvider 구현
-    //-------------------------------------------------------------------------
-
-    virtual IHktStashInterface* GetStashInterface() const override;
-    virtual FHktEntityId GetSelectedSubject() const override;
-    virtual FHktEntityId GetSelectedTarget() const override;
-    virtual FVector GetTargetLocation() const override;
-    virtual FGameplayTag GetSelectedCommand() const override;
-    virtual bool IsIntentValid() const override;
-    virtual FOnHktSubjectChanged& OnSubjectChanged() override { return SubjectChangedDelegate; }
-    virtual FOnHktTargetChanged& OnTargetChanged() override { return TargetChangedDelegate; }
-    virtual FOnHktCommandChanged& OnCommandChanged() override { return CommandChangedDelegate; }
-    virtual FOnHktIntentSubmitted& OnIntentSubmitted() override { return IntentSubmittedDelegate; }
-    virtual FOnHktWheelInput& OnWheelInput() override { return WheelInputDelegate; }
-    virtual FOnHktEntityCreated& OnEntityCreated() override { return EntityCreatedDelegate; }
-    virtual FOnHktEntityDestroyed& OnEntityDestroyed() override { return EntityDestroyedDelegate; }
 };

@@ -54,6 +54,10 @@ namespace Hkt
 
         if (!DataA || !DataB) return;
 
+        // [Physics Resolution] 즉시 위치 보정 (예시)
+        // DataA->Position.X -= 1.0f;
+
+        // [Event Generation]
         FHktEvent HitEvent;
         HitEvent.EventTag = (uint32)EEventTag::CollisionHit;
         HitEvent.Source = A;

@@ -6,98 +6,88 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "HktCoreTypes.h"
+#include "Rules/HktClientRule.h"
 #include "HktIntentBuilderComponent.generated.h"
 
 /**
- * 입력을 조립하여 Intent를 빌드하는 컴포넌트.
- * Subject, Command, Target을 순차적으로 설정하고 제출합니다.
+ * UHktIntentBuilderComponent
+ *
+ * 아키텍처:
+ *   - 컴포넌트는 인터페이스 구현에 집중
+ *   - 3개 인터페이스를 동시에 구현:
+ *     - IHktIntentBuilder:          Subject/Command/Target 설정 + Submit
+ *     - IHktSubjectSelectionPolicy: 커서 아래 Selectable 조회
+ *     - IHktTargetSelectionPolicy:  커서 아래 Target 조회
+ *
+ * Rule에서의 사용:
+ *   Rule->OnUserEvent_SubjectInputAction(*this, *this);  // Policy + Builder
+ *   Rule->OnUserEvent_TargetInputAction(*this, *this);   // Policy + Builder
+ *
+ * Submit 흐름:
+ *   Rule이 IHktIntentBuilder::Submit() 호출
+ *   → 내부에서 IntentEvent 생성, PendingSubmit에 저장
+ *   → Actor(PlayerController)가 HasPendingSubmit() 확인 후 ConsumePendingSubmit()으로 가져감
+ *   → Actor가 Server_ReceiveIntent RPC 발행
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class HKTRUNTIME_API UHktIntentBuilderComponent : public UActorComponent
+class HKTRUNTIME_API UHktIntentBuilderComponent
+    : public UActorComponent
+    , public IHktIntentBuilder
+    , public IHktSubjectSelectionPolicy
+    , public IHktTargetSelectionPolicy
 {
     GENERATED_BODY()
 
 public:
     UHktIntentBuilderComponent();
 
-    //-------------------------------------------------------------------------
-    // Action Creation (입력 핸들러에서 호출)
-    //-------------------------------------------------------------------------
-    
-    /** 주체 선택 - 커서 아래 유닛을 Subject로 설정 */
-    UFUNCTION(BlueprintCallable, Category = "Hkt|IntentBuilder")
-    void CreateSubjectAction();
-    
-    /** 명령 선택 - 태그로 Command 설정 */
-    UFUNCTION(BlueprintCallable, Category = "Hkt|IntentBuilder")
-    void CreateCommandAction(FGameplayTag InEventTag);
+    // === IHktIntentBuilder 구현 ===
 
-    /** 대상 선택 - 커서 아래를 Target으로 설정 */
-    UFUNCTION(BlueprintCallable, Category = "Hkt|IntentBuilder")
-    void CreateTargetAction();
+    virtual void SetSubject(FHktEntityId InSubject) override;
+    virtual void SetCommand(FGameplayTag InEventTag, bool bInTargetRequired) override;
+    virtual void SetTarget(FHktEntityId InTarget, FVector InLocation) override;
+    virtual void ResetCommand() override;
+    virtual bool IsReadyToSubmit() const override;
+    virtual bool Submit() override;
 
-    //-------------------------------------------------------------------------
-    // Intent Submission
-    //-------------------------------------------------------------------------
-    
-    /** Intent를 검증하고 서버로 제출 */
-    UFUNCTION(BlueprintCallable, Category = "Hkt|IntentBuilder")
-    bool SubmitIntent(FHktIntentEvent& OutEvent);
+    // === IHktSubjectSelectionPolicy 구현 ===
 
-    //-------------------------------------------------------------------------
-    // Validation (Blueprint/Debug에서 조회)
-    //-------------------------------------------------------------------------
-    
-    /** Subject와 Command가 유효한지 검사 */
-    UFUNCTION(BlueprintPure, Category = "Hkt|IntentBuilder")
-    bool IsValid() const;
-    
-    /** 제출 가능한 상태인지 검사 (Target 필요 여부 포함) */
-    UFUNCTION(BlueprintPure, Category = "Hkt|IntentBuilder")
-    bool IsReadyToSubmit() const;
-    
-    /** Target이 필요한 Command인지 */
-    UFUNCTION(BlueprintPure, Category = "Hkt|IntentBuilder")
-    bool IsTargetRequired() const { return bTargetRequired; }
+    virtual FHktEntityId ResolveSubject() const override;
 
-    //-------------------------------------------------------------------------
-    // State Access (IHktControlProvider용)
-    //-------------------------------------------------------------------------
+    // === IHktTargetSelectionPolicy 구현 ===
+
+    virtual void ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation) const override;
+
+    // === Submit 결과 관리 (Actor에서 소비) ===
+
+    /** Submit이 호출되어 대기 중인 Intent가 있는지 */
+    bool HasPendingSubmit() const { return bHasPendingSubmit; }
+
+    /** 대기 중인 Intent를 소비 (Actor가 RPC로 전송) */
+    FHktIntentEvent ConsumePendingSubmit();
+
+    // === 상태 조회 (Presentation용) ===
 
     FHktEntityId GetSubjectEntityId() const { return SubjectEntityId; }
     FHktEntityId GetTargetEntityId() const { return TargetEntityId; }
     FVector GetTargetLocation() const { return TargetLocation; }
     FGameplayTag GetEventTag() const { return EventTag; }
 
-    //-------------------------------------------------------------------------
-    // Lifecycle
-    //-------------------------------------------------------------------------
-    
-    /** 모든 데이터 초기화 */
-    UFUNCTION(BlueprintCallable, Category = "Hkt|IntentBuilder")
-    void Reset();
-    
-    /** Command와 Target만 초기화 (Subject 유지) */
-    UFUNCTION(BlueprintCallable, Category = "Hkt|IntentBuilder")
-    void ResetCommand();
-
 private:
     bool GetHitUnderCursor(FHitResult& OutHit) const;
     bool GetSelectableEntityUnderCursor(FHktEntityId& OutEntityId) const;
 
 private:
-    UPROPERTY(Transient)
     FHktEntityId SubjectEntityId = InvalidEntityId;
-    
-    UPROPERTY(Transient)
     FGameplayTag EventTag;
-    
-    UPROPERTY(Transient)
     FHktEntityId TargetEntityId = InvalidEntityId;
-    
-    UPROPERTY(Transient)
     FVector TargetLocation = FVector::ZeroVector;
-    
-    UPROPERTY(Transient)
     bool bTargetRequired = true;
+
+    // Submit 결과 (Actor가 소비)
+    bool bHasPendingSubmit = false;
+    FHktIntentEvent PendingSubmitEvent;
+
+    // Intent 시퀀스 번호
+    static uint32 StaticIntentSequence;
 };

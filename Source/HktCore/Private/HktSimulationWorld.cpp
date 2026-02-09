@@ -10,8 +10,9 @@ namespace Hkt
     {
     }
 
-    void FHktSimulationWorld::Tick(uint32 FrameNumber)
+    void FHktSimulationWorld::Tick(uint32 FrameNumber, double Time)
     {
+        // [Phase 1-3] Simulation Logic
         VMProcessor.SwapQueues();
         VMProcessor.ProcessCurrentQueue();
 
@@ -22,6 +23,9 @@ namespace Hkt
         {
             VMProcessor.EnqueueEvent(Evt);
         }
+
+        // [Phase 4] Publish Snapshot (State -> Linear Snapshot)
+        PublishSnapshot(FrameNumber, Time, CollisionEvents);
     }
 
     void FHktSimulationWorld::AddInputEvent(const FHktEvent& Event)
@@ -29,8 +33,35 @@ namespace Hkt
         VMProcessor.EnqueueEvent(Event);
     }
 
-    const FHktWorldState& FHktSimulationWorld::GetState() const
+    FHktFrameSnapshotConstPtr FHktSimulationWorld::GetLastSnapshot() const
     {
-        return WorldState;
+        FScopeLock Lock(&SnapshotLock);
+        return LastCommittedSnapshot;
+    }
+
+    void FHktSimulationWorld::PublishSnapshot(uint32 FrameNumber, double Time, const TArray<FHktEvent>& CurrentEvents)
+    {
+        TSharedPtr<FHktFrameSnapshot, ESPMode::ThreadSafe> NewSnapshot = MakeShared<FHktFrameSnapshot, ESPMode::ThreadSafe>();
+
+        NewSnapshot->FrameNumber = FrameNumber;
+        NewSnapshot->Timestamp = Time;
+        NewSnapshot->Events = CurrentEvents;
+
+        // Optimization: Linearize TMap -> TArray
+        const auto& AllEntities = WorldState.GetAllEntities();
+        NewSnapshot->Entities.Reserve(AllEntities.Num());
+
+        for (const auto& Pair : AllEntities)
+        {
+            NewSnapshot->Entities.Add({ Pair.Key, Pair.Value });
+        }
+
+        // [Optimization] Exchange Pattern to minimize Lock duration
+        FHktFrameSnapshotConstPtr OldSnapshot;
+        {
+            FScopeLock Lock(&SnapshotLock);
+            OldSnapshot = LastCommittedSnapshot;
+            LastCommittedSnapshot = NewSnapshot;
+        }
     }
 }

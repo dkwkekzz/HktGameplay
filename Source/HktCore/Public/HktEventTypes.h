@@ -32,7 +32,7 @@ namespace Hkt
         FEntityID Source;
         FEntityID Target;
         FVector3 Location;
-        TArray<uint8> Payload; // Parameters
+        TArray<uint8> Payload;  // Parameters
 
         /** 이 이벤트가 시스템 내부 발생인지 여부 (True면 네트워크 전송 제외 가능) */
         bool bIsInternal = false;
