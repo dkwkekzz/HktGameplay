@@ -17,7 +17,7 @@ struct HKTRUNTIME_API FHktEntitySnapshot
     GENERATED_BODY()
 
     UPROPERTY()
-    int32 EntityId = INDEX_NONE;
+    int32 EntityId = InvalidEntityId;
 
     /** 숫자 Property 배열 (PropertyId = 인덱스) */
     UPROPERTY()
@@ -98,13 +98,9 @@ struct HKTRUNTIME_API FHktIntentEvent
 	}
 };
 
-/**
- * FHktFrameBatch - 서버 → 클라이언트 프레임 배치
- * 
- * 스냅샷과 이벤트를 분리하여 전송
- * - Snapshots: Relevancy에 새로 진입한 엔티티들
- * - Events: 이번 프레임의 Intent들
- */
+//=============================================================================
+// FHktFrameBatch - 기존 유저용 "입력(Input)" 패킷
+//=============================================================================
 USTRUCT()
 struct HKTRUNTIME_API FHktFrameBatch
 {
@@ -113,27 +109,47 @@ struct HKTRUNTIME_API FHktFrameBatch
     UPROPERTY()
     int64 FrameNumber = 0;
 
-    // Relevancy에 새로 진입한 엔티티 스냅샷
     UPROPERTY()
-    TArray<FHktEntitySnapshot> Snapshots;
+    int32 RandomSeed = 0;
 
-    // Relevancy를 벗어난 엔티티 ID (클라가 제거해야 함)
     UPROPERTY()
-    TArray<int32> RemovedEntityIds;
+    float DeltaSeconds = 0.0f;
 
-    // 이번 프레임의 이벤트들 (스냅샷 분리됨)
+    UPROPERTY()
+    TArray<int64> RemovedOwnerIds;
+
     UPROPERTY()
     TArray<FHktIntentEvent> Events;
 
-    int32 NumEvents() const { return Events.Num(); }
-    int32 NumSnapshots() const { return Snapshots.Num(); }
-    bool IsEmpty() const { return Events.IsEmpty() && Snapshots.IsEmpty() && RemovedEntityIds.IsEmpty(); }
-    
     void Reset()
     {
         FrameNumber = 0;
-        Snapshots.Empty();
-        RemovedEntityIds.Empty();
-        Events.Empty();
+        RandomSeed = 0;
+        DeltaSeconds = 0.0f;
+        RemovedOwnerIds.Reset();
+        Events.Reset();
     }
 };
+
+//=============================================================================
+// FHktGroupSimulationState - 신규 유저용 "결과(Result)" 패킷
+//=============================================================================
+// [중요] 그룹의 시뮬레이션 결과를 완벽하게 복원하기 위한 모든 데이터를 포함해야 함
+USTRUCT()
+struct HKTRUNTIME_API FHktGroupSimulationState
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    int64 LastProcessedFrameNumber = 0; // 이 상태가 어떤 프레임까지 반영된 결과인지
+
+    // 엔티티들의 최종 스냅샷
+    UPROPERTY()
+    TArray<FHktEntitySnapshot> EntitySnapshots;
+
+    // [결정론 보장] 현재 진행 중인, 아직 만료되지 않은 지속성 이벤트나 상태
+    // 예: 쿨타임 정보, 날씨 상태, 현재 RNG의 내부 상태값 등
+    UPROPERTY()
+    TArray<FHktPendingEvent> ActiveEvents; 
+};
+

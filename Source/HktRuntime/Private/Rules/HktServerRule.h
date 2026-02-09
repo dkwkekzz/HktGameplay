@@ -1,93 +1,96 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktCoreTypes.h"
 #include "HktRuntimeTypes.h"
 #include "HktRuleInterfaces.h"
 
 //=============================================================================
-// IHktWorldPlayer - 월드 플레이어 추상화 (Actor는 구현하지 않고 컴포넌트/어댑터가 구현)
+// IHktWorldPlayer
 //=============================================================================
 class IHktWorldPlayer
 {
 public:
     virtual ~IHktWorldPlayer() = default;
+    
     virtual int64 GetPlayerUid() const = 0;
-	virtual const FString& GetPlayerName() const = 0;
-    virtual FVector GetLocation() const = 0;
 
-	virtual bool ShouldSavePlayerRecord() const = 0;
-	virtual FHktPlayerRecord MakePlayerRecord() const = 0;
+    // Existing Users: Batch(Input)를 받아 시뮬레이션 수행
+    virtual void Client_ReceiveFrameBatch(const FHktFrameBatch& Batch) = 0;
 
-    virtual void SendFrameBatch(const FHktFrameBatch& Batch) = 0;
+    // Newbie Users: State(Result)를 받아 즉시 동기화 (Batch 처리 생략)
+    virtual void Client_ReceiveInitialState(const FHktGroupSimulationState& InitialState) = 0;
 };
 
 //=============================================================================
-// IHktIntentCollector - Intent 수집 (PushIntent / ConsumeIntents)
+// IHktIntentCollector
 //=============================================================================
 class IHktIntentCollector
 {
 public:
     virtual ~IHktIntentCollector() = default;
-    virtual void PushIntent(int64 InPlayerUid, const FHktIntentEvent& Event) = 0;
-    virtual bool PushIntents(int64 InPlayerUid, TArray<FHktIntentEvent>& OutIntents) = 0;
+    
     virtual bool GetIntents(int64 InPlayerUid, TArray<FHktIntentEvent>& OutIntents) = 0;
+    virtual bool GetEnteredPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) = 0;
+    virtual bool GetExitedPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) = 0;
 
-	virtual void PushEntitySnapshots(int64 InPlayerUid, const TArray<FHktEntitySnapshot>& Snapshots) = 0;
-	virtual bool GetEntitySnapshots(int64 InPlayerUid, TArray<FHktEntitySnapshot>& OutSnapshots) = 0;
-
-	virtual void EnterWorldPlayer(int64 InPlayerUid) = 0;
-    virtual bool GetEnteredPlayers(TArray<int64>& OutPlayerUids) = 0;
-	virtual void ExitWorldPlayer(int64 InPlayerUid) = 0;
-    virtual bool GetExitedPlayers(TArray<int64>& OutPlayerUids) = 0;
+    // [추가] 로그인 시 초기 스폰/복구 이벤트를 주입하기 위함
+    virtual void PushIntents(int64 InPlayerUid, const TArray<FHktIntentEvent>& InEvents) = 0;
+    
+    // [추가] Relevancy 변경 알림 (BatchBuilder가 Newbie 목록을 만들 때 사용)
+    virtual void EnterWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
+    virtual void ExitWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
 };
 
 //=============================================================================
-// IHktSimulator - VMProcessor 등 시뮬레이션 실행
+// IHktBatchBuilder
 //=============================================================================
-class IHktSimulator
+class IHktBatchBuilder
 {
 public:
-    virtual ~IHktSimulator() = default;
-    virtual void Execute(const FHktFrameBatch& InBatch) = 0;
+    virtual ~IHktBatchBuilder() = default;
+
+    virtual FHktFrameBatch& CreateOrGetGroupFrameBatch(int32 InGroupIdx) = 0;
+    virtual TArray<int64>& GetMutableNewbieOwners(int32 InGroupIdx) = 0;
+    virtual FHktGroupSimulationState& CreateOrGetNewbieState(int32 InGroupIdx) = 0;
+
+    virtual const FHktFrameBatch& GetGroupFrameBatch(int32 InGroupIdx) const = 0;
+    virtual const TArray<int64>& GetNewbieOwners(int32 InGroupIdx) const = 0;
+    virtual const FHktGroupSimulationState* GetNewbieState(int32 InGroupIdx) const = 0;
 };
 
 //=============================================================================
-// IHktRelevancyGraph - Relevancy 그래프 (셀 단위: 관심 셀 목록, 셀별 플레이어)
+// IHktRelevancyGroup
 //=============================================================================
 class IHktRelevancyGroup
 {
 public:
     virtual ~IHktRelevancyGroup() = default;
-	virtual IHktSimulator& GetSimulator() = 0;
-    virtual const TArray<IHktWorldPlayer*>& GetPlayers() const = 0;
+    virtual IHktSimulator& GetSimulator() = 0;
+    virtual const TArray<int64>& GetPlayerUids() const = 0;
+    virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const = 0;
+    virtual const FHktGroupSimulationState& GetCurrentSimulationState() const = 0;
 };
 
+//=============================================================================
+// IHktRelevancyGraph
+//=============================================================================
 class IHktRelevancyGraph
 {
 public:
     virtual ~IHktRelevancyGraph() = default;
-    virtual void RegisterPlayer(const IHktWorldPlayer& Player) = 0;
-    virtual void UnregisterPlayer(const IHktWorldPlayer& Player) = 0;
+    
+    virtual void RegisterPlayer(IHktWorldPlayer* Player, int32 GroupIndex) = 0;
+    virtual void UnregisterPlayer(int64 PlayerUid) = 0;
     virtual void UpdateRelevancy() = 0;
+    
+    virtual IHktWorldPlayer* GetWorldPlayer(int64 PlayerUid) const = 0;
+    
+    // [추가] 위치 기반으로 그룹 인덱스를 찾는 헬퍼 함수
+    virtual int32 GetGroupIndexByLocation(const FVector& Location) const = 0;
 
-	virtual int32 GetNumRelevancyGroups() const = 0;
+    virtual int32 NumRelevancyGroup() const = 0;
     virtual IHktRelevancyGroup& GetRelevancyGroup(int32 Index) = 0;
     virtual const IHktRelevancyGroup& GetRelevancyGroup(int32 Index) const = 0;
-};
-
-//=============================================================================
-// IHktWorldMasterState - 월드 상태 (위치, 스냅샷, Stash)
-// 하나의 셀에 플레이어·엔터티·이벤트가 들어있고, 셀 단위로 FrameBatch를 구성한다.
-//=============================================================================
-class IHktWorldMasterState
-{
-public:
-    virtual ~IHktWorldMasterState() = default;
-
-    virtual TArray<FHktEntityId> GetEntitiesByOwner(int64 InOwnerUid) const = 0;
-    virtual TArray<FHktEntitySnapshot> GetEntitySnapshotsByOwner(int64 InOwnerUid) const = 0;
-    virtual FHktEntitySnapshot CreateEntitySnapshot(FHktEntityId Entity) const = 0;
 };
 
 //=============================================================================
@@ -97,9 +100,14 @@ class IHktWorldDatabase
 {
 public:
     virtual ~IHktWorldDatabase() = default;
-    virtual void GetOrCreatePlayerRecord(int64 InPlayerUid, TFunction<void(FHktPlayerRecord&)> InCallback) = 0;
-    virtual const FHktPlayerRecord* GetPlayerRecord(int64 InPlayerUid) const = 0;
-    virtual void SavePlayerRecord(const FHktPlayerRecord& InRecord) = 0;
+    
+    // 비동기 로드: 완료 시 Callback 호출 (Worker Thread에서 호출될 수 있음)
+    // [최적화] Load 완료 시 TUniquePtr로 소유권을 넘겨줌 (복사 방지)
+    virtual void LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(TUniquePtr<FHktPlayerRecord>)> InCallback) = 0;
+
+    // 비동기 저장: 완료 여부는 중요하지 않으나 순서는 보장되어야 함
+    // [최적화] Save 시 값으로 받되, 호출자가 MoveTemp로 넘기도록 유도 (내부 TArray 포인터만 이동됨)
+    virtual void SavePlayerRecordAsync(FHktPlayerRecord InRecord) = 0;
 };
 
 //=============================================================================
@@ -135,27 +143,27 @@ public:
     virtual void Deauthenticate(const FString& Token) = 0;
 };
 
-//=============================================================================
-// IHktBatchBuilder - 배치 빌더
-//=============================================================================
-class IHktBatchBuilder
-{
-public:
-    virtual ~IHktBatchBuilder() = default;
-	
-};
-
 class FHktDefaultServerRule : public IHktServerRule
 {
 public:
 	FHktDefaultServerRule();
-	~FHktDefaultServerRule();
+	virtual ~FHktDefaultServerRule();
 
     virtual void OnReceived_Authentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal, TFunction<void(bool bSuccess, const FString& Token)> InResultCallback) override;
     virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) override {}
     virtual void OnReceived_FireIntentEvent(const FHktIntentEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector) override;
-    virtual void OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB, IHktIntentCollector& InCollector) override;
-    virtual void OnLogout_ExitWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB, IHktIntentCollector& InCollector) override;
-    virtual void OnTick_ExecuteFrame(IHktPersistentFrame& InFrame, IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& OutBuilder) override;
+    virtual void OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) override;
+    virtual void OnLogout_ExitWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) override;
+    virtual void OnTick_ExecuteFrame(const IHktPersistentFrame& InFrame, const IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& OutBuilder) override;
     virtual void OnTick_SendFrameBatch(const IHktRelevancyGraph& InGraph, const IHktBatchBuilder& InBuilder) override;
+
+private:
+    // [최적화] 무거운 구조체 대신 UniquePtr를 사용하여 큐 복사 비용 최소화 (8바이트 복사)
+    TQueue<TUniquePtr<FHktPlayerRecord>, EQueueMode::Mpsc> PendingLoginResults;
+
+    // 로그아웃 요청 큐 (Uid)
+    TQueue<int64, EQueueMode::Mpsc> PendingLogoutRequests;
+
+    // 수시 저장(Autosave) 요청 큐
+    TQueue<int64, EQueueMode::Mpsc> PendingAutosaveRequests;
 };

@@ -3,6 +3,8 @@
 #include "HktServerRule.h"
 #include "GameplayTagsManager.h"
 
+static int32 HashCombine(int64 A, int32 B) { return (int32)(A * 2654435761) ^ B; }
+
 FHktDefaultServerRule::FHktDefaultServerRule()
 {
 }
@@ -25,38 +27,119 @@ void FHktDefaultServerRule::OnReceived_FireIntentEvent(const FHktIntentEvent& In
 }
 
 // --- 로그인: Relevancy에 플레이어 등록, DB에서 엔티티 로드/스폰, 스폰 이벤트 발행 ---
-void FHktDefaultServerRule::OnLogin_EnterWorldPlayer(
-    const IHktWorldPlayer& InPlayer,
-    IHktWorldDatabase& InDB,
-    IHktRelevancyGraph& InGraph,
-    IHktIntentCollector& InCollector,
-    IHktWorldState& InState)
+void FHktDefaultServerRule::OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB)
 {
-	int64 PlayerUid = InPlayer.GetPlayerUid();
-	InDB.GetOrCreatePlayerRecord(PlayerUid, [PlayerUid, &InGraph, &InCollector](FHktPlayerRecord& Record)
-	{
-		InGraph.RegisterPlayer(InPlayer);
-		InCollector.PushIntents(PlayerUid, Record.IntentEvents);
-		InCollector.PushEntitySnapshots(PlayerUid, Record.EntitySnapshots);
-	});
+	const int64 PlayerUid = InPlayer.GetPlayerUid();
+	InDB.LoadPlayerRecordAsync(PlayerUid, [this](TUniquePtr<FHktPlayerRecord> RecordPtr)
+    {
+        // DB 로드 완료 (Worker Thread) -> 포인터 소유권을 큐로 이전 (Move)
+        if (RecordPtr.IsValid())
+        {
+            PendingLoginResults.Enqueue(MoveTemp(RecordPtr));
+        }
+    });
 }
 
 // --- 로그아웃: 엔티티 저장 및 해제, Relevancy 그래프에서 플레이어 해제 ---
-void FHktDefaultServerRule::OnLogout_ExitWorldPlayer(
-    const IHktWorldPlayer& InPlayer,
-    IHktWorldDatabase& InDB,
-    IHktRelevancyGraph& InGraph,
-    IHktIntentCollector& InCollector,
-    IHktWorldState& InState)
+void FHktDefaultServerRule::OnLogout_ExitWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB)
 {
-	if (InPlayer.ShouldSavePlayerRecord())
+	// TODO: 안전하지 않은 저장 방식...
+	InDB.SavePlayerRecordAsync(InPlayer.MakePlayerRecord());
+
+	PendingLogoutRequests.Enqueue(InPlayer.GetPlayerUid());
+}
+
+void FHktDefaultServerRule::OnTick_ExecuteFrame(
+	const IHktPersistentFrame& InFrame, 
+	const IHktRelevancyGraph& InGraph, 
+	IHktIntentCollector& InCollector, 
+	IHktBatchBuilder& OutBuilder)
+{
+	const int32 NumGroups = InGraph.NumRelevancyGroup();
+	const int64 CurrentFrameNumber = InFrame.GetFrameNumber();
+	const float DeltaTime = InFrame.GetDeltaSeconds();
+
+	ParallelFor(NumGroups, [&](int32 GroupIndex)
 	{
-		FHktPlayerRecord Record = InPlayer.MakePlayerRecord();
-		InDB.SavePlayerRecord(Record);
+		// 1. [Input 구성] 이번 프레임에 시뮬레이션할 재료 준비
+		FHktFrameBatch& GroupBatch = OutBuilder.CreateOrGetGroupFrameBatch(GroupIndex);
+		GroupBatch.FrameNumber = CurrentFrameNumber;
+		GroupBatch.DeltaSeconds = DeltaTime;
+		GroupBatch.RandomSeed = HashCombine(CurrentFrameNumber, GroupIndex);
+
+		const IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(GroupIndex);
+
+		for (const int64 PlayerUid : Group.GetPlayerUids())
+		{
+			InCollector.GetIntents(PlayerUid, GroupBatch.Events);
+		}
+		InCollector.GetExitedPlayers(GroupIndex, GroupBatch.RemovedOwnerIds);
+
+		// 2. [Simulation 실행] 서버의 그룹 상태를 업데이트
+		// 시뮬레이터는 GroupBatch(입력)를 사용하여 내부의 GroupSimulationState(결과)를 갱신함
+		IHktSimulator& GroupSimulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator(); 
+		GroupSimulator.Execute(GroupBatch);
+
+		// 3. [Result 복제] 신규 유저 처리
+		TArray<int64>& NewbieOwners = OutBuilder.GetMutableNewbieOwners(GroupIndex);
+		InCollector.GetEnteredPlayers(GroupIndex, NewbieOwners);
+
+		if (NewbieOwners.Num() > 0)
+		{
+			// [핵심 변경] 시뮬레이션이 끝난 "직후"의 그룹 전체 상태를 통째로 복사
+			// Global State를 참조하지 않고, 방금 연산이 끝난 Group 자체의 State를 가져옴
+			FHktGroupSimulationState& TargetState = OutBuilder.CreateOrGetNewbieState(GroupIndex);
+			TargetState = Group.GetCurrentSimulationState();
+			
+			// (방어 코드) State의 FrameNumber가 현재 프레임과 일치하는지 확인
+			// TargetState.LastProcessedFrameNumber == CurrentFrameNumber 여야 함
+		}
+	});
+}
+
+void FHktDefaultServerRule::OnTick_SendFrameBatch(
+	const IHktRelevancyGraph& InGraph, 
+	const IHktBatchBuilder& InBuilder)
+{
+	const int32 NumGroups = InGraph.NumRelevancyGroup();
+
+	for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
+	{
+		const FHktFrameBatch& GroupBatch = InBuilder.GetGroupFrameBatch(GroupIndex);
+		const IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(GroupIndex);
+		
+		const TArray<IHktWorldPlayer*>& CachedPlayers = Group.GetCachedWorldPlayers();
+		if (CachedPlayers.Num() == 0) continue;
+
+		const TArray<int64>& NewbieOwners = InBuilder.GetNewbieOwners(GroupIndex);
+		const bool bHasNewbies = NewbieOwners.Num() > 0;
+		
+		// 신규 유저용 상태 데이터 (포인터로 접근)
+		const FHktGroupSimulationState* NewbieState = bHasNewbies ? InBuilder.GetNewbieState(GroupIndex) : nullptr;
+
+		IHktWorldPlayer* const* PlayerPtrData = CachedPlayers.GetData();
+		const int32 NumPlayers = CachedPlayers.Num();
+
+		for (int32 i = 0; i < NumPlayers; ++i)
+		{
+			if (i + 1 < NumPlayers) FPlatformMisc::Prefetch(PlayerPtrData[i + 1]);
+
+			IHktWorldPlayer* Player = PlayerPtrData[i];
+			if (!Player) continue; 
+
+			// [분기 처리]
+			// Case A: 신규 유저 -> "결과(State)"를 받음. (이번 프레임 연산 생략)
+			if (bHasNewbies && NewbieOwners.Contains(Player->GetPlayerUid()) && NewbieState)
+			{
+				Player->Client_ReceiveInitialState(*NewbieState);
+			}
+			// Case B: 기존 유저 -> "입력(Batch)"을 받음. (직접 시뮬레이션 수행)
+			else
+			{
+				Player->Client_ReceiveFrameBatch(GroupBatch);
+			}
+		}
 	}
-	
-    // 2. Relevancy 그래프에서 플레이어 해제
-    InGraph.UnregisterPlayer(InPlayer);
 }
 
 void FHktDefaultServerRule::OnTick_ExecuteFrame(IHktPersistentFrame& InFrame, IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& OutBuilder)
@@ -65,16 +148,32 @@ void FHktDefaultServerRule::OnTick_ExecuteFrame(IHktPersistentFrame& InFrame, IH
 
 	InGraph.UpdateRelevancy();
 
+	TArray<int64> EnteredPlayerUids;
+	InCollector.GetEnteredPlayers(EnteredPlayerUids);
+	for (int64 PlayerUid : EnteredPlayerUids)
+	{
+		InGraph.RegisterPlayer(PlayerUid);
+	}
+
+	TArray<int64> ExitedPlayerUids;
+	InCollector.GetExitedPlayers(ExitedPlayerUids);
+	for (int64 PlayerUid : ExitedPlayerUids)
+	{
+		InGraph.UnregisterPlayer(PlayerUid);
+	}
+
 	for (int32 i = 0; i < InGraph.GetNumRelevancyGroups(); i++)
 	{
         FHktFrameBatch GroupBatch;
 		GroupBatch.FrameNumber = InFrame.GetFrameNumber();
 
-		GroupBatch.Events.Append(InCollector.GetAllIntents());
-
 		IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(i);
 		for (const IHktWorldPlayer* Player : Group.GetPlayers())
 		{
+			const int64 PlayerUid = Player->GetPlayerUid();
+			InCollector.GetIntents(PlayerUid, GroupBatch.Events);
+			InCollector.GetEntitySnapshots(PlayerUid, GroupBatch.Snapshots);
+
 			FHktFrameBatch PlayerBatch = GroupBatch;
 			PlayerBatch.Snapshots.Add(InState.CreateEntitySnapshot(Player->GetEntityId()));
 		}
