@@ -46,7 +46,7 @@ void FHktEntityHUDManager::AddEntityHUD(FHktEntityId EntityId, AHktCharacter* Ch
 	}
 
 	// 이미 존재하면 스킵
-	if (EntityHUDMap.Contains(EntityId.RawValue))
+	if (EntityHUDMap.Contains(EntityId))
 	{
 		return;
 	}
@@ -74,14 +74,14 @@ void FHktEntityHUDManager::AddEntityHUD(FHktEntityId EntityId, AHktCharacter* Ch
 	FEntityHUDEntry Entry;
 	Entry.WidgetComponent = WidgetComp;
 	Entry.Widget = HUDWidget;
-	EntityHUDMap.Add(EntityId.RawValue, Entry);
+	EntityHUDMap.Add(EntityId, Entry);
 
-	UE_LOG(LogTemp, Verbose, TEXT("[EntityHUDManager] Added HUD for Entity %d"), EntityId.RawValue);
+	UE_LOG(LogTemp, Verbose, TEXT("[EntityHUDManager] Added HUD for Entity %d"), EntityId);
 }
 
 void FHktEntityHUDManager::RemoveEntityHUD(FHktEntityId EntityId)
 {
-	FEntityHUDEntry* Entry = EntityHUDMap.Find(EntityId.RawValue);
+	FEntityHUDEntry* Entry = EntityHUDMap.Find(EntityId);
 	if (!Entry)
 	{
 		return;
@@ -92,19 +92,19 @@ void FHktEntityHUDManager::RemoveEntityHUD(FHktEntityId EntityId)
 		Widget->DestroyComponent();
 	}
 
-	EntityHUDMap.Remove(EntityId.RawValue);
+	EntityHUDMap.Remove(EntityId);
 
-	UE_LOG(LogTemp, Verbose, TEXT("[EntityHUDManager] Removed HUD for Entity %d"), EntityId.RawValue);
+	UE_LOG(LogTemp, Verbose, TEXT("[EntityHUDManager] Removed HUD for Entity %d"), EntityId);
 }
 
 bool FHktEntityHUDManager::HasEntityHUD(FHktEntityId EntityId) const
 {
-	return EntityHUDMap.Contains(EntityId.RawValue);
+	return EntityHUDMap.Contains(EntityId);
 }
 
 void FHktEntityHUDManager::UpdateEntityHUD(FHktEntityId EntityId, const FHktEntityHUDData& Data)
 {
-	FEntityHUDEntry* Entry = EntityHUDMap.Find(EntityId.RawValue);
+	FEntityHUDEntry* Entry = EntityHUDMap.Find(EntityId);
 	if (!Entry)
 	{
 		return;
@@ -184,7 +184,7 @@ void FHktEntityHUDManager::SetShowManaBar(bool bShow)
 
 UHktEntityHUDWidget* FHktEntityHUDManager::GetHUDWidget(FHktEntityId EntityId) const
 {
-	const FEntityHUDEntry* Entry = EntityHUDMap.Find(EntityId.RawValue);
+	const FEntityHUDEntry* Entry = EntityHUDMap.Find(EntityId);
 	if (Entry)
 	{
 		return Entry->Widget.Get();

@@ -2,8 +2,8 @@
 
 #include "Managers/HktEntityVisualManager.h"
 #include "Settings/HktPresentationGlobalSetting.h"
-#include "HktCoreInterfaces.h"
 #include "HktPropertyIds.h"
+#include "HktCoreInterfaces.h"
 #include "Actors/HktCharacter.h"
 #include "Engine/World.h"
 
@@ -43,7 +43,7 @@ void FHktEntityVisualManager::OnEntityCreated(FHktEntityId EntityId, IHktStashIn
 	}
 
 	// 이미 존재하면 스킵
-	if (EntityCharacterMap.Contains(EntityId.RawValue))
+	if (EntityCharacterMap.Contains(EntityId))
 	{
 		return;
 	}
@@ -66,16 +66,16 @@ void FHktEntityVisualManager::OnEntityCreated(FHktEntityId EntityId, IHktStashIn
 	if (Character)
 	{
 		Character->SetEntityId(EntityId);
-		EntityCharacterMap.Add(EntityId.RawValue, Character);
+		EntityCharacterMap.Add(EntityId, Character);
 
 		UE_LOG(LogTemp, Log, TEXT("[EntityVisualManager] Spawned Character for Entity %d at %s"),
-			EntityId.RawValue, *Position.ToString());
+			EntityId, *Position.ToString());
 	}
 }
 
 void FHktEntityVisualManager::OnEntityDestroyed(FHktEntityId EntityId)
 {
-	TWeakObjectPtr<AHktCharacter>* CharacterPtr = EntityCharacterMap.Find(EntityId.RawValue);
+	TWeakObjectPtr<AHktCharacter>* CharacterPtr = EntityCharacterMap.Find(EntityId);
 	if (!CharacterPtr)
 	{
 		return;
@@ -84,10 +84,10 @@ void FHktEntityVisualManager::OnEntityDestroyed(FHktEntityId EntityId)
 	if (AHktCharacter* Character = CharacterPtr->Get())
 	{
 		Character->Destroy();
-		UE_LOG(LogTemp, Log, TEXT("[EntityVisualManager] Destroyed Character for Entity %d"), EntityId.RawValue);
+		UE_LOG(LogTemp, Log, TEXT("[EntityVisualManager] Destroyed Character for Entity %d"), EntityId);
 	}
 
-	EntityCharacterMap.Remove(EntityId.RawValue);
+	EntityCharacterMap.Remove(EntityId);
 }
 
 void FHktEntityVisualManager::Tick(float DeltaTime, IHktStashInterface* Stash)
@@ -125,7 +125,7 @@ void FHktEntityVisualManager::Tick(float DeltaTime, IHktStashInterface* Stash)
 
 AHktCharacter* FHktEntityVisualManager::GetCharacter(FHktEntityId EntityId) const
 {
-	if (const TWeakObjectPtr<AHktCharacter>* Found = EntityCharacterMap.Find(EntityId.RawValue))
+	if (const TWeakObjectPtr<AHktCharacter>* Found = EntityCharacterMap.Find(EntityId))
 	{
 		return Found->Get();
 	}

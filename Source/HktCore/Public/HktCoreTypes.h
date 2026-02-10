@@ -6,8 +6,3 @@
 
 using FHktEntityId = int32;
 constexpr FHktEntityId InvalidEntityId = INDEX_NONE;
-
-using FHktWorldCell = FIntPoint;
-const FHktWorldCell InvalidCell = FHktWorldCell(INT_MAX, INT_MAX);
-
-using FHktFrameNumber = int64;

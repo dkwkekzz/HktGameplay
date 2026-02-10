@@ -334,7 +334,7 @@ void UHktPresentationSubsystem::HandleSubjectChanged(FHktEntityId EntityId)
 	AHktCharacter* Character = EntityVisualManager->GetCharacter(EntityId);
 	SelectionVisualManager->SetSelectedSubject(EntityId, Character);
 	
-	UE_LOG(LogTemp, Verbose, TEXT("[HktPresentationSubsystem] Subject changed: %d"), EntityId.RawValue);
+	UE_LOG(LogTemp, Verbose, TEXT("[HktPresentationSubsystem] Subject changed: %d"), EntityId);
 }
 
 void UHktPresentationSubsystem::HandleTargetChanged(FHktEntityId EntityId)
@@ -347,7 +347,7 @@ void UHktPresentationSubsystem::HandleTargetChanged(FHktEntityId EntityId)
 	AHktCharacter* Character = EntityVisualManager->GetCharacter(EntityId);
 	SelectionVisualManager->SetSelectedTarget(EntityId, Character);
 	
-	UE_LOG(LogTemp, Verbose, TEXT("[HktPresentationSubsystem] Target changed: %d"), EntityId.RawValue);
+	UE_LOG(LogTemp, Verbose, TEXT("[HktPresentationSubsystem] Target changed: %d"), EntityId);
 }
 
 void UHktPresentationSubsystem::HandleCommandChanged(FGameplayTag Command)
@@ -402,7 +402,7 @@ void UHktPresentationSubsystem::HandleEntityCreated(FHktEntityId EntityId)
 		}
 	}
 	
-	UE_LOG(LogTemp, Log, TEXT("[HktPresentationSubsystem] Entity created: %d"), EntityId.RawValue);
+	UE_LOG(LogTemp, Log, TEXT("[HktPresentationSubsystem] Entity created: %d"), EntityId);
 }
 
 void UHktPresentationSubsystem::HandleEntityDestroyed(FHktEntityId EntityId)
@@ -432,7 +432,7 @@ void UHktPresentationSubsystem::HandleEntityDestroyed(FHktEntityId EntityId)
 		EntityVisualManager->OnEntityDestroyed(EntityId);
 	}
 	
-	UE_LOG(LogTemp, Log, TEXT("[HktPresentationSubsystem] Entity destroyed: %d"), EntityId.RawValue);
+	UE_LOG(LogTemp, Log, TEXT("[HktPresentationSubsystem] Entity destroyed: %d"), EntityId);
 }
 
 // ============================================================================

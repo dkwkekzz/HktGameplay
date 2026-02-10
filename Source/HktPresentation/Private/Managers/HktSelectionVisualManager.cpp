@@ -64,7 +64,7 @@ void FHktSelectionVisualManager::SetSelectedSubject(FHktEntityId EntityId, AHktC
 		SubjectDecal = CreateSelectionDecal(Character, GetSubjectColor());
 	}
 
-	UE_LOG(LogTemp, Verbose, TEXT("[SelectionVisualManager] Subject selected: Entity %d"), EntityId.RawValue);
+	UE_LOG(LogTemp, Verbose, TEXT("[SelectionVisualManager] Subject selected: Entity %d"), EntityId);
 }
 
 void FHktSelectionVisualManager::ClearSubjectSelection()
@@ -104,7 +104,7 @@ void FHktSelectionVisualManager::SetSelectedTarget(FHktEntityId EntityId, AHktCh
 		TargetDecal = CreateSelectionDecal(Character, GetTargetColor());
 	}
 
-	UE_LOG(LogTemp, Verbose, TEXT("[SelectionVisualManager] Target selected: Entity %d"), EntityId.RawValue);
+	UE_LOG(LogTemp, Verbose, TEXT("[SelectionVisualManager] Target selected: Entity %d"), EntityId);
 }
 
 void FHktSelectionVisualManager::ClearTargetSelection()

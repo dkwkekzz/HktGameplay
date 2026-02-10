@@ -6,16 +6,14 @@
 #include "HktDatabaseTypes.h"
 #include "HktGameMode.generated.h"
 
-class UHktMasterStashComponent;
 class UHktGridRelevancyComponent;
-class UHktVMProcessorComponent;
-class UHktPlayerDatabaseComponent;
-class UHktPersistentFrameComponent;
+class UHktFileDatabaseComponent;
+class UHktFilePersistentFrameComponent;
 class UHktIntentCollectorComponent;
 class UHktBatchBuilderComponent;
+class UHktWorldPlayerComponent;
 class AHktInGamePlayerController;
 class IHktServerRule;
-class IHktStashInterface;
 
 /**
  * AHktGameMode - 서버 오케스트레이터
@@ -32,7 +30,6 @@ class IHktStashInterface;
  *                  → Rule->OnTick_ExecuteFrame()
  *                  → Rule->OnTick_SendFrameBatch()
  *   ReceiveIntent  → Rule->OnReceived_FireIntentEvent()
- *   RequestLogin   → Rule->OnReceived_Authentication()
  */
 UCLASS()
 class HKTRUNTIME_API AHktGameMode : public AGameModeBase
@@ -41,8 +38,6 @@ class HKTRUNTIME_API AHktGameMode : public AGameModeBase
 
 public:
     AHktGameMode();
-
-    // === 외부 접근 ===
 
     /** Intent를 IntentCollector에 푸시 (PlayerController에서 호출) */
     void PushIntent(int64 PlayerUid, const FHktIntentEvent& Event);
@@ -53,19 +48,12 @@ protected:
     virtual void PostLogin(APlayerController* NewPlayer) override;
     virtual void Logout(AController* Exiting) override;
 
-    // === Rule 조회 ===
     IHktServerRule* GetServerRule() const;
 
 protected:
-    // === 인터페이스 구현 컴포넌트들 (Rule의 파라미터로 전달됨) ===
-
     /** IHktPersistentFrame 구현 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktPersistentFrameComponent> PersistentFrameComponent;
-
-    /** MasterStash (IHktSimulator의 백엔드로 사용) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktMasterStashComponent> MasterStashComponent;
+    TObjectPtr<UHktFilePersistentFrameComponent> PersistentFrameComponent;
 
     /** IHktRelevancyGraph 구현 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
@@ -73,7 +61,7 @@ protected:
 
     /** IHktWorldDatabase 구현 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktPlayerDatabaseComponent> PlayerDatabaseComponent;
+    TObjectPtr<UHktFileDatabaseComponent> PlayerDatabaseComponent;
 
     /** IHktIntentCollector 구현 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
@@ -82,8 +70,4 @@ protected:
     /** IHktBatchBuilder 구현 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
     TObjectPtr<UHktBatchBuilderComponent> BatchBuilderComponent;
-
-    /** VM 프로세서 (서버 시뮬레이션) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktVMProcessorComponent> VMProcessorComponent;
 };

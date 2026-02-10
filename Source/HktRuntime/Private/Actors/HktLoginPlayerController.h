@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "HktUserEventConsumer.h"
-#include "HktEntryPlayerController.generated.h"
+#include "HktLoginPlayerController.generated.h"
 
 /**
  * 로그인 맵 전용 PlayerController.

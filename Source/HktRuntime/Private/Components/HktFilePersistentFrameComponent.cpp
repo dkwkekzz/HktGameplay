@@ -1,11 +1,13 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktPersistentFrameProvider.h"
+#include "HktFilePersistentFrameComponent.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonWriter.h"
+
+// --- FHktFilePersistentFrameProvider ---
 
 FHktFilePersistentFrameProvider::FHktFilePersistentFrameProvider()
 {
@@ -18,7 +20,6 @@ FString FHktFilePersistentFrameProvider::GetFilePath() const
 
 void FHktFilePersistentFrameProvider::ReserveBatch(int64 BatchSize, TFunction<void(int64 NewMaxFrame)> Callback)
 {
-    // 동기적으로 파일에서 읽고 쓰기 (파일 I/O는 빠르므로 GameThread에서 실행)
     int64 CurrentCounter = 0;
 
     FString FilePath = GetFilePath();
@@ -28,7 +29,7 @@ void FHktFilePersistentFrameProvider::ReserveBatch(int64 BatchSize, TFunction<vo
         if (!FFileHelper::LoadFileToString(JsonString, *FilePath))
         {
             UE_LOG(LogTemp, Error, TEXT("[PersistentFrame] Failed to load file: %s"), *FilePath);
-            return;  // 연결 실패 - 콜백 미호출, 서비스 불가
+            return;
         }
 
         TSharedPtr<FJsonObject> RootObject;
@@ -44,7 +45,6 @@ void FHktFilePersistentFrameProvider::ReserveBatch(int64 BatchSize, TFunction<vo
 
     int64 NewMaxFrame = CurrentCounter + BatchSize;
 
-    // 파일에 저장
     TSharedRef<FJsonObject> RootObject = MakeShared<FJsonObject>();
     RootObject->SetNumberField(TEXT("GlobalFrameCounter"), static_cast<double>(NewMaxFrame));
 
@@ -62,6 +62,76 @@ void FHktFilePersistentFrameProvider::ReserveBatch(int64 BatchSize, TFunction<vo
         return;
     }
 
-    // 콜백은 이미 GameThread에서 호출됨
     Callback(NewMaxFrame);
+}
+
+// --- UHktFilePersistentFrameComponent ---
+
+UHktFilePersistentFrameComponent::UHktFilePersistentFrameComponent()
+{
+    PrimaryComponentTick.bCanEverTick = false;
+    Provider = MakeUnique<FHktFilePersistentFrameProvider>();
+}
+
+void UHktFilePersistentFrameComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    ReserveNextBatch();
+}
+
+bool UHktFilePersistentFrameComponent::IsInitialized() const
+{
+    return bIsInitialized;
+}
+
+int64 UHktFilePersistentFrameComponent::GetFrameNumber() const
+{
+    return CurrentFrame;
+}
+
+void UHktFilePersistentFrameComponent::AdvanceFrame()
+{
+    if (!bIsInitialized)
+    {
+        return;
+    }
+
+    if (CurrentFrame >= ReservedMaxFrame)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[PersistentTick] CRITICAL: Frame range exhausted (Current=%lld, Max=%lld). Waiting for next batch."),
+            CurrentFrame, ReservedMaxFrame);
+        return;
+    }
+
+    CurrentFrame++;
+
+    if (!bIsReservePending && (ReservedMaxFrame - CurrentFrame) < (BatchSize / 5))
+    {
+        ReserveNextBatch();
+    }
+}
+
+void UHktFilePersistentFrameComponent::ReserveNextBatch()
+{
+    if (bIsReservePending)
+    {
+        return;
+    }
+    bIsReservePending = true;
+
+    IHktPersistentTickProvider* P = Provider.Get();
+    P->ReserveBatch(BatchSize, [this](int64 NewMaxFrame)
+    {
+        ReservedMaxFrame = NewMaxFrame;
+
+        if (!bIsInitialized)
+        {
+            CurrentFrame = NewMaxFrame - BatchSize;
+            bIsInitialized = true;
+            UE_LOG(LogTemp, Log, TEXT("[PersistentTick] Initialized: CurrentFrame=%lld, ReservedMaxFrame=%lld"),
+                CurrentFrame, ReservedMaxFrame);
+        }
+
+        bIsReservePending = false;
+    });
 }

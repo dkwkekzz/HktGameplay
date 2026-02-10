@@ -19,7 +19,7 @@ UHktIntentBuilderComponent::UHktIntentBuilderComponent()
 void UHktIntentBuilderComponent::SetSubject(FHktEntityId InSubject)
 {
     SubjectEntityId = InSubject;
-    UE_LOG(LogTemp, Log, TEXT("[IntentBuilder] Subject set: %d"), SubjectEntityId.RawValue);
+    UE_LOG(LogTemp, Log, TEXT("[IntentBuilder] Subject set: %d"), SubjectEntityId);
 }
 
 void UHktIntentBuilderComponent::SetCommand(FGameplayTag InEventTag, bool bInTargetRequired)
@@ -80,7 +80,7 @@ bool UHktIntentBuilderComponent::Submit()
 
     UE_LOG(LogTemp, Log, TEXT("[IntentBuilder] Submit: EventId=%d, Tag=%s, Subject=%d, Target=%d"),
         PendingSubmitEvent.EventId, *EventTag.ToString(),
-        SubjectEntityId.RawValue, TargetEntityId.RawValue);
+        SubjectEntityId, TargetEntityId);
 
     // 커맨드 초기화 (Subject 유지)
     ResetCommand();

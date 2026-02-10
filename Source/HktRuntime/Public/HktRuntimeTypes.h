@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "HktCoreTypes.h"
+#include "HktRuntimeTypes.generated.h"
 
 /**
  * 엔티티 스냅샷 - 엔티티의 전체 상태를 직렬화
@@ -150,6 +152,23 @@ struct HKTRUNTIME_API FHktGroupSimulationState
     // [결정론 보장] 현재 진행 중인, 아직 만료되지 않은 지속성 이벤트나 상태
     // 예: 쿨타임 정보, 날씨 상태, 현재 RNG의 내부 상태값 등
     UPROPERTY()
-    TArray<FHktPendingEvent> ActiveEvents; 
+    TArray<FHktIntentEvent> ActiveEvents;
 };
 
+//=============================================================================
+// FHktOwnerSimulationState - 임의의 플레이어의 시뮬레이션 결과
+//=============================================================================
+USTRUCT()
+struct HKTRUNTIME_API FHktOwnerSimulationState
+{
+    GENERATED_BODY()
+
+    // 엔티티들의 최종 스냅샷
+    UPROPERTY()
+    TArray<FHktEntitySnapshot> EntitySnapshots;
+
+    // [결정론 보장] 현재 진행 중인, 아직 만료되지 않은 지속성 이벤트나 상태
+    // 예: 쿨타임 정보, 날씨 상태, 현재 RNG의 내부 상태값 등
+    UPROPERTY()
+    TArray<FHktIntentEvent> ActiveEvents;
+};

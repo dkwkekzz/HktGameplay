@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "HktCoreTypes.h"
+#include "HktRuntimeTypes.h"
 #include "HktPresentationTypes.generated.h"
 
 /**
@@ -16,7 +16,7 @@ struct HKTPRESENTATION_API FHktEntityHUDData
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly, Category = "HUD")
-	FHktEntityId EntityId;
+	int32 EntityId;
 
 	UPROPERTY(BlueprintReadOnly, Category = "HUD")
 	int32 Health = 0;

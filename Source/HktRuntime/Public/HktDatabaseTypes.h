@@ -30,6 +30,9 @@ struct HKTRUNTIME_API FHktPlayerRecord
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     FDateTime CreatedTime;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
+    FVector LastPosition;
+
     FHktPlayerRecord()
     {
         CreatedTime = FDateTime::UtcNow();

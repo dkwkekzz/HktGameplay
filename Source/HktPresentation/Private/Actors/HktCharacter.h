@@ -34,17 +34,15 @@ public:
 	//-------------------------------------------------------------------------
 	
 	/** EntityId 설정 (Spawn 시 또는 서버에서 할당) */
-	UFUNCTION(BlueprintCallable, Category = "Hkt|Character")
 	void SetEntityId(FHktEntityId InEntityId);
 	
 	/** 선택 가능 여부 설정 */
-	UFUNCTION(BlueprintCallable, Category = "Hkt|Character")
 	void SetSelectable(bool bInSelectable);
 
 protected:
 	/** 이 캐릭터의 고유 EntityId */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hkt|Character")
-	FHktEntityId EntityId;
+	int32 EntityId;
 	
 	/** 선택 가능 여부 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hkt|Character")

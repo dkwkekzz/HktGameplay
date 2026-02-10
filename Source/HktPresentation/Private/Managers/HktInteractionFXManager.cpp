@@ -2,7 +2,7 @@
 
 #include "Managers/HktInteractionFXManager.h"
 #include "Settings/HktPresentationGlobalSetting.h"
-#include "HktCoreTypes.h"
+#include "HktRuntimeTypes.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 #include "NiagaraFunctionLibrary.h"

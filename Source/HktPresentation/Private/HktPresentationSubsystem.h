@@ -88,10 +88,7 @@ public:
 
 	// === 엔티티 조회 (EntityVisualManager 위임) ===
 	
-	UFUNCTION(BlueprintPure, Category = "Hkt|Presentation")
 	AActor* GetEntityActor(FHktEntityId EntityId) const;
-
-	UFUNCTION(BlueprintPure, Category = "Hkt|Presentation")
 	TArray<AActor*> GetAllEntityActors() const;
 
 protected:

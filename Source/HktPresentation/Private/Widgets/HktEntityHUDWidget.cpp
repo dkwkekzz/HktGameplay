@@ -44,7 +44,7 @@ void UHktEntityHUDWidget::UpdateHUDData(const FHktEntityHUDData& Data)
 	// EntityId 텍스트 업데이트
 	if (EntityIdText && bShowEntityId)
 	{
-		EntityIdText->SetText(FText::AsNumber(Data.EntityId.RawValue));
+		EntityIdText->SetText(FText::AsNumber(Data.EntityId));
 	}
 
 	// Blueprint 이벤트 호출

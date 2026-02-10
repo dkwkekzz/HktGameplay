@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "HktCoreTypes.h"
+#include "HktRuntimeTypes.h"
 
 // ============================================================================
 // HktRuntime 델리게이트 선언
