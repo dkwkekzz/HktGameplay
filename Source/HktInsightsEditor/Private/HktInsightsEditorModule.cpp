@@ -15,6 +15,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogHktInsightsEditor, Log, All);
 
 static const FName HktInsightsTabName(TEXT("HktInsightsTab"));
+static const FName HktRuntimeInsightsTabName(TEXT("HktRuntimeInsightsTab"));
 
 /**
  * HktInsightsEditor 모듈 구현
@@ -29,6 +30,7 @@ public:
 private:
     /** 도킹 탭 스폰 */
     TSharedRef<SDockTab> SpawnDebugTab(const FSpawnTabArgs& Args);
+    TSharedRef<SDockTab> SpawnRuntimeTab(const FSpawnTabArgs& Args);
 
     /** 메뉴 확장 등록 */
     void RegisterMenuExtensions();
@@ -46,12 +48,21 @@ void FHktInsightsEditorModule::StartupModule()
 {
     UE_LOG(LogHktInsightsEditor, Log, TEXT("[HktInsightsEditor] Module starting up..."));
 
-    // 탭 스포너 등록
+    // 기존 Intent/VM 탭
     FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
         HktInsightsTabName,
         FOnSpawnTab::CreateRaw(this, &FHktInsightsEditorModule::SpawnDebugTab))
         .SetDisplayName(LOCTEXT("HktInsightsTabTitle", "HKT Insights"))
         .SetTooltipText(LOCTEXT("HktInsightsTabTooltip", "Open the HKT Insights debug panel"))
+        .SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
+        .SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));
+
+    // 런타임 인사이트 탭
+    FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+        HktRuntimeInsightsTabName,
+        FOnSpawnTab::CreateRaw(this, &FHktInsightsEditorModule::SpawnRuntimeTab))
+        .SetDisplayName(LOCTEXT("HktRuntimeTabTitle", "HKT Runtime Insights"))
+        .SetTooltipText(LOCTEXT("HktRuntimeTabTooltip", "Open the HKT Runtime state insights panel"))
         .SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
         .SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));
 
@@ -74,6 +85,7 @@ void FHktInsightsEditorModule::ShutdownModule()
     if (bTabSpawnerRegistered)
     {
         FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktInsightsTabName);
+        FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktRuntimeInsightsTabName);
         bTabSpawnerRegistered = false;
     }
 
@@ -87,6 +99,16 @@ TSharedRef<SDockTab> FHktInsightsEditorModule::SpawnDebugTab(const FSpawnTabArgs
         .Label(LOCTEXT("HktInsightsTabLabel", "HKT Insights"))
         [
             FHktInsightsPanelFactory::CreatePanel()
+        ];
+}
+
+TSharedRef<SDockTab> FHktInsightsEditorModule::SpawnRuntimeTab(const FSpawnTabArgs& Args)
+{
+    return SNew(SDockTab)
+        .TabRole(ETabRole::NomadTab)
+        .Label(LOCTEXT("HktRuntimeTabLabel", "HKT Runtime"))
+        [
+            FHktInsightsPanelFactory::CreateRuntimePanel()
         ];
 }
 
@@ -111,6 +133,17 @@ void FHktInsightsEditorModule::RegisterMenuExtensions()
                     FGlobalTabmanager::Get()->TryInvokeTab(HktInsightsTabName);
                 }))
             );
+
+            Section.AddMenuEntry(
+                "HktRuntimeInsights",
+                LOCTEXT("HktRuntimeMenuEntry", "HKT Runtime Insights"),
+                LOCTEXT("HktRuntimeMenuTooltip", "Open the HKT Runtime state insights panel"),
+                FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"),
+                FUIAction(FExecuteAction::CreateLambda([]()
+                {
+                    FGlobalTabmanager::Get()->TryInvokeTab(HktRuntimeInsightsTabName);
+                }))
+            );
         }
 
         // Tools 메뉴에도 추가
@@ -127,6 +160,17 @@ void FHktInsightsEditorModule::RegisterMenuExtensions()
                 FUIAction(FExecuteAction::CreateLambda([]()
                 {
                     FGlobalTabmanager::Get()->TryInvokeTab(HktInsightsTabName);
+                }))
+            );
+
+            Section.AddMenuEntry(
+                "HktRuntimeInsightsTools",
+                LOCTEXT("HktRuntimeToolsMenuEntry", "HKT Runtime Insights"),
+                LOCTEXT("HktRuntimeToolsMenuTooltip", "Open the HKT Runtime state insights panel"),
+                FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"),
+                FUIAction(FExecuteAction::CreateLambda([]()
+                {
+                    FGlobalTabmanager::Get()->TryInvokeTab(HktRuntimeInsightsTabName);
                 }))
             );
         }

@@ -19,8 +19,8 @@ public:
 
     virtual int64 GetPlayerUid() const override { return PlayerUid; }
 
-    virtual void SendFrameBatch(const FHktFrameBatch& Batch) override;
-    virtual void SendInitialSimulationState(const FHktGroupSimulationState& InitialState) override;
+    virtual void SendFrameBatch(const FHktRuntimeBatch& Batch) override;
+    virtual void SendInitialSimulationState(const FHktRuntimeSimulationState& InitialState) override;
 
     void SetPlayerUid(int64 InUid) { PlayerUid = InUid; }
     bool IsInitialized() const { return PlayerUid != 0; }

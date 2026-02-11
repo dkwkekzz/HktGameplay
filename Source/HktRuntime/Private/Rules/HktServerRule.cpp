@@ -21,7 +21,7 @@ void FHktDefaultServerRule::OnReceived_Authentication(IHktAuthenticator& Authent
     Authenticator.Authenticate(InPrincipal.GetLoginID(), InPrincipal.GetLoginPW(), InResultCallback);
 }
 
-void FHktDefaultServerRule::OnReceived_FireIntentEvent(const FHktIntentEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector)
+void FHktDefaultServerRule::OnReceived_FireIntentEvent(const FHktRuntimeEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector)
 {
     InCollector.PushIntents(InPlayer.GetPlayerUid(), { InEvent });
 }
@@ -85,7 +85,7 @@ void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
         if (Group)
         {
             IHktSimulator& GroupSimulator = Group->GetSimulator();
-            FHktOwnerSimulationState OwnerState = GroupSimulator.GetOwnerSimulationState(LogoutUid);
+            FHktRuntimeOwnerState OwnerState = GroupSimulator.GetOwnerState(LogoutUid);
 
             FHktPlayerRecord NewRecord;
             NewRecord.PlayerUid = LogoutUid;
@@ -119,7 +119,7 @@ void FHktDefaultServerRule::OnTick_ExecuteFrame(float InDeltaTime,
 
     ParallelFor(NumGroups, [&](int32 GroupIndex)
     {
-        FHktFrameBatch& GroupBatch = OutBuilder.CreateOrGetGroupFrameBatch(GroupIndex);
+        FHktRuntimeBatch& GroupBatch = OutBuilder.CreateOrGetGroupFrameBatch(GroupIndex);
         GroupBatch.FrameNumber = CurrentFrameNumber;
         GroupBatch.DeltaSeconds = DeltaTime;
         GroupBatch.RandomSeed = HashCombineHelper(CurrentFrameNumber, GroupIndex);
@@ -146,7 +146,7 @@ void FHktDefaultServerRule::OnTick_SendFrameBatch(
 
     for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
     {
-        const FHktFrameBatch& GroupBatch = InBuilder.GetGroupFrameBatch(GroupIndex);
+        const FHktRuntimeBatch& GroupBatch = InBuilder.GetGroupFrameBatch(GroupIndex);
         const IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(GroupIndex);
         const TArray<IHktWorldPlayer*>& CachedPlayers = Group.GetCachedWorldPlayers();
         if (CachedPlayers.Num() == 0) continue;
@@ -154,7 +154,7 @@ void FHktDefaultServerRule::OnTick_SendFrameBatch(
         const TArray<int64>& NewbieOwners = InBuilder.GetNewbieOwners(GroupIndex);
         const bool bHasNewbies = NewbieOwners.Num() > 0;
 
-        const FHktGroupSimulationState* NewbieState = nullptr;
+        const FHktRuntimeSimulationState* NewbieState = nullptr;
         if (bHasNewbies)
         {
             IHktSimulator& Simulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator();

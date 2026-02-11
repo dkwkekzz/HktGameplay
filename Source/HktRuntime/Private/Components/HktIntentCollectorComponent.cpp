@@ -11,23 +11,23 @@ UHktIntentCollectorComponent::UHktIntentCollectorComponent()
 // IHktIntentCollector 구현
 // ============================================================================
 
-void UHktIntentCollectorComponent::PushIntent(int64 InPlayerUid, const FHktIntentEvent& InEvent)
+void UHktIntentCollectorComponent::PushIntent(int64 InPlayerUid, const FHktRuntimeEvent& InEvent)
 {
     FScopeLock Lock(&IntentLock);
     PlayerIntents.FindOrAdd(InPlayerUid).Add(InEvent);
 }
 
-void UHktIntentCollectorComponent::PushIntents(int64 InPlayerUid, const TArray<FHktIntentEvent>& InEvents)
+void UHktIntentCollectorComponent::PushIntents(int64 InPlayerUid, const TArray<FHktRuntimeEvent>& InEvents)
 {
     FScopeLock Lock(&IntentLock);
     PlayerIntents.FindOrAdd(InPlayerUid).Append(InEvents);
 }
 
-bool UHktIntentCollectorComponent::GetIntents(int64 InPlayerUid, TArray<FHktIntentEvent>& OutIntents)
+bool UHktIntentCollectorComponent::GetIntents(int64 InPlayerUid, TArray<FHktRuntimeEvent>& OutIntents)
 {
     // 메인 스레드에서만 호출 (ParallelFor 내부에서는 읽기 전용 스냅샷 사용)
     FScopeLock Lock(&IntentLock);
-    if (TArray<FHktIntentEvent>* Found = PlayerIntents.Find(InPlayerUid))
+    if (TArray<FHktRuntimeEvent>* Found = PlayerIntents.Find(InPlayerUid))
     {
         OutIntents.Append(*Found);
         return Found->Num() > 0;

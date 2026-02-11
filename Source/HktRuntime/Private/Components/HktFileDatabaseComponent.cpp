@@ -131,7 +131,7 @@ void UHktFileDatabaseComponent::LoadFromFile(const FString& PlayerId, TFunction<
         {
             const TSharedPtr<FJsonObject>* EvObject;
             if (!EvValue->TryGetObject(EvObject)) continue;
-            FHktIntentEvent Event;
+            FHktRuntimeEvent Event;
             Event.EventId = static_cast<int32>((*EvObject)->GetNumberField(TEXT("EventId")));
             Event.SourceEntityId = static_cast<int32>((*EvObject)->GetNumberField(TEXT("SourceEntityId")));
             Event.TargetEntityId = static_cast<int32>((*EvObject)->GetNumberField(TEXT("TargetEntityId")));
@@ -192,7 +192,7 @@ void UHktFileDatabaseComponent::SaveToFile(const FString& PlayerId, const FHktPl
     RootObject->SetArrayField(TEXT("EntitySnapshots"), EntitiesArray);
 
     TArray<TSharedPtr<FJsonValue>> EventsArray;
-    for (const FHktIntentEvent& Event : Record.IntentEvents)
+    for (const FHktRuntimeEvent& Event : Record.IntentEvents)
     {
         TSharedRef<FJsonObject> EvObject = MakeShared<FJsonObject>();
         EvObject->SetNumberField(TEXT("EventId"), Event.EventId);

@@ -30,8 +30,10 @@ public class HktInsights : ModuleRules
             // "HktService"
         });
 
+		PrivateDefinitions.Add("WITH_HKT_INSIGHTS=1");
+		
         // 에디터 빌드에서만 Slate 윈도우 기능 활성화
-        if (Target.bBuildEditor)
+		if (Target.bBuildEditor)
         {
             PrivateDependencyModuleNames.Add("UnrealEd");
         }

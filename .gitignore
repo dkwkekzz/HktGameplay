@@ -56,3 +56,6 @@ lnks/*
 
 # python cache
 __pycache__/
+
+# Legacy code for reference
+Legacy/*

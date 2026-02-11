@@ -64,7 +64,7 @@ public:
     bool HasPendingSubmit() const { return bHasPendingSubmit; }
 
     /** 대기 중인 Intent를 소비 (Actor가 RPC로 전송) */
-    FHktIntentEvent ConsumePendingSubmit();
+    FHktRuntimeEvent ConsumePendingSubmit();
 
     // === 상태 조회 (Presentation용) ===
 
@@ -86,7 +86,7 @@ private:
 
     // Submit 결과 (Actor가 소비)
     bool bHasPendingSubmit = false;
-    FHktIntentEvent PendingSubmitEvent;
+    FHktRuntimeEvent PendingSubmitEvent;
 
     // Intent 시퀀스 번호
     static uint32 StaticIntentSequence;

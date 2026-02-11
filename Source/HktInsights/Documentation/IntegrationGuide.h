@@ -31,11 +31,11 @@
 #include "HktInsightsDataCollector.h"
 #endif
 
-bool UHktIntentSubsystem::AddEvent(const FHktIntentEvent& InEvent)
+bool UHktIntentSubsystem::AddEvent(const FHktRuntimeEvent& InEvent)
 {
     // 기존 로직
     int32 NewEventId = NextEventId++;
-    FHktIntentEvent& StoredEvent = EventHistory.Add_GetRef(InEvent);
+    FHktRuntimeEvent& StoredEvent = EventHistory.Add_GetRef(InEvent);
     StoredEvent.EventId = NewEventId;
     LatestFrameNumber = FMath::Max(LatestFrameNumber, InEvent.FrameNumber);
 
@@ -57,7 +57,7 @@ bool UHktIntentSubsystem::AddEvent(const FHktIntentEvent& InEvent)
 
 void UHktIntentSubsystem::ProcessPendingEvents()
 {
-    for (FHktIntentEvent& Event : PendingEvents)
+    for (FHktRuntimeEvent& Event : PendingEvents)
     {
         // === HktInsights 훅 추가 (처리 시작) ===
 #if WITH_HKT_INSIGHTS
@@ -100,7 +100,7 @@ void UHktIntentSubsystem::Commit(int32 ProcessedEventId, const FHktCoreResult& R
 #include "HktInsightsDataCollector.h"
 #endif
 
-void UHktCoreSubsystem::ExecuteIntentEvent(const FHktIntentEvent& Event)
+void UHktCoreSubsystem::ExecuteIntentEvent(const FHktRuntimeEvent& Event)
 {
     // 기존 VM 생성 로직
     FHktFlowVM* NewVM = VMPool->Acquire(GetWorld(), &EntityManager, SubjectHandle);
@@ -212,7 +212,7 @@ FString UHktCoreSubsystem::GetCurrentOpcodeName(FHktFlowVM* VM) const
 #include "HktInsightsDataCollector.h"
 #endif
 
-bool UHktIntentSubsystem::AddEvent(const FHktIntentEvent& InEvent)
+bool UHktIntentSubsystem::AddEvent(const FHktRuntimeEvent& InEvent)
 {
     int32 NewEventId = NextEventId++;
     // ... 기존 로직 ...
@@ -230,7 +230,7 @@ void UHktIntentSubsystem::Commit(int32 ProcessedEventId, const FHktCoreResult& R
         Result.bSuccess ? EHktInsightsEventState::Completed : EHktInsightsEventState::Failed);
 }
 
-void UHktCoreSubsystem::ExecuteIntentEvent(const FHktIntentEvent& Event)
+void UHktCoreSubsystem::ExecuteIntentEvent(const FHktRuntimeEvent& Event)
 {
     // VM 생성 후
     HKT_INSIGHTS_RECORD_VM_CREATED(VMId, Event.EventId, Event.EventTag, BytecodeSize, Event.SubjectId);

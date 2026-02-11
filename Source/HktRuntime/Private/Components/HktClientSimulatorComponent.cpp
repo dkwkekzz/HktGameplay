@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktClientSimulatorComponent.h"
+#include "HktSimulationConverters.h"
 
 UHktClientSimulatorComponent::UHktClientSimulatorComponent() 
 { 
@@ -10,27 +11,77 @@ UHktClientSimulatorComponent::UHktClientSimulatorComponent()
 void UHktClientSimulatorComponent::BeginPlay() 
 { 
     Super::BeginPlay();
+
+    // SimWorld 초기화 (BeginPlay에서 생성)
+    SimWorld = CreateSimulationWorld();
 }
 
-void UHktClientSimulatorComponent::Execute(const FHktFrameBatch& InBatch)
+void UHktClientSimulatorComponent::Execute(const FHktRuntimeBatch& InBatch)
 {
-    State.LastProcessedFrameNumber = InBatch.FrameNumber;
-    // TODO: 서버와 동일한 결정론적 시뮬레이션
+    if (!SimWorld)
+    {
+        return;
+    }
+
+    // Runtime 타입 -> Core 타입 변환
+    FHktSimulationEvent SimEvent = HktSimulationConverters::ConvertBatch(InBatch);
+
+    // 결정론적 시뮬레이션 실행
+    SimWorld->ProcessBatch(SimEvent);
+
+    // Core 상태 -> Runtime 상태로 역변환하여 캐시
+    State = HktSimulationConverters::ConvertWorldState(SimWorld->GetWorldState());
+
     bInitialized = true;
 }
 
-void UHktClientSimulatorComponent::RestoreState(const FHktGroupSimulationState& InState, TArray<FHktFrameBatch>&& InPendingBatches)
+void UHktClientSimulatorComponent::RestoreState(const FHktRuntimeSimulationState& InState, TArray<FHktRuntimeBatch>&& InPendingBatches)
 {
+    if (!SimWorld)
+    {
+        return;
+    }
+
+    // Runtime 상태 -> Core WorldState로 변환하여 복원
+    FHktWorldState RestoredWorldState = HktSimulationConverters::ConvertToWorldState(InState);
+    SimWorld->RestoreState(RestoredWorldState);
+
+    // 캐시된 Runtime 상태도 갱신
     State = InState;
     bInitialized = true;
-    for (const FHktFrameBatch& Batch : InPendingBatches)
+
+    // 대기 중이던 배치들 중 복원 이후 프레임만 재생
+    for (const FHktRuntimeBatch& Batch : InPendingBatches)
     {
-        if (Batch.FrameNumber > State.LastProcessedFrameNumber) { Execute(Batch); }
+        if (Batch.FrameNumber > State.LastProcessedFrameNumber)
+        {
+            Execute(Batch);
+        }
     }
 }
 
-FHktOwnerSimulationState UHktClientSimulatorComponent::GetOwnerSimulationState(int64 InOwnerId) const
+FHktRuntimeOwnerState UHktClientSimulatorComponent::GetOwnerState(int64 InOwnerId) const
 {
-    FHktOwnerSimulationState OwnerState;
+    FHktRuntimeOwnerState OwnerState;
+
+    if (!SimWorld)
+    {
+        return OwnerState;
+    }
+
+    const FHktWorldState& WorldState = SimWorld->GetWorldState();
+    for (const auto& Pair : WorldState.Entities)
+    {
+        // OwnerPlayerHash가 일치하는 엔티티만 포함
+        if (Pair.Value.GetProperty(PropertyId::OwnerPlayerHash) == static_cast<int32>(InOwnerId))
+        {
+            FHktEntitySnapshot Snap;
+            Snap.EntityId   = Pair.Key;
+            Snap.Properties = Pair.Value.Properties;
+            Snap.Tags       = Pair.Value.Tags;
+            OwnerState.EntitySnapshots.Add(MoveTemp(Snap));
+        }
+    }
+
     return OwnerState;
 }

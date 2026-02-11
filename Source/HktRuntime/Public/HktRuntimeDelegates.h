@@ -13,7 +13,7 @@
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktSubjectChanged, FHktEntityId);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktTargetChanged, FHktEntityId);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktCommandChanged, FGameplayTag);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktIntentSubmitted, const FHktIntentEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktIntentSubmitted, const FHktRuntimeEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktWheelInput, float);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktEntityCreated, FHktEntityId);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktEntityDestroyed, FHktEntityId);

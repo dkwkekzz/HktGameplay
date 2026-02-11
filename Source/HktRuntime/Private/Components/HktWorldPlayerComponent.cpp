@@ -9,7 +9,7 @@ UHktWorldPlayerComponent::UHktWorldPlayerComponent()
     PrimaryComponentTick.bCanEverTick = false; 
 }
 
-void UHktWorldPlayerComponent::SendFrameBatch(const FHktFrameBatch& Batch)
+void UHktWorldPlayerComponent::SendFrameBatch(const FHktRuntimeBatch& Batch)
 {
     if (AHktInGamePlayerController* PC = GetOwnerPC()) 
     { 
@@ -17,7 +17,7 @@ void UHktWorldPlayerComponent::SendFrameBatch(const FHktFrameBatch& Batch)
     }
 }
 
-void UHktWorldPlayerComponent::SendInitialSimulationState(const FHktGroupSimulationState& InitialState)
+void UHktWorldPlayerComponent::SendInitialSimulationState(const FHktRuntimeSimulationState& InitialState)
 {
     if (AHktInGamePlayerController* PC = GetOwnerPC()) 
     { 

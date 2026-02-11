@@ -48,6 +48,27 @@ public:
      */
     virtual bool IsDebugWindowOpen() const = 0;
 
+    // === Runtime Insights 윈도우 ===
+    /**
+     * 런타임 인사이트 윈도우 토글
+     */
+    virtual void ToggleRuntimeWindow() = 0;
+
+    /**
+     * 런타임 인사이트 윈도우 열기
+     */
+    virtual void OpenRuntimeWindow() = 0;
+
+    /**
+     * 런타임 인사이트 윈도우 닫기
+     */
+    virtual void CloseRuntimeWindow() = 0;
+
+    /**
+     * 런타임 인사이트 윈도우가 열려있는지 확인
+     */
+    virtual bool IsRuntimeWindowOpen() const = 0;
+
     /**
      * 데이터 수집 활성화/비활성화
      */

@@ -20,6 +20,7 @@ class IHktSubjectSelectionPolicy;
 class IHktTargetSelectionPolicy;
 class IHktCommandContainer;
 class IHktIntentBuilder;
+class UWorld;
 
 // ============================================================================
 // IHktSimulator - 결정론적 시뮬레이터 (서버/클라이언트 공용)
@@ -38,15 +39,15 @@ public:
     virtual ~IHktSimulator() = default;
 
     /** FrameBatch(입력)로 한 프레임 시뮬레이션 */
-    virtual void Execute(const FHktFrameBatch& InBatch) = 0;
+    virtual void Execute(const FHktRuntimeBatch& InBatch) = 0;
 
     /** 시뮬레이션 결과로 상태 즉시 복원 + 대기 중이던 배치 재생 */
-    virtual void RestoreState(const FHktGroupSimulationState& InState, TArray<FHktFrameBatch>&& InPendingBatches) = 0;
+    virtual void RestoreState(const FHktRuntimeSimulationState& InState, TArray<FHktRuntimeBatch>&& InPendingBatches) = 0;
 
     /** 현재 시뮬레이션 상태 조회 (Newbie 전송, 저장 등에 사용) */
-    virtual const FHktGroupSimulationState& GetSimulationState() const = 0;
+    virtual const FHktRuntimeSimulationState& GetSimulationState() const = 0;
 
-    virtual FHktOwnerSimulationState GetOwnerSimulationState(int64 InOwnerId) const = 0;
+    virtual FHktRuntimeOwnerState GetOwnerState(int64 InOwnerId) const = 0;
 
     /** 초기화 완료 여부 (RestoreState 또는 첫 Execute 이후 true) */
     virtual bool IsInitialized() const = 0;
@@ -65,7 +66,7 @@ public:
     virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) {}
 
     // --- Intent 수신 ---
-    virtual void OnReceived_FireIntentEvent(const FHktIntentEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector) {}
+    virtual void OnReceived_FireIntentEvent(const FHktRuntimeEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector) {}
 
     // --- 로그인/로그아웃 ---
     virtual void OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) {}
@@ -96,8 +97,21 @@ public:
     // === 서버 수신 ===
 
     /** 신규 유저: 그룹 시뮬레이션 결과를 받아 즉시 동기화 (접속 직후 1회) */
-    virtual void OnReceived_InitialSimulationState(const FHktGroupSimulationState& InState, IHktSimulator& InSimulator) = 0;
+    virtual void OnReceived_InitialSimulationState(const FHktRuntimeSimulationState& InState, IHktSimulator& InSimulator) = 0;
 
     /** 기존 유저: FrameBatch(입력)를 받아 로컬 시뮬레이션 수행 (매 프레임) */
-    virtual void OnReceived_FrameBatch(const FHktFrameBatch& InBatch, IHktSimulator& InSimulator) = 0;
+    virtual void OnReceived_FrameBatch(const FHktRuntimeBatch& InBatch, IHktSimulator& InSimulator) = 0;
 };
+
+// ============================================================================
+// 팩토리 함수
+// ============================================================================
+
+namespace HktRule
+{
+    /** IHktServerRule 인스턴스 생성 (HktRuntime 내부 구현) */
+    HKTRUNTIME_API TSharedPtr<IHktServerRule> GetServerRule(UWorld* InWorld);
+    
+    /** IHktClientRule 인스턴스 생성 (HktRuntime 내부 구현) */
+    HKTRUNTIME_API TSharedPtr<IHktClientRule> GetClientRule(UWorld* InWorld);
+}

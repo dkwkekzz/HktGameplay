@@ -35,13 +35,13 @@ void FHktDefaultClientRule::OnUserEvent_CommandInputAction(const IHktCommandCont
 
 void FHktDefaultClientRule::OnUserEvent_ZoomInputAction(float InDelta) {}
 
-void FHktDefaultClientRule::OnReceived_InitialSimulationState(const FHktGroupSimulationState& InState, IHktSimulator& InSimulator)
+void FHktDefaultClientRule::OnReceived_InitialSimulationState(const FHktRuntimeSimulationState& InState, IHktSimulator& InSimulator)
 {
     InSimulator.RestoreState(InState, MoveTemp(PendingFrameBatches));
     PendingFrameBatches.Empty();
 }
 
-void FHktDefaultClientRule::OnReceived_FrameBatch(const FHktFrameBatch& InBatch, IHktSimulator& InSimulator)
+void FHktDefaultClientRule::OnReceived_FrameBatch(const FHktRuntimeBatch& InBatch, IHktSimulator& InSimulator)
 {
     if (!InSimulator.IsInitialized()) { PendingFrameBatches.Add(InBatch); return; }
     InSimulator.Execute(InBatch);

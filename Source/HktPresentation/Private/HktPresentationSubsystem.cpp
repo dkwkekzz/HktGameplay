@@ -356,7 +356,7 @@ void UHktPresentationSubsystem::HandleCommandChanged(FGameplayTag Command)
 	UE_LOG(LogTemp, Verbose, TEXT("[HktPresentationSubsystem] Command changed: %s"), *Command.ToString());
 }
 
-void UHktPresentationSubsystem::HandleIntentSubmitted(const FHktIntentEvent& Event)
+void UHktPresentationSubsystem::HandleIntentSubmitted(const FHktRuntimeEvent& Event)
 {
 	if (InteractionFXManager)
 	{

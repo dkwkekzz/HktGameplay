@@ -69,7 +69,7 @@ bool UHktIntentBuilderComponent::Submit()
     }
 
     // IntentEvent 생성 → PendingSubmit에 저장
-    PendingSubmitEvent = FHktIntentEvent();
+    PendingSubmitEvent = FHktRuntimeEvent();
     PendingSubmitEvent.EventId = ++StaticIntentSequence;
     PendingSubmitEvent.SourceEntityId = SubjectEntityId;
     PendingSubmitEvent.EventTag = EventTag;
@@ -131,7 +131,7 @@ void UHktIntentBuilderComponent::ResolveTarget(FHktEntityId& OutEntity, FVector&
 // Submit 결과 관리
 // ============================================================================
 
-FHktIntentEvent UHktIntentBuilderComponent::ConsumePendingSubmit()
+FHktRuntimeEvent UHktIntentBuilderComponent::ConsumePendingSubmit()
 {
     bHasPendingSubmit = false;
     return MoveTemp(PendingSubmitEvent);

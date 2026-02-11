@@ -9,7 +9,7 @@ class UWorld;
 class UNiagaraSystem;
 class UNiagaraComponent;
 class UDecalComponent;
-struct FHktIntentEvent;
+struct FHktRuntimeEvent;
 
 /**
  * FHktInteractionFXManager
@@ -33,7 +33,7 @@ public:
 	// === Intent FX ===
 	
 	/** Intent 제출 시 이펙트 재생 */
-	void PlayIntentFX(const FHktIntentEvent& Event);
+	void PlayIntentFX(const FHktRuntimeEvent& Event);
 	
 	/** 특정 위치에 이펙트 재생 */
 	void PlayFXAtLocation(const FVector& Location);

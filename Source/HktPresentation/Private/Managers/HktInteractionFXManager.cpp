@@ -35,7 +35,7 @@ void FHktInteractionFXManager::SetTargetIndicatorMaterial(UMaterialInterface* In
 	TargetIndicatorMaterial = InMaterial;
 }
 
-void FHktInteractionFXManager::PlayIntentFX(const FHktIntentEvent& Event)
+void FHktInteractionFXManager::PlayIntentFX(const FHktRuntimeEvent& Event)
 {
 	if (Event.Location.IsZero())
 	{

@@ -14,6 +14,11 @@
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 
+#if WITH_HKT_INSIGHTS
+#include "HktRuntimeInsightsCollector.h"
+#include "HktInsightsRuntimeTypes.h"
+#endif
+
 AHktInGamePlayerController::AHktInGamePlayerController()
 {
     bShowMouseCursor = true;
@@ -61,6 +66,14 @@ void AHktInGamePlayerController::BeginPlay()
             RuleSS->SetClientRule(MakeShared<FHktDefaultClientRule>());
         }
     }
+
+    HKT_INSIGHTS_REGISTER_PROVIDER(this);
+}
+
+void AHktInGamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    HKT_INSIGHTS_UNREGISTER_PROVIDER(this);
+    Super::EndPlay(EndPlayReason);
 }
 
 void AHktInGamePlayerController::SetupInputComponent()
@@ -97,7 +110,7 @@ void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
 
     if (IntentBuilderComponent->HasPendingSubmit())
     {
-        FHktIntentEvent Event = IntentBuilderComponent->ConsumePendingSubmit();
+        FHktRuntimeEvent Event = IntentBuilderComponent->ConsumePendingSubmit();
         Server_ReceiveIntent(Event);
         IntentSubmittedDelegate.Broadcast(Event);
     }
@@ -112,7 +125,7 @@ void AHktInGamePlayerController::OnSlotAction(const FInputActionValue& Value, in
 
     if (IntentBuilderComponent->HasPendingSubmit())
     {
-        FHktIntentEvent Event = IntentBuilderComponent->ConsumePendingSubmit();
+        FHktRuntimeEvent Event = IntentBuilderComponent->ConsumePendingSubmit();
         Server_ReceiveIntent(Event);
         IntentSubmittedDelegate.Broadcast(Event);
     }
@@ -130,27 +143,74 @@ void AHktInGamePlayerController::OnZoom(const FInputActionValue& Value)
     }
 }
 
-void AHktInGamePlayerController::Client_ReceiveFrameBatch_Implementation(const FHktFrameBatch& Batch)
+void AHktInGamePlayerController::Client_ReceiveFrameBatch_Implementation(const FHktRuntimeBatch& Batch)
 {
+#if WITH_HKT_INSIGHTS
+    InsightReceivedBatchCount++;
+    HKT_INSIGHTS_RECORD_PACKET(
+        EHktPacketDirection::ServerToClient, 
+        EHktPacketType::FrameBatch,
+        0, 
+        Batch.FrameNumber, 
+        Batch.Events.Num(),
+        static_cast<int32>(sizeof(FHktRuntimeBatch) + Batch.Events.Num() * sizeof(FHktRuntimeEvent)),
+        FString::Printf(TEXT("FrameBatch: Frame=%lld, Events=%d"), Batch.FrameNumber, Batch.Events.Num())
+    );
+#endif
+
     IHktClientRule* Rule = GetClientRule();
     if (!Rule || !ClientSimulatorComponent) return;
     Rule->OnReceived_FrameBatch(Batch, *ClientSimulatorComponent);
 }
 
-void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const FHktGroupSimulationState& State)
+void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State)
 {
+#if WITH_HKT_INSIGHTS
+    InsightReceivedInitialStateCount++;
+    HKT_INSIGHTS_RECORD_PACKET(
+        EHktPacketDirection::ServerToClient, 
+        EHktPacketType::InitialState,
+        0, 
+        State.LastProcessedFrameNumber, 
+        State.EntitySnapshots.Num(),
+        static_cast<int32>(sizeof(FHktRuntimeSimulationState) + State.EntitySnapshots.Num() * sizeof(FHktEntitySnapshot)),
+        FString::Printf(TEXT("InitialState: Entities=%d"), State.EntitySnapshots.Num())
+    );
+#endif
+
     IHktClientRule* Rule = GetClientRule();
     if (!Rule || !ClientSimulatorComponent) return;
     Rule->OnReceived_InitialSimulationState(State, *ClientSimulatorComponent);
 }
 
-bool AHktInGamePlayerController::Server_ReceiveIntent_Validate(const FHktIntentEvent& Event)
+bool AHktInGamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)
 {
     return Event.IsValid();
 }
 
-void AHktInGamePlayerController::Server_ReceiveIntent_Implementation(const FHktIntentEvent& Event)
+void AHktInGamePlayerController::Server_ReceiveIntent_Implementation(const FHktRuntimeEvent& Event)
 {
+#if WITH_HKT_INSIGHTS
+    InsightSentIntentCount++;
+    {
+        int64 Uid = 0;
+        if (PlayerState)
+        {
+            FUniqueNetIdRepl UniqueId = PlayerState->GetUniqueId();
+            if (UniqueId.IsValid()) { Uid = GetTypeHash(UniqueId->ToString()); }
+        }
+        HKT_INSIGHTS_RECORD_PACKET(
+            EHktPacketDirection::ClientToServer, 
+            EHktPacketType::Intent,
+            Uid, 
+            0, 
+            1,
+            static_cast<int32>(sizeof(FHktRuntimeEvent) + Event.Payload.Num()),
+            FString::Printf(TEXT("Intent: %s Src=%d→Tgt=%d"), *Event.EventTag.ToString(), Event.SourceEntityId, Event.TargetEntityId)
+        );
+    }
+#endif
+
     if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
     {
         int64 PlayerUid = 0;
@@ -172,3 +232,83 @@ IHktClientRule* AHktInGamePlayerController::GetClientRule() const
     }
     return nullptr;
 }
+
+// ============================================================================
+// IHktInsightProvider 구현
+// ============================================================================
+
+#if WITH_HKT_INSIGHTS
+void AHktInGamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
+{
+    OutSnapshot.ProviderName = GetInsightProviderName();
+
+    // === 기본 정보 ===
+    {
+        const FString Cat = TEXT("PlayerController");
+        OutSnapshot.AddInfo(Cat, TEXT("Name"), GetName());
+        OutSnapshot.AddInfo(Cat, TEXT("Role"), HasAuthority() ? TEXT("Server") : TEXT("Client"));
+
+        FString NetModeStr;
+        switch (GetWorld()->GetNetMode())
+        {
+        case NM_Standalone:       NetModeStr = TEXT("Standalone"); break;
+        case NM_DedicatedServer:  NetModeStr = TEXT("DedicatedServer"); break;
+        case NM_ListenServer:     NetModeStr = TEXT("ListenServer"); break;
+        default:                  NetModeStr = TEXT("Client"); break;
+        }
+        OutSnapshot.AddInfo(Cat, TEXT("NetMode"), NetModeStr);
+    }
+
+    // === IntentBuilder 상태 ===
+    if (IntentBuilderComponent)
+    {
+        const FString Cat = TEXT("IntentBuilder");
+        OutSnapshot.AddInfo(Cat, TEXT("Subject"), FString::FromInt(IntentBuilderComponent->GetSubjectEntityId()));
+        OutSnapshot.AddInfo(Cat, TEXT("Target"), FString::FromInt(IntentBuilderComponent->GetTargetEntityId()));
+
+        FGameplayTag Tag = IntentBuilderComponent->GetEventTag();
+        OutSnapshot.AddInfo(Cat, TEXT("Command"), Tag.IsValid() ? Tag.ToString() : TEXT("(none)"));
+        OutSnapshot.AddInfo(Cat, TEXT("ReadyToSubmit"), IntentBuilderComponent->IsReadyToSubmit() ? TEXT("Yes") : TEXT("No"));
+        OutSnapshot.AddInfo(Cat, TEXT("PendingSubmit"), IntentBuilderComponent->HasPendingSubmit() ? TEXT("Yes") : TEXT("No"));
+    }
+
+    // === ClientSimulator 상태 ===
+    if (ClientSimulatorComponent)
+    {
+        const FString Cat = TEXT("ClientSimulator");
+        bool bInit = ClientSimulatorComponent->IsInitialized();
+        OutSnapshot.AddInfo(Cat, TEXT("Initialized"), bInit ? TEXT("Yes") : TEXT("No"));
+        if (bInit)
+        {
+            const FHktRuntimeSimulationState& SimState = ClientSimulatorComponent->GetSimulationState();
+            OutSnapshot.AddInfo(Cat, TEXT("LastFrame"), FString::Printf(TEXT("%lld"), SimState.LastProcessedFrameNumber));
+            OutSnapshot.AddInfo(Cat, TEXT("Entities"), FString::FromInt(SimState.EntitySnapshots.Num()));
+            OutSnapshot.AddInfo(Cat, TEXT("ActiveEvents"), FString::FromInt(SimState.ActiveEvents.Num()));
+        }
+    }
+
+    // === CommandContainer 상태 ===
+    if (CommandContainerComponent)
+    {
+        const FString Cat = TEXT("CommandContainer");
+        OutSnapshot.AddInfo(Cat, TEXT("NumSlots"), FString::FromInt(CommandContainerComponent->GetNumSlots()));
+    }
+
+    // === WorldPlayer 상태 (서버) ===
+    if (WorldPlayerComponent)
+    {
+        const FString Cat = TEXT("WorldPlayer");
+        OutSnapshot.AddInfo(Cat, TEXT("PlayerUid"), FString::Printf(TEXT("%lld"), WorldPlayerComponent->GetPlayerUid()));
+        OutSnapshot.AddInfo(Cat, TEXT("Initialized"), WorldPlayerComponent->IsInitialized() ? TEXT("Yes") : TEXT("No"));
+    }
+
+    // === RPC 통계 ===
+    {
+        const FString Cat = TEXT("RPC Stats");
+        OutSnapshot.AddInfo(Cat, TEXT("SentIntents"), FString::FromInt(InsightSentIntentCount));
+        OutSnapshot.AddInfo(Cat, TEXT("ReceivedBatches"), FString::FromInt(InsightReceivedBatchCount));
+        OutSnapshot.AddInfo(Cat, TEXT("ReceivedInitialStates"), FString::FromInt(InsightReceivedInitialStateCount));
+    }
+}
+#endif
+

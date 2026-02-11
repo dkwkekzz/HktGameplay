@@ -215,7 +215,7 @@ void AHktPlayerController::OnZoom(const FInputActionValue& Value)
 }
 
 // Client_ReceiveBatch_Implementation()에서
-void AHktPlayerController::Client_ReceiveBatch_Implementation(const FHktFrameBatch& Batch)
+void AHktPlayerController::Client_ReceiveBatch_Implementation(const FHktRuntimeBatch& Batch)
 {
     // ... 기존 코드 ...
     

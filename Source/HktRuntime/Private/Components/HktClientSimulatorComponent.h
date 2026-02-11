@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "HktRuleInterfaces.h"
+#include "IHktSimulationWorld.h"
 #include "HktClientSimulatorComponent.generated.h"
 
 UCLASS(ClassGroup=(HktSimulation), meta=(BlueprintSpawnableComponent))
@@ -15,16 +16,19 @@ class HKTRUNTIME_API UHktClientSimulatorComponent : public UActorComponent, publ
 public:
     UHktClientSimulatorComponent();
 
-    virtual void Execute(const FHktFrameBatch& InBatch) override;
-    virtual void RestoreState(const FHktGroupSimulationState& InState, TArray<FHktFrameBatch>&& InPendingBatches) override;
-    virtual const FHktGroupSimulationState& GetSimulationState() const override { return State; }
-    virtual FHktOwnerSimulationState GetOwnerSimulationState(int64 InOwnerId) const override;
+    virtual void Execute(const FHktRuntimeBatch& InBatch) override;
+    virtual void RestoreState(const FHktRuntimeSimulationState& InState, TArray<FHktRuntimeBatch>&& InPendingBatches) override;
+    virtual const FHktRuntimeSimulationState& GetSimulationState() const override { return State; }
+    virtual FHktRuntimeOwnerState GetOwnerState(int64 InOwnerId) const override;
     virtual bool IsInitialized() const override { return bInitialized; }
 
 protected:
     virtual void BeginPlay() override;
 
 private:
-    FHktGroupSimulationState State;
+    /** HktCore 시뮬레이션 월드 (결정론적 시뮬레이션 위임 대상) */
+    TUniquePtr<IHktSimulationWorld> SimWorld;
+
+    FHktRuntimeSimulationState State;
     bool bInitialized = false;
 };

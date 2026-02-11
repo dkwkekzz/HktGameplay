@@ -33,17 +33,17 @@ public:
 
     // === IHktIntentCollector 구현 ===
 
-    virtual bool GetIntents(int64 InPlayerUid, TArray<FHktIntentEvent>& OutIntents) override;
+    virtual bool GetIntents(int64 InPlayerUid, TArray<FHktRuntimeEvent>& OutIntents) override;
     virtual bool GetEnteredPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) override;
     virtual bool GetExitedPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) override;
-    virtual void PushIntents(int64 InPlayerUid, const TArray<FHktIntentEvent>& InEvents) override;
+    virtual void PushIntents(int64 InPlayerUid, const TArray<FHktRuntimeEvent>& InEvents) override;
     virtual void EnterWorldPlayer(int32 GroupIndex, int64 InPlayerUid) override;
     virtual void ExitWorldPlayer(int32 GroupIndex, int64 InPlayerUid) override;
 
     // === 추가 API (Rule 시그니처의 PushIntent 단일 이벤트) ===
 
     /** 단일 Intent 추가 (스레드 안전) */
-    void PushIntent(int64 InPlayerUid, const FHktIntentEvent& InEvent);
+    void PushIntent(int64 InPlayerUid, const FHktRuntimeEvent& InEvent);
 
     /** 프레임 종료 시 소비된 데이터 정리 */
     void EndFrame();
@@ -51,7 +51,7 @@ public:
 private:
     // 플레이어별 Intent 큐
     FCriticalSection IntentLock;
-    TMap<int64, TArray<FHktIntentEvent>> PlayerIntents;
+    TMap<int64, TArray<FHktRuntimeEvent>> PlayerIntents;
 
     // 그룹별 진입/퇴장 큐
     TMap<int32, TArray<int64>> EnteredPlayers;

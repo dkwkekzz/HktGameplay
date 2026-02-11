@@ -26,6 +26,10 @@ public:
     virtual void OpenDebugWindow() override;
     virtual void CloseDebugWindow() override;
     virtual bool IsDebugWindowOpen() const override;
+    virtual void ToggleRuntimeWindow() override;
+    virtual void OpenRuntimeWindow() override;
+    virtual void CloseRuntimeWindow() override;
+    virtual bool IsRuntimeWindowOpen() const override;
     virtual void SetDataCollectionEnabled(bool bEnabled) override;
     virtual bool IsDataCollectionEnabled() const override;
     virtual void ClearAllData() override;
@@ -87,6 +91,44 @@ void FHktInsightsModule::CloseDebugWindow()
 bool FHktInsightsModule::IsDebugWindowOpen() const
 {
     return FHktInsightsWindowManager::Get().IsWindowOpen();
+}
+
+void FHktInsightsModule::ToggleRuntimeWindow()
+{
+    // 런타임 윈도우는 에디터 모듈의 탭 시스템을 통해 관리됩니다.
+    // 에디터가 아닌 환경에서는 아무 작업도 수행하지 않습니다.
+#if WITH_EDITOR
+    // 에디터에서는 탭을 통해 접근하므로 여기서는 빈 구현
+    UE_LOG(LogHktInsights, Verbose, TEXT("[HktInsights] ToggleRuntimeWindow called (use editor tab instead)"));
+#endif
+}
+
+void FHktInsightsModule::OpenRuntimeWindow()
+{
+    // 런타임 윈도우는 에디터 모듈의 탭 시스템을 통해 관리됩니다.
+#if WITH_EDITOR
+    UE_LOG(LogHktInsights, Verbose, TEXT("[HktInsights] OpenRuntimeWindow called (use editor tab instead)"));
+#endif
+}
+
+void FHktInsightsModule::CloseRuntimeWindow()
+{
+    // 런타임 윈도우는 에디터 모듈의 탭 시스템을 통해 관리됩니다.
+#if WITH_EDITOR
+    UE_LOG(LogHktInsights, Verbose, TEXT("[HktInsights] CloseRuntimeWindow called (use editor tab instead)"));
+#endif
+}
+
+bool FHktInsightsModule::IsRuntimeWindowOpen() const
+{
+    // 런타임 윈도우는 에디터 모듈의 탭 시스템을 통해 관리됩니다.
+    // 에디터가 아닌 환경에서는 항상 false를 반환합니다.
+#if WITH_EDITOR
+    // 에디터에서는 탭 상태를 확인할 수 없으므로 false 반환
+    return false;
+#else
+    return false;
+#endif
 }
 
 void FHktInsightsModule::SetDataCollectionEnabled(bool bEnabled)

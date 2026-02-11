@@ -50,9 +50,9 @@ public:
     virtual void OnUserEvent_TargetInputAction(const IHktTargetSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder) override;
     virtual void OnUserEvent_CommandInputAction(const IHktCommandContainer& InContainer, int32 InSlotIndex, IHktIntentBuilder& InBuilder) override;
     virtual void OnUserEvent_ZoomInputAction(float InDelta) override;
-    virtual void OnReceived_InitialSimulationState(const FHktGroupSimulationState& InState, IHktSimulator& InSimulator) override;
-    virtual void OnReceived_FrameBatch(const FHktFrameBatch& InBatch, IHktSimulator& InSimulator) override;
+    virtual void OnReceived_InitialSimulationState(const FHktRuntimeSimulationState& InState, IHktSimulator& InSimulator) override;
+    virtual void OnReceived_FrameBatch(const FHktRuntimeBatch& InBatch, IHktSimulator& InSimulator) override;
 
 private:
-    TArray<FHktFrameBatch> PendingFrameBatches;
+    TArray<FHktRuntimeBatch> PendingFrameBatches;
 };

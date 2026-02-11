@@ -45,11 +45,11 @@ struct HKTRUNTIME_API FHktEntitySnapshot
  * Can be an input action, a state change, or an entity existence.
  */
 USTRUCT(BlueprintType)
-struct HKTRUNTIME_API FHktIntentEvent
+struct HKTRUNTIME_API FHktRuntimeEvent
 {
 	GENERATED_BODY()
 
-	FHktIntentEvent()
+	FHktRuntimeEvent()
 		: EventId(0)
 		, SourceEntityId(InvalidEntityId)
 		, TargetEntityId(InvalidEntityId)
@@ -79,17 +79,17 @@ struct HKTRUNTIME_API FHktIntentEvent
     UPROPERTY(BlueprintReadWrite)
     TArray<uint8> Payload;
 
-    bool operator==(const FHktIntentEvent& Other) const
+    bool operator==(const FHktRuntimeEvent& Other) const
     {
         return EventId == Other.EventId;
     }
 
-    bool operator!=(const FHktIntentEvent& Other) const
+    bool operator!=(const FHktRuntimeEvent& Other) const
     {
         return !(*this == Other);
     }
 
-    bool operator<(const FHktIntentEvent& Other) const
+    bool operator<(const FHktRuntimeEvent& Other) const
     {
         return EventId < Other.EventId;
 	}
@@ -101,10 +101,10 @@ struct HKTRUNTIME_API FHktIntentEvent
 };
 
 //=============================================================================
-// FHktFrameBatch - 기존 유저용 "입력(Input)" 패킷
+// FHktRuntimeBatch - 기존 유저용 "입력(Input)" 패킷
 //=============================================================================
 USTRUCT()
-struct HKTRUNTIME_API FHktFrameBatch
+struct HKTRUNTIME_API FHktRuntimeBatch
 {
     GENERATED_BODY()
 
@@ -121,7 +121,7 @@ struct HKTRUNTIME_API FHktFrameBatch
     TArray<int64> RemovedOwnerIds;
 
     UPROPERTY()
-    TArray<FHktIntentEvent> Events;
+    TArray<FHktRuntimeEvent> Events;
 
     void Reset()
     {
@@ -134,11 +134,11 @@ struct HKTRUNTIME_API FHktFrameBatch
 };
 
 //=============================================================================
-// FHktGroupSimulationState - 신규 유저용 "결과(Result)" 패킷
+// FHktRuntimeSimulationState - 신규 유저용 "결과(Result)" 패킷
 //=============================================================================
 // [중요] 그룹의 시뮬레이션 결과를 완벽하게 복원하기 위한 모든 데이터를 포함해야 함
 USTRUCT()
-struct HKTRUNTIME_API FHktGroupSimulationState
+struct HKTRUNTIME_API FHktRuntimeSimulationState
 {
     GENERATED_BODY()
 
@@ -152,14 +152,14 @@ struct HKTRUNTIME_API FHktGroupSimulationState
     // [결정론 보장] 현재 진행 중인, 아직 만료되지 않은 지속성 이벤트나 상태
     // 예: 쿨타임 정보, 날씨 상태, 현재 RNG의 내부 상태값 등
     UPROPERTY()
-    TArray<FHktIntentEvent> ActiveEvents;
+    TArray<FHktRuntimeEvent> ActiveEvents;
 };
 
 //=============================================================================
-// FHktOwnerSimulationState - 임의의 플레이어의 시뮬레이션 결과
+// FHktRuntimeOwnerState - 임의의 플레이어의 시뮬레이션 결과
 //=============================================================================
 USTRUCT()
-struct HKTRUNTIME_API FHktOwnerSimulationState
+struct HKTRUNTIME_API FHktRuntimeOwnerState
 {
     GENERATED_BODY()
 
@@ -170,5 +170,5 @@ struct HKTRUNTIME_API FHktOwnerSimulationState
     // [결정론 보장] 현재 진행 중인, 아직 만료되지 않은 지속성 이벤트나 상태
     // 예: 쿨타임 정보, 날씨 상태, 현재 RNG의 내부 상태값 등
     UPROPERTY()
-    TArray<FHktIntentEvent> ActiveEvents;
+    TArray<FHktRuntimeEvent> ActiveEvents;
 };

@@ -96,7 +96,7 @@ protected:
 	void HandleSubjectChanged(FHktEntityId EntityId);
 	void HandleTargetChanged(FHktEntityId EntityId);
 	void HandleCommandChanged(FGameplayTag Command);
-	void HandleIntentSubmitted(const FHktIntentEvent& Event);
+	void HandleIntentSubmitted(const FHktRuntimeEvent& Event);
 	void HandleWheelInput(float Delta);
 	void HandleEntityCreated(FHktEntityId EntityId);
 	void HandleEntityDestroyed(FHktEntityId EntityId);

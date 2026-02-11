@@ -7,6 +7,11 @@
 #include "InputActionValue.h"
 #include "HktCoreTypes.h"
 #include "HktRuntimeDelegates.h"
+
+#if WITH_HKT_INSIGHTS
+#include "HktInsightProvider.h"
+#endif
+
 #include "HktInGamePlayerController.generated.h"
 
 class UInputMappingContext;
@@ -17,11 +22,14 @@ class UHktClientSimulatorComponent;
 class UHktCommandContainerComponent;
 class UHktWorldPlayerComponent;
 class IHktClientRule;
-struct FHktFrameBatch;
-struct FHktGroupSimulationState;
+struct FHktRuntimeBatch;
+struct FHktRuntimeSimulationState;
 
 UCLASS()
 class HKTRUNTIME_API AHktInGamePlayerController : public APlayerController
+#if WITH_HKT_INSIGHTS
+    , public IHktInsightProvider
+#endif
 {
     GENERATED_BODY()
 
@@ -30,14 +38,14 @@ public:
 
     // === S2C RPC ===
     UFUNCTION(Client, Reliable)
-    void Client_ReceiveFrameBatch(const FHktFrameBatch& Batch);
+    void Client_ReceiveFrameBatch(const FHktRuntimeBatch& Batch);
 
     UFUNCTION(Client, Reliable)
-    void Client_ReceiveInitialState(const FHktGroupSimulationState& State);
+    void Client_ReceiveInitialState(const FHktRuntimeSimulationState& State);
 
     // === C2S RPC ===
     UFUNCTION(Server, Reliable, WithValidation)
-    void Server_ReceiveIntent(const FHktIntentEvent& Event);
+    void Server_ReceiveIntent(const FHktRuntimeEvent& Event);
 
     // === 델리게이트 ===
     FOnHktSubjectChanged& OnSubjectChanged() { return SubjectChangedDelegate; }
@@ -48,6 +56,7 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void SetupInputComponent() override;
 
     void OnSubjectAction(const FInputActionValue& Value);
@@ -56,6 +65,12 @@ protected:
     void OnZoom(const FInputActionValue& Value);
 
     IHktClientRule* GetClientRule() const;
+
+#if WITH_HKT_INSIGHTS
+public:
+    virtual void CollectInsightData(FHktInsightSnapshot& OutSnapshot) const override;
+    virtual FString GetInsightProviderName() const override { return TEXT("PlayerController"); }
+#endif
 
 protected:
     // === Input ===
@@ -98,4 +113,11 @@ private:
     FOnHktCommandChanged CommandChangedDelegate;
     FOnHktIntentSubmitted IntentSubmittedDelegate;
     FOnHktWheelInput WheelInputDelegate;
+
+#if WITH_HKT_INSIGHTS
+    /** Insight 통계: 보낸 Intent 수, 받은 배치 수 */
+    int32 InsightSentIntentCount = 0;
+    int32 InsightReceivedBatchCount = 0;
+    int32 InsightReceivedInitialStateCount = 0;
+#endif
 };

@@ -19,7 +19,7 @@ struct HKTRUNTIME_API FHktPlayerRecord
     int64 PlayerUid;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
-    TArray<FHktIntentEvent> IntentEvents;
+    TArray<FHktRuntimeEvent> IntentEvents;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     TArray<FHktEntitySnapshot> EntitySnapshots;

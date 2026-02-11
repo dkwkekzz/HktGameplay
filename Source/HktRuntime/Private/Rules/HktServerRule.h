@@ -13,8 +13,8 @@ public:
     virtual ~IHktWorldPlayer() = default;
     virtual int64 GetPlayerUid() const = 0;
 
-    virtual void SendFrameBatch(const FHktFrameBatch& Batch) = 0;
-    virtual void SendInitialSimulationState(const FHktGroupSimulationState& InitialState) = 0;
+    virtual void SendFrameBatch(const FHktRuntimeBatch& Batch) = 0;
+    virtual void SendInitialSimulationState(const FHktRuntimeSimulationState& InitialState) = 0;
 };
 
 //=============================================================================
@@ -24,10 +24,10 @@ class IHktIntentCollector
 {
 public:
     virtual ~IHktIntentCollector() = default;
-    virtual bool GetIntents(int64 InPlayerUid, TArray<FHktIntentEvent>& OutIntents) = 0;
+    virtual bool GetIntents(int64 InPlayerUid, TArray<FHktRuntimeEvent>& OutIntents) = 0;
     virtual bool GetEnteredPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) = 0;
     virtual bool GetExitedPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) = 0;
-    virtual void PushIntents(int64 InPlayerUid, const TArray<FHktIntentEvent>& InEvents) = 0;
+    virtual void PushIntents(int64 InPlayerUid, const TArray<FHktRuntimeEvent>& InEvents) = 0;
     virtual void EnterWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
     virtual void ExitWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
 };
@@ -39,8 +39,8 @@ class IHktBatchBuilder
 {
 public:
     virtual ~IHktBatchBuilder() = default;
-    virtual FHktFrameBatch& CreateOrGetGroupFrameBatch(int32 InGroupIdx) = 0;
-    virtual const FHktFrameBatch& GetGroupFrameBatch(int32 InGroupIdx) const = 0;
+    virtual FHktRuntimeBatch& CreateOrGetGroupFrameBatch(int32 InGroupIdx) = 0;
+    virtual const FHktRuntimeBatch& GetGroupFrameBatch(int32 InGroupIdx) const = 0;
     virtual TArray<int64>& GetMutableNewbieOwners(int32 InGroupIdx) = 0;
     virtual const TArray<int64>& GetNewbieOwners(int32 InGroupIdx) const = 0;
 };
@@ -131,7 +131,7 @@ public:
 
     virtual void OnReceived_Authentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal, TFunction<void(bool bSuccess, const FString& Token)> InResultCallback) override;
     virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) override {}
-    virtual void OnReceived_FireIntentEvent(const FHktIntentEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector) override;
+    virtual void OnReceived_FireIntentEvent(const FHktRuntimeEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector) override;
     virtual void OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) override;
     virtual void OnLogout_ExitWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) override;
     virtual void OnEvent_RequestAutosave(int64 PlayerUid) override;

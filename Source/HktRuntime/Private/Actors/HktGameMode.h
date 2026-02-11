@@ -4,6 +4,11 @@
 #include "GameFramework/GameModeBase.h"
 #include "HktRuntimeTypes.h"
 #include "HktDatabaseTypes.h"
+
+#if WITH_HKT_INSIGHTS
+#include "HktInsightProvider.h"
+#endif
+
 #include "HktGameMode.generated.h"
 
 class UHktGridRelevancyComponent;
@@ -33,6 +38,9 @@ class IHktServerRule;
  */
 UCLASS()
 class HKTRUNTIME_API AHktGameMode : public AGameModeBase
+#if WITH_HKT_INSIGHTS
+    , public IHktInsightProvider
+#endif
 {
     GENERATED_BODY()
 
@@ -40,15 +48,22 @@ public:
     AHktGameMode();
 
     /** Intent를 IntentCollector에 푸시 (PlayerController에서 호출) */
-    void PushIntent(int64 PlayerUid, const FHktIntentEvent& Event);
+    void PushIntent(int64 PlayerUid, const FHktRuntimeEvent& Event);
 
 protected:
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void PostLogin(APlayerController* NewPlayer) override;
     virtual void Logout(AController* Exiting) override;
 
     IHktServerRule* GetServerRule() const;
+
+#if WITH_HKT_INSIGHTS
+public:
+    virtual void CollectInsightData(FHktInsightSnapshot& OutSnapshot) const override;
+    virtual FString GetInsightProviderName() const override { return TEXT("GameMode"); }
+#endif
 
 protected:
     /** IHktPersistentFrame 구현 */
@@ -70,4 +85,8 @@ protected:
     /** IHktBatchBuilder 구현 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
     TObjectPtr<UHktBatchBuilderComponent> BatchBuilderComponent;
+
+private:
+    /** Insight 통계: 틱 당 처리 시간 추적 */
+    float LastTickDurationMs = 0.0f;
 };
