@@ -5,6 +5,7 @@
 #include "HktPlayerState.h"
 #include "HktRuleSubsystem.h"
 #include "HktRuleInterfaces.h"
+#include "HktRuntimeConverter.h"
 #include "Rules/HktServerRule.h"
 #include "Components/HktGridRelevancyComponent.h"
 #include "Components/HktFileDatabaseComponent.h"
@@ -87,7 +88,27 @@ void AHktGameMode::Tick(float DeltaSeconds)
     BatchBuilderComponent->Reset(Graph->NumRelevancyGroup());
     Rule->OnTick_ExecuteFrame(DeltaSeconds, *Frame, *Graph, *Collector, *Builder);
 
-    Rule->OnTick_SendFrameBatch(*Graph, *Builder);
+    // 1. 배열 요소 수 초기화 (메모리 Capacity는 유지되므로 힙 할당/해제 없음)
+    CachedSendPayloads.Reset();
+
+    // 2. 보낼 데이터 목록(Payload) 수집
+    Rule->OnTick_PrepareSendPayloads(*Graph, *Builder, CachedSendPayloads);
+
+    // 3. 액터 레벨에서 순회하며 이벤트 발행
+    for (const FHktFrameSendPayload& Payload : CachedSendPayloads)
+    {
+        if (AHktInGamePlayerController* PC = Cast<AHktInGamePlayerController>(Payload.TargetActor))
+        {
+            if (Payload.StateToSend)
+            {
+                PC->Client_ReceiveInitialState(HktRuntimeConverter::ConvertWorldState(*Payload.StateToSend));
+            }
+            else if (Payload.BatchToSend)
+            {
+                PC->Client_ReceiveFrameBatch(HktRuntimeConverter::ConvertToBatch(*Payload.BatchToSend));
+            }
+        }
+    }
 
     IntentCollectorComponent->EndFrame();
 
@@ -109,19 +130,7 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
     UHktWorldPlayerComponent* WorldPlayerComp = HktPC->FindComponentByClass<UHktWorldPlayerComponent>();
     if (!WorldPlayerComp) return;
 
-    int64 PlayerUid = 0;
-    if (HktPC->PlayerState)
-    {
-        FUniqueNetIdRepl UniqueId = HktPC->PlayerState->GetUniqueId();
-        if (UniqueId.IsValid())
-        {
-            PlayerUid = GetTypeHash(UniqueId->ToString());
-        }
-    }
-    if (PlayerUid == 0)
-    {
-        PlayerUid = GetTypeHash(HktPC->GetName());
-    }
+    int64 PlayerUid = HktPC->GetPlayerUid();
     WorldPlayerComp->SetPlayerUid(PlayerUid);
 
     IHktWorldDatabase* Database = PlayerDatabaseComponent;
@@ -160,7 +169,7 @@ void AHktGameMode::Logout(AController* Exiting)
     Super::Logout(Exiting);
 }
 
-void AHktGameMode::PushIntent(int64 PlayerUid, const FHktRuntimeEvent& Event)
+void AHktGameMode::PushIntent(int64 PlayerUid, const FHktEvent& Event)
 {
     IHktServerRule* Rule = GetServerRule();
     if (!Rule) return;

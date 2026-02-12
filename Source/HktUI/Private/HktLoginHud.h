@@ -8,13 +8,11 @@
 #include "HktLoginHud.generated.h"
 
 class UHktWidgetLoginHudDataAsset;
+class UHktUISubsystem;
+class UHktEventParam;
 
-/**
- * 로그인 맵 전용 HUD.
- * Slate 로그인 위젯(ID/PW, 로그인 버튼)을 뷰포트에 표시하고, 배경은 설정에서 지정한 텍스처 사용.
- */
 UCLASS()
-class HKTPRESENTATION_API AHktLoginHud : public AHUD
+class HKTUI_API AHktLoginHud : public AHUD
 {
 	GENERATED_BODY()
 
@@ -27,8 +25,14 @@ protected:
 
 private:
 	void AddLoginWidgetToViewport();
-	void CreateAndAddLoginWidget(const FOnHktLoginRequested& OnLogin, const TOptional<struct FSlateBrush>& BackgroundBrush, UHktWidgetLoginHudDataAsset* LoginWidgetDataAsset);
+	void CreateAndAddLoginWidget(const TOptional<struct FSlateBrush>& BackgroundBrush, UHktWidgetLoginHudDataAsset* DataAsset);
 	void RemoveLoginWidgetFromViewport();
 
+	void OnLoginRequested(const FString& ID, const FString& PW);
+
+	UFUNCTION()
+	void OnLoginCompleted(UHktEventParam* Param, bool bSuccess);
+
 	TSharedPtr<class SWidget> LoginWidgetSlate;
+	TWeakObjectPtr<UHktUISubsystem> UISubsystem;
 };

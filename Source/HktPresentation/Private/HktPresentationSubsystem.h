@@ -18,7 +18,6 @@ class APlayerController;
 class FHktEntityVisualManager;
 class FHktSelectionVisualManager;
 class FHktInteractionFXManager;
-class FHktEntityHUDManager;
 
 // ============================================================================
 // Presentation 이벤트 (ModelProvider 구독 후 Subsystem이 브로드캐스트, CameraPawn 등이 구독)
@@ -84,7 +83,6 @@ public:
 	FHktEntityVisualManager* GetEntityVisualManager() const { return EntityVisualManager; }
 	FHktSelectionVisualManager* GetSelectionVisualManager() const { return SelectionVisualManager; }
 	FHktInteractionFXManager* GetInteractionFXManager() const { return InteractionFXManager; }
-	FHktEntityHUDManager* GetEntityHUDManager() const { return EntityHUDManager; }
 
 	// === 엔티티 조회 (EntityVisualManager 위임) ===
 	
@@ -114,7 +112,6 @@ private:
 	FHktEntityVisualManager* EntityVisualManager;
 	FHktSelectionVisualManager* SelectionVisualManager;
 	FHktInteractionFXManager* InteractionFXManager;
-	FHktEntityHUDManager* EntityHUDManager;
 
 	// === 델리게이트 핸들 ===
 	FDelegateHandle SubjectChangedHandle;

@@ -14,7 +14,7 @@ class FHktRelevancyGroupImpl : public IHktRelevancyGroup
 public:
     FHktRelevancyGroupImpl();
 
-    virtual IHktSimulator& GetSimulator() override { return Simulator; }
+    virtual IHktServerSimulator& GetSimulator() override { return Simulator; }
     virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }
     virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const override { return CachedPlayers; }
 

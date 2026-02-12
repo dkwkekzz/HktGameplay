@@ -19,6 +19,7 @@ class UHktBatchBuilderComponent;
 class UHktWorldPlayerComponent;
 class AHktInGamePlayerController;
 class IHktServerRule;
+struct FHktFrameSendPayload;
 
 /**
  * AHktGameMode - 서버 오케스트레이터
@@ -48,7 +49,7 @@ public:
     AHktGameMode();
 
     /** Intent를 IntentCollector에 푸시 (PlayerController에서 호출) */
-    void PushIntent(int64 PlayerUid, const FHktRuntimeEvent& Event);
+    void PushIntent(int64 PlayerUid, const FHktEvent& Event);
 
 protected:
     virtual void BeginPlay() override;
@@ -87,6 +88,9 @@ protected:
     TObjectPtr<UHktBatchBuilderComponent> BatchBuilderComponent;
 
 private:
+    /** 힙 할당 방지를 위해 클래스 멤버로 캐싱해두는 배열 */
+    TArray<FHktFrameSendPayload> CachedSendPayloads;
+
     /** Insight 통계: 틱 당 처리 시간 추적 */
     float LastTickDurationMs = 0.0f;
 };

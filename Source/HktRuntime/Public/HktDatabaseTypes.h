@@ -19,12 +19,6 @@ struct HKTRUNTIME_API FHktPlayerRecord
     int64 PlayerUid;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
-    TArray<FHktRuntimeEvent> IntentEvents;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
-    TArray<FHktEntitySnapshot> EntitySnapshots;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     FDateTime LastLoginTime;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
@@ -33,6 +27,9 @@ struct HKTRUNTIME_API FHktPlayerRecord
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     FVector LastPosition;
 
+    TArray<FHktEvent> Events;
+    TArray<FHktEntityState> EntityStates;
+
     FHktPlayerRecord()
     {
         CreatedTime = FDateTime::UtcNow();
@@ -40,5 +37,5 @@ struct HKTRUNTIME_API FHktPlayerRecord
     }
 
     bool IsValid() const { return PlayerUid != 0; }
-    bool HasEntities() const { return EntitySnapshots.Num() > 0; }
+    bool HasEntities() const { return EntityStates.Num() > 0; }
 };

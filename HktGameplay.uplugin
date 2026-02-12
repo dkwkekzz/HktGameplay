@@ -36,6 +36,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "HktUI",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "HktInsights",
 			"Type": "DeveloperTool",
 			"LoadingPhase": "Default"

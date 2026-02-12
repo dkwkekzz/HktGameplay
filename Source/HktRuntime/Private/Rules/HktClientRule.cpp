@@ -7,7 +7,7 @@ FHktDefaultClientRule::~FHktDefaultClientRule() {}
 
 void FHktDefaultClientRule::OnUserEvent_LoginButtonClick() {}
 
-void FHktDefaultClientRule::OnUserEvent_SubjectInputAction(const IHktSubjectSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder)
+void FHktDefaultClientRule::OnUserEvent_SubjectInputAction(const IHktUnitSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder)
 {
     FHktEntityId SelectedEntity = InPolicy.ResolveSubject();
     if (SelectedEntity == InvalidEntityId) return;
@@ -15,7 +15,7 @@ void FHktDefaultClientRule::OnUserEvent_SubjectInputAction(const IHktSubjectSele
     InBuilder.ResetCommand();
 }
 
-void FHktDefaultClientRule::OnUserEvent_TargetInputAction(const IHktTargetSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder)
+void FHktDefaultClientRule::OnUserEvent_TargetInputAction(const IHktUnitSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder)
 {
     FHktEntityId TargetEntity = InvalidEntityId;
     FVector TargetLocation = FVector::ZeroVector;
@@ -35,13 +35,13 @@ void FHktDefaultClientRule::OnUserEvent_CommandInputAction(const IHktCommandCont
 
 void FHktDefaultClientRule::OnUserEvent_ZoomInputAction(float InDelta) {}
 
-void FHktDefaultClientRule::OnReceived_InitialSimulationState(const FHktRuntimeSimulationState& InState, IHktSimulator& InSimulator)
+void FHktDefaultClientRule::OnReceived_InitialSimulationState(const FHktWorldState& InState, IHktClientSimulator& InSimulator)
 {
     InSimulator.RestoreState(InState, MoveTemp(PendingFrameBatches));
     PendingFrameBatches.Empty();
 }
 
-void FHktDefaultClientRule::OnReceived_FrameBatch(const FHktRuntimeBatch& InBatch, IHktSimulator& InSimulator)
+void FHktDefaultClientRule::OnReceived_FrameBatch(const FHktSimulationEvent& InBatch, IHktClientSimulator& InSimulator)
 {
     if (!InSimulator.IsInitialized()) { PendingFrameBatches.Add(InBatch); return; }
     InSimulator.Execute(InBatch);

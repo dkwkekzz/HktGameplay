@@ -13,13 +13,13 @@ void UHktBatchBuilderComponent::Reset(int32 NumGroups)
     for (int32 i = 0; i < NumGroups; ++i) { GroupBatches[i].Reset(); NewbieOwners[i].Reset(); }
 }
 
-FHktRuntimeBatch& UHktBatchBuilderComponent::CreateOrGetGroupFrameBatch(int32 InGroupIdx)
+FHktSimulationEvent& UHktBatchBuilderComponent::CreateOrGetGroupFrameBatch(int32 InGroupIdx)
 {
     if (!GroupBatches.IsValidIndex(InGroupIdx)) GroupBatches.SetNum(InGroupIdx + 1);
     return GroupBatches[InGroupIdx];
 }
 
-const FHktRuntimeBatch& UHktBatchBuilderComponent::GetGroupFrameBatch(int32 InGroupIdx) const
+const FHktSimulationEvent& UHktBatchBuilderComponent::GetGroupFrameBatch(int32 InGroupIdx) const
 {
     check(GroupBatches.IsValidIndex(InGroupIdx));
     return GroupBatches[InGroupIdx];

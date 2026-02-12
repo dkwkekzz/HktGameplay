@@ -37,15 +37,16 @@ void FHktInteractionFXManager::SetTargetIndicatorMaterial(UMaterialInterface* In
 
 void FHktInteractionFXManager::PlayIntentFX(const FHktRuntimeEvent& Event)
 {
-	if (Event.Location.IsZero())
+	auto Location = Event.CoreEvent.Location;
+	if (Location.IsZero())
 	{
 		return;
 	}
 
-	PlayFXAtLocation(Event.Location);
+	PlayFXAtLocation(Location);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[InteractionFXManager] Playing Intent FX at %s for %s"),
-		*Event.Location.ToString(), *Event.EventTag.ToString());
+		*Location.ToString(), *Event.CoreEvent.EventTag.ToString());
 }
 
 void FHktInteractionFXManager::PlayFXAtLocation(const FVector& Location)

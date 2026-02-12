@@ -50,9 +50,4 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category = "Interaction", meta = (DisplayName = "Interaction FX System"))
 	TSoftObjectPtr<UNiagaraSystem> InteractionFXSystem;
-
-	// === HUD ===
-
-	UPROPERTY(Config, EditAnywhere, Category = "HUD", meta = (DisplayName = "HUD Widget Class"))
-	TSoftClassPtr<UUserWidget> HUDWidgetClass;
 };

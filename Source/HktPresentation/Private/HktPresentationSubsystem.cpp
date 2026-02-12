@@ -8,7 +8,6 @@
 #include "Managers/HktEntityVisualManager.h"
 #include "Managers/HktSelectionVisualManager.h"
 #include "Managers/HktInteractionFXManager.h"
-#include "Managers/HktEntityHUDManager.h"
 
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -204,7 +203,6 @@ void UHktPresentationSubsystem::CreateManagers()
 	EntityVisualManager = new FHktEntityVisualManager(World);
 	SelectionVisualManager = new FHktSelectionVisualManager(World);
 	InteractionFXManager = new FHktInteractionFXManager(World);
-	EntityHUDManager = new FHktEntityHUDManager(World);
 }
 
 void UHktPresentationSubsystem::DestroyManagers()
@@ -363,7 +361,7 @@ void UHktPresentationSubsystem::HandleIntentSubmitted(const FHktRuntimeEvent& Ev
 		InteractionFXManager->PlayIntentFX(Event);
 	}
 	
-	UE_LOG(LogTemp, Log, TEXT("[HktPresentationSubsystem] Intent submitted: %s"), *Event.EventTag.ToString());
+	//UE_LOG(LogTemp, Log, TEXT("[HktPresentationSubsystem] Intent submitted: %s"), *Event.EventTag.ToString());
 }
 
 void UHktPresentationSubsystem::HandleWheelInput(float Delta)

@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class HktPresentation : ModuleRules
+public class HktUI : ModuleRules
 {
-	public HktPresentation(ReadOnlyTargetRules Target) : base(Target)
+	public HktUI(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -12,11 +12,6 @@ public class HktPresentation : ModuleRules
 			new string[] {
 				System.IO.Path.Combine(ModuleDirectory, "..", "HktCore", "Public"),
 				System.IO.Path.Combine(ModuleDirectory, "..", "HktRuntime", "Public"),
-			}
-		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
 			}
 		);
 
@@ -31,23 +26,17 @@ public class HktPresentation : ModuleRules
 				"UMG",
 				"Slate",
 				"SlateCore",
-				"Niagara",
+				"MediaAssets",
 				"HktCore",
 				"HktRuntime",
 				"HktAsset"
 			}
 		);
-			
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"DeveloperSettings"
-			}
-		);
-		
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
 			}
 		);
 	}

@@ -6,6 +6,7 @@
 #include "HktRuleInterfaces.h"
 #include "Rules/HktClientRule.h"
 #include "Components/HktIntentBuilderComponent.h"
+#include "Components/HktDesktopDefaultSelectionPolicy.h"
 #include "Components/HktClientSimulatorComponent.h"
 #include "Components/HktCommandContainerComponent.h"
 #include "Components/HktWorldPlayerComponent.h"
@@ -51,6 +52,9 @@ void AHktInGamePlayerController::BeginPlay()
         IntentBuilderComponent = NewObject<UHktIntentBuilderComponent>(this, TEXT("IntentBuilder"));
         IntentBuilderComponent->RegisterComponent();
 
+        SelectionPolicyComponent = NewObject<UHktDesktopDefaultSelectionPolicy>(this, TEXT("SelectionPolicy"));
+        SelectionPolicyComponent->RegisterComponent();
+
         ClientSimulatorComponent = NewObject<UHktClientSimulatorComponent>(this, TEXT("ClientSimulator"));
         ClientSimulatorComponent->RegisterComponent();
 
@@ -76,6 +80,13 @@ void AHktInGamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReaso
     Super::EndPlay(EndPlayReason);
 }
 
+void AHktInGamePlayerController::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+    // PlayerState가 변경되면 캐시를 무효화
+    bPlayerUidCached = false;
+}
+
 void AHktInGamePlayerController::SetupInputComponent()
 {
     Super::SetupInputComponent();
@@ -96,16 +107,16 @@ void AHktInGamePlayerController::SetupInputComponent()
 void AHktInGamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
-    if (!Rule || !IntentBuilderComponent) return;
-    Rule->OnUserEvent_SubjectInputAction(*IntentBuilderComponent, *IntentBuilderComponent);
+    if (!Rule || !IntentBuilderComponent || !SelectionPolicyComponent) return;
+    Rule->OnUserEvent_SubjectInputAction(*SelectionPolicyComponent, *IntentBuilderComponent);
     SubjectChangedDelegate.Broadcast(IntentBuilderComponent->GetSubjectEntityId());
 }
 
 void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
-    if (!Rule || !IntentBuilderComponent) return;
-    Rule->OnUserEvent_TargetInputAction(*IntentBuilderComponent, *IntentBuilderComponent);
+    if (!Rule || !IntentBuilderComponent || !SelectionPolicyComponent) return;
+    Rule->OnUserEvent_TargetInputAction(*SelectionPolicyComponent, *IntentBuilderComponent);
     TargetChangedDelegate.Broadcast(IntentBuilderComponent->GetTargetEntityId());
 
     if (IntentBuilderComponent->HasPendingSubmit())
@@ -147,14 +158,16 @@ void AHktInGamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
 {
 #if WITH_HKT_INSIGHTS
     InsightReceivedBatchCount++;
+    // 암시적 변환을 통해 CoreEvent에 접근
+    const FHktSimulationEvent& CoreEvent = Batch;
     HKT_INSIGHTS_RECORD_PACKET(
         EHktPacketDirection::ServerToClient, 
         EHktPacketType::FrameBatch,
         0, 
-        Batch.FrameNumber, 
-        Batch.Events.Num(),
-        static_cast<int32>(sizeof(FHktRuntimeBatch) + Batch.Events.Num() * sizeof(FHktRuntimeEvent)),
-        FString::Printf(TEXT("FrameBatch: Frame=%lld, Events=%d"), Batch.FrameNumber, Batch.Events.Num())
+        CoreEvent.FrameNumber, 
+        CoreEvent.Events.Num(),
+        static_cast<int32>(sizeof(FHktRuntimeBatch) + CoreEvent.Events.Num() * sizeof(FHktEvent)),
+        FString::Printf(TEXT("FrameBatch: Frame=%lld, Events=%d"), CoreEvent.FrameNumber, CoreEvent.Events.Num())
     );
 #endif
 
@@ -167,14 +180,16 @@ void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const
 {
 #if WITH_HKT_INSIGHTS
     InsightReceivedInitialStateCount++;
+    // 암시적 변환을 통해 CoreState에 접근
+    const FHktWorldState& CoreState = State;
     HKT_INSIGHTS_RECORD_PACKET(
         EHktPacketDirection::ServerToClient, 
         EHktPacketType::InitialState,
         0, 
-        State.LastProcessedFrameNumber, 
-        State.EntitySnapshots.Num(),
-        static_cast<int32>(sizeof(FHktRuntimeSimulationState) + State.EntitySnapshots.Num() * sizeof(FHktEntitySnapshot)),
-        FString::Printf(TEXT("InitialState: Entities=%d"), State.EntitySnapshots.Num())
+        CoreState.FrameNumber, 
+        CoreState.Entities.Num(),
+        static_cast<int32>(sizeof(FHktRuntimeSimulationState) + CoreState.Entities.Num() * sizeof(FHktEntityState)),
+        FString::Printf(TEXT("InitialState: Entities=%d"), CoreState.Entities.Num())
     );
 #endif
 
@@ -193,33 +208,23 @@ void AHktInGamePlayerController::Server_ReceiveIntent_Implementation(const FHktR
 #if WITH_HKT_INSIGHTS
     InsightSentIntentCount++;
     {
-        int64 Uid = 0;
-        if (PlayerState)
-        {
-            FUniqueNetIdRepl UniqueId = PlayerState->GetUniqueId();
-            if (UniqueId.IsValid()) { Uid = GetTypeHash(UniqueId->ToString()); }
-        }
+        // 암시적 변환을 통해 CoreEvent에 접근
+        const FHktEvent& CoreEvent = Event;
         HKT_INSIGHTS_RECORD_PACKET(
             EHktPacketDirection::ClientToServer, 
             EHktPacketType::Intent,
-            Uid, 
+            GetPlayerUid(), 
             0, 
             1,
-            static_cast<int32>(sizeof(FHktRuntimeEvent) + Event.Payload.Num()),
-            FString::Printf(TEXT("Intent: %s Src=%d→Tgt=%d"), *Event.EventTag.ToString(), Event.SourceEntityId, Event.TargetEntityId)
+            static_cast<int32>(sizeof(FHktRuntimeEvent)),
+            FString::Printf(TEXT("Intent: %s Src=%d→Tgt=%d"), *CoreEvent.EventTag.ToString(), CoreEvent.SourceEntity, CoreEvent.TargetEntity)
         );
     }
 #endif
 
     if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
     {
-        int64 PlayerUid = 0;
-        if (PlayerState)
-        {
-            FUniqueNetIdRepl UniqueId = PlayerState->GetUniqueId();
-            if (UniqueId.IsValid()) { PlayerUid = GetTypeHash(UniqueId->ToString()); }
-        }
-        GM->PushIntent(PlayerUid, Event);
+        GM->PushIntent(GetPlayerUid(), Event);
     }
 }
 
@@ -231,6 +236,24 @@ IHktClientRule* AHktInGamePlayerController::GetClientRule() const
         return Rule.Get();
     }
     return nullptr;
+}
+
+int64 AHktInGamePlayerController::GetPlayerUid() const
+{
+    if (!bPlayerUidCached)
+    {
+        CachedPlayerUid = 0;
+        if (PlayerState)
+        {
+            FUniqueNetIdRepl UniqueId = PlayerState->GetUniqueId();
+            if (UniqueId.IsValid())
+            {
+                CachedPlayerUid = GetTypeHash(UniqueId->ToString());
+            }
+        }
+        bPlayerUidCached = true;
+    }
+    return CachedPlayerUid;
 }
 
 // ============================================================================
@@ -280,10 +303,11 @@ void AHktInGamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnap
         OutSnapshot.AddInfo(Cat, TEXT("Initialized"), bInit ? TEXT("Yes") : TEXT("No"));
         if (bInit)
         {
-            const FHktRuntimeSimulationState& SimState = ClientSimulatorComponent->GetSimulationState();
-            OutSnapshot.AddInfo(Cat, TEXT("LastFrame"), FString::Printf(TEXT("%lld"), SimState.LastProcessedFrameNumber));
-            OutSnapshot.AddInfo(Cat, TEXT("Entities"), FString::FromInt(SimState.EntitySnapshots.Num()));
-            OutSnapshot.AddInfo(Cat, TEXT("ActiveEvents"), FString::FromInt(SimState.ActiveEvents.Num()));
+            const FHktWorldState& WorldState = ClientSimulatorComponent->GetSimulationState();
+            // 암시적 변환을 통해 CoreState에 접근
+            OutSnapshot.AddInfo(Cat, TEXT("LastFrame"), FString::Printf(TEXT("%lld"), WorldState.FrameNumber));
+            OutSnapshot.AddInfo(Cat, TEXT("Entities"), FString::FromInt(WorldState.Entities.Num()));
+            //OutSnapshot.AddInfo(Cat, TEXT("ActiveEvents"), FString::FromInt(WorldState.ActiveEvents.Num()));
         }
     }
 

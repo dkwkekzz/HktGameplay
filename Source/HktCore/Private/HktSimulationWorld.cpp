@@ -133,7 +133,7 @@ void FHktSimulationWorld::PublishRenderState(FHktRenderState& OutState)
 // 팩토리 함수
 // ============================================================================
 
-TUniquePtr<IHktSimulationWorld> CreateSimulationWorld()
+TUniquePtr<IHktSimulator> CreateSimulationWorld()
 {
     return MakeUnique<FHktSimulationWorld>();
 }

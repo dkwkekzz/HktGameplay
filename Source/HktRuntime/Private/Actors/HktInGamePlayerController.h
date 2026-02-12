@@ -18,6 +18,7 @@ class UInputMappingContext;
 class UInputAction;
 class UHktInputAction;
 class UHktIntentBuilderComponent;
+class UHktDesktopDefaultSelectionPolicy;
 class UHktClientSimulatorComponent;
 class UHktCommandContainerComponent;
 class UHktWorldPlayerComponent;
@@ -54,10 +55,15 @@ public:
     FOnHktIntentSubmitted& OnIntentSubmitted() { return IntentSubmittedDelegate; }
     FOnHktWheelInput& OnWheelInput() { return WheelInputDelegate; }
 
+    // === Player UID ===
+    /** PlayerState의 UniqueId로부터 계산된 UID를 반환합니다. 한 번 계산되면 캐시됩니다. */
+    int64 GetPlayerUid() const;
+
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void SetupInputComponent() override;
+    virtual void OnRep_PlayerState() override;
 
     void OnSubjectAction(const FInputActionValue& Value);
     void OnTargetAction(const FInputActionValue& Value);
@@ -91,9 +97,13 @@ protected:
 
     // === 컴포넌트 ===
 
-    /** IHktIntentBuilder + IHktSubjectSelectionPolicy + IHktTargetSelectionPolicy (클라이언트) */
+    /** IHktIntentBuilder (클라이언트) */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
     TObjectPtr<UHktIntentBuilderComponent> IntentBuilderComponent;
+
+    /** IHktUnitSelectionPolicy (클라이언트) */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
+    TObjectPtr<UHktDesktopDefaultSelectionPolicy> SelectionPolicyComponent;
 
     /** IHktSimulator (클라이언트) */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
@@ -113,6 +123,10 @@ private:
     FOnHktCommandChanged CommandChangedDelegate;
     FOnHktIntentSubmitted IntentSubmittedDelegate;
     FOnHktWheelInput WheelInputDelegate;
+
+    // Player UID 캐시
+    mutable int64 CachedPlayerUid = 0;
+    mutable bool bPlayerUidCached = false;
 
 #if WITH_HKT_INSIGHTS
     /** Insight 통계: 보낸 Intent 수, 받은 배치 수 */

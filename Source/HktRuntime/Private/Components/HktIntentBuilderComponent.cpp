@@ -1,9 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktIntentBuilderComponent.h"
-#include "HktSelectable.h"
-#include "GameFramework/PlayerController.h"
-#include "Engine/World.h"
 
 uint32 UHktIntentBuilderComponent::StaticIntentSequence = 0;
 
@@ -68,18 +65,22 @@ bool UHktIntentBuilderComponent::Submit()
         return false;
     }
 
-    // IntentEvent 생성 → PendingSubmit에 저장
-    PendingSubmitEvent = FHktRuntimeEvent();
-    PendingSubmitEvent.EventId = ++StaticIntentSequence;
-    PendingSubmitEvent.SourceEntityId = SubjectEntityId;
-    PendingSubmitEvent.EventTag = EventTag;
-    PendingSubmitEvent.TargetEntityId = TargetEntityId;
-    PendingSubmitEvent.Location = TargetLocation;
+    // Core 구조체로 생성
+    FHktEvent CoreEvent;
+    CoreEvent.EventId = ++StaticIntentSequence;
+    CoreEvent.SourceEntity = SubjectEntityId;
+    CoreEvent.EventTag = EventTag;
+    CoreEvent.TargetEntity = TargetEntityId;
+    CoreEvent.Location = TargetLocation;
+    CoreEvent.Param0 = 0;
+    CoreEvent.Param1 = 0;
+
+    PendingSubmitEvent = CoreEvent; // 복사 생성자 사용
 
     bHasPendingSubmit = true;
 
     UE_LOG(LogTemp, Log, TEXT("[IntentBuilder] Submit: EventId=%d, Tag=%s, Subject=%d, Target=%d"),
-        PendingSubmitEvent.EventId, *EventTag.ToString(),
+        CoreEvent.EventId, *EventTag.ToString(),
         SubjectEntityId, TargetEntityId);
 
     // 커맨드 초기화 (Subject 유지)
@@ -89,83 +90,11 @@ bool UHktIntentBuilderComponent::Submit()
 }
 
 // ============================================================================
-// IHktSubjectSelectionPolicy 구현
-// ============================================================================
-
-FHktEntityId UHktIntentBuilderComponent::ResolveSubject() const
-{
-    FHktEntityId OutEntity = InvalidEntityId;
-    GetSelectableEntityUnderCursor(OutEntity);
-    return OutEntity;
-}
-
-// ============================================================================
-// IHktTargetSelectionPolicy 구현
-// ============================================================================
-
-void UHktIntentBuilderComponent::ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation) const
-{
-    OutEntity = InvalidEntityId;
-    OutLocation = FVector::ZeroVector;
-
-    FHitResult Hit;
-    if (!GetHitUnderCursor(Hit))
-    {
-        return;
-    }
-
-    // 엔티티 타겟 시도
-    if (IHktSelectable* Selectable = Cast<IHktSelectable>(Hit.GetActor()))
-    {
-        if (Selectable->IsSelectable())
-        {
-            OutEntity = Selectable->GetEntityId();
-        }
-    }
-
-    // 위치는 항상 설정
-    OutLocation = Hit.Location;
-}
-
-// ============================================================================
 // Submit 결과 관리
 // ============================================================================
 
 FHktRuntimeEvent UHktIntentBuilderComponent::ConsumePendingSubmit()
 {
     bHasPendingSubmit = false;
-    return MoveTemp(PendingSubmitEvent);
-}
-
-// ============================================================================
-// 내부 헬퍼
-// ============================================================================
-
-bool UHktIntentBuilderComponent::GetHitUnderCursor(FHitResult& OutHit) const
-{
-    APlayerController* Controller = Cast<APlayerController>(GetOwner());
-    if (!Controller)
-    {
-        return false;
-    }
-
-    return Controller->GetHitResultUnderCursor(ECC_Visibility, false, OutHit);
-}
-
-bool UHktIntentBuilderComponent::GetSelectableEntityUnderCursor(FHktEntityId& OutEntityId) const
-{
-    FHitResult Hit;
-    if (!GetHitUnderCursor(Hit))
-    {
-        return false;
-    }
-
-    IHktSelectable* Selectable = Cast<IHktSelectable>(Hit.GetActor());
-    if (!Selectable || !Selectable->IsSelectable())
-    {
-        return false;
-    }
-
-    OutEntityId = Selectable->GetEntityId();
-    return true;
+    return PendingSubmitEvent;
 }

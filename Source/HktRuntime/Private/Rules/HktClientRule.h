@@ -4,6 +4,36 @@
 #include "HktRuleInterfaces.h"
 #include "HktRuntimeTypes.h"
 
+// ============================================================================
+// IHktClientSimulator - ???????? ???????
+//
+// ???????: PlayerController?? ??? ???? (ClientSimulatorComponent)
+//
+// ???? ??:
+//   Execute(Batch)    : FrameBatch(???)?? ?? ?????? ??????
+//   RestoreState(State): ?????? ????? ???? ??? ???? (??? ????)
+//   GetSimulationState(): ???? ?????? ???? ???
+// ============================================================================
+class IHktClientSimulator
+{
+public:
+    virtual ~IHktClientSimulator() = default;
+
+    /** FrameBatch(???)?? ?? ?????? ?????? */
+    virtual void Execute(const FHktSimulationEvent& InBatch) = 0;
+
+    /** ?????? ????? ???? ??? ???? + ??? ????? ??? ??? */
+    virtual void RestoreState(const FHktWorldState& InState, TArray<FHktSimulationEvent>&& InPendingBatches) = 0;
+
+    /** 현재 시뮬레이션 상태 조회 (Newbie 전송, 저장 등에 사용) */
+    virtual const FHktWorldState& GetSimulationState() const = 0;
+
+    virtual FHktRuntimeOwnerState GetOwnerState(int64 InOwnerId) const = 0;
+
+    /** ???? ??? ???? (RestoreState ??? ?Execute ???? true) */
+    virtual bool IsInitialized() const = 0;
+};
+
 class IHktIntentBuilder
 {
 public:
@@ -16,17 +46,11 @@ public:
     virtual bool Submit() = 0;
 };
 
-class IHktSubjectSelectionPolicy
+class IHktUnitSelectionPolicy
 {
 public:
-    virtual ~IHktSubjectSelectionPolicy() = default;
+    virtual ~IHktUnitSelectionPolicy() = default;
     virtual FHktEntityId ResolveSubject() const = 0;
-};
-
-class IHktTargetSelectionPolicy
-{
-public:
-    virtual ~IHktTargetSelectionPolicy() = default;
     virtual void ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation) const = 0;
 };
 
@@ -46,13 +70,13 @@ public:
     virtual ~FHktDefaultClientRule();
 
     virtual void OnUserEvent_LoginButtonClick() override;
-    virtual void OnUserEvent_SubjectInputAction(const IHktSubjectSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder) override;
-    virtual void OnUserEvent_TargetInputAction(const IHktTargetSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder) override;
+    virtual void OnUserEvent_SubjectInputAction(const IHktUnitSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder) override;
+    virtual void OnUserEvent_TargetInputAction(const IHktUnitSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder) override;
     virtual void OnUserEvent_CommandInputAction(const IHktCommandContainer& InContainer, int32 InSlotIndex, IHktIntentBuilder& InBuilder) override;
     virtual void OnUserEvent_ZoomInputAction(float InDelta) override;
-    virtual void OnReceived_InitialSimulationState(const FHktRuntimeSimulationState& InState, IHktSimulator& InSimulator) override;
-    virtual void OnReceived_FrameBatch(const FHktRuntimeBatch& InBatch, IHktSimulator& InSimulator) override;
+    virtual void OnReceived_InitialSimulationState(const FHktWorldState& InState, IHktClientSimulator& InSimulator) override;
+    virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch, IHktClientSimulator& InSimulator) override;
 
 private:
-    TArray<FHktRuntimeBatch> PendingFrameBatches;
+    TArray<FHktSimulationEvent> PendingFrameBatches;
 };

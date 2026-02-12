@@ -14,14 +14,12 @@
  *
  * 아키텍처:
  *   - 컴포넌트는 인터페이스 구현에 집중
- *   - 3개 인터페이스를 동시에 구현:
- *     - IHktIntentBuilder:          Subject/Command/Target 설정 + Submit
- *     - IHktSubjectSelectionPolicy: 커서 아래 Selectable 조회
- *     - IHktTargetSelectionPolicy:  커서 아래 Target 조회
+ *   - IHktIntentBuilder 인터페이스 구현:
+ *     - Subject/Command/Target 설정 + Submit
  *
  * Rule에서의 사용:
- *   Rule->OnUserEvent_SubjectInputAction(*this, *this);  // Policy + Builder
- *   Rule->OnUserEvent_TargetInputAction(*this, *this);   // Policy + Builder
+ *   Rule->OnUserEvent_SubjectInputAction(*SelectionPolicy, *this);  // Policy + Builder
+ *   Rule->OnUserEvent_TargetInputAction(*SelectionPolicy, *this);   // Policy + Builder
  *
  * Submit 흐름:
  *   Rule이 IHktIntentBuilder::Submit() 호출
@@ -33,8 +31,6 @@ UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktIntentBuilderComponent
     : public UActorComponent
     , public IHktIntentBuilder
-    , public IHktSubjectSelectionPolicy
-    , public IHktTargetSelectionPolicy
 {
     GENERATED_BODY()
 
@@ -50,14 +46,6 @@ public:
     virtual bool IsReadyToSubmit() const override;
     virtual bool Submit() override;
 
-    // === IHktSubjectSelectionPolicy 구현 ===
-
-    virtual FHktEntityId ResolveSubject() const override;
-
-    // === IHktTargetSelectionPolicy 구현 ===
-
-    virtual void ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation) const override;
-
     // === Submit 결과 관리 (Actor에서 소비) ===
 
     /** Submit이 호출되어 대기 중인 Intent가 있는지 */
@@ -72,10 +60,6 @@ public:
     FHktEntityId GetTargetEntityId() const { return TargetEntityId; }
     FVector GetTargetLocation() const { return TargetLocation; }
     FGameplayTag GetEventTag() const { return EventTag; }
-
-private:
-    bool GetHitUnderCursor(FHitResult& OutHit) const;
-    bool GetSelectableEntityUnderCursor(FHktEntityId& OutEntityId) const;
 
 private:
     FHktEntityId SubjectEntityId = InvalidEntityId;

@@ -21,7 +21,7 @@ void FHktDefaultServerRule::OnReceived_Authentication(IHktAuthenticator& Authent
     Authenticator.Authenticate(InPrincipal.GetLoginID(), InPrincipal.GetLoginPW(), InResultCallback);
 }
 
-void FHktDefaultServerRule::OnReceived_FireIntentEvent(const FHktRuntimeEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector)
+void FHktDefaultServerRule::OnReceived_FireIntentEvent(const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector)
 {
     InCollector.PushIntents(InPlayer.GetPlayerUid(), { InEvent });
 }
@@ -72,9 +72,9 @@ void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
         InGraph.RegisterPlayer(NewPlayer, StartGroupIdx);
         InCollector.EnterWorldPlayer(StartGroupIdx, Record.PlayerUid);
 
-        if (Record.IntentEvents.Num() > 0)
+        if (Record.Events.Num() > 0)
         {
-            InCollector.PushIntents(Record.PlayerUid, Record.IntentEvents);
+            InCollector.PushIntents(Record.PlayerUid, Record.Events);
         }
     }
 
@@ -84,13 +84,13 @@ void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
         IHktRelevancyGroup* Group = InGraph.GetRelevancyGroupByPlayer(LogoutUid);
         if (Group)
         {
-            IHktSimulator& GroupSimulator = Group->GetSimulator();
+            IHktServerSimulator& GroupSimulator = Group->GetSimulator();
             FHktRuntimeOwnerState OwnerState = GroupSimulator.GetOwnerState(LogoutUid);
 
             FHktPlayerRecord NewRecord;
             NewRecord.PlayerUid = LogoutUid;
-            NewRecord.IntentEvents = MoveTemp(OwnerState.ActiveEvents);
-            NewRecord.EntitySnapshots = MoveTemp(OwnerState.EntitySnapshots);
+            NewRecord.Events = MoveTemp(OwnerState.ActiveEvents);
+            NewRecord.EntityStates = MoveTemp(OwnerState.EntityStates);
             InDB.SavePlayerRecordAsync(NewRecord);
         }
 
@@ -119,7 +119,8 @@ void FHktDefaultServerRule::OnTick_ExecuteFrame(float InDeltaTime,
 
     ParallelFor(NumGroups, [&](int32 GroupIndex)
     {
-        FHktRuntimeBatch& GroupBatch = OutBuilder.CreateOrGetGroupFrameBatch(GroupIndex);
+        FHktSimulationEvent& GroupBatch = OutBuilder.CreateOrGetGroupFrameBatch(GroupIndex);
+        // 암시적 변환을 통해 CoreEvent에 접근
         GroupBatch.FrameNumber = CurrentFrameNumber;
         GroupBatch.DeltaSeconds = DeltaTime;
         GroupBatch.RandomSeed = HashCombineHelper(CurrentFrameNumber, GroupIndex);
@@ -127,11 +128,15 @@ void FHktDefaultServerRule::OnTick_ExecuteFrame(float InDeltaTime,
         const IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(GroupIndex);
         for (const int64 PlayerUid : Group.GetPlayerUids())
         {
-            InCollector.GetIntents(PlayerUid, GroupBatch.Events);
+            // GetIntents는 TArray<FHktRuntimeEvent>를 받지만, CoreEvent.Events는 TArray<FHktEvent>
+            // 변환이 필요하므로 별도 처리 필요
+            TArray<FHktEvent> NewEvents;
+            InCollector.GetIntents(PlayerUid, NewEvents);
+            GroupBatch.Events.Append(NewEvents);
         }
         InCollector.GetExitedPlayers(GroupIndex, GroupBatch.RemovedOwnerIds);
 
-        IHktSimulator& GroupSimulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator();
+        IHktServerSimulator& GroupSimulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator();
         GroupSimulator.Execute(GroupBatch);
 
         TArray<int64>& NewbieOwners = OutBuilder.GetMutableNewbieOwners(GroupIndex);
@@ -139,17 +144,21 @@ void FHktDefaultServerRule::OnTick_ExecuteFrame(float InDeltaTime,
     });
 }
 
-void FHktDefaultServerRule::OnTick_SendFrameBatch(
-    const IHktRelevancyGraph& InGraph, const IHktBatchBuilder& InBuilder)
+void FHktDefaultServerRule::OnTick_PrepareSendPayloads(
+    const IHktRelevancyGraph& InGraph, 
+    const IHktBatchBuilder& InBuilder,
+    TArray<FHktFrameSendPayload>& OutPayloads)
 {
     const int32 NumGroups = InGraph.NumRelevancyGroup();
+    OutPayloads.SetNumUninitialized(NumGroups);
 
-    for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
+    ParallelFor(NumGroups, [&](int32 GroupIndex)
     {
-        const FHktRuntimeBatch& GroupBatch = InBuilder.GetGroupFrameBatch(GroupIndex);
+        const FHktSimulationEvent& GroupBatch = InBuilder.GetGroupFrameBatch(GroupIndex);
         const IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(GroupIndex);
         const TArray<IHktWorldPlayer*>& CachedPlayers = Group.GetCachedWorldPlayers();
-        if (CachedPlayers.Num() == 0) continue;
+        
+        if (CachedPlayers.Num() == 0) return;
 
         const TArray<int64>& NewbieOwners = InBuilder.GetNewbieOwners(GroupIndex);
         const bool bHasNewbies = NewbieOwners.Num() > 0;
@@ -157,7 +166,7 @@ void FHktDefaultServerRule::OnTick_SendFrameBatch(
         const FHktRuntimeSimulationState* NewbieState = nullptr;
         if (bHasNewbies)
         {
-            IHktSimulator& Simulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator();
+            IHktServerSimulator& Simulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator();
             NewbieState = &Simulator.GetSimulationState();
         }
 
@@ -166,14 +175,21 @@ void FHktDefaultServerRule::OnTick_SendFrameBatch(
             IHktWorldPlayer* Player = CachedPlayers[i];
             if (!Player) continue;
 
+            // 얕은 복사만 발생 (포인터 및 스칼라 값)
+            FHktFrameSendPayload Payload;
+            Payload.TargetActor = Player->GetOwnerActor();
+            Payload.PlayerUid = Player->GetPlayerUid();
+
             if (bHasNewbies && NewbieOwners.Contains(Player->GetPlayerUid()) && NewbieState)
             {
-                Player->SendInitialSimulationState(*NewbieState);
+                Payload.StateToSend = NewbieState;
             }
             else
             {
-                Player->SendFrameBatch(GroupBatch);
+                Payload.BatchToSend = &GroupBatch;
             }
+
+            OutPayloads[GroupIndex] = Payload;
         }
-    }
+    });
 }

@@ -6,7 +6,7 @@
 #include "HktCoreTypes.h"
 #include "HktVMTypes.h"
 #include "HktSimulationSystems.h"
-#include "IHktSimulationWorld.h"
+#include "HktSimulator.h"
 
 // Forward declaration (Private)
 class FHktVMInterpreter;
@@ -18,7 +18,7 @@ struct FHktSimWorldInternalData;
  * - 시뮬레이션의 진입점(Entry Point)이자 파사드(Facade)
  * - ProcessBatch() 내에서 결정론적 순서 보장 필수
  */
-class HKTCORE_API FHktSimulationWorld : public IHktSimulationWorld
+class HKTCORE_API FHktSimulationWorld : public IHktSimulator
 {
 public:
     FHktSimulationWorld();

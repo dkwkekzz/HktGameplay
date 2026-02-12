@@ -7,6 +7,10 @@
 #include "HktCoreTypes.h"
 #include "HktRuntimeTypes.generated.h"
 
+// =========================================================================
+// [엔티티 스냅샷 / 네트워크 래퍼] (HKTRUNTIME 모듈)
+// FHktEntityState를 소유하며 암시적 변환 및 커스텀 직렬화를 제공합니다.
+// =========================================================================
 /**
  * 엔티티 스냅샷 - 엔티티의 전체 상태를 직렬화
  * 
@@ -18,70 +22,135 @@ struct HKTRUNTIME_API FHktEntitySnapshot
 {
     GENERATED_BODY()
 
-    UPROPERTY()
-    int32 EntityId = InvalidEntityId;
+    // 1. 코어 엔티티 상태를 내부에 값으로 소유 (동적 할당 및 포인터 연산 없음)
+    FHktEntityState CoreState;
 
-    /** 숫자 Property 배열 (PropertyId = 인덱스) */
-    UPROPERTY()
-    TArray<int32> Properties;
+    FHktEntitySnapshot() = default;
 
-    /** 엔티티의 모든 태그 */
-    UPROPERTY()
-    FGameplayTagContainer Tags;
+    // 이동 생성자: 제로 카피로 코어 상태 소유권 이전
+    explicit FHktEntitySnapshot(FHktEntityState&& InState)
+        : CoreState(MoveTemp(InState))
+    {}
 
-    bool IsValid() const { return EntityId != InvalidEntityId; }
-    FHktEntityId GetEntityId() const { return EntityId; }
+    // 복사 생성자
+    explicit FHktEntitySnapshot(const FHktEntityState& InState)
+        : CoreState(InState)
+    {}
+
+    // 대입 연산자: FHktEntityState를 FHktEntitySnapshot에 대입
+    FHktEntitySnapshot& operator=(const FHktEntityState& InState)
+    {
+        CoreState = InState;
+        return *this;
+    }
+
+    // 이동 대입 연산자
+    FHktEntitySnapshot& operator=(FHktEntityState&& InState)
+    {
+        CoreState = MoveTemp(InState);
+        return *this;
+    }
+
+    // 2. 암시적 형변환 연산자
+    // 이 구조체를 FHktEntityState의 참조처럼 즉시 사용할 수 있게 합니다.
+    FORCEINLINE operator FHktEntityState&() { return CoreState; }
+    FORCEINLINE operator const FHktEntityState&() const { return CoreState; }
+
+    // 편의를 위한 포인터 접근 연산자 오버로딩 (Snapshot->EntityId 형태로 사용 가능)
+    FORCEINLINE FHktEntityState* operator->() { return &CoreState; }
+    FORCEINLINE const FHktEntityState* operator->() const { return &CoreState; }
+
+    // 3. 커스텀 직렬화 (엔진의 UHT 리플렉션을 거치지 않고 직접 바이트 전송)
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+    {
+        Ar << CoreState;
+
+        bOutSuccess = true;
+        return true;
+    }
+
+    bool IsValid() const { return CoreState.EntityId != InvalidEntityId; }
+    FHktEntityId GetEntityId() const { return CoreState.EntityId; }
     
     /** 특정 태그 존재 여부 */
-    bool HasTag(const FGameplayTag& Tag) const { return Tags.HasTag(Tag); }
+    bool HasTag(const FGameplayTag& Tag) const { return CoreState.Tags.HasTag(Tag); }
     
     /** 태그 매칭 (부모 태그도 매칭) */
-    bool HasTagExact(const FGameplayTag& Tag) const { return Tags.HasTagExact(Tag); }
+    bool HasTagExact(const FGameplayTag& Tag) const { return CoreState.Tags.HasTagExact(Tag); }
 };
 
-/**
- * [Intent Event]
- * Represents an incident or event in the world.
- * Can be an input action, a state change, or an entity existence.
- */
+// 엔진에게 커스텀 직렬화 함수가 존재함을 알림
+template<>
+struct TStructOpsTypeTraits<FHktEntitySnapshot> : public TStructOpsTypeTraitsBase2<FHktEntitySnapshot>
+{
+    enum { WithNetSerializer = true };
+};
+
+// =========================================================================
+// [런타임 이벤트 / 네트워크 래퍼] (HKTRUNTIME 모듈)
+// FHktEvent를 소유하며 암시적 변환 및 커스텀 직렬화를 제공합니다.
+// =========================================================================
 USTRUCT(BlueprintType)
 struct HKTRUNTIME_API FHktRuntimeEvent
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
-	FHktRuntimeEvent()
-		: EventId(0)
-		, SourceEntityId(InvalidEntityId)
-		, TargetEntityId(InvalidEntityId)
-	{}
+    // 1. 코어 이벤트를 내부에 값으로 소유 (동적 할당 및 포인터 연산 없음)
+    FHktEvent CoreEvent;
 
-	// Unique ID of the event
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	int32 EventId;
+    FHktRuntimeEvent() = default;
 
-	// The Source/Subject of this event (Relevancy 계산 기준)
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	int32 SourceEntityId;
+    // 이동 생성자: 제로 카피로 코어 이벤트 소유권 이전
+    explicit FHktRuntimeEvent(FHktEvent&& InEvent)
+        : CoreEvent(MoveTemp(InEvent))
+    {}
 
-	// Classification of the event (What happened)
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	FGameplayTag EventTag;
+    // 복사 생성자
+    explicit FHktRuntimeEvent(const FHktEvent& InEvent)
+        : CoreEvent(InEvent)
+    {}
 
-	// The Target entity involved
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	int32 TargetEntityId;
+    // 대입 연산자: FHktEvent를 FHktRuntimeEvent에 대입
+    FHktRuntimeEvent& operator=(const FHktEvent& InEvent)
+    {
+        CoreEvent = InEvent;
+        return *this;
+    }
 
-	// Location data (if applicable)
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	FVector Location = FVector::ZeroVector;
+    // 이동 대입 연산자
+    FHktRuntimeEvent& operator=(FHktEvent&& InEvent)
+    {
+        CoreEvent = MoveTemp(InEvent);
+        return *this;
+    }
 
-    // 추가 파라미터
-    UPROPERTY(BlueprintReadWrite)
-    TArray<uint8> Payload;
+    // 2. 암시적 형변환 연산자
+    // 이 구조체를 FHktEvent의 참조처럼 즉시 사용할 수 있게 합니다.
+    FORCEINLINE operator FHktEvent&() { return CoreEvent; }
+    FORCEINLINE operator const FHktEvent&() const { return CoreEvent; }
+
+    // 편의를 위한 포인터 접근 연산자 오버로딩 (RuntimeEvent->EventId 형태로 사용 가능)
+    FORCEINLINE FHktEvent* operator->() { return &CoreEvent; }
+    FORCEINLINE const FHktEvent* operator->() const { return &CoreEvent; }
+
+    // 3. 커스텀 직렬화 (엔진의 UHT 리플렉션을 거치지 않고 직접 바이트 전송)
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+    {
+        Ar << CoreEvent.EventId;
+        Ar << CoreEvent.EventTag;
+        Ar << CoreEvent.SourceEntity;
+        Ar << CoreEvent.TargetEntity;
+        Ar << CoreEvent.Location;
+        Ar << CoreEvent.Param0;
+        Ar << CoreEvent.Param1;
+
+        bOutSuccess = true;
+        return true;
+    }
 
     bool operator==(const FHktRuntimeEvent& Other) const
     {
-        return EventId == Other.EventId;
+        return CoreEvent.EventId == Other.CoreEvent.EventId;
     }
 
     bool operator!=(const FHktRuntimeEvent& Other) const
@@ -91,50 +160,102 @@ struct HKTRUNTIME_API FHktRuntimeEvent
 
     bool operator<(const FHktRuntimeEvent& Other) const
     {
-        return EventId < Other.EventId;
-	}
+        return CoreEvent.EventId < Other.CoreEvent.EventId;
+    }
 
-	bool IsValid() const 
-	{ 
-		return EventId != 0; 
-	}
+    bool IsValid() const 
+    { 
+        return CoreEvent.EventId != 0; 
+    }
+};
+
+// 엔진에게 커스텀 직렬화 함수가 존재함을 알림
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeEvent> : public TStructOpsTypeTraitsBase2<FHktRuntimeEvent>
+{
+    enum { WithNetSerializer = true };
 };
 
 //=============================================================================
 // FHktRuntimeBatch - 기존 유저용 "입력(Input)" 패킷
+// FHktSimulationEvent를 소유하며 암시적 변환 및 커스텀 직렬화를 제공합니다.
 //=============================================================================
 USTRUCT()
 struct HKTRUNTIME_API FHktRuntimeBatch
 {
     GENERATED_BODY()
 
-    UPROPERTY()
-    int64 FrameNumber = 0;
+    // 1. 코어 시뮬레이션 이벤트를 내부에 값으로 소유 (동적 할당 및 포인터 연산 없음)
+    FHktSimulationEvent CoreEvent;
 
-    UPROPERTY()
-    int32 RandomSeed = 0;
+    FHktRuntimeBatch() = default;
 
-    UPROPERTY()
-    float DeltaSeconds = 0.0f;
+    // 이동 생성자: 제로 카피로 코어 이벤트 소유권 이전
+    explicit FHktRuntimeBatch(FHktSimulationEvent&& InEvent)
+        : CoreEvent(MoveTemp(InEvent))
+    {}
 
-    UPROPERTY()
-    TArray<int64> RemovedOwnerIds;
+    // 복사 생성자
+    explicit FHktRuntimeBatch(const FHktSimulationEvent& InEvent)
+        : CoreEvent(InEvent)
+    {}
 
-    UPROPERTY()
-    TArray<FHktRuntimeEvent> Events;
+    // 대입 연산자: FHktSimulationEvent를 FHktRuntimeBatch에 대입
+    FHktRuntimeBatch& operator=(const FHktSimulationEvent& InEvent)
+    {
+        CoreEvent = InEvent;
+        return *this;
+    }
+
+    // 이동 대입 연산자
+    FHktRuntimeBatch& operator=(FHktSimulationEvent&& InEvent)
+    {
+        CoreEvent = MoveTemp(InEvent);
+        return *this;
+    }
+
+    // 2. 암시적 형변환 연산자
+    // 이 구조체를 FHktSimulationEvent의 참조처럼 즉시 사용할 수 있게 합니다.
+    FORCEINLINE operator FHktSimulationEvent&() { return CoreEvent; }
+    FORCEINLINE operator const FHktSimulationEvent&() const { return CoreEvent; }
+
+    // 편의를 위한 포인터 접근 연산자 오버로딩 (RuntimeBatch->FrameNumber 형태로 사용 가능)
+    FORCEINLINE FHktSimulationEvent* operator->() { return &CoreEvent; }
+    FORCEINLINE const FHktSimulationEvent* operator->() const { return &CoreEvent; }
+
+    // 3. 커스텀 직렬화 (엔진의 UHT 리플렉션을 거치지 않고 직접 바이트 전송)
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+    {
+        Ar << CoreEvent.FrameNumber;
+        Ar << CoreEvent.RandomSeed;
+        Ar << CoreEvent.DeltaSeconds;
+        Ar << CoreEvent.RemovedOwnerIds;
+        Ar << CoreEvent.Events; // TArray<FHktEvent> 자체 직렬화 지원
+
+        bOutSuccess = true;
+        return true;
+    }
 
     void Reset()
     {
-        FrameNumber = 0;
-        RandomSeed = 0;
-        DeltaSeconds = 0.0f;
-        RemovedOwnerIds.Reset();
-        Events.Reset();
+        CoreEvent.FrameNumber = 0;
+        CoreEvent.RandomSeed = 0;
+        CoreEvent.DeltaSeconds = 0.0f;
+        CoreEvent.RemovedOwnerIds.Reset();
+        CoreEvent.Events.Reset();
     }
+};
+
+// 엔진에게 커스텀 직렬화 함수가 존재함을 알림
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeBatch> : public TStructOpsTypeTraitsBase2<FHktRuntimeBatch>
+{
+    enum { WithNetSerializer = true };
 };
 
 //=============================================================================
 // FHktRuntimeSimulationState - 신규 유저용 "결과(Result)" 패킷
+// FHktWorldState를 소유하며 암시적 변환 및 커스텀 직렬화를 제공합니다.
 //=============================================================================
 // [중요] 그룹의 시뮬레이션 결과를 완벽하게 복원하기 위한 모든 데이터를 포함해야 함
 USTRUCT()
@@ -142,17 +263,68 @@ struct HKTRUNTIME_API FHktRuntimeSimulationState
 {
     GENERATED_BODY()
 
-    UPROPERTY()
-    int64 LastProcessedFrameNumber = 0; // 이 상태가 어떤 프레임까지 반영된 결과인지
-
-    // 엔티티들의 최종 스냅샷
-    UPROPERTY()
-    TArray<FHktEntitySnapshot> EntitySnapshots;
+    // 1. 코어 월드 상태를 내부에 값으로 소유 (동적 할당 및 포인터 연산 없음)
+    FHktWorldState CoreState;
 
     // [결정론 보장] 현재 진행 중인, 아직 만료되지 않은 지속성 이벤트나 상태
     // 예: 쿨타임 정보, 날씨 상태, 현재 RNG의 내부 상태값 등
     UPROPERTY()
     TArray<FHktRuntimeEvent> ActiveEvents;
+
+    FHktRuntimeSimulationState() = default;
+
+    // 이동 생성자: 제로 카피로 코어 상태 소유권 이전
+    explicit FHktRuntimeSimulationState(FHktWorldState&& InState)
+        : CoreState(MoveTemp(InState))
+    {}
+
+    // 복사 생성자
+    explicit FHktRuntimeSimulationState(const FHktWorldState& InState)
+        : CoreState(InState)
+    {}
+
+    // 대입 연산자: FHktWorldState를 FHktRuntimeSimulationState에 대입
+    FHktRuntimeSimulationState& operator=(const FHktWorldState& InState)
+    {
+        CoreState = InState;
+        return *this;
+    }
+
+    // 이동 대입 연산자
+    FHktRuntimeSimulationState& operator=(FHktWorldState&& InState)
+    {
+        CoreState = MoveTemp(InState);
+        return *this;
+    }
+
+    // 2. 암시적 형변환 연산자
+    // 이 구조체를 FHktWorldState의 참조처럼 즉시 사용할 수 있게 합니다.
+    FORCEINLINE operator FHktWorldState&() { return CoreState; }
+    FORCEINLINE operator const FHktWorldState&() const { return CoreState; }
+
+    // 편의를 위한 포인터 접근 연산자 오버로딩 (SimulationState->FrameNumber 형태로 사용 가능)
+    FORCEINLINE FHktWorldState* operator->() { return &CoreState; }
+    FORCEINLINE const FHktWorldState* operator->() const { return &CoreState; }
+
+    // 3. 커스텀 직렬화 (엔진의 UHT 리플렉션을 거치지 않고 직접 바이트 전송)
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+    {
+        Ar << CoreState;
+
+        bOutSuccess = true;
+        return true;
+    }
+
+    // 편의 메서드: LastProcessedFrameNumber 접근
+    int64 GetLastProcessedFrameNumber() const { return CoreState.FrameNumber; }
+    void SetLastProcessedFrameNumber(int64 FrameNumber) { CoreState.FrameNumber = FrameNumber; }
+};
+
+// 엔진에게 커스텀 직렬화 함수가 존재함을 알림
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeSimulationState> : public TStructOpsTypeTraitsBase2<FHktRuntimeSimulationState>
+{
+    enum { WithNetSerializer = true };
 };
 
 //=============================================================================
@@ -164,11 +336,26 @@ struct HKTRUNTIME_API FHktRuntimeOwnerState
     GENERATED_BODY()
 
     // 엔티티들의 최종 스냅샷
-    UPROPERTY()
-    TArray<FHktEntitySnapshot> EntitySnapshots;
+    TArray<FHktEntityState> EntityStates;
 
     // [결정론 보장] 현재 진행 중인, 아직 만료되지 않은 지속성 이벤트나 상태
     // 예: 쿨타임 정보, 날씨 상태, 현재 RNG의 내부 상태값 등
-    UPROPERTY()
-    TArray<FHktRuntimeEvent> ActiveEvents;
+    TArray<FHktEvent> ActiveEvents;
+
+    // 3. 커스텀 직렬화 (엔진의 UHT 리플렉션을 거치지 않고 직접 바이트 전송)
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+    {
+        Ar << EntityStates;
+        Ar << ActiveEvents;
+
+        bOutSuccess = true;
+        return true;
+    }
+};
+
+// 엔진에게 커스텀 직렬화 함수가 존재함을 알림
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeOwnerState> : public TStructOpsTypeTraitsBase2<FHktRuntimeOwnerState>
+{
+    enum { WithNetSerializer = true };
 };

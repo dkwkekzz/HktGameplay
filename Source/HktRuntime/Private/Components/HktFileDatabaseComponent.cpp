@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktFileDatabaseComponent.h"
+#include "HktRuntimeConverter.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -50,7 +51,7 @@ FString UHktFileDatabaseComponent::GetFilePath(const FString& PlayerId) const
 }
 
 // ============================================================================
-// 파일 로드 (FHktPlayerRecord: PlayerUid, EntitySnapshots, IntentEvents, ...)
+// 파일 로드 (FHktPlayerRecord: PlayerUid, EntityStates, IntentEvents, ...)
 // ============================================================================
 
 void UHktFileDatabaseComponent::LoadFromFile(const FString& PlayerId, TFunction<void(TOptional<FHktPlayerRecord>)> Callback)
@@ -91,22 +92,23 @@ void UHktFileDatabaseComponent::LoadFromFile(const FString& PlayerId, TFunction<
     }
 
     const TArray<TSharedPtr<FJsonValue>>* EntitiesArray;
-    if (RootObject->TryGetArrayField(TEXT("EntitySnapshots"), EntitiesArray))
+    if (RootObject->TryGetArrayField(TEXT("EntityStates"), EntitiesArray))
     {
         for (const TSharedPtr<FJsonValue>& EntityValue : *EntitiesArray)
         {
             const TSharedPtr<FJsonObject>* EntityObject;
             if (!EntityValue->TryGetObject(EntityObject)) continue;
 
-            FHktEntitySnapshot Snapshot;
-            Snapshot.EntityId = static_cast<int32>((*EntityObject)->GetNumberField(TEXT("EntityId")));
+            // Core 구조체로 생성
+            FHktEntityState CoreState;
+            CoreState.EntityId = static_cast<int32>((*EntityObject)->GetNumberField(TEXT("EntityId")));
 
             const TArray<TSharedPtr<FJsonValue>>* PropsArray;
             if ((*EntityObject)->TryGetArrayField(TEXT("Properties"), PropsArray))
             {
                 for (const TSharedPtr<FJsonValue>& P : *PropsArray)
                 {
-                    Snapshot.Properties.Add(static_cast<int32>(P->AsNumber()));
+                    CoreState.Properties.Add(static_cast<int32>(P->AsNumber()));
                 }
             }
 
@@ -116,34 +118,40 @@ void UHktFileDatabaseComponent::LoadFromFile(const FString& PlayerId, TFunction<
                 for (const TSharedPtr<FJsonValue>& TagValue : *TagsArray)
                 {
                     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagValue->AsString()), false);
-                    if (Tag.IsValid()) Snapshot.Tags.AddTag(Tag);
+                    if (Tag.IsValid()) CoreState.Tags.AddTag(Tag);
                 }
             }
 
-            Record.EntitySnapshots.Add(MoveTemp(Snapshot));
+            Record.EntityStates.Add(CoreState);
         }
     }
 
     const TArray<TSharedPtr<FJsonValue>>* EventsArray;
-    if (RootObject->TryGetArrayField(TEXT("IntentEvents"), EventsArray))
+    if (RootObject->TryGetArrayField(TEXT("Events"), EventsArray))
     {
         for (const TSharedPtr<FJsonValue>& EvValue : *EventsArray)
         {
             const TSharedPtr<FJsonObject>* EvObject;
             if (!EvValue->TryGetObject(EvObject)) continue;
-            FHktRuntimeEvent Event;
-            Event.EventId = static_cast<int32>((*EvObject)->GetNumberField(TEXT("EventId")));
-            Event.SourceEntityId = static_cast<int32>((*EvObject)->GetNumberField(TEXT("SourceEntityId")));
-            Event.TargetEntityId = static_cast<int32>((*EvObject)->GetNumberField(TEXT("TargetEntityId")));
-            Event.EventTag = FGameplayTag::RequestGameplayTag(FName(*(*EvObject)->GetStringField(TEXT("EventTag"))), false);
+            
+            // Core 구조체로 생성
+            FHktEvent CoreEvent;
+            CoreEvent.EventId = static_cast<int32>((*EvObject)->GetNumberField(TEXT("EventId")));
+            CoreEvent.SourceEntity = static_cast<int32>((*EvObject)->GetNumberField(TEXT("SourceEntityId")));
+            CoreEvent.TargetEntity = static_cast<int32>((*EvObject)->GetNumberField(TEXT("TargetEntityId")));
+            CoreEvent.EventTag = FGameplayTag::RequestGameplayTag(FName(*(*EvObject)->GetStringField(TEXT("EventTag"))), false);
             const TArray<TSharedPtr<FJsonValue>>* LocEv;
             if ((*EvObject)->TryGetArrayField(TEXT("Location"), LocEv) && LocEv->Num() >= 3)
             {
-                Event.Location.X = (*LocEv)[0]->AsNumber();
-                Event.Location.Y = (*LocEv)[1]->AsNumber();
-                Event.Location.Z = (*LocEv)[2]->AsNumber();
+                CoreEvent.Location.X = (*LocEv)[0]->AsNumber();
+                CoreEvent.Location.Y = (*LocEv)[1]->AsNumber();
+                CoreEvent.Location.Z = (*LocEv)[2]->AsNumber();
             }
-            Record.IntentEvents.Add(MoveTemp(Event));
+            CoreEvent.Param0 = 0;
+            CoreEvent.Param1 = 0;
+            
+            // Zero-Cost 변환: reinterpret_cast를 사용하여 RuntimeEvent로 변환
+            Record.Events.Add(CoreEvent);
         }
     }
 
@@ -169,19 +177,19 @@ void UHktFileDatabaseComponent::SaveToFile(const FString& PlayerId, const FHktPl
     RootObject->SetArrayField(TEXT("LastPosition"), LocArray);
 
     TArray<TSharedPtr<FJsonValue>> EntitiesArray;
-    for (const FHktEntitySnapshot& Snapshot : Record.EntitySnapshots)
+    for (const FHktEntityState& CoreState : Record.EntityStates)
     {
         TSharedRef<FJsonObject> EntityObject = MakeShared<FJsonObject>();
-        EntityObject->SetNumberField(TEXT("EntityId"), Snapshot.EntityId);
+        EntityObject->SetNumberField(TEXT("EntityId"), CoreState.EntityId);
         TArray<TSharedPtr<FJsonValue>> PropsArray;
-        for (int32 V : Snapshot.Properties)
+        for (int32 V : CoreState.Properties)
         {
             PropsArray.Add(MakeShared<FJsonValueNumber>(V));
         }
         EntityObject->SetArrayField(TEXT("Properties"), PropsArray);
         TArray<TSharedPtr<FJsonValue>> TagsArray;
         TArray<FGameplayTag> TagArray;
-        Snapshot.Tags.GetGameplayTagArray(TagArray);
+        CoreState.Tags.GetGameplayTagArray(TagArray);
         for (const FGameplayTag& Tag : TagArray)
         {
             TagsArray.Add(MakeShared<FJsonValueString>(Tag.ToString()));
@@ -192,17 +200,17 @@ void UHktFileDatabaseComponent::SaveToFile(const FString& PlayerId, const FHktPl
     RootObject->SetArrayField(TEXT("EntitySnapshots"), EntitiesArray);
 
     TArray<TSharedPtr<FJsonValue>> EventsArray;
-    for (const FHktRuntimeEvent& Event : Record.IntentEvents)
+    for (const FHktEvent& CoreEvent : Record.Events)
     {
         TSharedRef<FJsonObject> EvObject = MakeShared<FJsonObject>();
-        EvObject->SetNumberField(TEXT("EventId"), Event.EventId);
-        EvObject->SetNumberField(TEXT("SourceEntityId"), Event.SourceEntityId);
-        EvObject->SetNumberField(TEXT("TargetEntityId"), Event.TargetEntityId);
-        EvObject->SetStringField(TEXT("EventTag"), Event.EventTag.ToString());
+        EvObject->SetNumberField(TEXT("EventId"), CoreEvent.EventId);
+        EvObject->SetNumberField(TEXT("SourceEntityId"), CoreEvent.SourceEntity);
+        EvObject->SetNumberField(TEXT("TargetEntityId"), CoreEvent.TargetEntity);
+        EvObject->SetStringField(TEXT("EventTag"), CoreEvent.EventTag.ToString());
         TArray<TSharedPtr<FJsonValue>> LocEv;
-        LocEv.Add(MakeShared<FJsonValueNumber>(Event.Location.X));
-        LocEv.Add(MakeShared<FJsonValueNumber>(Event.Location.Y));
-        LocEv.Add(MakeShared<FJsonValueNumber>(Event.Location.Z));
+        LocEv.Add(MakeShared<FJsonValueNumber>(CoreEvent.Location.X));
+        LocEv.Add(MakeShared<FJsonValueNumber>(CoreEvent.Location.Y));
+        LocEv.Add(MakeShared<FJsonValueNumber>(CoreEvent.Location.Z));
         EvObject->SetArrayField(TEXT("Location"), LocEv);
         EventsArray.Add(MakeShared<FJsonValueObject>(EvObject));
     }

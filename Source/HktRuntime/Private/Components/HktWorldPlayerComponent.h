@@ -18,15 +18,11 @@ public:
     UHktWorldPlayerComponent();
 
     virtual int64 GetPlayerUid() const override { return PlayerUid; }
-
-    virtual void SendFrameBatch(const FHktRuntimeBatch& Batch) override;
-    virtual void SendInitialSimulationState(const FHktRuntimeSimulationState& InitialState) override;
+    virtual AActor* GetOwnerActor() const override { return GetOwner(); }
 
     void SetPlayerUid(int64 InUid) { PlayerUid = InUid; }
     bool IsInitialized() const { return PlayerUid != 0; }
 
 private:
-    AHktInGamePlayerController* GetOwnerPC() const;
-
     int64 PlayerUid = 0;
 };

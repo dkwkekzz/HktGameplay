@@ -15,15 +15,15 @@ class HKTRUNTIME_API UHktBatchBuilderComponent : public UActorComponent, public 
 public:
     UHktBatchBuilderComponent();
 
-    virtual FHktRuntimeBatch& CreateOrGetGroupFrameBatch(int32 InGroupIdx) override;
-    virtual const FHktRuntimeBatch& GetGroupFrameBatch(int32 InGroupIdx) const override;
+    virtual FHktSimulationEvent& CreateOrGetGroupFrameBatch(int32 InGroupIdx) override;
+    virtual const FHktSimulationEvent& GetGroupFrameBatch(int32 InGroupIdx) const override;
     virtual TArray<int64>& GetMutableNewbieOwners(int32 InGroupIdx) override;
     virtual const TArray<int64>& GetNewbieOwners(int32 InGroupIdx) const override;
 
     void Reset(int32 NumGroups);
 
 private:
-    TArray<FHktRuntimeBatch> GroupBatches;
+    TArray<FHktSimulationEvent> GroupBatches;
     TArray<TArray<int64>> NewbieOwners;
     static const TArray<int64> EmptyOwners;
 };
