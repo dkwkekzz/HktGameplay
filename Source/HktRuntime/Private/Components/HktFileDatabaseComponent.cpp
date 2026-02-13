@@ -112,13 +112,13 @@ void UHktFileDatabaseComponent::LoadFromFile(const FString& PlayerId, TFunction<
                 }
             }
 
+            // TODO: 런타임에 유효한 값이라 이렇게 하면 안됨...
             const TArray<TSharedPtr<FJsonValue>>* TagsArray;
             if ((*EntityObject)->TryGetArrayField(TEXT("Tags"), TagsArray))
             {
                 for (const TSharedPtr<FJsonValue>& TagValue : *TagsArray)
                 {
-                    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagValue->AsString()), false);
-                    if (Tag.IsValid()) CoreState.Tags.AddTag(Tag);
+                    CoreState.TagIndices.Add(static_cast<int32>(TagValue->AsNumber()));
                 }
             }
 
@@ -188,11 +188,9 @@ void UHktFileDatabaseComponent::SaveToFile(const FString& PlayerId, const FHktPl
         }
         EntityObject->SetArrayField(TEXT("Properties"), PropsArray);
         TArray<TSharedPtr<FJsonValue>> TagsArray;
-        TArray<FGameplayTag> TagArray;
-        CoreState.Tags.GetGameplayTagArray(TagArray);
-        for (const FGameplayTag& Tag : TagArray)
+        for (int32 TagIndex : CoreState.TagIndices)
         {
-            TagsArray.Add(MakeShared<FJsonValueString>(Tag.ToString()));
+            TagsArray.Add(MakeShared<FJsonValueNumber>(TagIndex));
         }
         EntityObject->SetArrayField(TEXT("Tags"), TagsArray);
         EntitiesArray.Add(MakeShared<FJsonValueObject>(EntityObject));

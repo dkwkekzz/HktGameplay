@@ -20,7 +20,7 @@
  *   - 프레임 종료 시 소비된 데이터 정리 (EndFrame)
  *
  * 스레드 안전성:
- *   - PushIntent는 여러 스레드에서 호출 가능 (Lock 보호)
+ *   - 데이터 구조가 락프리로 설계되어 락 불필요
  *   - GetIntents, EndFrame은 메인 스레드에서만 호출
  */
 UCLASS(ClassGroup=(HktSimulation), meta=(BlueprintSpawnableComponent))
@@ -50,7 +50,6 @@ public:
 
 private:
     // 플레이어별 Intent 큐
-    FCriticalSection IntentLock;
     TMap<int64, TArray<FHktEvent>> PlayerIntents;
 
     // 그룹별 진입/퇴장 큐

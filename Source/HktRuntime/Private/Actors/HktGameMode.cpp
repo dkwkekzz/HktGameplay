@@ -128,8 +128,8 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
     UHktWorldPlayerComponent* WorldPlayerComp = HktPC->FindComponentByClass<UHktWorldPlayerComponent>();
     if (!WorldPlayerComp) return;
 
-    int64 PlayerUid = HktPC->GetPlayerUid();
-    WorldPlayerComp->SetPlayerUid(PlayerUid);
+    // 컴포넌트가 자동으로 PlayerState에서 UID를 계산하므로 수동 설정 불필요
+    int64 PlayerUid = WorldPlayerComp->GetPlayerUid();
 
     IHktWorldDatabase* Database = PlayerDatabaseComponent;
     if (Database)

@@ -28,7 +28,7 @@ void UHktClientSimulatorComponent::Execute(const FHktSimulationEvent& InBatch)
     CoreSimulator->ProcessBatch(InBatch);
 
     // Core 상태 -> Runtime 상태로 역변환하여 캐시
-    State = CoreSimulator->GetWorldState();
+    CoreSimulator->SnapshotWorldState(State);
 
     bInitialized = true;
 }
@@ -40,7 +40,7 @@ void UHktClientSimulatorComponent::RestoreState(const FHktWorldState& InState, T
         return;
     }
 
-    CoreSimulator->RestoreState(InState);
+    CoreSimulator->RestoreWorldState(InState);
 
     // 캐시된 Runtime 상태도 갱신
     State = InState;
@@ -65,15 +65,13 @@ FHktRuntimeOwnerState UHktClientSimulatorComponent::GetOwnerState(int64 InOwnerI
         return OwnerState;
     }
 
-    const FHktWorldState& WorldState = CoreSimulator->GetWorldState();
-    for (const auto& Pair : WorldState.Entities)
+    State.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
     {
-        // OwnerPlayerHash가 일치하는 엔티티만 포함
-        if (Pair.Value.GetProperty(PropertyId::OwnerPlayerHash) == static_cast<int32>(InOwnerId))
+        if (State.GetProperty(Id, PropertyId::OwnerPlayerHash) == static_cast<int32>(InOwnerId))
         {
-            OwnerState.EntityStates.Add(Pair.Value);
+            OwnerState.EntityStates.Add(State.ExtractEntityState(Id));
         }
-    }
+    });
 
     return OwnerState;
 }

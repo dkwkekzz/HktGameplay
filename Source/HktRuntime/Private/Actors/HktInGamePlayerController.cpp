@@ -83,8 +83,11 @@ void AHktInGamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReaso
 void AHktInGamePlayerController::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
-    // PlayerState가 변경되면 캐시를 무효화
-    bPlayerUidCached = false;
+    // PlayerState가 변경되면 컴포넌트의 캐시를 무효화
+    if (WorldPlayerComponent)
+    {
+        WorldPlayerComponent->InvalidatePlayerUidCache();
+    }
 }
 
 void AHktInGamePlayerController::SetupInputComponent()
@@ -187,9 +190,9 @@ void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const
         EHktPacketType::InitialState,
         0, 
         CoreState.FrameNumber, 
-        CoreState.Entities.Num(),
-        static_cast<int32>(sizeof(FHktRuntimeSimulationState) + CoreState.Entities.Num() * sizeof(FHktEntityState)),
-        FString::Printf(TEXT("InitialState: Entities=%d"), CoreState.Entities.Num())
+        CoreState.GetEntityCount(),
+        static_cast<int32>(sizeof(FHktRuntimeSimulationState) + CoreState.GetEntityCount() * sizeof(FHktEntityState)),
+        FString::Printf(TEXT("InitialState: Entities=%d"), CoreState.GetEntityCount())
     );
 #endif
 
@@ -240,20 +243,11 @@ IHktClientRule* AHktInGamePlayerController::GetClientRule() const
 
 int64 AHktInGamePlayerController::GetPlayerUid() const
 {
-    if (!bPlayerUidCached)
+    if (WorldPlayerComponent)
     {
-        CachedPlayerUid = 0;
-        if (PlayerState)
-        {
-            FUniqueNetIdRepl UniqueId = PlayerState->GetUniqueId();
-            if (UniqueId.IsValid())
-            {
-                CachedPlayerUid = GetTypeHash(UniqueId->ToString());
-            }
-        }
-        bPlayerUidCached = true;
+        return WorldPlayerComponent->GetPlayerUid();
     }
-    return CachedPlayerUid;
+    return 0;
 }
 
 // ============================================================================
@@ -306,7 +300,7 @@ void AHktInGamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnap
             const FHktWorldState& WorldState = ClientSimulatorComponent->GetSimulationState();
             // 암시적 변환을 통해 CoreState에 접근
             OutSnapshot.AddInfo(Cat, TEXT("LastFrame"), FString::Printf(TEXT("%lld"), WorldState.FrameNumber));
-            OutSnapshot.AddInfo(Cat, TEXT("Entities"), FString::FromInt(WorldState.Entities.Num()));
+            OutSnapshot.AddInfo(Cat, TEXT("Entities"), FString::FromInt(WorldState.GetEntityCount()));
             //OutSnapshot.AddInfo(Cat, TEXT("ActiveEvents"), FString::FromInt(WorldState.ActiveEvents.Num()));
         }
     }

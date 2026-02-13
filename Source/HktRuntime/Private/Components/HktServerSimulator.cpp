@@ -13,7 +13,7 @@ void FHktServerSimulator::Execute(const FHktSimulationEvent& InBatch)
     // Runtime 타입 -> Core 타입 변환
     CoreSimulator->ProcessBatch(InBatch);
 
-    State = CoreSimulator->GetWorldState();
+    CoreSimulator->SnapshotWorldState(State);
 
     bInitialized = true;
 }
@@ -22,15 +22,13 @@ FHktRuntimeOwnerState FHktServerSimulator::GetOwnerState(int64 InOwnerId) const
 {
     FHktRuntimeOwnerState OwnerState;
 
-    const FHktWorldState& WorldState = CoreSimulator->GetWorldState();
-    for (const auto& Pair : WorldState.Entities)
+    State.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
     {
-        // OwnerPlayerHash가 일치하는 엔티티만 포함
-        if (Pair.Value.GetProperty(PropertyId::OwnerPlayerHash) == static_cast<int32>(InOwnerId))
+        if (State.GetProperty(Id, PropertyId::OwnerPlayerHash) == static_cast<int32>(InOwnerId))
         {
-            OwnerState.EntityStates.Add(Pair.Value);
+            OwnerState.EntityStates.Add(State.ExtractEntityState(Id));
         }
-    }
+    });
 
     return OwnerState;
 }

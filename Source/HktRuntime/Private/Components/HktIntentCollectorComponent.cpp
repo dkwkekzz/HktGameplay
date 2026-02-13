@@ -13,20 +13,17 @@ UHktIntentCollectorComponent::UHktIntentCollectorComponent()
 
 void UHktIntentCollectorComponent::PushIntent(int64 InPlayerUid, const FHktEvent& InEvent)
 {
-    FScopeLock Lock(&IntentLock);
     PlayerIntents.FindOrAdd(InPlayerUid).Add(InEvent);
 }
 
 void UHktIntentCollectorComponent::PushIntents(int64 InPlayerUid, const TArray<FHktEvent>& InEvents)
 {
-    FScopeLock Lock(&IntentLock);
     PlayerIntents.FindOrAdd(InPlayerUid).Append(InEvents);
 }
 
 bool UHktIntentCollectorComponent::GetIntents(int64 InPlayerUid, TArray<FHktEvent>& OutIntents)
 {
     // 메인 스레드에서만 호출 (ParallelFor 내부에서는 읽기 전용 스냅샷 사용)
-    FScopeLock Lock(&IntentLock);
     if (TArray<FHktEvent>* Found = PlayerIntents.Find(InPlayerUid))
     {
         OutIntents.Append(*Found);
@@ -71,7 +68,6 @@ bool UHktIntentCollectorComponent::GetExitedPlayers(int32 GroupIndex, TArray<int
 
 void UHktIntentCollectorComponent::EndFrame()
 {
-    FScopeLock Lock(&IntentLock);
     PlayerIntents.Reset();
     EnteredPlayers.Reset();
     ExitedPlayers.Reset();

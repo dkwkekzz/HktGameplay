@@ -56,7 +56,7 @@ public:
     FOnHktWheelInput& OnWheelInput() { return WheelInputDelegate; }
 
     // === Player UID ===
-    /** PlayerState의 UniqueId로부터 계산된 UID를 반환합니다. 한 번 계산되면 캐시됩니다. */
+    /** WorldPlayerComponent를 통해 Player UID를 반환합니다. */
     int64 GetPlayerUid() const;
 
 protected:
@@ -123,10 +123,6 @@ private:
     FOnHktCommandChanged CommandChangedDelegate;
     FOnHktIntentSubmitted IntentSubmittedDelegate;
     FOnHktWheelInput WheelInputDelegate;
-
-    // Player UID 캐시
-    mutable int64 CachedPlayerUid = 0;
-    mutable bool bPlayerUidCached = false;
 
 #if WITH_HKT_INSIGHTS
     /** Insight 통계: 보낸 Intent 수, 받은 배치 수 */

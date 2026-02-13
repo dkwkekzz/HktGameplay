@@ -47,20 +47,6 @@ namespace HktRuntimeConverter
         return reinterpret_cast<const FHktRuntimeBatch&>(In);
     }
 
-    /** FHktRuntimeBatch -> FHktSimulationEvent (Zero-Cost 변환: 암시적 변환 활용) */
-    inline const FHktEntityState& ConvertToEntityState(const FHktEntitySnapshot& In)
-    {
-        // 래퍼 구조이므로 암시적 변환을 통해 CoreEvent에 접근
-        return static_cast<const FHktEntityState&>(In);
-    }
-
-    /** FHktEvent -> FHktRuntimeEvent (Zero-Cost 변환: reinterpret_cast 사용) */
-    inline const FHktEntitySnapshot& ConvertFromEntityState(const FHktEntityState& In)
-    {
-        // 생성자를 호출하지 않고, 메모리 자체를 RuntimeEvent로 간주하여 읽습니다 (Zero-Cost)
-        return reinterpret_cast<const FHktEntitySnapshot&>(In);
-    }
-
     // ========================================================================
     // Core -> Runtime
     // ========================================================================

@@ -25,8 +25,8 @@ public class HktAsset : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GameplayTags",
-				"EnhancedInput",
-            }
+				"NetCore"
+			}
 		);
 			
 		PrivateDependencyModuleNames.AddRange(
