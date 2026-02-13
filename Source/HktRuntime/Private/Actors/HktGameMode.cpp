@@ -85,18 +85,16 @@ void AHktGameMode::Tick(float DeltaSeconds)
 
     Graph->UpdateRelevancy();
 
-    BatchBuilderComponent->Reset(Graph->NumRelevancyGroup());
-    Rule->OnTick_ExecuteFrame(DeltaSeconds, *Frame, *Graph, *Collector, *Builder);
-
-    // 1. 배열 요소 수 초기화 (메모리 Capacity는 유지되므로 힙 할당/해제 없음)
-    CachedSendPayloads.Reset();
-
-    // 2. 보낼 데이터 목록(Payload) 수집
-    Rule->OnTick_PrepareSendPayloads(*Graph, *Builder, CachedSendPayloads);
-
-    // 3. 액터 레벨에서 순회하며 이벤트 발행
-    for (const FHktFrameSendPayload& Payload : CachedSendPayloads)
+    // 1. 실행
+    Rule->OnTick_ProcessSimulationAndPayloads(DeltaSeconds, *Frame, *Graph, *Collector, *Builder);
+    
+    // 2. 전송 (단일 루프 - Cache Friendly)
+    // TArrayView를 통해 유효한 데이터만 순회
+    TArrayView<const FHktFrameSendPayload> ValidPayloads = BatchBuilderComponent->GetValidPayloads();
+    
+    for (const FHktFrameSendPayload& Payload : ValidPayloads)
     {
+        // 여기서 Payload.TargetActor가 유효한지 체크할 수도 있음 (nullptr 처리 관련)
         if (AHktInGamePlayerController* PC = Cast<AHktInGamePlayerController>(Payload.TargetActor))
         {
             if (Payload.StateToSend)

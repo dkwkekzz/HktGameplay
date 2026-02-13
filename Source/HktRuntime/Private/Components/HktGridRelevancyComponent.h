@@ -40,6 +40,7 @@ public:
     virtual void UnregisterPlayer(int64 PlayerUid) override;
     virtual void UpdateRelevancy() override;
     virtual IHktWorldPlayer* GetWorldPlayer(int64 PlayerUid) const override;
+    virtual int32 GetWorldPlayerCount() const override { return RegisteredPlayers.Num(); }
     virtual int32 GetGroupIndexByLocation(const FVector& Location) const override;
     virtual int32 NumRelevancyGroup() const override;
     virtual IHktRelevancyGroup& GetRelevancyGroup(int32 Index) override;

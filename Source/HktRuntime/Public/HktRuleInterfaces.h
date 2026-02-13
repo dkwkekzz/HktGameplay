@@ -45,8 +45,7 @@ public:
     // --- 틱 ---
     virtual void OnEvent_RequestAutosave(int64 PlayerUid) {}
     virtual void OnTick_ProcessPendingConnections(IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktWorldDatabase& InDB, TFunction<IHktWorldPlayer*(const FHktPlayerRecord&)> PlayerFactory) {}
-    virtual void OnTick_ExecuteFrame(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& OutBuilder) {}
-    virtual void OnTick_PrepareSendPayloads(const IHktRelevancyGraph& InGraph, const IHktBatchBuilder& InBuilder, TArray<FHktFrameSendPayload>& OutPayloads) {}
+    virtual void OnTick_ProcessSimulationAndPayloads(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& InOutBuilder) {}
 };
 
 // ============================================================================

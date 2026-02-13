@@ -109,74 +109,95 @@ void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
     }
 }
 
-void FHktDefaultServerRule::OnTick_ExecuteFrame(float InDeltaTime,
-    const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph,
-    IHktIntentCollector& InCollector, IHktBatchBuilder& OutBuilder)
+void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
+    float InDeltaTime,
+    const IHktFrameManager& InFrame,
+    const IHktRelevancyGraph& InGraph,
+    IHktIntentCollector& InCollector,
+    IHktBatchBuilder& InOutBuilder)
 {
-    const float DeltaTime = InDeltaTime;
     const int32 NumGroups = InGraph.NumRelevancyGroup();
-    const int64 CurrentFrameNumber = InFrame.GetFrameNumber();
+	const int64 CurrentFrameNumber = InFrame.GetFrameNumber();
+
+    // 1. 고속 초기화 (카운터 리셋)
+    InOutBuilder.ResetFast(NumGroups, InGraph.GetWorldPlayerCount());
 
     ParallelFor(NumGroups, [&](int32 GroupIndex)
     {
-        FHktSimulationEvent& GroupBatch = OutBuilder.CreateOrGetGroupFrameBatch(GroupIndex);
-        // 암시적 변환을 통해 CoreEvent에 접근
+        // =========================================================
+        // Phase 1: Simulation (Write to Builder->GroupBatches)
+        // =========================================================
+        
+        // 1. GroupBatch 준비 (Builder 내부 메모리)
+        FHktSimulationEvent& GroupBatch = InOutBuilder.CreateOrGetGroupFrameBatch(GroupIndex);
+        
         GroupBatch.FrameNumber = CurrentFrameNumber;
-        GroupBatch.DeltaSeconds = DeltaTime;
+        GroupBatch.DeltaSeconds = InDeltaTime;
         GroupBatch.RandomSeed = HashCombineHelper(CurrentFrameNumber, GroupIndex);
 
         const IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(GroupIndex);
+        
+        // 2. 플레이어 Intent 수집 (Input Processing)
+        // 각 플레이어의 입력을 수집하여 Batch에 추가
         for (const int64 PlayerUid : Group.GetPlayerUids())
         {
-            // GetIntents는 TArray<FHktRuntimeEvent>를 받지만, CoreEvent.Events는 TArray<FHktEvent>
-            // 변환이 필요하므로 별도 처리 필요
             TArray<FHktEvent> NewEvents;
             InCollector.GetIntents(PlayerUid, NewEvents);
             GroupBatch.Events.Append(NewEvents);
         }
+        
+        // 3. 나간 유저 처리
         InCollector.GetExitedPlayers(GroupIndex, GroupBatch.RemovedOwnerIds);
 
+        // 4. 시뮬레이터 실행 (State Update)
+        // GroupSimulator는 상태를 변경하므로 const_cast 필요
         IHktServerSimulator& GroupSimulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator();
         GroupSimulator.Execute(GroupBatch);
 
-        TArray<int64>& NewbieOwners = OutBuilder.GetMutableNewbieOwners(GroupIndex);
+        // 5. 신규 진입 유저 처리 (Phase 2에서 Full State 전송 판단용)
+        TArray<int64>& NewbieOwners = InOutBuilder.GetMutableNewbieOwners(GroupIndex);
         InCollector.GetEnteredPlayers(GroupIndex, NewbieOwners);
-    });
-}
 
-void FHktDefaultServerRule::OnTick_PrepareSendPayloads(
-    const IHktRelevancyGraph& InGraph, 
-    const IHktBatchBuilder& InBuilder,
-    TArray<FHktFrameSendPayload>& OutPayloads)
-{
-    const int32 NumGroups = InGraph.NumRelevancyGroup();
-    OutPayloads.SetNumUninitialized(NumGroups);
-
-    ParallelFor(NumGroups, [&](int32 GroupIndex)
-    {
-        const FHktSimulationEvent& GroupBatch = InBuilder.GetGroupFrameBatch(GroupIndex);
-        const IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(GroupIndex);
-        const TArray<IHktWorldPlayer*>& CachedPlayers = Group.GetCachedWorldPlayers();
         
-        if (CachedPlayers.Num() == 0) return;
+        // =========================================================
+        // Phase 2: Lock-Free Payload Injection (Smarter Way)
+        // =========================================================
+        const TArray<IHktWorldPlayer*>& CachedPlayers = Group.GetCachedWorldPlayers();
+        const int32 PlayerCount = CachedPlayers.Num();
 
-        const TArray<int64>& NewbieOwners = InBuilder.GetNewbieOwners(GroupIndex);
-        const bool bHasNewbies = NewbieOwners.Num() > 0;
+        if (PlayerCount == 0) return;
 
-        const FHktRuntimeSimulationState* NewbieState = nullptr;
-        if (bHasNewbies)
+        // [Smart] 1. 필요한 공간을 원자적으로 한 번에 예약 (Reserve)
+        // 그룹 내 플레이어 수만큼 인덱스를 밀어버림 (경합 최소화)
+        const int32 StartIndex = InOutBuilder.ClaimPayloadSlots(PlayerCount);
+
+		TArray<FHktFrameSendPayload>& GlobalPayloads = InOutBuilder.GetMutablePayloads();
+        // [Safety] 버퍼 오버플로우 체크 (매우 중요)
+        if (StartIndex + PlayerCount > GlobalPayloads.Num())
         {
-            IHktServerSimulator& Simulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator();
-            NewbieState = &Simulator.GetSimulationState();
+            // 로그 출력 또는 Assert. 
+            // 실시간 게임 서버라면 여기서 return하여 크래시 방지 후, 다음 프레임에 버퍼 늘리도록 유도
+            return; 
         }
 
-        for (int32 i = 0; i < CachedPlayers.Num(); ++i)
+        const bool bHasNewbies = NewbieOwners.Num() > 0;
+        const FHktWorldState* NewbieState = nullptr;
+        if (bHasNewbies)
+        {
+            // Simulator 접근 등
+             NewbieState = &GroupSimulator.GetSimulationState();
+        }
+
+        // [Smart] 2. 예약된 공간에 데이터 채우기 (Lock 없음, False Sharing 주의)
+        // 다른 스레드는 다른 인덱스 범위에 쓰고 있으므로 안전함
+        for (int32 i = 0; i < PlayerCount; ++i)
         {
             IHktWorldPlayer* Player = CachedPlayers[i];
-            if (!Player) continue;
+            if (!Player) continue; // nullptr 체크 시 인덱스 밀림 주의 (아래 설명 참조)
 
-            // 얕은 복사만 발생 (포인터 및 스칼라 값)
-            FHktFrameSendPayload Payload;
+            // GlobalPayloads[StartIndex + i] 에 직접 접근
+            FHktFrameSendPayload& Payload = GlobalPayloads[StartIndex + i];
+            
             Payload.TargetActor = Player->GetOwnerActor();
             Payload.PlayerUid = Player->GetPlayerUid();
 
@@ -188,8 +209,6 @@ void FHktDefaultServerRule::OnTick_PrepareSendPayloads(
             {
                 Payload.BatchToSend = &GroupBatch;
             }
-
-            OutPayloads[GroupIndex] = Payload;
         }
     });
 }

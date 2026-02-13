@@ -144,6 +144,7 @@ struct HKTCORE_API FHktEntityState
     FHktEntityId EntityId = InvalidEntityId;
     FVector Position = FVector::ZeroVector;
     FGameplayTagContainer Tags;
+    TArray<int32> TagIndices;
 
     // VM은 int32 단위로 Property를 읽고 쓰므로 int32 배열로 관리
     TArray<int32> Properties;
@@ -169,9 +170,8 @@ struct HKTCORE_API FHktEntityState
     {
         Ar << State.EntityId;
         Ar << State.Position;
-        // TODO: 직렬화 지원이 안됨.
-        //Ar << State.Tags;       // FGameplayTagContainer 자체 직렬화 지원
-        Ar << State.Properties; // TArray<int32> 자체 직렬화 지원
+        Ar << State.TagIndices;
+        Ar << State.Properties;
         return Ar;
     }
 };

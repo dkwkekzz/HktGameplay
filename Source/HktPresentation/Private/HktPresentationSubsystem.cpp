@@ -136,11 +136,6 @@ void UHktPresentationSubsystem::Tick(float DeltaTime)
 	{
 		InteractionFXManager->Tick(DeltaTime);
 	}
-	
-	if (EntityHUDManager)
-	{
-		EntityHUDManager->Tick(DeltaTime, Stash);
-	}
 }
 
 TStatId UHktPresentationSubsystem::GetStatId() const
@@ -207,7 +202,6 @@ void UHktPresentationSubsystem::CreateManagers()
 
 void UHktPresentationSubsystem::DestroyManagers()
 {
-	if (EntityHUDManager) { delete EntityHUDManager; EntityHUDManager = nullptr; }
 	if (InteractionFXManager) { delete InteractionFXManager; InteractionFXManager = nullptr; }
 	if (SelectionVisualManager) { delete SelectionVisualManager; SelectionVisualManager = nullptr; }
 	if (EntityVisualManager) { delete EntityVisualManager; EntityVisualManager = nullptr; }
@@ -388,16 +382,6 @@ void UHktPresentationSubsystem::HandleEntityCreated(FHktEntityId EntityId)
 	if (EntityVisualManager)
 	{
 		EntityVisualManager->OnEntityCreated(EntityId, Stash);
-		
-		// HUD 추가
-		if (EntityHUDManager)
-		{
-			AHktCharacter* Character = EntityVisualManager->GetCharacter(EntityId);
-			if (Character)
-			{
-				EntityHUDManager->AddEntityHUD(EntityId, Character);
-			}
-		}
 	}
 	
 	UE_LOG(LogTemp, Log, TEXT("[HktPresentationSubsystem] Entity created: %d"), EntityId);
@@ -416,12 +400,6 @@ void UHktPresentationSubsystem::HandleEntityDestroyed(FHktEntityId EntityId)
 		{
 			SelectionVisualManager->ClearTargetSelection();
 		}
-	}
-	
-	// HUD 제거
-	if (EntityHUDManager)
-	{
-		EntityHUDManager->RemoveEntityHUD(EntityId);
 	}
 	
 	// Character 파괴
@@ -460,16 +438,6 @@ void UHktPresentationSubsystem::SyncEntitiesFromStash()
 	Stash->ForEachEntity([this, Stash](FHktEntityId EntityId)
 	{
 		EntityVisualManager->OnEntityCreated(EntityId, Stash);
-		
-		// HUD 추가
-		if (EntityHUDManager)
-		{
-			AHktCharacter* Character = EntityVisualManager->GetCharacter(EntityId);
-			if (Character)
-			{
-				EntityHUDManager->AddEntityHUD(EntityId, Character);
-			}
-		}
 	});
 	
 	UE_LOG(LogTemp, Log, TEXT("[HktPresentationSubsystem] Synced %d entities from Stash"), 

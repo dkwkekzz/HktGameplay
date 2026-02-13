@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "HktRuntimeTypes.h"
 #include "HktRuleInterfaces.h"
+#include "Containers/ArrayView.h"
 
 // Forward declarations
 class AActor;
@@ -17,7 +18,7 @@ struct FHktFrameSendPayload
     int64 PlayerUid = 0;
     
     // 구조체 내부에는 포인터만 저장하여 대용량 데이터 복사 방지
-    const FHktRuntimeSimulationState* StateToSend = nullptr;
+    const FHktWorldState* StateToSend = nullptr;
     const FHktSimulationEvent* BatchToSend = nullptr;
 };
 
@@ -40,7 +41,7 @@ public:
     virtual void Execute(const FHktSimulationEvent& InBatch) = 0;
 
     /** 현재 시뮬레이션 상태 조회 (Newbie 전송, 저장 등에 사용) */
-    virtual const FHktRuntimeSimulationState& GetSimulationState() const = 0;
+    virtual const FHktWorldState& GetSimulationState() const = 0;
 
     virtual FHktRuntimeOwnerState GetOwnerState(int64 InOwnerId) const = 0;
 };
@@ -78,10 +79,22 @@ class IHktBatchBuilder
 {
 public:
     virtual ~IHktBatchBuilder() = default;
-    virtual FHktSimulationEvent& CreateOrGetGroupFrameBatch(int32 InGroupIdx) = 0;
-    virtual const FHktSimulationEvent& GetGroupFrameBatch(int32 InGroupIdx) const = 0;
-    virtual TArray<int64>& GetMutableNewbieOwners(int32 InGroupIdx) = 0;
-    virtual const TArray<int64>& GetNewbieOwners(int32 InGroupIdx) const = 0;
+    
+    // 프레임 시작 전 초기화
+    // MaxTotalPlayers: 서버의 최대 동접자 수 (여유 있게 잡음, 예: 10000)
+    virtual void ResetFast(int32 NumGroups, int32 MaxTotalPlayers) = 0;
+    
+    // [핵심] 쓰기 공간 확보 (Lock-Free)
+    // 필요한 개수(Count)를 요청하면, 쓰기 시작할 인덱스(StartIndex)를 반환
+    virtual int32 ClaimPayloadSlots(int32 Count) = 0;
+    
+    // 읽기 전용 접근자 (Send 단계에서 사용)
+    // 전체 배열이 아니라, 실제 유효한 데이터가 있는 범위까지만 TArrayView 등으로 반환하면 더 좋음
+    virtual TArrayView<const FHktFrameSendPayload> GetValidPayloads() const = 0;
+    
+    virtual FHktSimulationEvent& CreateOrGetGroupFrameBatch(int32 GroupIndex) = 0;
+    virtual TArray<FHktFrameSendPayload>& GetMutablePayloads() = 0;
+    virtual TArray<int64>& GetMutableNewbieOwners(int32 GroupIndex) = 0;
 };
 
 //=============================================================================
@@ -107,6 +120,7 @@ public:
     virtual void UnregisterPlayer(int64 PlayerUid) = 0;
     virtual void UpdateRelevancy() = 0;
     virtual IHktWorldPlayer* GetWorldPlayer(int64 PlayerUid) const = 0;
+    virtual int32 GetWorldPlayerCount() const = 0;
     virtual int32 GetGroupIndexByLocation(const FVector& Location) const = 0;
     virtual int32 NumRelevancyGroup() const = 0;
     virtual IHktRelevancyGroup& GetRelevancyGroup(int32 Index) = 0;
@@ -175,8 +189,7 @@ public:
     virtual void OnLogout_ExitWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) override;
     virtual void OnEvent_RequestAutosave(int64 PlayerUid) override;
     virtual void OnTick_ProcessPendingConnections(IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktWorldDatabase& InDB, TFunction<IHktWorldPlayer*(const FHktPlayerRecord&)> PlayerFactory) override;
-    virtual void OnTick_ExecuteFrame(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& OutBuilder) override;
-    virtual void OnTick_PrepareSendPayloads(const IHktRelevancyGraph& InGraph, const IHktBatchBuilder& InBuilder, TArray<FHktFrameSendPayload>& OutPayloads) override;
+    virtual void OnTick_ProcessSimulationAndPayloads(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& InOutBuilder) override;
 
 private:
     struct FPendingLoginResult

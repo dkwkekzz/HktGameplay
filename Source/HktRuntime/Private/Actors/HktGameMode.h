@@ -88,9 +88,6 @@ protected:
     TObjectPtr<UHktBatchBuilderComponent> BatchBuilderComponent;
 
 private:
-    /** 힙 할당 방지를 위해 클래스 멤버로 캐싱해두는 배열 */
-    TArray<FHktFrameSendPayload> CachedSendPayloads;
-
     /** Insight 통계: 틱 당 처리 시간 추적 */
     float LastTickDurationMs = 0.0f;
 };

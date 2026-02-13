@@ -13,13 +13,13 @@ public:
     virtual ~FHktServerSimulator() = default;
 
     virtual void Execute(const FHktSimulationEvent& InBatch) override;
-    virtual const FHktRuntimeSimulationState& GetSimulationState() const override { return State; }
+    virtual const FHktWorldState& GetSimulationState() const override { return State; }
     virtual FHktRuntimeOwnerState GetOwnerState(int64 InOwnerId) const override;
 
 private:
     /** HktCore 시뮬레이션 월드 (결정론적 시뮬레이션 위임 대상) */
     TUniquePtr<IHktSimulator> CoreSimulator;
 
-    FHktRuntimeSimulationState State;
+    FHktWorldState State;
     bool bInitialized = false;
 };

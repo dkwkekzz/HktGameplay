@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktServerSimulator.h"
-#include "HktRuntimeConverter.h"
+#include "HktPropertyIds.h"
 
 FHktServerSimulator::FHktServerSimulator()
 {
@@ -13,8 +13,7 @@ void FHktServerSimulator::Execute(const FHktSimulationEvent& InBatch)
     // Runtime 타입 -> Core 타입 변환
     CoreSimulator->ProcessBatch(InBatch);
 
-    // Core 상태 -> Runtime 상태로 역변환하여 캐시
-    State = HktRuntimeConverter::ConvertWorldState(CoreSimulator->GetWorldState());
+    State = CoreSimulator->GetWorldState();
 
     bInitialized = true;
 }

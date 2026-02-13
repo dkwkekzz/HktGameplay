@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktClientSimulatorComponent.h"
-#include "HktRuntimeConverter.h"
+#include "HktPropertyIds.h"
 
 UHktClientSimulatorComponent::UHktClientSimulatorComponent() 
 { 
@@ -28,7 +28,7 @@ void UHktClientSimulatorComponent::Execute(const FHktSimulationEvent& InBatch)
     CoreSimulator->ProcessBatch(InBatch);
 
     // Core 상태 -> Runtime 상태로 역변환하여 캐시
-    State = HktRuntimeConverter::ConvertWorldState(CoreSimulator->GetWorldState());
+    State = CoreSimulator->GetWorldState();
 
     bInitialized = true;
 }
