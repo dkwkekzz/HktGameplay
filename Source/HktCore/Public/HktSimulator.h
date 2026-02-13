@@ -14,10 +14,9 @@ public:
     virtual ~IHktSimulator() = default;
 
     virtual void ProcessBatch(const FHktSimulationEvent& Event) = 0;    
-    virtual void RestoreState(const FHktWorldState& InState) = 0;
-    virtual void GetStateSnapshot(FHktWorldState& OutState) const = 0;
+    virtual void RestoreWorldState(const FHktWorldState& InState) = 0;
+    virtual void SnapshotWorldState(FHktWorldState& OutState) const = 0;
     virtual void PublishRenderState(FHktRenderState& OutState) = 0;
-    virtual const FHktWorldState& GetWorldState() const = 0;
 };
 
 // ============================================================================

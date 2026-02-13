@@ -28,16 +28,13 @@ public:
     virtual void ProcessBatch(const FHktSimulationEvent& Event) override;
 
     /** 롤백 지원: 특정 상태로 복구 */
-    virtual void RestoreState(const FHktWorldState& InState) override;
+    virtual void RestoreWorldState(const FHktWorldState& InState) override;
 
     /** 스냅샷 추출 */
-    virtual void GetStateSnapshot(FHktWorldState& OutState) const override;
+    virtual void SnapshotWorldState(FHktWorldState& OutState) const override;
 
     /** 렌더링 상태 발행 */
     virtual void PublishRenderState(FHktRenderState& OutState) override;
-
-    /** WorldState 직접 접근 (읽기 전용) */
-    virtual const FHktWorldState& GetWorldState() const override { return WorldState; }
 
 private:
     // --- Data ---

@@ -143,7 +143,6 @@ struct HKTCORE_API FHktEntityState
 {
     FHktEntityId EntityId = InvalidEntityId;
     FVector Position = FVector::ZeroVector;
-    FGameplayTagContainer Tags;
     TArray<int32> TagIndices;
 
     // VM은 int32 단위로 Property를 읽고 쓰므로 int32 배열로 관리
@@ -176,7 +175,27 @@ struct HKTCORE_API FHktEntityState
     }
 };
 
-/** 시뮬레이션의 전체 스냅샷 (Deep Copy 및 Rollback 지원 필수) */
+/** SOA 데이터 컬럼 — PropertyId별 int32 배열 */
+struct HKTCORE_API FHktDataColumn
+{
+    int32 PropertyId = -1;
+    TArray<int32> Data;
+
+    void Resize(int32 Size) { Data.SetNum(Size); }
+    void SetZeroed(int32 Size) { Data.SetNumZeroed(Size); }
+
+    int32 Get(int32 Index) const { return Data.IsValidIndex(Index) ? Data[Index] : 0; }
+    void Set(int32 Index, int32 Value) { if (Data.IsValidIndex(Index)) Data[Index] = Value; }
+
+    friend FArchive& operator<<(FArchive& Ar, FHktDataColumn& Col)
+    {
+        Ar << Col.PropertyId;
+        Ar << Col.Data;
+        return Ar;
+    }
+};
+
+/** 시뮬레이션의 전체 스냅샷 — SOA 기반 (Deep Copy 및 Rollback 지원 필수) */
 struct HKTCORE_API FHktWorldState
 {
     int64 FrameNumber = 0;
@@ -185,50 +204,69 @@ struct HKTCORE_API FHktWorldState
     /** 다음 엔티티 할당 시 사용할 ID */
     FHktEntityId NextEntityId = 0;
 
-    // Entity Storage
-    TMap<FHktEntityId, FHktEntityState> Entities;
+    // --- SOA Entity Index Mapping ---
+    TArray<int32> EntityToIndex;         // EntityId -> SlotIndex (-1 = invalid)
+    TArray<FHktEntityId> IndexToEntity;  // SlotIndex -> EntityId
+    TArray<int32> FreeIndices;           // 재사용 가능 슬롯
 
-    // TODO: ActiveEvents가 있어야 할 거 같음.
+    // --- SOA Data Columns (PropertyId -> Column) ---
+    TMap<int32, FHktDataColumn> Columns;
+    TArray<TArray<int32>> TagColumn;  // SlotIndex -> TagIndices
 
-    // Helpers
-    FHktEntityState* GetEntityMutable(FHktEntityId Id) { return Entities.Find(Id); }
-    const FHktEntityState* GetEntity(FHktEntityId Id) const { return Entities.Find(Id); }
-    void RemoveEntity(FHktEntityId Id) { Entities.Remove(Id); }
+    // --- Active Events (진행 중인 이벤트 — 중간 합류 클라이언트 동기화용) ---
+    TArray<FHktEvent> ActiveEvents;
 
-    /** 새 엔티티를 할당하고 ID를 반환 */
-    FHktEntityId AllocateEntity()
+    // --- Core Operations ---
+    FHktEntityId AllocateEntity();
+    void RemoveEntity(FHktEntityId Id);
+
+    bool IsValidEntity(FHktEntityId Id) const
     {
-        FHktEntityId NewId = NextEntityId++;
-        FHktEntityState& State = Entities.Add(NewId);
-        State.EntityId = NewId;
-        return NewId;
+        return Id >= 0 && Id < EntityToIndex.Num() && EntityToIndex[Id] != -1;
     }
 
-    bool IsValidEntity(FHktEntityId Id) const { return Entities.Contains(Id); }
-
-    void CopyFrom(const FHktWorldState& Other)
+    int32 GetEntityCount() const
     {
-        FrameNumber = Other.FrameNumber;
-        RandomSeed = Other.RandomSeed;
-        NextEntityId = Other.NextEntityId;
-        Entities = Other.Entities;
+        return IndexToEntity.Num() - FreeIndices.Num();
     }
 
-    // 직렬화 연산자 오버로딩
-    // TMap<Key, Value>는 Key와 Value에 << 연산자가 있으면 자동으로 직렬화됩니다.
-    friend FArchive& operator<<(FArchive& Ar, FHktWorldState& WorldState)
+    // --- Property Access ---
+    int32 GetProperty(FHktEntityId Entity, uint16 PropertyId) const;
+    void SetProperty(FHktEntityId Entity, uint16 PropertyId, int32 Value);
+
+    // --- Column Access ---
+    const FHktDataColumn* GetColumn(int32 PropertyId) const { return Columns.Find(PropertyId); }
+    FHktDataColumn& GetOrCreateColumn(int32 PropertyId);
+
+    // --- Iteration (template — 헤더에 유지) ---
+    template<typename Func>
+    void ForEachEntity(Func&& Callback) const
     {
-        Ar << WorldState.FrameNumber;
-        Ar << WorldState.RandomSeed;
-        Ar << WorldState.NextEntityId;
-        Ar << WorldState.Entities;
-        return Ar;
+        for (int32 SlotIndex = 0; SlotIndex < IndexToEntity.Num(); ++SlotIndex)
+        {
+            FHktEntityId Id = IndexToEntity[SlotIndex];
+            if (Id != InvalidEntityId)
+            {
+                Callback(Id, SlotIndex);
+            }
+        }
     }
+
+    // --- Compatibility: Entity 추출 (HktRuntime DTO 변환용) ---
+    FHktEntityState ExtractEntityState(FHktEntityId Id) const;
+
+    // --- Snapshot/Rollback ---
+    void CopyFrom(const FHktWorldState& Other);
+
+    // --- 직렬화 ---
+    friend HKTCORE_API FArchive& operator<<(FArchive& Ar, FHktWorldState& WorldState);
 };
 
-/** 렌더링용 보간 상태 */
+/** 렌더링용 SOA 상태 */
 struct HKTCORE_API FHktRenderState
 {
     int64 FrameNumber = 0;
-    TArray<FHktEntityState> InterpolatedEntities;
+    TArray<FHktEntityId> EntityIds;
+    TArray<FVector> Positions;
+    TArray<FRotator> Rotations;
 };

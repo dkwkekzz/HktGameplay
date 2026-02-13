@@ -23,13 +23,13 @@ struct FHktVMStore
     void Write(uint16 PropertyId, int32 Value);
     void WriteEntity(FHktEntityId Entity, uint16 PropertyId, int32 Value);
 
+    // SOA-batched writes (PropertyId별 묶음)
     struct FPendingWrite
     {
         FHktEntityId Entity;
-        uint16 PropertyId;
         int32 Value;
     };
-    TArray<FPendingWrite> PendingWrites;
+    TMap<uint16, TArray<FPendingWrite>> PendingWritesByProperty;
 
     /** 로컬 캐시 (VM 내 읽기/쓰기 일관성) */
     TMap<uint64, int32> LocalCache;
@@ -37,7 +37,7 @@ struct FHktVMStore
     void ClearPendingWrites();
     void Reset();
 
-    /** WorldState 직접 참조 (Stash 대체) */
+    /** WorldState 직접 참조 (SOA 읽기용) */
     const FHktWorldState* WorldState = nullptr;
 
 private:

@@ -175,15 +175,7 @@ void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex
 {
     if (Runtime.Store)
     {
-        FHktVMStore::FPendingWrite W;
-        W.Entity = Runtime.GetRegEntity(Entity);
-        W.PropertyId = PropertyId;
-        W.Value = Runtime.GetReg(Src);
-        Runtime.Store->PendingWrites.Add(W);
-        
-        // 로컬 캐시에도 반영
-        uint64 Key = (static_cast<uint64>(static_cast<uint32>(W.Entity)) << 16) | PropertyId;
-        Runtime.Store->LocalCache.Add(Key, W.Value);
+        Runtime.Store->WriteEntity(Runtime.GetRegEntity(Entity), PropertyId, Runtime.GetReg(Src));
     }
 }
 

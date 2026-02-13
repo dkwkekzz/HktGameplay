@@ -19,13 +19,10 @@ int32 FHktVMStore::ReadEntity(FHktEntityId Entity, uint16 PropertyId) const
         return *Cached;
     }
 
-    // WorldState에서 직접 읽기 (Stash 대체)
+    // WorldState SOA에서 읽기
     if (WorldState)
     {
-        if (const FHktEntityState* State = WorldState->GetEntity(Entity))
-        {
-            return State->GetProperty(PropertyId);
-        }
+        return WorldState->GetProperty(Entity, PropertyId);
     }
     return 0;
 }
@@ -42,19 +39,18 @@ void FHktVMStore::WriteEntity(FHktEntityId Entity, uint16 PropertyId, int32 Valu
 
     FPendingWrite W;
     W.Entity = Entity;
-    W.PropertyId = PropertyId;
     W.Value = Value;
-    PendingWrites.Add(W);
+    PendingWritesByProperty.FindOrAdd(PropertyId).Add(W);
 }
 
 void FHktVMStore::ClearPendingWrites()
 {
-    PendingWrites.Reset();
+    PendingWritesByProperty.Reset();
 }
 
 void FHktVMStore::Reset()
 {
-    PendingWrites.Reset();
+    PendingWritesByProperty.Reset();
     LocalCache.Reset();
     SourceEntity = InvalidEntityId;
     TargetEntity = InvalidEntityId;

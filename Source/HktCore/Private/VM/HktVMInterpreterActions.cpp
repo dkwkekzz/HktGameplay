@@ -156,20 +156,18 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
 
         int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
 
-        // WorldState의 엔티티를 직접 순회 (Stash 대체)
-        for (const auto& Pair : WorldState->Entities)
+        // WorldState SOA 순회
+        WorldState->ForEachEntity([&](FHktEntityId E, int32 SlotIndex)
         {
-            FHktEntityId E = Pair.Key;
             if (E == Center)
-                continue;
+                return;
 
-            const FHktEntityState& State = Pair.Value;
-            if (State.GetProperty(PropertyId::Team) == Team)
-                continue;
+            if (WorldState->GetProperty(E, PropertyId::Team) == Team)
+                return;
 
-            int32 EX = State.GetProperty(PropertyId::PosX);
-            int32 EY = State.GetProperty(PropertyId::PosY);
-            int32 EZ = State.GetProperty(PropertyId::PosZ);
+            int32 EX = WorldState->GetProperty(E, PropertyId::PosX);
+            int32 EY = WorldState->GetProperty(E, PropertyId::PosY);
+            int32 EZ = WorldState->GetProperty(E, PropertyId::PosZ);
 
             int64 DX = EX - CX;
             int64 DY = EY - CY;
@@ -177,7 +175,7 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
 
             if (DX*DX + DY*DY + DZ*DZ <= RadiusSq)
                 Runtime.SpatialQuery.Entities.Add(E);
-        }
+        });
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());

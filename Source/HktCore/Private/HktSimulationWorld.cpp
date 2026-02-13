@@ -98,10 +98,10 @@ void FHktSimulationWorld::ProcessBatch(const FHktSimulationEvent& Event)
     // Phase 4: 정리 (Cleanup)
     // ============================
 
-    VMCleanupSystem.Process(CompletedVMs, *VMPool);
+    VMCleanupSystem.Process(CompletedVMs, *VMPool, WorldState);
 }
 
-void FHktSimulationWorld::RestoreState(const FHktWorldState& InState)
+void FHktSimulationWorld::RestoreWorldState(const FHktWorldState& InState)
 {
     WorldState.CopyFrom(InState);
 
@@ -117,9 +117,18 @@ void FHktSimulationWorld::RestoreState(const FHktWorldState& InState)
 
     // Store 풀 WorldState 참조 갱신
     InternalData->Initialize(256, &WorldState);
+
+    // ActiveEvents에 남아있는 진행 중 이벤트로 VM 재생성
+    // (CopyFrom으로 ActiveEvents가 복원되었지만 대응하는 VM이 없으므로)
+    if (WorldState.ActiveEvents.Num() > 0)
+    {
+        TArray<FHktEvent> EventsToRestore = WorldState.ActiveEvents;
+        WorldState.ActiveEvents.Reset();
+        VMBuildSystem.Process(EventsToRestore, static_cast<int32>(WorldState.FrameNumber), *VMPool, ActiveVMs, WorldState, InternalData->StorePool);
+    }
 }
 
-void FHktSimulationWorld::GetStateSnapshot(FHktWorldState& OutState) const
+void FHktSimulationWorld::SnapshotWorldState(FHktWorldState& OutState) const
 {
     OutState.CopyFrom(WorldState);
 }

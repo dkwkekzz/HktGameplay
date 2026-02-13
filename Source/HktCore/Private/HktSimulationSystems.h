@@ -25,7 +25,7 @@ struct HKTCORE_API FHktVMBuildSystem
         int32 CurrentFrame,
         FHktVMRuntimePool& Pool,
         TArray<FHktVMHandle>& OutActiveVMs,
-        const FHktWorldState& WorldState,
+        FHktWorldState& WorldState,
         TArray<FHktVMStore>& StorePool
     );
 };
@@ -80,7 +80,7 @@ struct HKTCORE_API FHktApplyStoreSystem
 /** 6. VM Cleanup System: 종료된 VM 해제 */
 struct HKTCORE_API FHktVMCleanupSystem
 {
-    void Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool);
+    void Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState);
 };
 
 /** 7. Publish System: 렌더링 상태 발행 */

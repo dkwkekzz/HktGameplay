@@ -1,6 +1,7 @@
 HktCore 시뮬레이션 모듈 아키텍처 설계서
 
 작성일: 2026년 2월 11일
+최종 수정: 2026년 2월 14일 (SOA 리팩토링 반영)
 대상: HktCore 모듈 구현 담당자
 플랫폼: Unreal Engine 5.6 (C++ Module)
 
@@ -16,105 +17,172 @@ HktCore 시뮬레이션 모듈 아키텍처 설계서
 
 VM 기반 로직: 게임플레이 로직은 바이트코드 기반의 VM에서 실행되며, 로직 실행 중 월드 상태를 직접 오염시키지 않음.
 
+SOA 데이터 레이아웃: 엔티티 데이터를 PropertyId별 컬럼으로 관리하여 캐시 효율을 극대화.
+
 2. 아키텍처 원칙 (Core Principles)
 
 2.1 상태와 로직의 분리 (Separation of State and Logic)
 
-State (FHktWorldState): 시뮬레이션의 모든 데이터(Entity, Position, Properties)를 포함합니다. 로직을 포함하지 않으며, 손쉽게 복사(Deep Copy) 및 직렬화가 가능해야 합니다.
+State (FHktWorldState): 시뮬레이션의 모든 데이터를 SOA 컬럼 기반으로 저장. 로직을 포함하지 않으며, Deep Copy 및 직렬화가 가능.
 
-System: 데이터를 입력받아 가공하는 로직 처리기입니다. 내부에 상태를 저장하지 않습니다(Stateless).
+System: 데이터를 입력받아 가공하는 로직 처리기. 내부에 상태를 저장하지 않음(Stateless).
 
 2.2 트랜잭션 기반 상태 변경 (Buffered Writes)
 
 VM이나 로직은 FHktWorldState를 직접 수정하지 않습니다.
 
-변경 사항은 FHktVMStore (혹은 LocalContext)라는 로컬 버퍼에 기록되며, 프레임의 특정 시점(ApplyStoreSystem)에 일괄 적용(Commit)됩니다.
+변경 사항은 FHktVMStore의 PendingWritesByProperty에 PropertyId별로 배치 기록되며, 프레임의 특정 시점(ApplyStoreSystem)에 컬럼 단위로 일괄 적용(Commit)됩니다.
 
-3. 데이터 구조 명세 (Data Structures - Mandatory Spec)
+2.3 SOA (Structure of Arrays) 레이아웃
 
-구현자는 아래 데이터 구조의 필드 구성과 타입을 준수해야 합니다.
+기존 AOS(TMap<EntityId, EntityState>) 방식 대비:
+- 같은 Property를 가진 데이터가 메모리에 연속 배치 → 캐시 라인 히트율 극대화
+- 시스템이 필요한 컬럼만 접근 (예: Physics는 PosX/PosY/PosZ 컬럼만)
+- 컬럼 포인터를 루프 밖에서 캐싱하여 TMap 룩업을 1회로 제한
+
+3. 데이터 구조 명세 (Data Structures)
 
 3.1 Event Structures
 
 FHktEvent (범용 게임플레이 이벤트)
 
-EventTag (FGameplayTag): 이벤트 종류.
-
-SourceEntity (int32): 유발자 ID.
-
-TargetEntity (int32): 대상 ID.
-
-Location (FVector): 발생 위치.
-
-Param0, Param1 (int32): 범용 정수 파라미터.
+    EventId (int32): 이벤트 고유 ID.
+    EventTag (FGameplayTag): 이벤트 종류.
+    SourceEntity (int32): 유발자 ID.
+    TargetEntity (int32): 대상 ID.
+    Location (FVector): 발생 위치.
+    Param0, Param1 (int32): 범용 정수 파라미터.
 
 FHktPhysicsEvent (물리 충돌 이벤트)
 
-EntityA, EntityB (int32): 충돌한 두 엔티티.
+    EntityA, EntityB (int32): 충돌한 두 엔티티.
+    ContactPoint (FVector): 충돌 지점.
 
-ContactPoint (FVector): 충돌 지점.
+FHktSimulationEvent (프레임 단위 시뮬레이션 입력)
 
-3.2 State Structures
+    FrameNumber (int64)
+    RandomSeed (int32)
+    DeltaSeconds (float)
+    RemovedOwnerIds (TArray<int64>)
+    Events (TArray<FHktEvent>)
 
-FHktEntityState
+3.2 SOA Data Column
 
-Entity (int32): 엔티티 ID (Invalid = -1).
+FHktDataColumn — PropertyId별 int32 데이터 배열
 
-Properties (TArray<int8>): 중요 속성값은 바이트 배열로 관리하여 메모리 연속성을 보장합니다.
+    PropertyId (int32): 컬럼이 대응하는 Property ID.
+    Data (TArray<int32>): SlotIndex로 인덱싱되는 값 배열.
+    Get(SlotIndex) / Set(SlotIndex, Value) 로 접근.
 
-Tags (FGameplayTagContainer): 상태 태그.
+3.3 World State (SOA)
 
-FHktSimulationState
+FHktWorldState — 시뮬레이션 전체 스냅샷
 
-FrameNumber (int64)
+    FrameNumber (int64), RandomSeed (int32), NextEntityId (int32)
 
-RandomSeed (int32)
+    Entity Index Mapping:
+        EntityToIndex (TArray<int32>): EntityId -> SlotIndex (-1 = invalid)
+        IndexToEntity (TArray<FHktEntityId>): SlotIndex -> EntityId
+        FreeIndices (TArray<int32>): 재사용 가능 슬롯 스택
 
-Entities (TArray<FHktEntityState>): 빠른 순회를 위한 배열 구조 권장.
+    SOA Data:
+        Columns (TMap<int32, FHktDataColumn>): PropertyId별 데이터 컬럼
+        TagColumn (TArray<TArray<int32>>): SlotIndex별 TagIndices
+
+    Active Events:
+        ActiveEvents (TArray<FHktEvent>): 진행 중인 이벤트 (중간 합류 클라이언트 동기화용)
+
+    Core Operations:
+        AllocateEntity() -> FHktEntityId
+        RemoveEntity(Id)
+        IsValidEntity(Id) -> bool
+        GetEntityCount() -> int32
+
+    Property Access:
+        GetProperty(Entity, PropertyId) -> int32
+        SetProperty(Entity, PropertyId, Value)
+        GetColumn(PropertyId) -> const FHktDataColumn*
+        GetOrCreateColumn(PropertyId) -> FHktDataColumn&
+
+    Iteration:
+        ForEachEntity([](FHktEntityId Id, int32 SlotIndex) { ... })
+
+    DTO 변환 (HktRuntime 네트워크 직렬화용):
+        ExtractEntityState(Id) -> FHktEntityState
+
+    Snapshot/Rollback:
+        CopyFrom(Other), operator<< 직렬화
+
+3.4 Entity State (DTO)
+
+FHktEntityState — HktRuntime 모듈의 네트워크/DB 직렬화 전용 DTO
+
+    EntityId (int32)
+    Position (FVector): PosX/PosY/PosZ에서 조립
+    TagIndices (TArray<int32>): 커스텀 태그 시스템 인덱스
+    Properties (TArray<int32>): PropertyId 인덱스 기반 속성 배열
+
+    주의: HktCore 내부에서는 SOA WorldState를 직접 사용.
+    FHktEntityState는 ExtractEntityState()를 통해 SOA -> DTO 변환 시에만 생성.
+
+3.5 Render State (SOA)
+
+FHktRenderState — 프레젠테이션 레이어용
+
+    FrameNumber (int64)
+    EntityIds (TArray<FHktEntityId>)
+    Positions (TArray<FVector>)
+    Rotations (TArray<FRotator>)
+
+3.6 Property IDs (HktPropertyIds.h)
+
+PropertyId 네임스페이스에 uint16 상수로 정의:
+
+    위치/이동: PosX(0), PosY(1), PosZ(2), RotYaw(3), MoveTargetX/Y/Z(4-6), MoveSpeed(7), IsMoving(8)
+    전투/상태: Health(10), MaxHealth(11), AttackPower(12), Defense(13), Team(14), Mana(15), MaxMana(16)
+    소유/타입: OwnerEntity(20), EntityType(21)
+    이벤트 파라미터: TargetPosX/Y/Z(30-32), Param0-3(33-36)
+    애니메이션: AnimState(40), VisualState(41)
+    소유권: OwnerPlayerHash(52)
 
 4. VM 런타임 규격 (VM Runtime Specification)
 
-VM 구현 시 아래의 메모리 레이아웃과 상태 머신을 반드시 따라야 합니다.
-
 4.1 VM 상태 (State Machine)
 
-EVMStatus 열거형을 정의하고 다음 상태 전이를 구현하십시오.
-
-Ready: 초기화 직후.
-
-Running: 실행 중.
-
-Yielded: WaitFrames가 남아있어 일시 중단됨.
-
-WaitingEvent: 외부 이벤트를 대기 중.
-
-Completed: 정상 종료.
-
-Failed: 오류로 인한 종료.
+EVMStatus:
+    Ready -> Running -> Completed / Failed
+    Running -> Yielded (WaitFrames > 0)
+    Running -> WaitingEvent (외부 이벤트 대기)
+    Yielded -> Ready (WaitFrames == 0)
+    WaitingEvent -> Ready (이벤트 매칭 또는 타이머 만료)
 
 4.2 런타임 컨텍스트 (FHktVMRuntime)
 
-SOA(Structure of Arrays) 풀링을 위해 아래 데이터는 POD(Plain Old Data)에 가깝게 유지되어야 합니다.
+    Program Counter (PC): int32
+    Registers: int32[16] (R0~R9 범용, R10~R15 특수: Self, Target, Spawned, Hit, Iter, Flag)
+    Status: EVMStatus
+    Timers: CreationFrame, WaitFrames
+    Search Result: FSpatialQueryResult (공간 검색 결과 캐싱)
+    Store: FHktVMStore* (로컬 버퍼 참조)
 
-Program Counter (PC): int32
+4.3 VM Store (SOA 배치 쓰기)
 
-Registers: int32 Registers[16] (R0 ~ R15 고정 크기 배열).
+FHktVMStore:
+    SourceEntity, TargetEntity: 현재 VM 컨텍스트
+    PendingWritesByProperty (TMap<uint16, TArray<FPendingWrite>>):
+        PropertyId별로 쓰기를 묶어 배치 처리
+        FPendingWrite { Entity, Value }
+    LocalCache (TMap<uint64, int32>): read-after-write 일관성
+    WorldState (const FHktWorldState*): SOA 읽기 참조
 
-실수형 접근 헬퍼 GetRegFloat / SetRegFloat (reinterpret_cast 사용) 제공 필수.
+    Read 순서: LocalCache -> WorldState.GetProperty()
+    Write: LocalCache + PendingWritesByProperty에 기록
 
-Timers: CreationFrame (생성 시점), WaitFrames (Yield 잔여 프레임).
+4.4 핸들 규격 (FHktVMHandle)
 
-Search Result: FSpatialQueryResult (공간 검색 결과 캐싱).
-
-4.3 핸들 규격 (FHktVMHandle)
-
-VM 인스턴스에 대한 참조는 포인터가 아닌 아래 비트필드 구조체로 관리합니다.
-
-Index : 24 bits (최대 16M 슬롯)
-
-Generation : 8 bits (ABA 문제 방지)
-
-유효성 검사: Index != 0xFFFFFF
+    Index : 24 bits (최대 16M 슬롯)
+    Generation : 8 bits (ABA 문제 방지)
+    유효성 검사: Index != 0xFFFFFF
 
 5. 실행 파이프라인 (Execution Pipeline)
 
@@ -122,438 +190,97 @@ FHktSimulationWorld::ProcessBatch 함수 내에서 매 프레임 실행되는 �
 
 Phase 1: 준비 (Preparation)
 
-Arrange System: 삭제된 소유자 정리.
+    1-1. Arrange System: 삭제된 소유자에 속하는 엔티티 정리.
+        - OwnerPlayerHash 컬럼을 루프 밖에서 캐싱하여 순회.
 
-Build System: FHktEvent를 순회하며 FHktVMRuntimePool::Allocate()를 통해 VM을 생성 및 레지스터(R0~R3 등) 초기화.
+    1-2. Build System: FHktEvent를 순회하며 VM 생성 및 레지스터 초기화.
+        - VM 생성 성공 시 WorldState.ActiveEvents에 이벤트 등록.
 
 Phase 2: 실행 (Execution)
 
-Process System:
-
-활성 VM 루프:
-
-WaitingEvent: 타이머 감소 또는 외부 이벤트 매칭 확인.
-
-Yielded: WaitFrames 감소. 0이 되면 Ready로 전환.
-
-Running/Ready: 인터프리터(Execute) 실행.
-
-실행 결과(Status)에 따라 CompletedVMs 목록으로 이동.
+    Process System:
+        활성 VM 루프:
+            WaitingEvent: 타이머 감소 또는 외부 이벤트 매칭.
+            Yielded: WaitFrames 감소. 0이 되면 Ready 전환.
+            Running/Ready: 인터프리터(Execute) 실행.
+        실행 결과에 따라 CompletedVMs 목록으로 이동.
 
 Phase 3: 물리 및 적용 (Physics & Commit)
 
-Physics System:
+    3-1. Physics System:
+        - 공간 분할(Spatial Hashing): CellSize = 1000.0f
+        - RebuildGrid: PosX/PosY 컬럼 포인터를 캐싱하여 순회 (Z는 2D 그리드에 불필요)
+        - 충돌 감지: PosX/PosY/PosZ 컬럼 포인터를 캐싱, EntityToIndex로 직접 인덱싱
+        - PhysicsEvent -> PendingExternalEvents 변환 (양방향 등록)
 
-공간 분할(Spatial Hashing): 격자 크기 CellSize = 1000.0f 고정.
-
-WorldToCell(Pos) 함수: FloorToInt(Pos / CellSize) 로직 사용.
-
-위치가 변경된 엔티티만 GridMap 갱신 (Dirty Check).
-
-충돌 발생 시 FHktPhysicsEvent 생성 및 위치 보정 로직 수행.
-
-Apply Store System:
-
-VM 실행 결과로 쌓인 PendingWrites를 WorldState에 최종 반영.
+    3-2. Apply Store System:
+        - VM별 PendingWritesByProperty를 순회
+        - PropertyId별로 GetOrCreateColumn 후 해당 컬럼에 순차 기록
+        - 캐시 효율: 같은 PropertyId의 모든 writes가 하나의 컬럼 메모리에 연속 접근
 
 Phase 4: 정리 (Cleanup)
 
-Cleanup System: 완료된 VM 핸들 해제 (Free).
+    Cleanup System: 완료된 VM 핸들 해제.
+        - WorldState.ActiveEvents에서 해당 이벤트 제거 (SourceEntity + EventTag 매칭).
 
-6. 구현 시 주의사항 (Implementation Notes)
+Phase 5: 발행 (Publish)
 
-메모리 풀링 (Pooling): FHktVMRuntimePool은 MaxVMs(예: 256~1024) 크기의 정적 배열 혹은 동적 확장 가능한 배열과 FreeSlots 스택을 사용하여 O(1) 할당/해제를 구현해야 합니다.
+    Publish Render System:
+        - PosX/PosY/PosZ/RotYaw 컬럼 포인터를 캐싱하여 SOA RenderState 배열에 복사.
 
-결정론적 부동소수점: 물리 연산 시 FVector 연산 순서를 임의로 변경하지 마십시오.
+6. 캐시 효율 패턴 (Cache Efficiency Patterns)
 
-Store 패턴: VM은 절대로 WorldState를 직접 수정하면 안 됩니다. 반드시 Context.Write()를 통해 버퍼링해야 합니다.
+6.1 컬럼 포인터 호이스팅
 
-7. 폴더 구조 (Directory Structure)
+모든 시스템에서 ForEachEntity 루프 전에 GetColumn()으로 컬럼 포인터를 캐싱합니다.
+루프 내부에서는 Col->Get(SlotIndex) 배열 인덱싱만 수행하여 TMap 룩업을 제거합니다.
 
-HKTCore/
+    // Good: TMap 룩업 1회
+    const FHktDataColumn* ColX = WorldState.GetColumn(PropertyId::PosX);
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex) {
+        float X = ColX ? static_cast<float>(ColX->Get(SlotIndex)) : 0.f;
+    });
+
+    // Bad: 엔티티당 TMap 룩업
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex) {
+        float X = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosX));
+    });
+
+6.2 GetProperty vs GetColumn 사용 기준
+
+    GetProperty(Entity, PropId): VM Store 내부, 단발성 읽기, 외부 API 등 편의성이 필요한 곳
+    GetColumn(PropId) + Col->Get(Slot): 시스템 루프 내부, 성능이 중요한 벌크 순회
+
+7. 구현 시 주의사항 (Implementation Notes)
+
+메모리 풀링 (Pooling): FHktVMRuntimePool은 MaxVMs(256) 크기의 배열과 FreeSlots 스택을 사용하여 O(1) 할당/해제.
+
+결정론적 부동소수점: 물리 연산 시 FVector 연산 순서를 임의로 변경하지 않음.
+
+Store 패턴: VM은 절대로 WorldState를 직접 수정하면 안 됨. 반드시 Store.Write() / Store.WriteEntity()를 통해 버퍼링.
+
+ActiveEvents 관리: VMBuildSystem에서 Add, VMCleanupSystem에서 Remove. WorldState에 포함되어 직렬화/롤백 시 자동 동기화.
+
+FHktEntityState는 DTO: HktCore 내부에서는 SOA WorldState를 직접 사용. FHktEntityState는 HktRuntime의 네트워크 직렬화 시 ExtractEntityState()로 생성.
+
+8. 폴더 구조 (Directory Structure)
+
+HktCore/
 ├── Public/
-│   ├── HktCoreTypes.h         // FHktEvent, FHktEntityState 등 구조체 정의
-│   ├── HktVMTypes.h           // FHktVMRuntime, FHktVMHandle, EVMStatus
-│   ├── HktSimulationSystems.h // 각 단계별 시스템 클래스 정의
-│   └── HktSimulationWorld.h   // 메인 월드 클래스
+│   ├── HktCoreTypes.h         // FHktEvent, FHktEntityState, FHktDataColumn, FHktWorldState, FHktRenderState
+│   ├── HktPropertyIds.h       // PropertyId 네임스페이스 (uint16 상수)
+│   └── HktSimulator.h         // IHktSimulator 인터페이스
 ├── Private/
+│   ├── HktCoreTypes.cpp       // FHktWorldState 구현부 (AllocateEntity, ExtractEntityState, 직렬화 등)
+│   ├── HktSimulationSystems.h // 각 단계별 시스템 클래스 선언
 │   ├── HktSimulationSystems.cpp
-│   ├── HktSimulationWorld.cpp
-│   └── VM/                    // VM 인터프리터 상세 구현
-
-
-승인: _________________ (Tech Lead)
-
-*** 부록: HktCore 핵심 클래스 명세 (C++ Header Specifications) ***
-
-구현 시 아래의 클래스 명세와 데이터 레이아웃을 준수하여 작성해 주십시오.
-
-1. HKTCore/Public/HktCoreTypes.h
-
-기본 데이터 타입 및 상태 구조체 정의입니다.
-
-// Copyright Hkt Studios, Inc. All Rights Reserved.
-
-#pragma once
-
-#include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
-
-// ============================================================================
-// Basic Types & IDs
-// ============================================================================
-
-using FHktEntityId = int32;
-constexpr FHktEntityId InvalidEntityId = -1;
-
-/** 범용 게임플레이 이벤트 */
-struct HKTCORE_API FHktEvent
-{
-    FGameplayTag EventTag;
-    FHktEntityId SourceEntity = InvalidEntityId;
-    FHktEntityId TargetEntity = InvalidEntityId;
-    FVector Location = FVector::ZeroVector;
-    int32 Param0 = 0;
-    int32 Param1 = 0;
-};
-
-/** 물리 충돌 이벤트 */
-struct HKTCORE_API FHktPhysicsEvent
-{
-    FHktEntityId EntityA = InvalidEntityId;
-    FHktEntityId EntityB = InvalidEntityId;
-    FVector ContactPoint = FVector::ZeroVector;
-};
-
-/** 프레임 단위 시뮬레이션 입력 */
-struct HKTCORE_API FHktSimulationEvent
-{
-    int64 FrameNumber = 0;
-    int32 RandomSeed = 0;
-    float DeltaSeconds = 0.0f;
-    TArray<int64> RemovedOwnerIds;
-    TArray<FHktEvent> Events;
-};
-
-// ============================================================================
-// Entity & World State
-// ============================================================================
-
-struct HKTCORE_API FHktEntityState
-{
-    FHktEntityId EntityId = InvalidEntityId;
-    FVector Position = FVector::ZeroVector;
-    FGameplayTagContainer Tags;
-    
-    // 메모리 연속성을 위해 바이트 배열로 속성 관리
-    TArray<int8> Properties; 
-};
-
-/** 시뮬레이션의 전체 스냅샷 (Deep Copy 및 Rollback 지원 필수) */
-struct HKTCORE_API FHktWorldState
-{
-    int64 FrameNumber = 0;
-    int32 RandomSeed = 0;
-    
-    // Entity Storage
-    TMap<FHktEntityId, FHktEntityState> Entities;
-    
-    // Helpers
-    FHktEntityState* GetEntityMutable(FHktEntityId Id) { return Entities.Find(Id); }
-    const FHktEntityState* GetEntity(FHktEntityId Id) const { return Entities.Find(Id); }
-    void RemoveEntity(FHktEntityId Id) { Entities.Remove(Id); }
-    
-    void CopyFrom(const FHktWorldState& Other)
-    {
-        FrameNumber = Other.FrameNumber;
-        RandomSeed = Other.RandomSeed;
-        Entities = Other.Entities;
-    }
-};
-
-/** 렌더링용 보간 상태 */
-struct HKTCORE_API FHktRenderState
-{
-    int64 FrameNumber = 0;
-    TArray<FHktEntityState> InterpolatedEntities;
-};
-
-
-2. HKTCore/Public/HktVMTypes.h
-
-VM 런타임, 핸들, 상태 정의입니다.
-
-// Copyright Hkt Studios, Inc. All Rights Reserved.
-
-#pragma once
-
-#include "CoreMinimal.h"
-#include "HktCoreTypes.h"
-
-// ============================================================================
-// VM Definitions
-// ============================================================================
-
-enum class EVMStatus : uint8
-{
-    Ready,
-    Running,
-    Yielded,
-    WaitingEvent,
-    Completed,
-    Failed
-};
-
-struct FHktVMProgram
-{
-    FGameplayTag Tag;
-    TArray<uint8> ByteCode;
-    // ... Metadata
-};
-
-/** VM 로컬 변경 사항 버퍼 (WorldState 직접 수정 금지) */
-struct FHktVMStore
-{
-    struct FPendingWrite
-    {
-        FHktEntityId Entity;
-        int32 PropertyId;
-        int32 Value;
-    };
-    TArray<FPendingWrite> PendingWrites;
-
-    void Write(FHktEntityId Entity, int32 PropId, int32 Val)
-    {
-        PendingWrites.Add({Entity, PropId, Val});
-    }
-    
-    void Clear() { PendingWrites.Reset(); }
-};
-
-// ============================================================================
-// Runtime Context
-// ============================================================================
-
-struct HKTCORE_API FHktVMRuntime
-{
-    static constexpr int32 MaxRegisters = 16;
-
-    const FHktVMProgram* Program = nullptr;
-    FHktVMStore Store; 
-    
-    int32 PC = 0;
-    int32 Registers[MaxRegisters] = {0};
-    EVMStatus Status = EVMStatus::Ready;
-    
-    int32 CreationFrame = 0;
-    int32 WaitFrames = 0;
-    
-    // Context Info
-    FHktEntityId SelfEntity = InvalidEntityId;
-    FHktEntityId TargetEntity = InvalidEntityId;
-    
-    // Spatial Query Result Cache
-    // FSpatialQueryResult SpatialQuery; // 필요 시 주석 해제하여 사용
-
-    bool IsRunnable() const { return Status == EVMStatus::Ready || Status == EVMStatus::Running; }
-    
-    // Register Helpers
-    void SetRegFloat(int32 Idx, float Val) 
-    { 
-        check(Idx < MaxRegisters); 
-        Registers[Idx] = *reinterpret_cast<int32*>(&Val); 
-    }
-    float GetRegFloat(int32 Idx) const 
-    { 
-        check(Idx < MaxRegisters); 
-        return *reinterpret_cast<const float*>(&Registers[Idx]); 
-    }
-};
-
-/** 24bit Index + 8bit Generation Handle */
-struct FHktVMHandle
-{
-    uint32 Index : 24;
-    uint32 Generation : 8;
-    
-    bool IsValid() const { return Index != 0xFFFFFF; }
-    static FHktVMHandle Invalid() { return {0xFFFFFF, 0}; }
-    
-    bool operator==(const FHktVMHandle& Other) const 
-    { 
-        return Index == Other.Index && Generation == Other.Generation; 
-    }
-};
-
-// ============================================================================
-// VM Pool
-// ============================================================================
-
-class HKTCORE_API FHktVMRuntimePool
-{
-public:
-    FHktVMRuntimePool();
-
-    FHktVMHandle Allocate();
-    void Free(FHktVMHandle Handle);
-    FHktVMRuntime* Get(FHktVMHandle Handle);
-    void Reset();
-    
-    template<typename Func>
-    void ForEachActive(Func&& Callback);
-
-private:
-    static constexpr int32 MaxVMs = 1024;
-    TArray<FHktVMRuntime> Runtimes;
-    TArray<uint8> Generations;
-    TArray<uint32> FreeSlots;
-};
-
-
-3. HKTCore/Public/HktSimulationSystems.h
-
-각 단계별 로직 처리기(System) 인터페이스입니다.
-
-// Copyright Hkt Studios, Inc. All Rights Reserved.
-
-#pragma once
-
-#include "CoreMinimal.h"
-#include "HktCoreTypes.h"
-#include "HktVMTypes.h"
-
-// Forward Declarations
-class FHktVMInterpreter;
-
-/** 1. Entity Arrange System: 제거된 소유자 정리 */
-struct HKTCORE_API FHktEntityArrangeSystem
-{
-    void Process(FHktWorldState& WorldState, const TArray<int64>& RemovedOwnerIds);
-};
-
-/** 2. VM Build System: 이벤트 -> VM 생성 */
-struct HKTCORE_API FHktVMBuildSystem
-{
-    void Process(
-        const TArray<FHktEvent>& Events, 
-        int32 CurrentFrame, 
-        FHktVMRuntimePool& Pool, 
-        TArray<FHktVMHandle>& OutActiveVMs
-    );
-};
-
-/** 3. VM Process System: 바이트코드 실행 */
-struct HKTCORE_API FHktVMProcessSystem
-{
-    FHktVMInterpreter* Interpreter = nullptr;
-
-    void Process(
-        TArray<FHktVMHandle>& ActiveVMs, 
-        TArray<FHktVMHandle>& OutCompletedVMs,
-        FHktVMRuntimePool& Pool,
-        float DeltaSeconds
-    );
-};
-
-/** 4. Physics System: 공간 분할 및 충돌 감지 */
-struct HKTCORE_API FHktPhysicsSystem
-{
-    static constexpr float CellSize = 1000.0f;
-    
-    struct FCellCoord
-    {
-        int32 X, Y;
-        bool operator==(const FCellCoord& Other) const { return X == Other.X && Y == Other.Y; }
-        friend uint32 GetTypeHash(const FCellCoord& C) { return HashCombine(C.X, C.Y); }
-    };
-
-    TMap<FCellCoord, TArray<FHktEntityId>> GridMap;
-
-    void RebuildGrid(const FHktWorldState& WorldState);
-    
-    void Process(
-        FHktWorldState& WorldState, 
-        TArray<FHktPhysicsEvent>& OutPhysicsEvents
-    );
-};
-
-/** 5. Apply Store System: 변경 사항(Store) 커밋 */
-struct HKTCORE_API FHktApplyStoreSystem
-{
-    void Process(
-        FHktWorldState& WorldState, 
-        const TArray<FHktVMHandle>& DirtyVMs,
-        FHktVMRuntimePool& Pool
-    );
-};
-
-/** 6. VM Cleanup System: 종료된 VM 해제 */
-struct HKTCORE_API FHktVMCleanupSystem
-{
-    void Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool);
-};
-
-/** 7. Publish System: 렌더링 상태 발행 */
-struct HKTCORE_API FHktPublishRenderSystem
-{
-    void Process(const FHktWorldState& WorldState, FHktRenderState& OutRenderState);
-};
-
-
-4. HKTCore/Public/HktSimulationWorld.h
-
-전체 파이프라인을 조율하는 메인 클래스입니다.
-
-// Copyright Hkt Studios, Inc. All Rights Reserved.
-
-#pragma once
-
-#include "CoreMinimal.h"
-#include "HktCoreTypes.h"
-#include "HktVMTypes.h"
-#include "HktSimulationSystems.h"
-
-/**
- * FHktSimulationWorld
- * - 시뮬레이션의 진입점(Entry Point)이자 파사드(Facade)
- * - ProcessBatch() 내에서 결정론적 순서 보장 필수
- */
-class HKTCORE_API FHktSimulationWorld
-{
-public:
-    FHktSimulationWorld();
-    ~FHktSimulationWorld();
-
-    /** 메인 틱 함수: Input -> Build -> Process -> Physics -> Commit -> Cleanup */
-    void ProcessBatch(const FHktSimulationEvent& Event);
-
-    /** 롤백 지원: 특정 상태로 복구 */
-    void RestoreState(const FHktWorldState& InState);
-
-    /** 스냅샷 추출 */
-    void GetStateSnapshot(FHktWorldState& OutState) const;
-
-    /** 렌더링 상태 발행 */
-    void PublishRenderState(FHktRenderState& OutState);
-
-private:
-    // --- Data ---
-    FHktWorldState WorldState;
-    FHktVMRuntimePool VMPool;
-
-    TArray<FHktVMHandle> ActiveVMs;
-    TArray<FHktVMHandle> CompletedVMs;
-    TArray<FHktPhysicsEvent> GeneratedPhysicsEvents;
-
-    // --- Systems ---
-    FHktEntityArrangeSystem EntityArrangeSystem;
-    FHktVMBuildSystem       VMBuildSystem;
-    FHktVMProcessSystem     VMProcessSystem;
-    FHktPhysicsSystem       PhysicsSystem;
-    FHktApplyStoreSystem    ApplyStoreSystem;
-    FHktVMCleanupSystem     VMCleanupSystem;
-    FHktPublishRenderSystem PublishRenderSystem;
-
-    // --- Interpreter ---
-    TUniquePtr<class FHktVMInterpreter> Interpreter;
-};
+│   ├── HktSimulationWorld.h   // FHktSimulationWorld 클래스 선언
+│   ├── HktSimulationWorld.cpp // 파이프라인 조율
+│   ├── HktVMTypes.h           // EVMStatus, FHktVMRuntime, FHktVMHandle, FHktVMRuntimePool
+│   └── VM/
+│       ├── HktVMStore.h       // FHktVMStore (SOA 배치 쓰기)
+│       ├── HktVMStore.cpp
+│       ├── HktVMInterpreter.h
+│       ├── HktVMInterpreter.cpp
+│       ├── HktVMInterpreterActions.cpp
+│       └── HktVMProgram.h     // FHktVMProgram, FHktVMProgramRegistry

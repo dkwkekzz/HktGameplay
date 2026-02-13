@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSimulationSystems.h"
+#include "HktPropertyIds.h"
 #include "VM/HktVMProgram.h"
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMStore.h"
@@ -18,19 +19,22 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
     // 제거된 소유자에 속하는 엔티티를 찾아서 삭제
     TArray<FHktEntityId> EntitiesToRemove;
 
-    for (auto& Pair : WorldState.Entities)
+    const FHktDataColumn* OwnerCol = WorldState.GetColumn(PropertyId::OwnerPlayerHash);
+    if (!OwnerCol)
+        return;
+
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
     {
-        const FHktEntityState& State = Pair.Value;
-        int32 OwnerHash = State.GetProperty(PropertyId::OwnerPlayerHash);
+        int32 OwnerHash = OwnerCol->Get(SlotIndex);
         for (int64 RemovedId : RemovedOwnerIds)
         {
             if (static_cast<int64>(OwnerHash) == RemovedId)
             {
-                EntitiesToRemove.Add(Pair.Key);
+                EntitiesToRemove.Add(Id);
                 break;
             }
         }
-    }
+    });
 
     for (FHktEntityId Id : EntitiesToRemove)
     {
@@ -47,7 +51,7 @@ void FHktVMBuildSystem::Process(
     int32 CurrentFrame,
     FHktVMRuntimePool& Pool,
     TArray<FHktVMHandle>& OutActiveVMs,
-    const FHktWorldState& WorldState,
+    FHktWorldState& WorldState,
     TArray<FHktVMStore>& StorePool)
 {
     for (const FHktEvent& Event : Events)
@@ -111,6 +115,7 @@ void FHktVMBuildSystem::Process(
         Store.Write(PropertyId::TargetPosZ, FMath::RoundToInt(Event.Location.Z));
 
         OutActiveVMs.Add(Handle);
+        WorldState.ActiveEvents.Add(Event);
 
         UE_LOG(LogTemp, Log, TEXT("VM created: %s for Entity %d"), *Event.EventTag.ToString(), Event.SourceEntity);
     }
@@ -221,12 +226,18 @@ FHktPhysicsSystem::FCellCoord FHktPhysicsSystem::WorldToCell(const FVector& Pos)
 void FHktPhysicsSystem::RebuildGrid(const FHktWorldState& WorldState)
 {
     GridMap.Reset();
-    for (const auto& Pair : WorldState.Entities)
+    const FHktDataColumn* ColX = WorldState.GetColumn(PropertyId::PosX);
+    const FHktDataColumn* ColY = WorldState.GetColumn(PropertyId::PosY);
+
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
     {
-        const FHktEntityState& State = Pair.Value;
-        FCellCoord Cell = WorldToCell(State.Position);
-        GridMap.FindOrAdd(Cell).Add(Pair.Key);
-    }
+        FVector Pos;
+        Pos.X = ColX ? static_cast<float>(ColX->Get(SlotIndex)) : 0.f;
+        Pos.Y = ColY ? static_cast<float>(ColY->Get(SlotIndex)) : 0.f;
+        // Z는 2D 그리드에서 불필요
+        FCellCoord Cell = WorldToCell(Pos);
+        GridMap.FindOrAdd(Cell).Add(Id);
+    });
 }
 
 void FHktPhysicsSystem::Process(
@@ -235,6 +246,11 @@ void FHktPhysicsSystem::Process(
 {
     OutPhysicsEvents.Reset();
     RebuildGrid(WorldState);
+
+    // 컬럼 포인터 사전 캐싱 (루프 내 TMap 룩업 제거)
+    const FHktDataColumn* ColX = WorldState.GetColumn(PropertyId::PosX);
+    const FHktDataColumn* ColY = WorldState.GetColumn(PropertyId::PosY);
+    const FHktDataColumn* ColZ = WorldState.GetColumn(PropertyId::PosZ);
 
     // 간단한 충돌 감지: 같은 셀 내 엔티티 쌍 비교
     static constexpr float CollisionRadius = 50.0f; // 기본 충돌 반경 (cm)
@@ -250,18 +266,28 @@ void FHktPhysicsSystem::Process(
                 FHktEntityId A = EntitiesInCell[i];
                 FHktEntityId B = EntitiesInCell[j];
 
-                const FHktEntityState* StateA = WorldState.GetEntity(A);
-                const FHktEntityState* StateB = WorldState.GetEntity(B);
-                if (!StateA || !StateB)
+                if (!WorldState.IsValidEntity(A) || !WorldState.IsValidEntity(B))
                     continue;
 
-                float DistSq = FVector::DistSquared(StateA->Position, StateB->Position);
+                int32 IdxA = WorldState.EntityToIndex[A];
+                int32 IdxB = WorldState.EntityToIndex[B];
+
+                FVector PosA(
+                    ColX ? static_cast<float>(ColX->Get(IdxA)) : 0.f,
+                    ColY ? static_cast<float>(ColY->Get(IdxA)) : 0.f,
+                    ColZ ? static_cast<float>(ColZ->Get(IdxA)) : 0.f);
+                FVector PosB(
+                    ColX ? static_cast<float>(ColX->Get(IdxB)) : 0.f,
+                    ColY ? static_cast<float>(ColY->Get(IdxB)) : 0.f,
+                    ColZ ? static_cast<float>(ColZ->Get(IdxB)) : 0.f);
+
+                float DistSq = FVector::DistSquared(PosA, PosB);
                 if (DistSq <= CollisionRadiusSq)
                 {
                     FHktPhysicsEvent PhysEvent;
                     PhysEvent.EntityA = A;
                     PhysEvent.EntityB = B;
-                    PhysEvent.ContactPoint = (StateA->Position + StateB->Position) * 0.5f;
+                    PhysEvent.ContactPoint = (PosA + PosB) * 0.5f;
                     OutPhysicsEvents.Add(PhysEvent);
                 }
             }
@@ -278,26 +304,23 @@ void FHktApplyStoreSystem::Process(
     const TArray<FHktVMHandle>& ActiveVMs,
     FHktVMRuntimePool& Pool)
 {
-    // 모든 활성 VM의 PendingWrites를 WorldState에 반영
+    // 모든 활성 VM의 PendingWrites를 WorldState SOA 컬럼에 배치 기록
     Pool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
     {
         if (!Runtime.Store)
             return;
 
-        for (const FHktVMStore::FPendingWrite& W : Runtime.Store->PendingWrites)
+        for (auto& Pair : Runtime.Store->PendingWritesByProperty)
         {
-            FHktEntityState* State = WorldState.GetEntityMutable(W.Entity);
-            if (State)
+            uint16 PropId = Pair.Key;
+            FHktDataColumn& Col = WorldState.GetOrCreateColumn(static_cast<int32>(PropId));
+            for (const FHktVMStore::FPendingWrite& W : Pair.Value)
             {
-                State->SetProperty(W.PropertyId, W.Value);
-
-                // 위치 프로퍼티인 경우 Position 필드도 동기화
-                if (W.PropertyId == PropertyId::PosX)
-                    State->Position.X = static_cast<float>(W.Value);
-                else if (W.PropertyId == PropertyId::PosY)
-                    State->Position.Y = static_cast<float>(W.Value);
-                else if (W.PropertyId == PropertyId::PosZ)
-                    State->Position.Z = static_cast<float>(W.Value);
+                if (WorldState.IsValidEntity(W.Entity))
+                {
+                    int32 Idx = WorldState.EntityToIndex[W.Entity];
+                    Col.Set(Idx, W.Value);
+                }
             }
         }
         Runtime.Store->ClearPendingWrites();
@@ -308,7 +331,7 @@ void FHktApplyStoreSystem::Process(
 // 6. VM Cleanup System
 // ============================================================================
 
-void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool)
+void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState)
 {
     for (FHktVMHandle Handle : CompletedVMs)
     {
@@ -317,6 +340,17 @@ void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRunt
         {
             UE_LOG(LogTemp, Log, TEXT("VM finalized: %s"),
                 Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("unknown"));
+
+            // ActiveEvents에서 제거 (SourceEntity + EventTag 매칭)
+            if (Runtime->Program && Runtime->Store)
+            {
+                FGameplayTag Tag = Runtime->Program->Tag;
+                FHktEntityId Source = Runtime->Store->SourceEntity;
+                WorldState.ActiveEvents.RemoveAll([&](const FHktEvent& E)
+                {
+                    return E.SourceEntity == Source && E.EventTag == Tag;
+                });
+            }
 
             if (Runtime->Store)
             {
@@ -335,11 +369,28 @@ void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRunt
 void FHktPublishRenderSystem::Process(const FHktWorldState& WorldState, FHktRenderState& OutRenderState)
 {
     OutRenderState.FrameNumber = WorldState.FrameNumber;
-    OutRenderState.InterpolatedEntities.Reset();
-    OutRenderState.InterpolatedEntities.Reserve(WorldState.Entities.Num());
 
-    for (const auto& Pair : WorldState.Entities)
+    int32 EntityCount = WorldState.GetEntityCount();
+    OutRenderState.EntityIds.Reset(EntityCount);
+    OutRenderState.Positions.Reset(EntityCount);
+    OutRenderState.Rotations.Reset(EntityCount);
+
+    const FHktDataColumn* ColX = WorldState.GetColumn(PropertyId::PosX);
+    const FHktDataColumn* ColY = WorldState.GetColumn(PropertyId::PosY);
+    const FHktDataColumn* ColZ = WorldState.GetColumn(PropertyId::PosZ);
+    const FHktDataColumn* ColYaw = WorldState.GetColumn(PropertyId::RotYaw);
+
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
     {
-        OutRenderState.InterpolatedEntities.Add(Pair.Value);
-    }
+        OutRenderState.EntityIds.Add(Id);
+
+        FVector Pos(
+            ColX ? static_cast<float>(ColX->Get(SlotIndex)) : 0.f,
+            ColY ? static_cast<float>(ColY->Get(SlotIndex)) : 0.f,
+            ColZ ? static_cast<float>(ColZ->Get(SlotIndex)) : 0.f);
+        OutRenderState.Positions.Add(Pos);
+
+        FRotator Rot(0.f, ColYaw ? static_cast<float>(ColYaw->Get(SlotIndex)) : 0.f, 0.f);
+        OutRenderState.Rotations.Add(Rot);
+    });
 }
