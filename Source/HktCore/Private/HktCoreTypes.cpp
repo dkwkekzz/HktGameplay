@@ -23,7 +23,7 @@ FHktEntityId FHktWorldState::AllocateEntity()
         // 기존 컬럼에 슬롯 확장
         for (auto& Pair : Columns)
         {
-            Pair.Value.Data.Add(0);
+            Pair.Value.IntData.Add(0);
         }
     }
 
@@ -42,7 +42,7 @@ FHktEntityId FHktWorldState::AllocateEntity()
     // 슬롯 데이터 초기화
     for (auto& Pair : Columns)
     {
-        Pair.Value.Set(SlotIndex, 0);
+        Pair.Value.SetInt(SlotIndex, 0);
     }
     TagColumn[SlotIndex].Reset();
 
@@ -66,7 +66,7 @@ int32 FHktWorldState::GetProperty(FHktEntityId Entity, uint16 PropertyId) const
         return 0;
     int32 SlotIndex = EntityToIndex[Entity];
     const FHktDataColumn* Col = Columns.Find(static_cast<int32>(PropertyId));
-    return Col ? Col->Get(SlotIndex) : 0;
+    return Col ? Col->GetInt(SlotIndex) : 0;
 }
 
 void FHktWorldState::SetProperty(FHktEntityId Entity, uint16 PropertyId, int32 Value)
@@ -75,7 +75,7 @@ void FHktWorldState::SetProperty(FHktEntityId Entity, uint16 PropertyId, int32 V
         return;
     int32 SlotIndex = EntityToIndex[Entity];
     FHktDataColumn& Col = GetOrCreateColumn(PropertyId);
-    Col.Set(SlotIndex, Value);
+    Col.SetInt(SlotIndex, Value);
 }
 
 FHktDataColumn& FHktWorldState::GetOrCreateColumn(int32 PropertyId)
@@ -114,7 +114,7 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
     int32 MaxPropId = -1;
     for (const auto& Pair : Columns)
     {
-        if (Pair.Value.Get(SlotIndex) != 0 && Pair.Key > MaxPropId)
+        if (Pair.Value.GetInt(SlotIndex) != 0 && Pair.Key > MaxPropId)
             MaxPropId = Pair.Key;
     }
     if (MaxPropId >= 0)
@@ -124,7 +124,7 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
         {
             if (Pair.Key <= MaxPropId)
             {
-                State.Properties[Pair.Key] = Pair.Value.Get(SlotIndex);
+                State.Properties[Pair.Key] = Pair.Value.GetInt(SlotIndex);
             }
         }
     }

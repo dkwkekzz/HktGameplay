@@ -25,7 +25,7 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
 
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
     {
-        int32 OwnerHash = OwnerCol->Get(SlotIndex);
+        int32 OwnerHash = OwnerCol->GetInt(SlotIndex);
         for (int64 RemovedId : RemovedOwnerIds)
         {
             if (static_cast<int64>(OwnerHash) == RemovedId)
@@ -232,8 +232,8 @@ void FHktPhysicsSystem::RebuildGrid(const FHktWorldState& WorldState)
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
     {
         FVector Pos;
-        Pos.X = ColX ? static_cast<float>(ColX->Get(SlotIndex)) : 0.f;
-        Pos.Y = ColY ? static_cast<float>(ColY->Get(SlotIndex)) : 0.f;
+        Pos.X = ColX ? static_cast<float>(ColX->GetInt(SlotIndex)) : 0.f;
+        Pos.Y = ColY ? static_cast<float>(ColY->GetInt(SlotIndex)) : 0.f;
         // Z는 2D 그리드에서 불필요
         FCellCoord Cell = WorldToCell(Pos);
         GridMap.FindOrAdd(Cell).Add(Id);
@@ -273,13 +273,13 @@ void FHktPhysicsSystem::Process(
                 int32 IdxB = WorldState.EntityToIndex[B];
 
                 FVector PosA(
-                    ColX ? static_cast<float>(ColX->Get(IdxA)) : 0.f,
-                    ColY ? static_cast<float>(ColY->Get(IdxA)) : 0.f,
-                    ColZ ? static_cast<float>(ColZ->Get(IdxA)) : 0.f);
+                    ColX ? static_cast<float>(ColX->GetInt(IdxA)) : 0.f,
+                    ColY ? static_cast<float>(ColY->GetInt(IdxA)) : 0.f,
+                    ColZ ? static_cast<float>(ColZ->GetInt(IdxA)) : 0.f);
                 FVector PosB(
-                    ColX ? static_cast<float>(ColX->Get(IdxB)) : 0.f,
-                    ColY ? static_cast<float>(ColY->Get(IdxB)) : 0.f,
-                    ColZ ? static_cast<float>(ColZ->Get(IdxB)) : 0.f);
+                    ColX ? static_cast<float>(ColX->GetInt(IdxB)) : 0.f,
+                    ColY ? static_cast<float>(ColY->GetInt(IdxB)) : 0.f,
+                    ColZ ? static_cast<float>(ColZ->GetInt(IdxB)) : 0.f);
 
                 float DistSq = FVector::DistSquared(PosA, PosB);
                 if (DistSq <= CollisionRadiusSq)
@@ -319,7 +319,7 @@ void FHktApplyStoreSystem::Process(
                 if (WorldState.IsValidEntity(W.Entity))
                 {
                     int32 Idx = WorldState.EntityToIndex[W.Entity];
-                    Col.Set(Idx, W.Value);
+                    Col.SetInt(Idx, W.Value);
                 }
             }
         }
@@ -363,34 +363,38 @@ void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRunt
 }
 
 // ============================================================================
-// 7. Publish Render System
+// 7. Publish View System
 // ============================================================================
 
-void FHktPublishRenderSystem::Process(const FHktWorldState& WorldState, FHktRenderState& OutRenderState)
+void FHktPublishViewSystem::Process(
+    const FHktWorldState& WorldState,
+    const TArray<FHktVMHandle>& ActiveVMs,
+    FHktVMRuntimePool& Pool,
+    FHktWorldView& OutView)
 {
-    OutRenderState.FrameNumber = WorldState.FrameNumber;
+    // 1) WorldState 원본 연결 (Zero Copy)
+    OutView.WorldState = &WorldState;
+    OutView.IntOverlays.Reset();
 
-    int32 EntityCount = WorldState.GetEntityCount();
-    OutRenderState.EntityIds.Reset(EntityCount);
-    OutRenderState.Positions.Reset(EntityCount);
-    OutRenderState.Rotations.Reset(EntityCount);
-
-    const FHktDataColumn* ColX = WorldState.GetColumn(PropertyId::PosX);
-    const FHktDataColumn* ColY = WorldState.GetColumn(PropertyId::PosY);
-    const FHktDataColumn* ColZ = WorldState.GetColumn(PropertyId::PosZ);
-    const FHktDataColumn* ColYaw = WorldState.GetColumn(PropertyId::RotYaw);
-
-    WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
+    // 2) ActiveVMs의 Store를 순회하며 Property-first Overlay 구축
+    //    Store.PendingWritesByProperty가 이미 PropertyId별 배치이므로 직접 매핑
+    for (const FHktVMHandle& Handle : ActiveVMs)
     {
-        OutRenderState.EntityIds.Add(Id);
+        FHktVMRuntime* Runtime = Pool.Get(Handle);
+        if (!Runtime || !Runtime->Store)
+            continue;
 
-        FVector Pos(
-            ColX ? static_cast<float>(ColX->Get(SlotIndex)) : 0.f,
-            ColY ? static_cast<float>(ColY->Get(SlotIndex)) : 0.f,
-            ColZ ? static_cast<float>(ColZ->Get(SlotIndex)) : 0.f);
-        OutRenderState.Positions.Add(Pos);
+        for (const auto& Pair : Runtime->Store->PendingWritesByProperty)
+        {
+            int32 PropId = static_cast<int32>(Pair.Key);
+            for (const FHktVMStore::FPendingWrite& W : Pair.Value)
+            {
+                OutView.IntOverlays.Add({ PropId, W.Entity, W.Value });
+            }
+        }
+    }
 
-        FRotator Rot(0.f, ColYaw ? static_cast<float>(ColYaw->Get(SlotIndex)) : 0.f, 0.f);
-        OutRenderState.Rotations.Add(Rot);
-    });
+    // PropertyId, EntityId 순으로 정렬 (GetValue 이진 탐색 및 ForEachDirtyEntity 범위 순회용)
+    OutView.IntOverlays.Sort();
 }
+

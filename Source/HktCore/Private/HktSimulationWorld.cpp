@@ -133,9 +133,9 @@ void FHktSimulationWorld::SnapshotWorldState(FHktWorldState& OutState) const
     OutState.CopyFrom(WorldState);
 }
 
-void FHktSimulationWorld::PublishRenderState(FHktRenderState& OutState)
+void FHktSimulationWorld::CreateWorldView(FHktWorldView& OutView)
 {
-    PublishRenderSystem.Process(WorldState, OutState);
+    PublishViewSystem.Process(WorldState, ActiveVMs, *VMPool, OutView);
 }
 
 // ============================================================================

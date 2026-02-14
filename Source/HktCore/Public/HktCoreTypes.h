@@ -179,18 +179,18 @@ struct HKTCORE_API FHktEntityState
 struct HKTCORE_API FHktDataColumn
 {
     int32 PropertyId = -1;
-    TArray<int32> Data;
+    TArray<int32> IntData;
 
-    void Resize(int32 Size) { Data.SetNum(Size); }
-    void SetZeroed(int32 Size) { Data.SetNumZeroed(Size); }
+    void Resize(int32 Size) { IntData.SetNum(Size); }
+    void SetZeroed(int32 Size) { IntData.SetNumZeroed(Size); }
 
-    int32 Get(int32 Index) const { return Data.IsValidIndex(Index) ? Data[Index] : 0; }
-    void Set(int32 Index, int32 Value) { if (Data.IsValidIndex(Index)) Data[Index] = Value; }
+    int32 GetInt(int32 Index) const { return IntData.IsValidIndex(Index) ? IntData[Index] : 0; }
+    void SetInt(int32 Index, int32 Value) { if (IntData.IsValidIndex(Index)) IntData[Index] = Value; }
 
     friend FArchive& operator<<(FArchive& Ar, FHktDataColumn& Col)
     {
         Ar << Col.PropertyId;
-        Ar << Col.Data;
+        Ar << Col.IntData;
         return Ar;
     }
 };
@@ -223,6 +223,11 @@ struct HKTCORE_API FHktWorldState
     bool IsValidEntity(FHktEntityId Id) const
     {
         return Id >= 0 && Id < EntityToIndex.Num() && EntityToIndex[Id] != -1;
+    }
+
+    int32 GetIndex(FHktEntityId Id) const
+    {
+        return IsValidEntity(Id) ? EntityToIndex[Id] : -1;
     }
 
     int32 GetEntityCount() const
@@ -262,11 +267,108 @@ struct HKTCORE_API FHktWorldState
     friend HKTCORE_API FArchive& operator<<(FArchive& Ar, FHktWorldState& WorldState);
 };
 
-/** 렌더링용 SOA 상태 */
-struct HKTCORE_API FHktRenderState
+// ============================================================================
+// World View (Zero-Copy Interface)
+// ============================================================================
+
+/** 로컬 오버레이 단일 항목 (정렬됨) */
+struct HKTCORE_API FHktOverlayEntry
 {
-    int64 FrameNumber = 0;
-    TArray<FHktEntityId> EntityIds;
-    TArray<FVector> Positions;
-    TArray<FRotator> Rotations;
+    int32 PropertyId;
+    FHktEntityId EntityId;
+    int32 Value;
+
+    // 정렬 및 이진 탐색을 위한 비교 연산자
+    bool operator<(const FHktOverlayEntry& Other) const
+    {
+        if (PropertyId != Other.PropertyId) return PropertyId < Other.PropertyId;
+        return EntityId < Other.EntityId;
+    }
+};
+
+/** * [Zero-Copy View]
+ * 렌더러가 상태를 조회하기 위한 인터페이스입니다.
+ * - 단일 Array로 평탄화된 오버레이를 사용하여 생성 비용을 최소화합니다.
+ */
+struct HKTCORE_API FHktWorldView
+{
+    // 원본 데이터 참조
+    const FHktWorldState* WorldState = nullptr;
+
+    // 로컬 오버레이 (Active VM Context) - Int32 Only
+    // [최적화] PublishRenderSystem에서 PropertyId -> EntityId 순으로 정렬(Sort)하여 채웁니다.
+    TArray<FHktOverlayEntry> IntOverlays;
+
+    // --- Accessors ---
+
+    int32 GetValue(FHktEntityId Entity, int32 PropertyId) const
+    {
+        // 1. Check Local Overlay (Binary Search for O(log N))
+        // 오버레이는 정렬되어 있으므로 이진 탐색 사용 가능
+        // (직접 구현 혹은 Algo::BinarySearchBy 사용)
+        int32 Low = 0;
+        int32 High = IntOverlays.Num() - 1;
+
+        while (Low <= High)
+        {
+            int32 Mid = (Low + High) / 2;
+            const FHktOverlayEntry& Entry = IntOverlays[Mid];
+
+            if (Entry.PropertyId < PropertyId)
+            {
+                Low = Mid + 1;
+            }
+            else if (Entry.PropertyId > PropertyId)
+            {
+                High = Mid - 1;
+            }
+            else // PropertyId Match
+            {
+                if (Entry.EntityId < Entity) Low = Mid + 1;
+                else if (Entry.EntityId > Entity) High = Mid - 1;
+                else return Entry.Value; // Found
+            }
+        }
+
+        // 2. Check Committed World State
+        if (WorldState)
+        {
+            if (const FHktDataColumn* Col = WorldState->GetColumn(PropertyId))
+            {
+                int32 Index = WorldState->GetIndex(Entity);
+                if (Index != -1) return Col->GetInt(Index);
+            }
+        }
+        return 0;
+    }
+
+    /** [Full Iteration]
+     * 특정 프로퍼티에 대해 모든 엔티티를 순회합니다. (초기화 및 전체 갱신 용도)
+     * - Dirty 여부와 상관없이 현재 존재하는 모든 유효한 엔티티를 방문합니다.
+     * - WorldState의 IndexToEntity는 Dense Array이므로 순회 효율이 높습니다.
+     */
+    template<typename Func>
+    void ForEachEntity(int32 PropertyId, Func Callback) const
+    {
+        if (WorldState)
+        {
+            // 해당 프로퍼티 컬럼이 존재하는지 확인
+            if (WorldState->GetColumn(PropertyId))
+            {
+                for (const FHktEntityId& EntityId : WorldState->IndexToEntity)
+                {
+                    Callback(EntityId);
+                }
+            }
+        }
+    }
+
+    // 전체 엔티티 순회 헬퍼
+    const TArray<FHktEntityId>& GetAllEntities() const
+    {
+        return WorldState ? WorldState->IndexToEntity : DummyEntities;
+    }
+
+private:
+    static inline TArray<FHktEntityId> DummyEntities;
 };

@@ -83,8 +83,20 @@ struct HKTCORE_API FHktVMCleanupSystem
     void Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState);
 };
 
-/** 7. Publish System: 렌더링 상태 발행 */
-struct HKTCORE_API FHktPublishRenderSystem
+/**
+ * 7. Publish View System
+ * - 전체 복사(Deep Copy)를 수행하지 않음.
+ * - FHktWorldView 객체를 초기화:
+ *   1) WorldState 원본을 연결
+ *   2) ActiveVMs의 Store를 순회하며 Overlay Map을 구축
+ *      (변경된 엔티티의 속성만 추출하므로 매우 빠름)
+ */
+struct HKTCORE_API FHktPublishViewSystem
 {
-    void Process(const FHktWorldState& WorldState, FHktRenderState& OutRenderState);
+    void Process(
+        const FHktWorldState& WorldState,
+        const TArray<FHktVMHandle>& ActiveVMs,
+        FHktVMRuntimePool& Pool,
+        FHktWorldView& OutView
+    );
 };

@@ -71,8 +71,8 @@ FHktSimulationEvent (프레임 단위 시뮬레이션 입력)
 FHktDataColumn — PropertyId별 int32 데이터 배열
 
     PropertyId (int32): 컬럼이 대응하는 Property ID.
-    Data (TArray<int32>): SlotIndex로 인덱싱되는 값 배열.
-    Get(SlotIndex) / Set(SlotIndex, Value) 로 접근.
+    IntData (TArray<int32>): SlotIndex로 인덱싱되는 값 배열.
+    GetInt(SlotIndex) / SetInt(SlotIndex, Value) 로 접근.
 
 3.3 World State (SOA)
 
@@ -96,6 +96,7 @@ FHktWorldState — 시뮬레이션 전체 스냅샷
         AllocateEntity() -> FHktEntityId
         RemoveEntity(Id)
         IsValidEntity(Id) -> bool
+        GetIndex(Id) -> int32 (EntityId → SlotIndex, invalid이면 -1)
         GetEntityCount() -> int32
 
     Property Access:
@@ -125,14 +126,19 @@ FHktEntityState — HktRuntime 모듈의 네트워크/DB 직렬화 전용 DTO
     주의: HktCore 내부에서는 SOA WorldState를 직접 사용.
     FHktEntityState는 ExtractEntityState()를 통해 SOA -> DTO 변환 시에만 생성.
 
-3.5 Render State (SOA)
+3.5 World View (Zero Copy)
 
-FHktRenderState — 프레젠테이션 레이어용
+FHktWorldView — WorldState의 경량 읽기 뷰 (Zero Copy + Sparse Overlay)
 
-    FrameNumber (int64)
-    EntityIds (TArray<FHktEntityId>)
-    Positions (TArray<FVector>)
-    Rotations (TArray<FRotator>)
+    WorldState (const FHktWorldState*): 원본 데이터 참조 (복사 없음)
+    IntOverlays (TMap<PropId, TMap<EntityId, int32>>): Property-first 희소 오버레이
+
+    GetColumn(PropertyId): WorldState 컬럼 직접 접근 (Zero Copy — 벌크 순회용)
+    GetOverlay(PropertyId): 해당 Property의 Overlay 맵 (없으면 nullptr)
+    GetInt(Entity, PropertyId): Overlay → WorldState 순서로 layered read (단발성 조회용)
+    GetAllEntities(): WorldState->IndexToEntity 참조 반환
+
+    PublishViewSystem이 ActiveVMs의 Store를 순회하여 Overlay를 자동 구축
 
 3.6 Property IDs (HktPropertyIds.h)
 
@@ -223,22 +229,25 @@ Phase 4: 정리 (Cleanup)
     Cleanup System: 완료된 VM 핸들 해제.
         - WorldState.ActiveEvents에서 해당 이벤트 제거 (SourceEntity + EventTag 매칭).
 
-Phase 5: 발행 (Publish)
+Phase 5: 뷰 생성 (View)
 
-    Publish Render System:
-        - PosX/PosY/PosZ/RotYaw 컬럼 포인터를 캐싱하여 SOA RenderState 배열에 복사.
+    CreateWorldView(OutView):
+        - PublishViewSystem을 통해 FHktWorldView를 초기화.
+        - WorldState 포인터를 연결 (Zero Copy — 데이터 복사 없음).
+        - ActiveVMs의 Store를 순회하며 Int/Float Overlay를 구축.
+        - 렌더러는 GetInt/GetFloat으로 Overlay → WorldState 순서로 조회.
 
 6. 캐시 효율 패턴 (Cache Efficiency Patterns)
 
 6.1 컬럼 포인터 호이스팅
 
 모든 시스템에서 ForEachEntity 루프 전에 GetColumn()으로 컬럼 포인터를 캐싱합니다.
-루프 내부에서는 Col->Get(SlotIndex) 배열 인덱싱만 수행하여 TMap 룩업을 제거합니다.
+루프 내부에서는 Col->GetInt(SlotIndex) 배열 인덱싱만 수행하여 TMap 룩업을 제거합니다.
 
     // Good: TMap 룩업 1회
     const FHktDataColumn* ColX = WorldState.GetColumn(PropertyId::PosX);
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex) {
-        float X = ColX ? static_cast<float>(ColX->Get(SlotIndex)) : 0.f;
+        float X = ColX ? static_cast<float>(ColX->GetInt(SlotIndex)) : 0.f;
     });
 
     // Bad: 엔티티당 TMap 룩업
@@ -249,7 +258,7 @@ Phase 5: 발행 (Publish)
 6.2 GetProperty vs GetColumn 사용 기준
 
     GetProperty(Entity, PropId): VM Store 내부, 단발성 읽기, 외부 API 등 편의성이 필요한 곳
-    GetColumn(PropId) + Col->Get(Slot): 시스템 루프 내부, 성능이 중요한 벌크 순회
+    GetColumn(PropId) + Col->GetInt(Slot): 시스템 루프 내부, 성능이 중요한 벌크 순회
 
 7. 구현 시 주의사항 (Implementation Notes)
 
@@ -267,7 +276,7 @@ FHktEntityState는 DTO: HktCore 내부에서는 SOA WorldState를 직접 사용.
 
 HktCore/
 ├── Public/
-│   ├── HktCoreTypes.h         // FHktEvent, FHktEntityState, FHktDataColumn, FHktWorldState, FHktRenderState
+│   ├── HktCoreTypes.h         // FHktEvent, FHktEntityState, FHktDataColumn, FHktWorldState, FHktWorldView
 │   ├── HktPropertyIds.h       // PropertyId 네임스페이스 (uint16 상수)
 │   └── HktSimulator.h         // IHktSimulator 인터페이스
 ├── Private/

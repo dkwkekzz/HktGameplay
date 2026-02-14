@@ -33,8 +33,12 @@ public:
     /** 스냅샷 추출 */
     virtual void SnapshotWorldState(FHktWorldState& OutState) const override;
 
-    /** 렌더링 상태 발행 */
-    virtual void PublishRenderState(FHktRenderState& OutState) override;
+    /**
+     * [Zero-Copy Access]
+     * 렌더링 시스템이 사용할 View 객체를 생성(초기화).
+     * 매 프레임 호출되어 가장 최신의 Local Overlay를 구성.
+     */
+    virtual void CreateWorldView(FHktWorldView& OutView) override;
 
 private:
     // --- Data ---
@@ -56,7 +60,7 @@ private:
     FHktPhysicsSystem        PhysicsSystem;
     FHktApplyStoreSystem     ApplyStoreSystem;
     FHktVMCleanupSystem      VMCleanupSystem;
-    FHktPublishRenderSystem  PublishRenderSystem;
+    FHktPublishViewSystem    PublishViewSystem;
 
     // --- Interpreter ---
     TUniquePtr<FHktVMInterpreter> Interpreter;
