@@ -19,7 +19,6 @@ public:
     virtual void Execute(const FHktSimulationEvent& InBatch) override;
     virtual void RestoreState(const FHktWorldState& InState, TArray<FHktSimulationEvent>&& InPendingBatches) override;
     virtual const FHktWorldState& GetSimulationState() const override { return State; }
-    virtual FHktRuntimeOwnerState GetOwnerState(int64 InOwnerId) const override;
     virtual bool IsInitialized() const override { return bInitialized; }
 
 protected:

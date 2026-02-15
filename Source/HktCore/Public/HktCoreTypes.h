@@ -181,16 +181,30 @@ struct HKTCORE_API FHktDataColumn
     int32 PropertyId = -1;
     TArray<int32> IntData;
 
+    /** 이번 프레임에 값이 변경된 Internal Index 목록 (Transient — 직렬화 제외) */
+    TArray<int32> DirtyIndices;
+
     void Resize(int32 Size) { IntData.SetNum(Size); }
     void SetZeroed(int32 Size) { IntData.SetNumZeroed(Size); }
 
     int32 GetInt(int32 Index) const { return IntData.IsValidIndex(Index) ? IntData[Index] : 0; }
     void SetInt(int32 Index, int32 Value) { if (IntData.IsValidIndex(Index)) IntData[Index] = Value; }
 
+    /** 값을 쓰고 DirtyIndices에 기록 */
+    void SetIntDirty(int32 Index, int32 Value)
+    {
+        if (IntData.IsValidIndex(Index))
+        {
+            IntData[Index] = Value;
+            DirtyIndices.Add(Index);
+        }
+    }
+
     friend FArchive& operator<<(FArchive& Ar, FHktDataColumn& Col)
     {
         Ar << Col.PropertyId;
         Ar << Col.IntData;
+        // DirtyIndices는 Transient — 직렬화하지 않음
         return Ar;
     }
 };
@@ -242,6 +256,15 @@ struct HKTCORE_API FHktWorldState
     // --- Column Access ---
     const FHktDataColumn* GetColumn(int32 PropertyId) const { return Columns.Find(PropertyId); }
     FHktDataColumn& GetOrCreateColumn(int32 PropertyId);
+
+    /** 모든 컬럼의 DirtyIndices를 Reset (프레임 시작 시 호출) */
+    void ResetDirtyIndices()
+    {
+        for (auto& Pair : Columns)
+        {
+            Pair.Value.DirtyIndices.Reset();
+        }
+    }
 
     // --- Iteration (template — 헤더에 유지) ---
     template<typename Func>
@@ -348,11 +371,10 @@ struct HKTCORE_API FHktWorldView
      * - WorldState의 IndexToEntity는 Dense Array이므로 순회 효율이 높습니다.
      */
     template<typename Func>
-    void ForEachEntity(int32 PropertyId, Func Callback) const
+    void ForEachEntity(int32 PropertyId, Func&& Callback) const
     {
         if (WorldState)
         {
-            // 해당 프로퍼티 컬럼이 존재하는지 확인
             if (WorldState->GetColumn(PropertyId))
             {
                 for (const FHktEntityId& EntityId : WorldState->IndexToEntity)
@@ -360,6 +382,91 @@ struct HKTCORE_API FHktWorldView
                     Callback(EntityId);
                 }
             }
+        }
+    }
+
+    /** [Dirty Iteration — O(Changes)]
+     * 이번 프레임에 변경된 엔티티만 순회합니다.
+     * - 커밋된 변경(WorldState DirtyIndices) + 미커밋 변경(Overlay)을 합산.
+     * - Callback(EntityId, int32 Value): 변경된 엔티티의 최종값을 전달.
+     */
+    template<typename Func>
+    void ForEachDirtyEntity(int32 PropertyId, Func&& Callback) const
+    {
+        if (!WorldState)
+            return;
+
+        const FHktDataColumn* Col = WorldState->GetColumn(PropertyId);
+
+        // 1. 커밋된 변경: DirtyIndices 순회 (캐시 친화적 — 연속 배열)
+        if (Col)
+        {
+            for (int32 Idx : Col->DirtyIndices)
+            {
+                FHktEntityId EntityId = WorldState->IndexToEntity[Idx];
+                if (EntityId != InvalidEntityId)
+                {
+                    Callback(EntityId, Col->GetInt(Idx));
+                }
+            }
+        }
+
+        // 2. 미커밋 Overlay: 정렬된 배열에서 PropertyId 범위만 순회
+        //    이진 탐색으로 시작 위치를 찾고, PropertyId가 다를 때까지 진행
+        int32 Low = 0;
+        int32 High = IntOverlays.Num() - 1;
+        int32 Start = IntOverlays.Num(); // not found
+
+        while (Low <= High)
+        {
+            int32 Mid = (Low + High) / 2;
+            if (IntOverlays[Mid].PropertyId < PropertyId)
+            {
+                Low = Mid + 1;
+            }
+            else
+            {
+                if (IntOverlays[Mid].PropertyId == PropertyId) Start = Mid;
+                High = Mid - 1;
+            }
+        }
+
+        // LowerBound 위치에서 연속 순회
+        for (int32 i = Start; i < IntOverlays.Num() && IntOverlays[i].PropertyId == PropertyId; ++i)
+        {
+            Callback(IntOverlays[i].EntityId, IntOverlays[i].Value);
+        }
+    }
+
+    /** [All-Property Dirty Iteration]
+     * 모든 PropertyId에 대해 이번 프레임 변경점을 순회합니다.
+     * - Callback(int32 PropertyId, EntityId, int32 Value)
+     */
+    template<typename Func>
+    void ForEachDirtyEntry(Func&& Callback) const
+    {
+        if (!WorldState)
+            return;
+
+        // 1. 커밋된 변경: 모든 컬럼의 DirtyIndices 순회
+        for (const auto& Pair : WorldState->Columns)
+        {
+            int32 PropId = Pair.Key;
+            const FHktDataColumn& Col = Pair.Value;
+            for (int32 Idx : Col.DirtyIndices)
+            {
+                FHktEntityId EntityId = WorldState->IndexToEntity[Idx];
+                if (EntityId != InvalidEntityId)
+                {
+                    Callback(PropId, EntityId, Col.GetInt(Idx));
+                }
+            }
+        }
+
+        // 2. 미커밋 Overlay: 이미 정렬되어 있으므로 선형 순회
+        for (const FHktOverlayEntry& Entry : IntOverlays)
+        {
+            Callback(Entry.PropertyId, Entry.EntityId, Entry.Value);
         }
     }
 

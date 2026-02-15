@@ -50,6 +50,9 @@ void FHktSimulationWorld::ProcessBatch(const FHktSimulationEvent& Event)
     WorldState.FrameNumber = Event.FrameNumber;
     WorldState.RandomSeed = Event.RandomSeed;
 
+    // 이전 프레임 DirtyIndices 초기화 (메모리 해제 없이 카운트만 0)
+    WorldState.ResetDirtyIndices();
+
     // ============================
     // Phase 1: 준비 (Preparation)
     // ============================
@@ -99,6 +102,14 @@ void FHktSimulationWorld::ProcessBatch(const FHktSimulationEvent& Event)
     // ============================
 
     VMCleanupSystem.Process(CompletedVMs, *VMPool, WorldState);
+}
+
+void FHktSimulationWorld::ProcessBatches(TArrayView<const FHktSimulationEvent> Events)
+{
+    for (const FHktSimulationEvent& Event : Events)
+    {
+        ProcessBatch(Event);
+    }
 }
 
 void FHktSimulationWorld::RestoreWorldState(const FHktWorldState& InState)

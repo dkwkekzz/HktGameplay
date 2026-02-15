@@ -42,36 +42,23 @@ void UHktClientSimulatorComponent::RestoreState(const FHktWorldState& InState, T
 
     CoreSimulator->RestoreWorldState(InState);
 
-    // 캐시된 Runtime 상태도 갱신
-    State = InState;
+    // 복원 이후 프레임만 필터링
+    TArray<FHktSimulationEvent> ReplayBatches;
+    for (FHktSimulationEvent& Event : InPendingBatches)
+    {
+        if (Event.FrameNumber > InState.FrameNumber)
+        {
+            ReplayBatches.Add(MoveTemp(Event));
+        }
+    }
+
+    // 복수 배치 일괄 실행 (중간 스냅샷 없음)
+    if (ReplayBatches.Num() > 0)
+    {
+        CoreSimulator->ProcessBatches(ReplayBatches);
+    }
+
+    // 최종 상태만 한 번 스냅샷
+    CoreSimulator->SnapshotWorldState(State);
     bInitialized = true;
-
-    // 대기 중이던 배치들 중 복원 이후 프레임만 재생
-    for (const FHktSimulationEvent& Event : InPendingBatches)
-    {
-        if (Event.FrameNumber > State.FrameNumber)
-        {
-            Execute(Event);
-        }
-    }
-}
-
-FHktRuntimeOwnerState UHktClientSimulatorComponent::GetOwnerState(int64 InOwnerId) const
-{
-    FHktRuntimeOwnerState OwnerState;
-
-    if (!CoreSimulator)
-    {
-        return OwnerState;
-    }
-
-    State.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
-    {
-        if (State.GetProperty(Id, PropertyId::OwnerPlayerHash) == static_cast<int32>(InOwnerId))
-        {
-            OwnerState.EntityStates.Add(State.ExtractEntityState(Id));
-        }
-    });
-
-    return OwnerState;
 }

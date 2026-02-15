@@ -27,6 +27,9 @@ public:
     /** 메인 틱 함수: Arrange -> Build -> Process -> Physics -> Commit -> Cleanup */
     virtual void ProcessBatch(const FHktSimulationEvent& Event) override;
 
+    /** 복수 배치를 연속 실행 (중간 스냅샷 없이) */
+    virtual void ProcessBatches(TArrayView<const FHktSimulationEvent> Events) override;
+
     /** 롤백 지원: 특정 상태로 복구 */
     virtual void RestoreWorldState(const FHktWorldState& InState) override;
 

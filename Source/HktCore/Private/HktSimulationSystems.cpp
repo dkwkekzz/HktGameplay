@@ -319,7 +319,7 @@ void FHktApplyStoreSystem::Process(
                 if (WorldState.IsValidEntity(W.Entity))
                 {
                     int32 Idx = WorldState.EntityToIndex[W.Entity];
-                    Col.SetInt(Idx, W.Value);
+                    Col.SetIntDirty(Idx, W.Value);
                 }
             }
         }

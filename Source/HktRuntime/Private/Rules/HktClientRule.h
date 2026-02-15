@@ -28,8 +28,6 @@ public:
     /** 현재 시뮬레이션 상태 조회 (Newbie 전송, 저장 등에 사용) */
     virtual const FHktWorldState& GetSimulationState() const = 0;
 
-    virtual FHktRuntimeOwnerState GetOwnerState(int64 InOwnerId) const = 0;
-
     /** ???? ??? ???? (RestoreState ??? ?Execute ???? true) */
     virtual bool IsInitialized() const = 0;
 };
