@@ -18,9 +18,11 @@ struct FSpatialQueryResult
     TArray<FHktEntityId> Entities;
     int32 CurrentIndex = 0;
 
+    FSpatialQueryResult() { Entities.Reserve(HktLimits::MaxSpatialResults); }
+
     void Reset()
     {
-        Entities.Reset();
+        Entities.Reset();  // 용량 유지 (Reserve된 메모리 보존)
         CurrentIndex = 0;
     }
 

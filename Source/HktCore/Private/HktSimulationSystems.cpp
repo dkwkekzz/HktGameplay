@@ -17,7 +17,7 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
         return;
 
     // 제거된 소유자에 속하는 엔티티를 찾아서 삭제
-    TArray<FHktEntityId> EntitiesToRemove;
+    ScratchRemoveList.Reset();  // 용량 유지
 
     const FHktDataColumn* OwnerCol = WorldState.GetColumn(PropertyId::OwnerPlayerHash);
     if (!OwnerCol)
@@ -30,13 +30,13 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
         {
             if (static_cast<int64>(OwnerHash) == RemovedId)
             {
-                EntitiesToRemove.Add(Id);
+                ScratchRemoveList.Add(Id);
                 break;
             }
         }
     });
 
-    for (FHktEntityId Id : EntitiesToRemove)
+    for (FHktEntityId Id : ScratchRemoveList)
     {
         WorldState.RemoveEntity(Id);
     }
@@ -84,11 +84,10 @@ void FHktVMBuildSystem::Process(
 
         // Store 할당 및 초기화
         FHktVMStore& Store = StorePool[Handle.Index];
+        Store.Reset();
         Store.WorldState = &WorldState;
         Store.SourceEntity = Event.SourceEntity;
         Store.TargetEntity = Event.TargetEntity;
-        Store.ClearPendingWrites();
-        Store.LocalCache.Reset();
 
         // Runtime 초기화
         Runtime->Program = Program;
@@ -132,9 +131,9 @@ void FHktVMProcessSystem::Process(
     float DeltaSeconds,
     TArray<FHktPendingEvent>& PendingExternalEvents)
 {
-    // 외부 이벤트를 로컬로 이동 (순회 중 새 이벤트 추가 방지)
-    TArray<FHktPendingEvent> ExternalEvents = MoveTemp(PendingExternalEvents);
-    PendingExternalEvents.Reset();
+    // 외부 이벤트를 스크래치로 Swap (양쪽 용량 보존, O(1))
+    ScratchEvents.Reset();  // 용량 유지
+    Swap(ScratchEvents, PendingExternalEvents);
 
     // 단일 ForEachActive — 이벤트 매칭 + 상태 전환
     Pool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
@@ -153,18 +152,18 @@ void FHktVMProcessSystem::Process(
             }
             else
             {
-                for (int32 i = ExternalEvents.Num() - 1; i >= 0; --i)
+                for (int32 i = ScratchEvents.Num() - 1; i >= 0; --i)
                 {
-                    if (ExternalEvents[i].Type == Runtime.EventWait.Type &&
-                        ExternalEvents[i].WatchedEntity == Runtime.EventWait.WatchedEntity)
+                    if (ScratchEvents[i].Type == Runtime.EventWait.Type &&
+                        ScratchEvents[i].WatchedEntity == Runtime.EventWait.WatchedEntity)
                     {
-                        if (ExternalEvents[i].Type == EWaitEventType::Collision)
+                        if (ScratchEvents[i].Type == EWaitEventType::Collision)
                         {
-                            Runtime.SetRegEntity(Reg::Hit, ExternalEvents[i].HitEntity);
+                            Runtime.SetRegEntity(Reg::Hit, ScratchEvents[i].HitEntity);
                         }
                         Runtime.EventWait.Reset();
                         Runtime.Status = EVMStatus::Ready;
-                        ExternalEvents.RemoveAtSwap(i);
+                        ScratchEvents.RemoveAtSwap(i);
                         break;
                     }
                 }
@@ -310,17 +309,13 @@ void FHktApplyStoreSystem::Process(
         if (!Runtime.Store)
             return;
 
-        for (auto& Pair : Runtime.Store->PendingWritesByProperty)
+        for (const FHktVMStore::FPendingWrite& W : Runtime.Store->PendingWrites)
         {
-            uint16 PropId = Pair.Key;
-            FHktDataColumn& Col = WorldState.GetOrCreateColumn(static_cast<int32>(PropId));
-            for (const FHktVMStore::FPendingWrite& W : Pair.Value)
+            if (WorldState.IsValidEntity(W.Entity))
             {
-                if (WorldState.IsValidEntity(W.Entity))
-                {
-                    int32 Idx = WorldState.EntityToIndex[W.Entity];
-                    Col.SetIntDirty(Idx, W.Value);
-                }
+                int32 Idx = WorldState.EntityToIndex[W.Entity];
+                FHktDataColumn& Col = WorldState.GetOrCreateColumn(static_cast<int32>(W.PropertyId));
+                Col.SetIntDirty(Idx, W.Value);
             }
         }
         Runtime.Store->ClearPendingWrites();
@@ -376,21 +371,16 @@ void FHktPublishViewSystem::Process(
     OutView.WorldState = &WorldState;
     OutView.IntOverlays.Reset();
 
-    // 2) ActiveVMs의 Store를 순회하며 Property-first Overlay 구축
-    //    Store.PendingWritesByProperty가 이미 PropertyId별 배치이므로 직접 매핑
+    // 2) ActiveVMs의 Store를 순회하며 flat PendingWrites → Overlay 구축
     for (const FHktVMHandle& Handle : ActiveVMs)
     {
         FHktVMRuntime* Runtime = Pool.Get(Handle);
         if (!Runtime || !Runtime->Store)
             continue;
 
-        for (const auto& Pair : Runtime->Store->PendingWritesByProperty)
+        for (const FHktVMStore::FPendingWrite& W : Runtime->Store->PendingWrites)
         {
-            int32 PropId = static_cast<int32>(Pair.Key);
-            for (const FHktVMStore::FPendingWrite& W : Pair.Value)
-            {
-                OutView.IntOverlays.Add({ PropId, W.Entity, W.Value });
-            }
+            OutView.IntOverlays.Add({ static_cast<int32>(W.PropertyId), W.Entity, W.Value });
         }
     }
 

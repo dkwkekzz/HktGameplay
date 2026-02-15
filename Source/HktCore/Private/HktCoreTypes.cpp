@@ -1,10 +1,52 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktCoreTypes.h"
+#include "HktPropertyIds.h"
 
 // ============================================================================
 // FHktWorldState
 // ============================================================================
+
+void FHktWorldState::Initialize()
+{
+    // SOA 인덱스 매핑
+    EntityToIndex.Reserve(HktLimits::MaxEntities);
+    IndexToEntity.Reserve(HktLimits::MaxEntities);
+    FreeIndices.Reserve(HktLimits::MaxEntities);
+    TagColumn.Reserve(HktLimits::MaxEntities);
+    ActiveEvents.Reserve(HktLimits::MaxActiveEvents);
+
+    // 컬럼 배열 초기화 (모든 슬롯 inactive)
+    Columns.SetNum(HktLimits::MaxProperties);
+    for (FHktDataColumn& Col : Columns)
+    {
+        Col.PropertyId = -1;
+    }
+
+    // 알려진 PropertyId 컬럼 사전 생성
+    auto PreCreate = [this](int32 PropId)
+    {
+        FHktDataColumn& Col = Columns[PropId];
+        Col.PropertyId = PropId;
+        Col.IntData.Reserve(HktLimits::MaxEntities);
+        Col.DirtyIndices.Reserve(HktLimits::MaxDirtyPerColumn);
+    };
+
+    // PropertyIds.h의 모든 알려진 속성
+    for (int32 Id : { PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ, PropertyId::RotYaw,
+                      PropertyId::MoveTargetX, PropertyId::MoveTargetY, PropertyId::MoveTargetZ,
+                      PropertyId::MoveSpeed, PropertyId::IsMoving,
+                      PropertyId::Health, PropertyId::MaxHealth, PropertyId::AttackPower,
+                      PropertyId::Defense, PropertyId::Team, PropertyId::Mana, PropertyId::MaxMana,
+                      PropertyId::OwnerEntity, PropertyId::EntityType,
+                      PropertyId::TargetPosX, PropertyId::TargetPosY, PropertyId::TargetPosZ,
+                      PropertyId::Param0, PropertyId::Param1, PropertyId::Param2, PropertyId::Param3,
+                      PropertyId::AnimState, PropertyId::VisualState,
+                      PropertyId::OwnerPlayerHash })
+    {
+        PreCreate(Id);
+    }
+}
 
 FHktEntityId FHktWorldState::AllocateEntity()
 {
@@ -20,10 +62,11 @@ FHktEntityId FHktWorldState::AllocateEntity()
         SlotIndex = IndexToEntity.Num();
         IndexToEntity.Add(NewId);
         TagColumn.AddDefaulted();
-        // 기존 컬럼에 슬롯 확장
-        for (auto& Pair : Columns)
+        // 기존 활성 컬럼에 슬롯 확장
+        for (FHktDataColumn& Col : Columns)
         {
-            Pair.Value.IntData.Add(0);
+            if (Col.PropertyId == -1) continue;
+            Col.IntData.Add(0);
         }
     }
 
@@ -40,9 +83,10 @@ FHktEntityId FHktWorldState::AllocateEntity()
     EntityToIndex[NewId] = SlotIndex;
 
     // 슬롯 데이터 초기화
-    for (auto& Pair : Columns)
+    for (FHktDataColumn& Col : Columns)
     {
-        Pair.Value.SetInt(SlotIndex, 0);
+        if (Col.PropertyId == -1) continue;
+        Col.SetInt(SlotIndex, 0);
     }
     TagColumn[SlotIndex].Reset();
 
@@ -65,7 +109,7 @@ int32 FHktWorldState::GetProperty(FHktEntityId Entity, uint16 PropertyId) const
     if (!IsValidEntity(Entity))
         return 0;
     int32 SlotIndex = EntityToIndex[Entity];
-    const FHktDataColumn* Col = Columns.Find(static_cast<int32>(PropertyId));
+    const FHktDataColumn* Col = GetColumn(static_cast<int32>(PropertyId));
     return Col ? Col->GetInt(SlotIndex) : 0;
 }
 
@@ -80,14 +124,15 @@ void FHktWorldState::SetProperty(FHktEntityId Entity, uint16 PropertyId, int32 V
 
 FHktDataColumn& FHktWorldState::GetOrCreateColumn(int32 PropertyId)
 {
-    FHktDataColumn* Existing = Columns.Find(PropertyId);
-    if (Existing)
-        return *Existing;
+    check(PropertyId >= 0 && PropertyId < Columns.Num());
+    FHktDataColumn& Col = Columns[PropertyId];
+    if (Col.PropertyId != -1)
+        return Col;
 
-    FHktDataColumn& NewCol = Columns.Add(PropertyId);
-    NewCol.PropertyId = PropertyId;
-    NewCol.SetZeroed(IndexToEntity.Num());
-    return NewCol;
+    // 새 컬럼 활성화 (Columns 배열 자체는 재할당 없음)
+    Col.PropertyId = PropertyId;
+    Col.SetZeroed(IndexToEntity.Num());
+    return Col;
 }
 
 FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
@@ -110,21 +155,23 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
         State.TagIndices = TagColumn[SlotIndex];
     }
 
-    // Properties — 모든 컬럼에서 최대 PropertyId를 찾아 배열 구성
+    // Properties — 모든 활성 컬럼에서 최대 PropertyId를 찾아 배열 구성
     int32 MaxPropId = -1;
-    for (const auto& Pair : Columns)
+    for (const FHktDataColumn& Col : Columns)
     {
-        if (Pair.Value.GetInt(SlotIndex) != 0 && Pair.Key > MaxPropId)
-            MaxPropId = Pair.Key;
+        if (Col.PropertyId == -1) continue;
+        if (Col.GetInt(SlotIndex) != 0 && Col.PropertyId > MaxPropId)
+            MaxPropId = Col.PropertyId;
     }
     if (MaxPropId >= 0)
     {
         State.Properties.SetNumZeroed(MaxPropId + 1);
-        for (const auto& Pair : Columns)
+        for (const FHktDataColumn& Col : Columns)
         {
-            if (Pair.Key <= MaxPropId)
+            if (Col.PropertyId == -1) continue;
+            if (Col.PropertyId <= MaxPropId)
             {
-                State.Properties[Pair.Key] = Pair.Value.GetInt(SlotIndex);
+                State.Properties[Col.PropertyId] = Col.GetInt(SlotIndex);
             }
         }
     }
@@ -154,27 +201,43 @@ FArchive& operator<<(FArchive& Ar, FHktWorldState& WorldState)
     Ar << WorldState.IndexToEntity;
     Ar << WorldState.FreeIndices;
 
-    // Columns: TMap<int32, FHktDataColumn>
-    int32 ColCount = WorldState.Columns.Num();
-    Ar << ColCount;
+    // Columns: 활성 컬럼(PropertyId != -1)만 저장/로드
     if (Ar.IsLoading())
     {
-        WorldState.Columns.Reset();
+        // 로드 시 컬럼 배열 초기화
+        WorldState.Columns.SetNum(HktLimits::MaxProperties);
+        for (FHktDataColumn& Col : WorldState.Columns)
+        {
+            Col.PropertyId = -1;
+            Col.IntData.Reset();
+            Col.DirtyIndices.Reset();
+        }
+
+        int32 ColCount;
+        Ar << ColCount;
         for (int32 i = 0; i < ColCount; ++i)
         {
             int32 Key;
             Ar << Key;
-            FHktDataColumn& Col = WorldState.Columns.Add(Key);
-            Ar << Col;
+            check(Key >= 0 && Key < HktLimits::MaxProperties);
+            Ar << WorldState.Columns[Key];
         }
     }
     else
     {
-        for (auto& Pair : WorldState.Columns)
+        // 저장 시 활성 컬럼만 기록
+        int32 ColCount = 0;
+        for (const FHktDataColumn& Col : WorldState.Columns)
         {
-            int32 Key = Pair.Key;
+            if (Col.PropertyId != -1) ++ColCount;
+        }
+        Ar << ColCount;
+        for (FHktDataColumn& Col : WorldState.Columns)
+        {
+            if (Col.PropertyId == -1) continue;
+            int32 Key = Col.PropertyId;
             Ar << Key;
-            Ar << Pair.Value;
+            Ar << Col;
         }
     }
 

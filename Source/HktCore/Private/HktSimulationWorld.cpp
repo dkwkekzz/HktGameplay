@@ -16,12 +16,27 @@ struct FHktSimWorldInternalData
         for (FHktVMStore& Store : StorePool)
         {
             Store.WorldState = WorldState;
+            Store.PendingWrites.Reserve(HktLimits::MaxPendingWritesPerVM);
+            Store.LocalCache.Reserve(HktLimits::MaxLocalCachePerVM);
         }
     }
 };
 
 FHktSimulationWorld::FHktSimulationWorld()
 {
+    // WorldState 고정 버퍼 사전 할당
+    WorldState.Initialize();
+
+    // 멤버 배열 Reserve
+    ActiveVMs.Reserve(HktLimits::MaxVMs);
+    CompletedVMs.Reserve(HktLimits::MaxVMs);
+    GeneratedPhysicsEvents.Reserve(HktLimits::MaxPhysicsEvents);
+    PendingExternalEvents.Reserve(HktLimits::MaxPendingEvents);
+
+    // 시스템 스크래치 버퍼 Reserve
+    EntityArrangeSystem.ScratchRemoveList.Reserve(HktLimits::MaxEntities);
+    VMProcessSystem.ScratchEvents.Reserve(HktLimits::MaxPendingEvents);
+
     // Internal Data 생성
     InternalData = MakeUnique<FHktSimWorldInternalData>();
 
@@ -36,7 +51,7 @@ FHktSimulationWorld::FHktSimulationWorld()
     VMProcessSystem.Interpreter = Interpreter.Get();
 
     // Store 풀 초기화
-    InternalData->Initialize(256, &WorldState);
+    InternalData->Initialize(HktLimits::MaxVMs, &WorldState);
 }
 
 FHktSimulationWorld::~FHktSimulationWorld()
@@ -127,7 +142,7 @@ void FHktSimulationWorld::RestoreWorldState(const FHktWorldState& InState)
     Interpreter->Initialize(&WorldState);
 
     // Store 풀 WorldState 참조 갱신
-    InternalData->Initialize(256, &WorldState);
+    InternalData->Initialize(HktLimits::MaxVMs, &WorldState);
 
     // ActiveEvents에 남아있는 진행 중 이벤트로 VM 재생성
     // (CopyFrom으로 ActiveEvents가 복원되었지만 대응하는 VM이 없으므로)

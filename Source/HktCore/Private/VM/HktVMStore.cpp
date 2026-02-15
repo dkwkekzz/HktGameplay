@@ -14,9 +14,10 @@ int32 FHktVMStore::Read(uint16 PropertyId) const
 int32 FHktVMStore::ReadEntity(FHktEntityId Entity, uint16 PropertyId) const
 {
     uint64 Key = MakeCacheKey(Entity, PropertyId);
-    if (const int32* Cached = LocalCache.Find(Key))
+    for (const FLocalCacheEntry& Entry : LocalCache)
     {
-        return *Cached;
+        if (Entry.Key == Key)
+            return Entry.Value;
     }
 
     // WorldState SOA에서 읽기
@@ -35,23 +36,35 @@ void FHktVMStore::Write(uint16 PropertyId, int32 Value)
 void FHktVMStore::WriteEntity(FHktEntityId Entity, uint16 PropertyId, int32 Value)
 {
     uint64 Key = MakeCacheKey(Entity, PropertyId);
-    LocalCache.Add(Key, Value);
 
-    FPendingWrite W;
-    W.Entity = Entity;
-    W.Value = Value;
-    PendingWritesByProperty.FindOrAdd(PropertyId).Add(W);
+    // LocalCache 업데이트 (기존 항목 덮어쓰기 or 추가)
+    bool bFound = false;
+    for (FLocalCacheEntry& Entry : LocalCache)
+    {
+        if (Entry.Key == Key)
+        {
+            Entry.Value = Value;
+            bFound = true;
+            break;
+        }
+    }
+    if (!bFound)
+    {
+        LocalCache.Add({ Key, Value });
+    }
+
+    PendingWrites.Add({ PropertyId, Entity, Value });
 }
 
 void FHktVMStore::ClearPendingWrites()
 {
-    PendingWritesByProperty.Reset();
+    PendingWrites.Reset();  // 용량 유지
 }
 
 void FHktVMStore::Reset()
 {
-    PendingWritesByProperty.Reset();
-    LocalCache.Reset();
+    PendingWrites.Reset();  // 용량 유지
+    LocalCache.Reset();     // 용량 유지
     SourceEntity = InvalidEntityId;
     TargetEntity = InvalidEntityId;
 }

@@ -12,6 +12,25 @@
 using FHktEntityId = int32;
 constexpr FHktEntityId InvalidEntityId = -1;
 
+// ============================================================================
+// Simulation Limits — 고정 버퍼 크기 상수
+// ============================================================================
+
+namespace HktLimits
+{
+    constexpr int32 MaxEntities = 1024;
+    constexpr int32 MaxProperties = 64;       // PropertyId 최대값 52 + 여유
+    constexpr int32 MaxVMs = 256;
+    constexpr int32 MaxActiveEvents = 256;
+    constexpr int32 MaxPendingEvents = 512;   // 충돌당 2개씩 생성
+    constexpr int32 MaxPhysicsEvents = 256;
+    constexpr int32 MaxOverlayEntries = 1024;
+    constexpr int32 MaxSpatialResults = 128;
+    constexpr int32 MaxDirtyPerColumn = 256;
+    constexpr int32 MaxPendingWritesPerVM = 64;
+    constexpr int32 MaxLocalCachePerVM = 64;
+}
+
 // =========================================================================
 // [인라인 페이로드 시스템]
 // =========================================================================
@@ -223,8 +242,8 @@ struct HKTCORE_API FHktWorldState
     TArray<FHktEntityId> IndexToEntity;  // SlotIndex -> EntityId
     TArray<int32> FreeIndices;           // 재사용 가능 슬롯
 
-    // --- SOA Data Columns (PropertyId -> Column) ---
-    TMap<int32, FHktDataColumn> Columns;
+    // --- SOA Data Columns (PropertyId로 직접 인덱싱, size = MaxProperties) ---
+    TArray<FHktDataColumn> Columns;
     TArray<TArray<int32>> TagColumn;  // SlotIndex -> TagIndices
 
     // --- Active Events (진행 중인 이벤트 — 중간 합류 클라이언트 동기화용) ---
@@ -254,15 +273,24 @@ struct HKTCORE_API FHktWorldState
     void SetProperty(FHktEntityId Entity, uint16 PropertyId, int32 Value);
 
     // --- Column Access ---
-    const FHktDataColumn* GetColumn(int32 PropertyId) const { return Columns.Find(PropertyId); }
+    const FHktDataColumn* GetColumn(int32 PropertyId) const
+    {
+        if (PropertyId >= 0 && PropertyId < Columns.Num() && Columns[PropertyId].PropertyId != -1)
+            return &Columns[PropertyId];
+        return nullptr;
+    }
     FHktDataColumn& GetOrCreateColumn(int32 PropertyId);
+
+    /** 고정 버퍼 사전 할당 (생성 시 1회 호출) */
+    void Initialize();
 
     /** 모든 컬럼의 DirtyIndices를 Reset (프레임 시작 시 호출) */
     void ResetDirtyIndices()
     {
-        for (auto& Pair : Columns)
+        for (FHktDataColumn& Col : Columns)
         {
-            Pair.Value.DirtyIndices.Reset();
+            if (Col.PropertyId == -1) continue;
+            Col.DirtyIndices.Reset();
         }
     }
 
@@ -449,10 +477,10 @@ struct HKTCORE_API FHktWorldView
             return;
 
         // 1. 커밋된 변경: 모든 컬럼의 DirtyIndices 순회
-        for (const auto& Pair : WorldState->Columns)
+        for (const FHktDataColumn& Col : WorldState->Columns)
         {
-            int32 PropId = Pair.Key;
-            const FHktDataColumn& Col = Pair.Value;
+            if (Col.PropertyId == -1) continue;
+            int32 PropId = Col.PropertyId;
             for (int32 Idx : Col.DirtyIndices)
             {
                 FHktEntityId EntityId = WorldState->IndexToEntity[Idx];

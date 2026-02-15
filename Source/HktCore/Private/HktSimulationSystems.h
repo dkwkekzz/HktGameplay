@@ -14,6 +14,7 @@ struct FHktVMStore;
 /** 1. Entity Arrange System: 제거된 소유자 정리 */
 struct HKTCORE_API FHktEntityArrangeSystem
 {
+    TArray<FHktEntityId> ScratchRemoveList;  // Reserve(MaxEntities)
     void Process(FHktWorldState& WorldState, const TArray<int64>& RemovedOwnerIds);
 };
 
@@ -34,6 +35,7 @@ struct HKTCORE_API FHktVMBuildSystem
 struct HKTCORE_API FHktVMProcessSystem
 {
     FHktVMInterpreter* Interpreter = nullptr;
+    TArray<FHktPendingEvent> ScratchEvents;  // Reserve(MaxPendingEvents)
 
     void Process(
         TArray<FHktVMHandle>& ActiveVMs,
