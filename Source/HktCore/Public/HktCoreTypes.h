@@ -275,7 +275,7 @@ struct HKTCORE_API FHktWorldState
     // --- Column Access ---
     const FHktDataColumn* GetColumn(int32 PropertyId) const
     {
-        if (PropertyId >= 0 && PropertyId < Columns.Num() && Columns[PropertyId].PropertyId != -1)
+        if (PropertyId >= 0 && PropertyId < Columns.Num())
             return &Columns[PropertyId];
         return nullptr;
     }
@@ -289,7 +289,6 @@ struct HKTCORE_API FHktWorldState
     {
         for (FHktDataColumn& Col : Columns)
         {
-            if (Col.PropertyId == -1) continue;
             Col.DirtyIndices.Reset();
         }
     }
@@ -479,7 +478,6 @@ struct HKTCORE_API FHktWorldView
         // 1. 커밋된 변경: 모든 컬럼의 DirtyIndices 순회
         for (const FHktDataColumn& Col : WorldState->Columns)
         {
-            if (Col.PropertyId == -1) continue;
             int32 PropId = Col.PropertyId;
             for (int32 Idx : Col.DirtyIndices)
             {
