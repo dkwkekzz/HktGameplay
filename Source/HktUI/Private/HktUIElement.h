@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "Widgets/Layout/SConstraintCanvas.h"
 #include "HktUIElement.generated.h"
 
 class IHktUIView;
@@ -40,6 +41,12 @@ public:
 
 	/** 화면 좌표 Getter (Strategy 계산 결과 캐시) */
 	FVector2D GetScreenPosition() const { return CachedScreenPosition; }
+
+	/** SConstraintCanvas 슬롯 포인터 (nullptr이면 캔버스에 미등록) */
+	SConstraintCanvas::FSlot* CanvasSlot = nullptr;
+
+	/** 화면 밖 여부 (Strategy 실패 시) */
+	bool bIsOnScreen = false;
 
 protected:
 	UPROPERTY()

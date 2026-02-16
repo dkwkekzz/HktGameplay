@@ -6,6 +6,8 @@
 namespace HktGameplayTags
 {
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Widget_LoginHud);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Widget_IngameHud);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Widget_EntityHud);
 
     // Flow IDs - HktFlowDefinitions.h에서 사용되는 Flow 식별자
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Skill_Fireball);

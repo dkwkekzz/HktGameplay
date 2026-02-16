@@ -25,7 +25,16 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_ReceiveLoginResult(bool bSuccess, const FString& Token, const FString& InUserID);
 
-	/** 로그인 성공 시 처리 (GameInstance 저장 및 레벨 이동 등) */
+	/** 로그인 성공 시 처리 (레벨 이동 등) */
 	UFUNCTION(BlueprintCallable, Category = "Hkt|Login")
 	void OnLoginSuccess(const FString& Token, const FString& InUserID);
+
+protected:
+	/** 로그인 인증 후 저장되는 세션 토큰 */
+	UPROPERTY(BlueprintReadWrite, Category = "Auth")
+	FString ClientUserSessionToken;
+
+	/** 로그인한 사용자 ID */
+	UPROPERTY(BlueprintReadWrite, Category = "Auth")
+	FString ClientUserID;
 };

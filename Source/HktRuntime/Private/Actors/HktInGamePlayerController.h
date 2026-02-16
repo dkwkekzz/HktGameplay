@@ -103,11 +103,11 @@ private:
     TUniquePtr<IHktClientRule> ClientRule;
 
     /** 캐싱된 인터페이스 포인터들 */
-    TScriptInterface<IHktIntentBuilder> CachedIntentBuilder;
-    TScriptInterface<IHktUnitSelectionPolicy> CachedSelectionPolicy;
-    TScriptInterface<IHktClientSimulator> CachedClientSimulator;
-    TScriptInterface<IHktCommandContainer> CachedCommandContainer;
-    TScriptInterface<IHktWorldPlayer> CachedWorldPlayer;
+    IHktIntentBuilder* CachedIntentBuilder = nullptr;
+    IHktUnitSelectionPolicy* CachedSelectionPolicy = nullptr;
+    IHktClientSimulator* CachedClientSimulator = nullptr;
+    IHktCommandContainer* CachedCommandContainer = nullptr;
+    IHktWorldPlayer* CachedWorldPlayer = nullptr;
 
 #if WITH_HKT_INSIGHTS
     /** Insight 통계: 보낸 Intent 수, 받은 배치 수 */

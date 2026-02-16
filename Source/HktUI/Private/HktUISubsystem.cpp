@@ -167,6 +167,10 @@ UHktUIElement* UHktUISubsystem::GetOrAddEntityElement(int32 EntityID)
 
 void UHktUISubsystem::RemoveEntityElement(int32 EntityID)
 {
+	if (UHktUIElement* Element = FindEntityElement(EntityID))
+	{
+		RemoveElementFromCanvas(Element);
+	}
 	EntityUIMap.Remove(EntityID);
 }
 
@@ -184,13 +188,24 @@ void UHktUISubsystem::AddElementToCanvas(UHktUIElement* Element)
 	if (!MainCanvasWidget.IsValid() || !Element || !Element->View.IsValid()) return;
 
 	TSharedRef<SWidget> SlateWidget = Element->View->GetSlateWidget();
+
 	MainCanvasWidget->AddSlot()
+		.Expose(Element->CanvasSlot)
 		.Offset(FMargin(Element->CachedScreenPosition.X, Element->CachedScreenPosition.Y, 0.f, 0.f))
 		.Anchors(FAnchors(0.f, 0.f, 0.f, 0.f))
 		.Alignment(FVector2D::ZeroVector)
 		[
 			SlateWidget
 		];
+}
+
+void UHktUISubsystem::RemoveElementFromCanvas(UHktUIElement* Element)
+{
+	if (!MainCanvasWidget.IsValid() || !Element || !Element->View.IsValid()) return;
+
+	TSharedRef<SWidget> SlateWidget = Element->View->GetSlateWidget();
+	MainCanvasWidget->RemoveSlot(SlateWidget);
+	Element->CanvasSlot = nullptr;
 }
 
 void UHktUISubsystem::TickAllElements(float DeltaTime)
@@ -217,5 +232,37 @@ void UHktUISubsystem::TickAllElements(float DeltaTime)
 
 void UHktUISubsystem::UpdateCanvasSlots()
 {
-	// SConstraintCanvas Slot 위치 갱신은 필요 시 Element별 Slot 핸들 저장 후 구현
+	if (!MainCanvasWidget.IsValid()) return;
+
+	auto UpdateSlotForElement = [](UHktUIElement* Element)
+	{
+		if (!Element || !Element->CanvasSlot || !Element->View.IsValid()) return;
+
+		// 슬롯 오프셋을 캐시된 스크린 좌표로 갱신
+		Element->CanvasSlot->SetOffset(FMargin(
+			Element->CachedScreenPosition.X,
+			Element->CachedScreenPosition.Y,
+			0.f, 0.f));
+
+		// 엔티티 HUD만 화면 밖일 때 숨김 (뷰포트 고정 위젯은 항상 표시)
+		if (Element->OwnerEntityID != -1)
+		{
+			Element->View->SetVisibility(Element->bIsOnScreen ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
+		}
+	};
+
+	// RootElement의 직접 자식
+	if (RootElement)
+	{
+		for (UHktUIElement* Child : RootElement->GetChildren())
+		{
+			UpdateSlotForElement(Child);
+		}
+	}
+
+	// Entity UI
+	for (const auto& Pair : EntityUIMap)
+	{
+		UpdateSlotForElement(Pair.Value);
+	}
 }

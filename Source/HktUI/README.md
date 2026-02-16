@@ -2,137 +2,168 @@
 
 ## 개요
 
-HktPresentation에서 UI를 완전 분리한 독립 모듈.
-- **HktPresentation 의존성 없음**
-- `IHktUserEventDispatcher` 인터페이스로 PlayerController와 통신
-- 위젯 부착 대상 추상화: **Viewport / Widget / Entity**
+HktUI는 HktGameplay 플러그인의 UI 모듈입니다. HktPresentation과 완전히 분리된 데이터 기반, 태그 기반 Slate UI 프레임워크를 제공합니다.
 
-## 위젯 부착 추상화
+- **HktPresentation 의존성 없음** - 델리게이트와 인터페이스만을 통한 통신
+- **데이터 기반 위젯 생성** - GameplayTag -> DataAsset -> Slate 위젯 파이프라인
+- **비동기 에셋 로딩** - HktAssetSubsystem 태그 시스템을 통한 위젯 로딩
+- **전략 패턴 포지셔닝** - 뷰포트 고정 및 월드 투영 UI를 위한 플러그 가능한 앵커 전략
 
-```
-EHktUIAttachTarget
-├── Viewport  → AddToViewport (인자 없음). 로그인, 인벤토리 등.
-├── Widget    → 기존 관리 위젯의 자식으로 부착. ParentWidgetTag로 대상 지정.
-└── Entity    → HktEntity 위에 부착. Actor/MassEntity/대상 없음 모두 지원.
-               IHktUserEventDispatcher::GetEntityLocationInfo(EntityId)로 위치 조회.
-               WidgetComponent(Screen Space)를 임시 Actor에 부착, 매 Tick 위치 갱신.
-               엔티티 사라지면(bIsValid=false) 자동 제거.
-```
-
-Entity 부착이 Character에 의존하지 않는 이유:
-- `GetEntityLocationInfo()`가 위치만 반환 → Actor든 MassEntity든 Stash 기반이든 무관
-- PlayerController가 내부적으로 어떤 구현체를 쓰든 UI는 모름
-
-## 핵심 이벤트 흐름
+## 아키텍처
 
 ```
-HUD 위젯 (버튼 클릭 등)
-  │ FHktUIEvent { EventTag, Params, EntityId }
-  ▼
-UHktUISubsystem::HandleUIEvent()
-  │ HktAssetSubsystem::LoadAssetAsync(EventTag)
-  ▼
-UHktUIActionDataAsset
-  ├── ActionType: CreateWidget / DestroyWidget / DispatchEvent / CreateWidgetAndDispatch
-  ├── AttachTarget: Viewport / Widget / Entity
-  └── 관련 설정 (WidgetClass, ParentWidgetTag, EntityAttachOffset 등)
-  │
-  ▼ 액션 수행
-  ├── CreateWidget → AttachToViewport / AttachToWidget / AttachToEntity
-  ├── DestroyWidget → DestroyManagedWidget(TargetWidgetTag)
-  └── DispatchEvent → IHktUserEventDispatcher::DispatchUserEvent(Tag, UHktEventParam*)
+GameMode (HUDClass)
+  |
+  v
+AHktHUD (base)                  <- LoadAndCreateWidget(Tag, Callback)
+  |-- AHktLoginHUD              <- 로그인 화면
+  |-- AHktIngameHUD             <- 인게임 뷰포트 + 엔티티 HUD
+  |
+  v
+UHktUISubsystem (LocalPlayerSubsystem)
+  |-- RootElement (UHktUIElement tree)
+  |-- EntityUIMap (EntityId -> UHktUIElement)
+  |-- SConstraintCanvas (메인 뷰포트 캔버스)
+  |
+  v  Tick
+  |-- TickAllElements()         <- Strategy -> 화면 위치
+  |-- UpdateCanvasSlots()       <- 슬롯 오프셋 + 가시성
 ```
 
-## UObject 콜백 패턴 (로그인 예시)
+### 데이터 흐름
 
 ```
-1. 로그인 버튼 클릭
-2. UHktLoginEventParam 생성 { UserId, Password }
-   └─ OnCompleted 콜백 바인딩
-3. UISubsystem → IHktUserEventDispatcher::DispatchUserEvent(Event_Login, Param)
-4. PlayerController: Tag 매칭 → 서버 패킷 전달
-5. 서버 응답 → Param->Complete(bSuccess)
-6. OnCompleted 브로드캐스트 → UI 업데이트 (위젯 제거 등)
+GameplayTag (Widget.LoginHud)
+  |  HktAssetSubsystem::LoadAssetAsync
+  v
+UHktUITagDataAsset (예: UHktWidgetLoginHudDataAsset)
+  |  CreateView()  ->  TSharedPtr<IHktUIView>  (SWidget를 래핑하는 FHktSlateView)
+  |  CreateStrategy()  ->  UHktUIAnchorStrategy
+  v
+UHktUIElement
+  |  View + Strategy + CanvasSlot
+  v
+SConstraintCanvas slot (Strategy에 의해 매 프레임마다 위치 지정)
 ```
 
-## IHktUserEventDispatcher 구현 가이드
+## HUD 타입
+
+### AHktLoginHUD
+
+로그인 화면 HUD. 로그인 맵의 GameMode에서 `HUDClass`로 설정합니다.
+
+- 마우스 커서와 함께 UI 전용 입력 모드 설정
+- PlayerController에 `UHktLoginComponent`가 없으면 연결
+- `Widget.LoginHud` 태그 로드 -> `SHktLoginHudWidget`
+- 로그인 흐름: ID/PW 입력 -> `UHktLoginComponent::Server_RequestLogin` -> 서버 검증 -> `Client_ReceiveLoginResult` -> `OnLoginSuccess` -> GameInstance에 저장 -> `OpenLevelBySoftObjectPtr`
+
+### AHktIngameHUD
+
+뷰포트 UI와 엔티티별 월드 HUD를 모두 관리하는 인게임 HUD. 인게임 맵의 GameMode에서 `HUDClass`로 설정합니다.
+
+**뷰포트 UI:**
+- `Widget.IngameHud` 태그 로드 -> `SHktIngameHudWidget`
+- 인벤토리 / 장비 / 스킬 토글 버튼이 있는 하단 바
+- 각 버튼은 샘플 데이터가 있는 패널을 엽니다
+
+**엔티티 UI:**
+- 매 틱마다 `UHktClientSimulatorComponent`에서 `FHktWorldView` 읽기
+- `SyncEntityElements()`: 엔티티별로 `SHktEntityHudWidget` 생성/제거
+- `UpdateEntityProperties()`: `ForEachDirtyEntity`를 통해 Health, OwnerPlayerHash, Team을 더티 트래킹
+- `UHktWorldViewAnchorStrategy`: WorldView에서 PosX/Y/Z 읽기 -> `ProjectWorldLocationToScreen`
+
+## 앵커 전략
+
+| 전략 | 사용 사례 | 위치 소스 |
+|------|----------|-----------|
+| `UHktViewportAnchorStrategy` | 로그인, 인게임 뷰포트 | 고정 화면 좌표 (기본값 0,0) |
+| `UHktWorldViewAnchorStrategy` | 엔티티 HUD | FHktWorldView PosX/Y/Z -> 월드 투 화면 투영 |
+
+## 주요 클래스
+
+| 클래스 | 역할 |
+|-------|------|
+| `AHktHUD` | 기본 HUD - 비동기 위젯 로딩, UISubsystem 바인딩 |
+| `AHktLoginHUD` | 로그인 화면 HUD 서브클래스 |
+| `AHktIngameHUD` | 엔티티 추적 기능이 있는 인게임 HUD 서브클래스 |
+| `UHktUISubsystem` | LocalPlayerSubsystem - 엘리먼트 트리, 캔버스 관리, 틱 |
+| `UHktUIElement` | UI 엘리먼트 노드 - View + Strategy + 계층 구조 + 캔버스 슬롯 |
+| `IHktUIView` / `FHktSlateView` | Slate 위젯 래퍼 인터페이스 |
+| `UHktUIAnchorStrategy` | 추상 화면 위치 계산기 |
+| `UHktUITagDataAsset` | `CreateView()` / `CreateStrategy()`가 있는 추상 DataAsset |
+
+## Slate 위젯
+
+| 위젯 | 설명 |
+|------|------|
+| `SHktLoginHudWidget` | 중앙 정렬 로그인 폼 (ID, PW, 버튼, 상태 텍스트) |
+| `SHktIngameHudWidget` | 3개의 토글 패널이 있는 하단 바 (인벤토리, 장비, 스킬) |
+| `SHktEntityHudWidget` | 컴팩트한 엔티티 HUD (엔티티 ID, 소유자 레이블, 체력 바) |
+
+## 헬퍼 API
 
 ```cpp
-// PlayerController에서 구현
-class AHktPlayerController : public APlayerController, public IHktUserEventDispatcher
-{
-public:
-    virtual void DispatchUserEvent(const FGameplayTag& Tag, UHktEventParam* Param) override;
+#include "HktUIHelpers.h"
 
-    virtual FOnHktEntityCreated& OnEntityCreated() override;
-    virtual FOnHktEntityDestroyed& OnEntityDestroyed() override;
-    virtual FOnHktEntityEvent& OnEntityEvent() override;
+// 구체적인 PC 타입을 모르는 상태에서 PC에서 컴포넌트 찾기
+UHktLoginComponent* Comp = HktUI::FindComponent<UHktLoginComponent>(PC);
 
-    // Actor 기반 엔티티
-    virtual FHktEntityLocationInfo GetEntityLocationInfo(FHktEntityId Id) const override
-    {
-        FHktEntityLocationInfo Info;
-        if (AActor* Actor = FindEntityActor(Id))
-        {
-            Info.bIsValid = true;
-            Info.WorldLocation = Actor->GetActorLocation();
-            Info.AttachOffset = FVector(0, 0, 120);
-        }
-        return Info;
-    }
+// IHktUserEventConsumer 인터페이스를 통해 이벤트 전송
+HktUI::SendUserEvent(PC, FHktUserEvent(TEXT("SomeEvent")));
 
-    // MassEntity 기반일 때
-    // virtual FHktEntityLocationInfo GetEntityLocationInfo(FHktEntityId Id) const override
-    // {
-    //     FHktEntityLocationInfo Info;
-    //     FVector Pos;
-    //     if (MassEntitySubsystem->GetEntityPosition(Id, Pos))
-    //     {
-    //         Info.bIsValid = true;
-    //         Info.WorldLocation = Pos;
-    //     }
-    //     return Info;
-    // }
-
-    // Stash 직접 읽기
-    virtual IHktStashInterface* GetStashInterface() const override;
-};
+// Slate 컨텍스트에서 첫 번째 로컬 PlayerController 가져오기
+APlayerController* PC = HktUI::GetFirstLocalPlayerController();
 ```
 
 ## 파일 구조
 
 ```
 HktUI/
-├── HktUI.Build.cs
-├── Public/
-│   ├── IHktUIModule.h
-│   ├── IHktUserEventDispatcher.h   ← HktRuntime에 배치 권장
-│   ├── HktEventParam.h             ← UObject 콜백 패턴
-│   ├── HktUITypes.h                ← EHktUIAttachTarget, FHktUIEvent, FHktManagedWidgetEntry
-│   └── HktUISubsystem.h
-├── Private/
-│   ├── HktUIModule.cpp
-│   ├── HktUISubsystem.cpp
-│   ├── HktEventParam.cpp
-│   ├── Actors/HktLoginHud.h/cpp
-│   ├── Actors/HktRtsHud.h/cpp
-│   ├── DataAssets/
-│   │   ├── HktUIActionDataAsset.h  ← 태그→액션+부착대상 매핑
-│   │   └── HktWidgetLoginHudDataAsset.h
-│   ├── Settings/HktUIGlobalSetting.h
-│   ├── Slates/SHktLoginHudWidget.h/cpp
-│   └── Widgets/
-│       ├── HktRtsHudWidget.h/cpp
-│       └── HktRtsMinimapWidget.h/cpp
-└── README.md
++-- HktUI.Build.cs
++-- README.md
++-- Public/
+|   +-- IHktUIModule.h
+|   +-- IHktUIView.h                    <- Slate 위젯 래퍼 인터페이스
+|   +-- HktUIHelpers.h                  <- FindComponent, SendUserEvent 헬퍼
++-- Private/
+    +-- HktHUD.h/cpp                    <- 기본 HUD (LoadAndCreateWidget)
+    +-- HktLoginHUD.h/cpp               <- 로그인 HUD 서브클래스
+    +-- HktIngameHUD.h/cpp              <- 인게임 HUD 서브클래스 (뷰포트 + 엔티티)
+    +-- HktUISubsystem.h/cpp            <- LocalPlayerSubsystem (트리, 캔버스, 틱)
+    +-- HktUIElement.h/cpp              <- UI 엘리먼트 노드
+    +-- HktUIAnchorStrategy.h           <- 추상 앵커 전략
+    +-- HktViewportAnchorStrategy.h     <- 고정 뷰포트 위치
+    +-- HktWorldViewAnchorStrategy.h/cpp <- WorldView 엔티티 위치
+    +-- HktSlateView.h                  <- FHktSlateView (IHktUIView 구현)
+    +-- HktUITagDataAsset.h             <- 추상 DataAsset 베이스
+    +-- HktWidgetLoginHudDataAsset.h/cpp
+    +-- HktWidgetIngameHudDataAsset.h/cpp
+    +-- HktWidgetEntityHudDataAsset.h/cpp
+    +-- HktLoginComponent.h/cpp         <- 로그인 RPC 컴포넌트
+    +-- Widgets/
+        +-- SHktLoginHudWidget.h/cpp    <- 로그인 Slate 위젯
+        +-- SHktIngameHudWidget.h       <- 인게임 뷰포트 Slate 위젯
+        +-- SHktEntityHudWidget.h       <- 엔티티 월드 Slate 위젯
 ```
 
-## HktPresentation 변경
+## GameplayTags
 
-삭제: 모든 UI 관련 파일 (Actors/HktLoginHud, HktRtsHud, Widgets/*, Slates/*, DataAssets/HktWidgetLoginHudDataAsset, Managers/HktEntityHUDManager)
+| 태그 | DataAsset | 위젯 |
+|------|-----------|------|
+| `Widget.LoginHud` | `UHktWidgetLoginHudDataAsset` | `SHktLoginHudWidget` |
+| `Widget.IngameHud` | `UHktWidgetIngameHudDataAsset` | `SHktIngameHudWidget` |
+| `Widget.EntityHud` | `UHktWidgetEntityHudDataAsset` | `SHktEntityHudWidget` |
 
-수정:
-- `Build.cs` → UMG, Slate, SlateCore, MediaAssets 제거
-- `PresentationSubsystem` → EntityHUDManager 코드 전부 제거
-- `PresentationGlobalSetting` → HUDWidgetClass 제거
-- `PresentationTypes` → FHktEntityHUDData 제거 (HktUITypes로 이동)
+## 설정
+
+1. **로그인 맵 GameMode**: `HUDClass = AHktLoginHUD` 설정
+2. **인게임 맵 GameMode**: `HUDClass = AHktIngameHUD` 설정
+3. **HktRuntimeGlobalSetting**: `InGameMap`을 대상 레벨로 설정 (로그인 -> 인게임 전환용)
+4. **HktAssetSubsystem**: `Widget.LoginHud`, `Widget.IngameHud`, `Widget.EntityHud` 태그에 대한 DataAsset 등록
+
+## 의존성
+
+- **HktCore**: FHktWorldView, FHktWorldState, FHktEntityId, PropertyId
+- **HktRuntime**: HktGameplayTags, HktGameInstance, HktRuntimeGlobalSetting, UHktClientSimulatorComponent
+- **HktAsset**: HktAssetSubsystem (태그 기반 비동기 로딩)
+- **UE5 Slate**: SConstraintCanvas, SCompoundWidget, SProgressBar, SEditableTextBox

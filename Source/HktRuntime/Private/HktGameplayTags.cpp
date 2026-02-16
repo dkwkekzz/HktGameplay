@@ -3,6 +3,8 @@
 namespace HktGameplayTags
 {
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Widget_LoginHud, "Widget.LoginHud", "Login HUD widget.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Widget_IngameHud, "Widget.IngameHud", "In-game viewport HUD widget.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Widget_EntityHud, "Widget.EntityHud", "Entity world HUD widget.");
 
     // Flow IDs - HktFlowDefinitions.h에서 사용되는 Flow 식별자
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Skill_Fireball, "Ability.Skill.Fireball", "Fireball skill: projectile with direct hit and AoE burn damage.");

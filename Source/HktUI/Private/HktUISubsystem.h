@@ -58,6 +58,9 @@ public:
 	/** Element의 View를 메인 캔버스에 추가 (CreateElement 시 자동 호출됨) */
 	void AddElementToCanvas(UHktUIElement* Element);
 
+	/** Element의 View를 메인 캔버스에서 제거 */
+	void RemoveElementFromCanvas(UHktUIElement* Element);
+
 private:
 	void BindPlayerInteraction(APlayerController* PC);
 	void UnbindPlayerInteraction();

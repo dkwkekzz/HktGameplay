@@ -9,6 +9,8 @@
 #include "HktRuntimeTypes.h"
 #include "HktClientRuleInterfaces.generated.h"
 
+class UHktInputAction;
+
 // ============================================================================
 // IHktClientSimulator - 클라이언트 시뮬레이터 인터페이스
 //

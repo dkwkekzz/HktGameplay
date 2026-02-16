@@ -22,7 +22,8 @@ void UHktUIElement::TickElement(float DeltaTime)
 	if (!WorldContext) return;
 
 	FVector2D ScreenPos;
-	if (AnchorStrategy->CalculateScreenPosition(WorldContext, ScreenPos))
+	bIsOnScreen = AnchorStrategy->CalculateScreenPosition(WorldContext, ScreenPos);
+	if (bIsOnScreen)
 	{
 		CachedScreenPosition = ScreenPos;
 	}

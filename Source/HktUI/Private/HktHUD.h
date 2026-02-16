@@ -35,10 +35,9 @@ protected:
 	/** HktRuntime의 WorldView 참조 (설정 시 UpdateEntityUI에서 엔티티 UI 갱신) */
 	TSharedPtr<void> WorldView;
 
-	/** 엔티티 UI 생성/제거/갱신 (WorldView가 설정된 경우에만 유효) */
-	void UpdateEntityUI();
+	/** 엔티티 UI 생성/제거/갱신 (WorldView가 설정된 경우에만 유효). 서브클래스에서 오버라이드 가능 */
+	virtual void UpdateEntityUI();
 
-private:
 	UPROPERTY()
 	TObjectPtr<UHktUISubsystem> UISubsystem;
 };

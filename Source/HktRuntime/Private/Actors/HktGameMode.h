@@ -63,11 +63,11 @@ public:
 
 private:
     /** 캐싱된 인터페이스 포인터들 */
-    TScriptInterface<IHktFrameManager> CachedFrameManager;
-    TScriptInterface<IHktRelevancyGraph> CachedRelevancyGraph;
-    TScriptInterface<IHktWorldDatabase> CachedWorldDatabase;
-    TScriptInterface<IHktIntentCollector> CachedIntentCollector;
-    TScriptInterface<IHktBatchBuilder> CachedBatchBuilder;
+    IHktFrameManager* CachedFrameManager = nullptr;
+    IHktRelevancyGraph* CachedRelevancyGraph = nullptr;
+    IHktWorldDatabase* CachedWorldDatabase = nullptr;
+    IHktIntentCollector* CachedIntentCollector = nullptr;
+    IHktBatchBuilder* CachedBatchBuilder = nullptr;
 
 private:
     /** Insight 통계: 틱 당 처리 시간 추적 */

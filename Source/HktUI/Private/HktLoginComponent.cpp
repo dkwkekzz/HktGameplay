@@ -1,6 +1,9 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktLoginComponent.h"
+#include "Settings/HktUIGlobalSetting.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerController.h"
 
 UHktLoginComponent::UHktLoginComponent()
 {
@@ -14,9 +17,13 @@ bool UHktLoginComponent::Server_RequestLogin_Validate(const FString& ID, const F
 
 void UHktLoginComponent::Server_RequestLogin_Implementation(const FString& ID, const FString& PW)
 {
-	// TODO: 실제 서버 로직 (DB 검증, 토큰 발급 등)
-	// 임시: 클라이언트에 성공 결과 전달
-	Client_ReceiveLoginResult(true, TEXT("TempToken"), ID);
+	// 서버에서 로그인 검증 (TODO: 실제 웹 API/DB 연동)
+	// 현재는 목(mock): 유효한 ID면 성공
+	const bool bSuccess = !ID.IsEmpty();
+	const FString Token = bSuccess ? (TEXT("MockToken_") + ID) : FString();
+	const FString UserID = bSuccess ? ID : FString();
+
+	Client_ReceiveLoginResult(bSuccess, Token, UserID);
 }
 
 void UHktLoginComponent::Client_ReceiveLoginResult_Implementation(bool bSuccess, const FString& Token, const FString& InUserID)
@@ -25,9 +32,33 @@ void UHktLoginComponent::Client_ReceiveLoginResult_Implementation(bool bSuccess,
 	{
 		OnLoginSuccess(Token, InUserID);
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("HktLoginComponent: Login failed (server rejected)"));
+	}
 }
 
 void UHktLoginComponent::OnLoginSuccess(const FString& Token, const FString& InUserID)
 {
-	// TODO: GameInstance에 토큰/유저 ID 저장, 레벨 이동 등
+	APlayerController* PC = Cast<APlayerController>(GetOwner());
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("HktLoginComponent: Owner is not a PlayerController"));
+		return;
+	}
+
+	// 로그인 정보를 컴포넌트에 저장
+	ClientUserSessionToken = Token;
+	ClientUserID = InUserID;
+
+	const UHktUIGlobalSetting* Settings = GetDefault<UHktUIGlobalSetting>();
+	if (!Settings || Settings->InGameMap.IsNull())
+	{
+		UE_LOG(LogTemp, Error, TEXT("HktLoginComponent: InGameMap is not set in Hkt UI Settings"));
+		return;
+	}
+
+	const TSoftObjectPtr<UWorld>& Level = Settings->InGameMap;
+	UE_LOG(LogTemp, Log, TEXT("HktLoginComponent: Login success, opening level '%s'"), *Level.GetLongPackageName());
+	UGameplayStatics::OpenLevelBySoftObjectPtr(PC, Level);
 }

@@ -40,28 +40,33 @@ void AHktInGamePlayerController::BeginPlay()
         ClientRule = MakeUnique<FHktDefaultClientRule>();
     }
 
-    // FindComponentByInterface를 이용해서 인터페이스들을 캐싱
-    if (IHktIntentBuilder* IntentBuilder = FindComponentByInterface<IHktIntentBuilder>())
+    // GetComponents를 이용해서 인터페이스들을 캐싱
+    TArray<UActorComponent*> Components;
+    GetComponents(Components);
+    for (UActorComponent* Comp : Components)
     {
-        CachedIntentBuilder = TScriptInterface<IHktIntentBuilder>(IntentBuilder);
-    }
-    if (IHktUnitSelectionPolicy* SelectionPolicy = FindComponentByInterface<IHktUnitSelectionPolicy>())
-    {
-        CachedSelectionPolicy = TScriptInterface<IHktUnitSelectionPolicy>(SelectionPolicy);
-    }
-    if (IHktClientSimulator* ClientSimulator = FindComponentByInterface<IHktClientSimulator>())
-    {
-        CachedClientSimulator = TScriptInterface<IHktClientSimulator>(ClientSimulator);
-    }
-    if (IHktCommandContainer* CommandContainer = FindComponentByInterface<IHktCommandContainer>())
-    {
-        CachedCommandContainer = TScriptInterface<IHktCommandContainer>(CommandContainer);
-        // SetSlotActions 설정
-        CommandContainer->SetSlotActions(SlotActions);
-    }
-    if (IHktWorldPlayer* WorldPlayer = FindComponentByInterface<IHktWorldPlayer>())
-    {
-        CachedWorldPlayer = TScriptInterface<IHktWorldPlayer>(WorldPlayer);
+        if (IHktIntentBuilder* IntentBuilder = Cast<IHktIntentBuilder>(Comp))
+        {
+            CachedIntentBuilder = IntentBuilder;
+        }
+        else if (IHktUnitSelectionPolicy* SelectionPolicy = Cast<IHktUnitSelectionPolicy>(Comp))
+        {
+            CachedSelectionPolicy = SelectionPolicy;
+        }
+        else if (IHktClientSimulator* ClientSimulator = Cast<IHktClientSimulator>(Comp))
+        {
+            CachedClientSimulator = ClientSimulator;
+        }
+        else if (IHktCommandContainer* CommandContainer = Cast<IHktCommandContainer>(Comp))
+        {
+            CachedCommandContainer = CommandContainer;
+            // SetSlotActions 설정
+            CommandContainer->SetSlotActions(SlotActions);
+        }
+        else if (IHktWorldPlayer* WorldPlayer = Cast<IHktWorldPlayer>(Comp))
+        {
+            CachedWorldPlayer = WorldPlayer;
+        }
     }
 
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
@@ -69,6 +74,12 @@ void AHktInGamePlayerController::BeginPlay()
 
 void AHktInGamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    CachedIntentBuilder = nullptr;
+    CachedSelectionPolicy = nullptr;
+    CachedClientSimulator = nullptr;
+    CachedCommandContainer = nullptr;
+    CachedWorldPlayer = nullptr;
+
     HKT_INSIGHTS_UNREGISTER_PROVIDER(this);
     Super::EndPlay(EndPlayReason);
 }
@@ -77,9 +88,9 @@ void AHktInGamePlayerController::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
     // PlayerState가 변경되면 컴포넌트의 캐시를 무효화
-    if (IHktWorldPlayer* WorldPlayer = CachedWorldPlayer.GetInterface())
+    if (CachedWorldPlayer)
     {
-        WorldPlayer->InvalidatePlayerUidCache();
+        CachedWorldPlayer->InvalidatePlayerUidCache();
     }
 }
 
@@ -103,8 +114,8 @@ void AHktInGamePlayerController::SetupInputComponent()
 void AHktInGamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
-    IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy.GetInterface();
-    IHktIntentBuilder* Builder = CachedIntentBuilder.GetInterface();
+    IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy;
+    IHktIntentBuilder* Builder = CachedIntentBuilder;
     if (!Rule || !Policy || !Builder) return;
     Rule->OnUserEvent_SubjectInputAction(*Policy, *Builder);
     SubjectChangedDelegate.Broadcast(Builder->GetSubjectEntityId());
@@ -113,8 +124,8 @@ void AHktInGamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
-    IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy.GetInterface();
-    IHktIntentBuilder* Builder = CachedIntentBuilder.GetInterface();
+    IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy;
+    IHktIntentBuilder* Builder = CachedIntentBuilder;
     if (!Rule || !Policy || !Builder) return;
     Rule->OnUserEvent_TargetInputAction(*Policy, *Builder);
     TargetChangedDelegate.Broadcast(Builder->GetTargetEntityId());
@@ -130,8 +141,8 @@ void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
 void AHktInGamePlayerController::OnSlotAction(const FInputActionValue& Value, int32 SlotIndex)
 {
     IHktClientRule* Rule = GetClientRule();
-    IHktCommandContainer* Container = CachedCommandContainer.GetInterface();
-    IHktIntentBuilder* Builder = CachedIntentBuilder.GetInterface();
+    IHktCommandContainer* Container = CachedCommandContainer;
+    IHktIntentBuilder* Builder = CachedIntentBuilder;
     if (!Rule || !Container || !Builder) return;
     Rule->OnUserEvent_CommandInputAction(*Container, SlotIndex, *Builder);
     CommandChangedDelegate.Broadcast(Builder->GetEventTag());
@@ -174,7 +185,7 @@ void AHktInGamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
 #endif
 
     IHktClientRule* Rule = GetClientRule();
-    IHktClientSimulator* Simulator = CachedClientSimulator.GetInterface();
+    IHktClientSimulator* Simulator = CachedClientSimulator;
     if (!Rule || !Simulator) return;
     Rule->OnReceived_FrameBatch(Batch, *Simulator);
 }
@@ -197,7 +208,7 @@ void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const
 #endif
 
     IHktClientRule* Rule = GetClientRule();
-    IHktClientSimulator* Simulator = CachedClientSimulator.GetInterface();
+    IHktClientSimulator* Simulator = CachedClientSimulator;
     if (!Rule || !Simulator) return;
     Rule->OnReceived_InitialSimulationState(State, *Simulator);
 }
@@ -239,7 +250,7 @@ IHktClientRule* AHktInGamePlayerController::GetClientRule() const
 
 int64 AHktInGamePlayerController::GetPlayerUid() const
 {
-    if (CachedWorldPlayer.GetInterface())
+    if (CachedWorldPlayer)
     {
         return CachedWorldPlayer->GetPlayerUid();
     }
@@ -273,10 +284,10 @@ void AHktInGamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnap
     }
 
     // === IntentBuilder 상태 ===
-    if (CachedIntentBuilder.GetInterface())
+    if (CachedIntentBuilder)
     {
         const FString Cat = TEXT("IntentBuilder");
-        const IHktIntentBuilder* Builder = CachedIntentBuilder.GetInterface();
+        const IHktIntentBuilder* Builder = CachedIntentBuilder;
         OutSnapshot.AddInfo(Cat, TEXT("Subject"), FString::FromInt(Builder->GetSubjectEntityId()));
         OutSnapshot.AddInfo(Cat, TEXT("Target"), FString::FromInt(Builder->GetTargetEntityId()));
 
@@ -287,10 +298,10 @@ void AHktInGamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnap
     }
 
     // === ClientSimulator 상태 ===
-    if (CachedClientSimulator.GetInterface())
+    if (CachedClientSimulator)
     {
         const FString Cat = TEXT("ClientSimulator");
-        const IHktClientSimulator* Simulator = CachedClientSimulator.GetInterface();
+        const IHktClientSimulator* Simulator = CachedClientSimulator;
         bool bInit = Simulator->IsInitialized();
         OutSnapshot.AddInfo(Cat, TEXT("Initialized"), bInit ? TEXT("Yes") : TEXT("No"));
         if (bInit)
@@ -304,18 +315,18 @@ void AHktInGamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnap
     }
 
     // === CommandContainer 상태 ===
-    if (CachedCommandContainer.GetInterface())
+    if (CachedCommandContainer)
     {
         const FString Cat = TEXT("CommandContainer");
-        const IHktCommandContainer* Container = CachedCommandContainer.GetInterface();
+        const IHktCommandContainer* Container = CachedCommandContainer;
         OutSnapshot.AddInfo(Cat, TEXT("NumSlots"), FString::FromInt(Container->GetNumSlots()));
     }
 
     // === WorldPlayer 상태 (서버) ===
-    if (CachedWorldPlayer.GetInterface())
+    if (CachedWorldPlayer)
     {
         const FString Cat = TEXT("WorldPlayer");
-        const IHktWorldPlayer* WorldPlayer = CachedWorldPlayer.GetInterface();
+        const IHktWorldPlayer* WorldPlayer = CachedWorldPlayer;
         OutSnapshot.AddInfo(Cat, TEXT("PlayerUid"), FString::Printf(TEXT("%lld"), WorldPlayer->GetPlayerUid()));
         OutSnapshot.AddInfo(Cat, TEXT("Initialized"), WorldPlayer->IsInitialized() ? TEXT("Yes") : TEXT("No"));
     }
