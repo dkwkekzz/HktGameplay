@@ -7,6 +7,8 @@
 #include "InputActionValue.h"
 #include "HktCoreTypes.h"
 #include "HktRuntimeDelegates.h"
+#include "HktClientRuleInterfaces.h"
+#include "HktServerRuleInterfaces.h"
 
 #if WITH_HKT_INSIGHTS
 #include "HktInsightProvider.h"
@@ -17,11 +19,6 @@
 class UInputMappingContext;
 class UInputAction;
 class UHktInputAction;
-class UHktIntentBuilderComponent;
-class UHktDesktopDefaultSelectionPolicy;
-class UHktClientSimulatorComponent;
-class UHktCommandContainerComponent;
-class UHktWorldPlayerComponent;
 class IHktClientRule;
 struct FHktRuntimeBatch;
 struct FHktRuntimeSimulationState;
@@ -56,7 +53,7 @@ public:
     FOnHktWheelInput& OnWheelInput() { return WheelInputDelegate; }
 
     // === Player UID ===
-    /** WorldPlayerComponent를 통해 Player UID를 반환합니다. */
+    /** 인터페이스를 통해 Player UID를 반환합니다. */
     int64 GetPlayerUid() const;
 
 protected:
@@ -95,34 +92,22 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TArray<TObjectPtr<UHktInputAction>> SlotActions;
 
-    // === 컴포넌트 ===
-
-    /** IHktIntentBuilder (클라이언트) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktIntentBuilderComponent> IntentBuilderComponent;
-
-    /** IHktUnitSelectionPolicy (클라이언트) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktDesktopDefaultSelectionPolicy> SelectionPolicyComponent;
-
-    /** IHktSimulator (클라이언트) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktClientSimulatorComponent> ClientSimulatorComponent;
-
-    /** IHktCommandContainer (클라이언트) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktCommandContainerComponent> CommandContainerComponent;
-
-    /** IHktWorldPlayer (서버) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktWorldPlayerComponent> WorldPlayerComponent;
-
 private:
     FOnHktSubjectChanged SubjectChangedDelegate;
     FOnHktTargetChanged TargetChangedDelegate;
     FOnHktCommandChanged CommandChangedDelegate;
     FOnHktIntentSubmitted IntentSubmittedDelegate;
     FOnHktWheelInput WheelInputDelegate;
+
+    /** 클라이언트 규칙 */
+    TUniquePtr<IHktClientRule> ClientRule;
+
+    /** 캐싱된 인터페이스 포인터들 */
+    TScriptInterface<IHktIntentBuilder> CachedIntentBuilder;
+    TScriptInterface<IHktUnitSelectionPolicy> CachedSelectionPolicy;
+    TScriptInterface<IHktClientSimulator> CachedClientSimulator;
+    TScriptInterface<IHktCommandContainer> CachedCommandContainer;
+    TScriptInterface<IHktWorldPlayer> CachedWorldPlayer;
 
 #if WITH_HKT_INSIGHTS
     /** Insight 통계: 보낸 Intent 수, 받은 배치 수 */

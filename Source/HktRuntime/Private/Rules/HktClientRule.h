@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktRuleInterfaces.h"
 #include "HktRuntimeTypes.h"
 #include "HktClientRuleInterfaces.h"
 

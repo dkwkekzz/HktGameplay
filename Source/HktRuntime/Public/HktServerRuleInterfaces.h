@@ -75,6 +75,12 @@ class HKTRUNTIME_API IHktWorldPlayer
 public:
 	virtual int64 GetPlayerUid() const = 0;
 	virtual AActor* GetOwnerActor() const = 0;
+	
+	/** 초기화 여부 확인 */
+	virtual bool IsInitialized() const = 0;
+	
+	/** PlayerState 변경 시 캐시를 무효화합니다. */
+	virtual void InvalidatePlayerUidCache() = 0;
 };
 
 //=============================================================================
@@ -98,6 +104,9 @@ public:
 	virtual void PushIntents(int64 InPlayerUid, const TArray<FHktEvent>& InEvents) = 0;
 	virtual void EnterWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
 	virtual void ExitWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
+	
+	/** 프레임 종료 시 소비된 데이터 정리 */
+	virtual void EndFrame() = 0;
 };
 
 //=============================================================================
@@ -253,4 +262,30 @@ class HKTRUNTIME_API IHktAuthenticator
 public:
 	virtual void Authenticate(const FString& ID, const FString& PW, TFunction<void(bool bSuccess, const FString& Token)> ResultCallback) = 0;
 	virtual void Deauthenticate(const FString& Token) = 0;
+};
+
+//=============================================================================
+// IHktServerRule
+//=============================================================================
+
+class HKTRUNTIME_API IHktServerRule
+{
+public:
+    virtual ~IHktServerRule() = default;
+
+    // --- 인증 ---
+    virtual void OnReceived_Authentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal, TFunction<void(bool bSuccess, const FString& Token)> InResultCallback) {}
+    virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) {}
+
+    // --- Intent 수신 ---
+    virtual void OnReceived_FireIntentEvent(const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector) {}
+
+    // --- 로그인/로그아웃 ---
+    virtual void OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) {}
+    virtual void OnLogout_ExitWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) {}
+
+    // --- 틱 ---
+    virtual void OnEvent_RequestAutosave(int64 PlayerUid) {}
+    virtual void OnTick_ProcessPendingConnections(IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktWorldDatabase& InDB, TFunction<IHktWorldPlayer*(const FHktPlayerRecord&)> PlayerFactory) {}
+    virtual void OnTick_ProcessSimulationAndPayloads(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& InOutBuilder) {}
 };

@@ -4,6 +4,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "HktRuntimeTypes.h"
 #include "HktDatabaseTypes.h"
+#include "HktServerRuleInterfaces.h"
 
 #if WITH_HKT_INSIGHTS
 #include "HktInsightProvider.h"
@@ -11,12 +12,6 @@
 
 #include "HktGameMode.generated.h"
 
-class UHktGridRelevancyComponent;
-class UHktFileDatabaseComponent;
-class UHktFilePersistentFrameComponent;
-class UHktIntentCollectorComponent;
-class UHktBatchBuilderComponent;
-class UHktWorldPlayerComponent;
 class AHktInGamePlayerController;
 class IHktServerRule;
 struct FHktFrameSendPayload;
@@ -66,28 +61,18 @@ public:
     virtual FString GetInsightProviderName() const override { return TEXT("GameMode"); }
 #endif
 
-protected:
-    /** IHktPersistentFrame 구현 */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktFilePersistentFrameComponent> PersistentFrameComponent;
-
-    /** IHktRelevancyGraph 구현 */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktGridRelevancyComponent> GridRelevancyComponent;
-
-    /** IHktWorldDatabase 구현 */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktFileDatabaseComponent> PlayerDatabaseComponent;
-
-    /** IHktIntentCollector 구현 */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktIntentCollectorComponent> IntentCollectorComponent;
-
-    /** IHktBatchBuilder 구현 */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hkt|Components")
-    TObjectPtr<UHktBatchBuilderComponent> BatchBuilderComponent;
+private:
+    /** 캐싱된 인터페이스 포인터들 */
+    TScriptInterface<IHktFrameManager> CachedFrameManager;
+    TScriptInterface<IHktRelevancyGraph> CachedRelevancyGraph;
+    TScriptInterface<IHktWorldDatabase> CachedWorldDatabase;
+    TScriptInterface<IHktIntentCollector> CachedIntentCollector;
+    TScriptInterface<IHktBatchBuilder> CachedBatchBuilder;
 
 private:
     /** Insight 통계: 틱 당 처리 시간 추적 */
     float LastTickDurationMs = 0.0f;
+
+    /** 서버 규칙 */
+    TUniquePtr<IHktServerRule> ServerRule;
 };

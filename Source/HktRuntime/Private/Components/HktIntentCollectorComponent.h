@@ -39,14 +39,12 @@ public:
     virtual void PushIntents(int64 InPlayerUid, const TArray<FHktEvent>& InEvents) override;
     virtual void EnterWorldPlayer(int32 GroupIndex, int64 InPlayerUid) override;
     virtual void ExitWorldPlayer(int32 GroupIndex, int64 InPlayerUid) override;
+    virtual void EndFrame() override;
 
     // === 추가 API (Rule 시그니처의 PushIntent 단일 이벤트) ===
 
     /** 단일 Intent 추가 (스레드 안전) */
     void PushIntent(int64 InPlayerUid, const FHktEvent& InEvent);
-
-    /** 프레임 종료 시 소비된 데이터 정리 */
-    void EndFrame();
 
 private:
     // 플레이어별 Intent 큐

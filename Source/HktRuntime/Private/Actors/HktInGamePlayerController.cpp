@@ -2,14 +2,8 @@
 
 #include "HktInGamePlayerController.h"
 #include "HktPlayerState.h"
-#include "HktRuleSubsystem.h"
-#include "HktRuleInterfaces.h"
+#include "HktClientRuleInterfaces.h"
 #include "Rules/HktClientRule.h"
-#include "Components/HktIntentBuilderComponent.h"
-#include "Components/HktDesktopDefaultSelectionPolicy.h"
-#include "Components/HktClientSimulatorComponent.h"
-#include "Components/HktCommandContainerComponent.h"
-#include "Components/HktWorldPlayerComponent.h"
 #include "DataAssets/HktInputAction.h"
 #include "HktGameMode.h"
 #include "EnhancedInputSubsystems.h"
@@ -39,36 +33,35 @@ void AHktInGamePlayerController::BeginPlay()
         }
     }
 
-    // 서버 전용: WorldPlayerComponent (IHktWorldPlayer)
-    if (HasAuthority())
+    // 컴포넌트는 블루프린트나 다른 방식으로 추가됨
+
+    if (!ClientRule)
     {
-        WorldPlayerComponent = NewObject<UHktWorldPlayerComponent>(this, TEXT("WorldPlayer"));
-        WorldPlayerComponent->RegisterComponent();
+        ClientRule = MakeUnique<FHktDefaultClientRule>();
     }
 
-    // 클라이언트 전용 컴포넌트
-    if (GetWorld()->GetNetMode() == ENetMode::NM_Standalone || !HasAuthority())
+    // FindComponentByInterface를 이용해서 인터페이스들을 캐싱
+    if (IHktIntentBuilder* IntentBuilder = FindComponentByInterface<IHktIntentBuilder>())
     {
-        IntentBuilderComponent = NewObject<UHktIntentBuilderComponent>(this, TEXT("IntentBuilder"));
-        IntentBuilderComponent->RegisterComponent();
-
-        SelectionPolicyComponent = NewObject<UHktDesktopDefaultSelectionPolicy>(this, TEXT("SelectionPolicy"));
-        SelectionPolicyComponent->RegisterComponent();
-
-        ClientSimulatorComponent = NewObject<UHktClientSimulatorComponent>(this, TEXT("ClientSimulator"));
-        ClientSimulatorComponent->RegisterComponent();
-
-        CommandContainerComponent = NewObject<UHktCommandContainerComponent>(this, TEXT("CommandContainer"));
-        CommandContainerComponent->RegisterComponent();
-        CommandContainerComponent->SetSlotActions(SlotActions);
+        CachedIntentBuilder = TScriptInterface<IHktIntentBuilder>(IntentBuilder);
     }
-
-    if (UHktRuleSubsystem* RuleSS = UHktRuleSubsystem::Get(GetWorld()))
+    if (IHktUnitSelectionPolicy* SelectionPolicy = FindComponentByInterface<IHktUnitSelectionPolicy>())
     {
-        if (!RuleSS->GetClientRule())
-        {
-            RuleSS->SetClientRule(MakeShared<FHktDefaultClientRule>());
-        }
+        CachedSelectionPolicy = TScriptInterface<IHktUnitSelectionPolicy>(SelectionPolicy);
+    }
+    if (IHktClientSimulator* ClientSimulator = FindComponentByInterface<IHktClientSimulator>())
+    {
+        CachedClientSimulator = TScriptInterface<IHktClientSimulator>(ClientSimulator);
+    }
+    if (IHktCommandContainer* CommandContainer = FindComponentByInterface<IHktCommandContainer>())
+    {
+        CachedCommandContainer = TScriptInterface<IHktCommandContainer>(CommandContainer);
+        // SetSlotActions 설정
+        CommandContainer->SetSlotActions(SlotActions);
+    }
+    if (IHktWorldPlayer* WorldPlayer = FindComponentByInterface<IHktWorldPlayer>())
+    {
+        CachedWorldPlayer = TScriptInterface<IHktWorldPlayer>(WorldPlayer);
     }
 
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
@@ -84,9 +77,9 @@ void AHktInGamePlayerController::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
     // PlayerState가 변경되면 컴포넌트의 캐시를 무효화
-    if (WorldPlayerComponent)
+    if (IHktWorldPlayer* WorldPlayer = CachedWorldPlayer.GetInterface())
     {
-        WorldPlayerComponent->InvalidatePlayerUidCache();
+        WorldPlayer->InvalidatePlayerUidCache();
     }
 }
 
@@ -110,21 +103,25 @@ void AHktInGamePlayerController::SetupInputComponent()
 void AHktInGamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
-    if (!Rule || !IntentBuilderComponent || !SelectionPolicyComponent) return;
-    Rule->OnUserEvent_SubjectInputAction(*SelectionPolicyComponent, *IntentBuilderComponent);
-    SubjectChangedDelegate.Broadcast(IntentBuilderComponent->GetSubjectEntityId());
+    IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy.GetInterface();
+    IHktIntentBuilder* Builder = CachedIntentBuilder.GetInterface();
+    if (!Rule || !Policy || !Builder) return;
+    Rule->OnUserEvent_SubjectInputAction(*Policy, *Builder);
+    SubjectChangedDelegate.Broadcast(Builder->GetSubjectEntityId());
 }
 
 void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
-    if (!Rule || !IntentBuilderComponent || !SelectionPolicyComponent) return;
-    Rule->OnUserEvent_TargetInputAction(*SelectionPolicyComponent, *IntentBuilderComponent);
-    TargetChangedDelegate.Broadcast(IntentBuilderComponent->GetTargetEntityId());
+    IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy.GetInterface();
+    IHktIntentBuilder* Builder = CachedIntentBuilder.GetInterface();
+    if (!Rule || !Policy || !Builder) return;
+    Rule->OnUserEvent_TargetInputAction(*Policy, *Builder);
+    TargetChangedDelegate.Broadcast(Builder->GetTargetEntityId());
 
-    if (IntentBuilderComponent->HasPendingSubmit())
+    if (Builder->HasPendingSubmit())
     {
-        FHktRuntimeEvent Event = IntentBuilderComponent->ConsumePendingSubmit();
+        FHktRuntimeEvent Event = Builder->ConsumePendingSubmit();
         Server_ReceiveIntent(Event);
         IntentSubmittedDelegate.Broadcast(Event);
     }
@@ -133,13 +130,15 @@ void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
 void AHktInGamePlayerController::OnSlotAction(const FInputActionValue& Value, int32 SlotIndex)
 {
     IHktClientRule* Rule = GetClientRule();
-    if (!Rule || !IntentBuilderComponent || !CommandContainerComponent) return;
-    Rule->OnUserEvent_CommandInputAction(*CommandContainerComponent, SlotIndex, *IntentBuilderComponent);
-    CommandChangedDelegate.Broadcast(IntentBuilderComponent->GetEventTag());
+    IHktCommandContainer* Container = CachedCommandContainer.GetInterface();
+    IHktIntentBuilder* Builder = CachedIntentBuilder.GetInterface();
+    if (!Rule || !Container || !Builder) return;
+    Rule->OnUserEvent_CommandInputAction(*Container, SlotIndex, *Builder);
+    CommandChangedDelegate.Broadcast(Builder->GetEventTag());
 
-    if (IntentBuilderComponent->HasPendingSubmit())
+    if (Builder->HasPendingSubmit())
     {
-        FHktRuntimeEvent Event = IntentBuilderComponent->ConsumePendingSubmit();
+        FHktRuntimeEvent Event = Builder->ConsumePendingSubmit();
         Server_ReceiveIntent(Event);
         IntentSubmittedDelegate.Broadcast(Event);
     }
@@ -175,8 +174,9 @@ void AHktInGamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
 #endif
 
     IHktClientRule* Rule = GetClientRule();
-    if (!Rule || !ClientSimulatorComponent) return;
-    Rule->OnReceived_FrameBatch(Batch, *ClientSimulatorComponent);
+    IHktClientSimulator* Simulator = CachedClientSimulator.GetInterface();
+    if (!Rule || !Simulator) return;
+    Rule->OnReceived_FrameBatch(Batch, *Simulator);
 }
 
 void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State)
@@ -197,8 +197,9 @@ void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const
 #endif
 
     IHktClientRule* Rule = GetClientRule();
-    if (!Rule || !ClientSimulatorComponent) return;
-    Rule->OnReceived_InitialSimulationState(State, *ClientSimulatorComponent);
+    IHktClientSimulator* Simulator = CachedClientSimulator.GetInterface();
+    if (!Rule || !Simulator) return;
+    Rule->OnReceived_InitialSimulationState(State, *Simulator);
 }
 
 bool AHktInGamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)
@@ -233,19 +234,14 @@ void AHktInGamePlayerController::Server_ReceiveIntent_Implementation(const FHktR
 
 IHktClientRule* AHktInGamePlayerController::GetClientRule() const
 {
-    if (UHktRuleSubsystem* RuleSS = UHktRuleSubsystem::Get(GetWorld()))
-    {
-        TSharedPtr<IHktClientRule> Rule = RuleSS->GetClientRule();
-        return Rule.Get();
-    }
-    return nullptr;
+    return ClientRule.Get();
 }
 
 int64 AHktInGamePlayerController::GetPlayerUid() const
 {
-    if (WorldPlayerComponent)
+    if (CachedWorldPlayer.GetInterface())
     {
-        return WorldPlayerComponent->GetPlayerUid();
+        return CachedWorldPlayer->GetPlayerUid();
     }
     return 0;
 }
@@ -277,27 +273,29 @@ void AHktInGamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnap
     }
 
     // === IntentBuilder 상태 ===
-    if (IntentBuilderComponent)
+    if (CachedIntentBuilder.GetInterface())
     {
         const FString Cat = TEXT("IntentBuilder");
-        OutSnapshot.AddInfo(Cat, TEXT("Subject"), FString::FromInt(IntentBuilderComponent->GetSubjectEntityId()));
-        OutSnapshot.AddInfo(Cat, TEXT("Target"), FString::FromInt(IntentBuilderComponent->GetTargetEntityId()));
+        const IHktIntentBuilder* Builder = CachedIntentBuilder.GetInterface();
+        OutSnapshot.AddInfo(Cat, TEXT("Subject"), FString::FromInt(Builder->GetSubjectEntityId()));
+        OutSnapshot.AddInfo(Cat, TEXT("Target"), FString::FromInt(Builder->GetTargetEntityId()));
 
-        FGameplayTag Tag = IntentBuilderComponent->GetEventTag();
+        FGameplayTag Tag = Builder->GetEventTag();
         OutSnapshot.AddInfo(Cat, TEXT("Command"), Tag.IsValid() ? Tag.ToString() : TEXT("(none)"));
-        OutSnapshot.AddInfo(Cat, TEXT("ReadyToSubmit"), IntentBuilderComponent->IsReadyToSubmit() ? TEXT("Yes") : TEXT("No"));
-        OutSnapshot.AddInfo(Cat, TEXT("PendingSubmit"), IntentBuilderComponent->HasPendingSubmit() ? TEXT("Yes") : TEXT("No"));
+        OutSnapshot.AddInfo(Cat, TEXT("ReadyToSubmit"), Builder->IsReadyToSubmit() ? TEXT("Yes") : TEXT("No"));
+        OutSnapshot.AddInfo(Cat, TEXT("PendingSubmit"), Builder->HasPendingSubmit() ? TEXT("Yes") : TEXT("No"));
     }
 
     // === ClientSimulator 상태 ===
-    if (ClientSimulatorComponent)
+    if (CachedClientSimulator.GetInterface())
     {
         const FString Cat = TEXT("ClientSimulator");
-        bool bInit = ClientSimulatorComponent->IsInitialized();
+        const IHktClientSimulator* Simulator = CachedClientSimulator.GetInterface();
+        bool bInit = Simulator->IsInitialized();
         OutSnapshot.AddInfo(Cat, TEXT("Initialized"), bInit ? TEXT("Yes") : TEXT("No"));
         if (bInit)
         {
-            const FHktWorldState& WorldState = ClientSimulatorComponent->GetSimulationState();
+            const FHktWorldState& WorldState = Simulator->GetSimulationState();
             // 암시적 변환을 통해 CoreState에 접근
             OutSnapshot.AddInfo(Cat, TEXT("LastFrame"), FString::Printf(TEXT("%lld"), WorldState.FrameNumber));
             OutSnapshot.AddInfo(Cat, TEXT("Entities"), FString::FromInt(WorldState.GetEntityCount()));
@@ -306,18 +304,20 @@ void AHktInGamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnap
     }
 
     // === CommandContainer 상태 ===
-    if (CommandContainerComponent)
+    if (CachedCommandContainer.GetInterface())
     {
         const FString Cat = TEXT("CommandContainer");
-        OutSnapshot.AddInfo(Cat, TEXT("NumSlots"), FString::FromInt(CommandContainerComponent->GetNumSlots()));
+        const IHktCommandContainer* Container = CachedCommandContainer.GetInterface();
+        OutSnapshot.AddInfo(Cat, TEXT("NumSlots"), FString::FromInt(Container->GetNumSlots()));
     }
 
     // === WorldPlayer 상태 (서버) ===
-    if (WorldPlayerComponent)
+    if (CachedWorldPlayer.GetInterface())
     {
         const FString Cat = TEXT("WorldPlayer");
-        OutSnapshot.AddInfo(Cat, TEXT("PlayerUid"), FString::Printf(TEXT("%lld"), WorldPlayerComponent->GetPlayerUid()));
-        OutSnapshot.AddInfo(Cat, TEXT("Initialized"), WorldPlayerComponent->IsInitialized() ? TEXT("Yes") : TEXT("No"));
+        const IHktWorldPlayer* WorldPlayer = CachedWorldPlayer.GetInterface();
+        OutSnapshot.AddInfo(Cat, TEXT("PlayerUid"), FString::Printf(TEXT("%lld"), WorldPlayer->GetPlayerUid()));
+        OutSnapshot.AddInfo(Cat, TEXT("Initialized"), WorldPlayer->IsInitialized() ? TEXT("Yes") : TEXT("No"));
     }
 
     // === RPC 통계 ===

@@ -33,11 +33,7 @@ public:
     virtual FGameplayTag GetEventTagAtSlot(int32 SlotIndex) const override;
     virtual bool IsTargetRequiredAtSlot(int32 SlotIndex) const override;
     virtual int32 GetNumSlots() const override;
-
-    // === 설정 ===
-
-    /** SlotActions 배열 설정 (PlayerController에서 호출) */
-    void SetSlotActions(const TArray<TObjectPtr<UHktInputAction>>& InSlotActions);
+    virtual void SetSlotActions(const TArray<TObjectPtr<UHktInputAction>>& InSlotActions) override;
 
 private:
     UPROPERTY()

@@ -46,21 +46,15 @@ public:
     virtual void ResetCommand() override;
     virtual bool IsReadyToSubmit() const override;
     virtual bool Submit() override;
+    virtual FHktEntityId GetSubjectEntityId() const override;
+    virtual FHktEntityId GetTargetEntityId() const override;
+    virtual FGameplayTag GetEventTag() const override;
+    virtual bool HasPendingSubmit() const override;
+    virtual FHktRuntimeEvent ConsumePendingSubmit() override;
 
-    // === Submit 결과 관리 (Actor에서 소비) ===
+    // === 추가 API ===
 
-    /** Submit이 호출되어 대기 중인 Intent가 있는지 */
-    bool HasPendingSubmit() const { return bHasPendingSubmit; }
-
-    /** 대기 중인 Intent를 소비 (Actor가 RPC로 전송) */
-    FHktRuntimeEvent ConsumePendingSubmit();
-
-    // === 상태 조회 (Presentation용) ===
-
-    FHktEntityId GetSubjectEntityId() const { return SubjectEntityId; }
-    FHktEntityId GetTargetEntityId() const { return TargetEntityId; }
     FVector GetTargetLocation() const { return TargetLocation; }
-    FGameplayTag GetEventTag() const { return EventTag; }
 
 private:
     FHktEntityId SubjectEntityId = InvalidEntityId;

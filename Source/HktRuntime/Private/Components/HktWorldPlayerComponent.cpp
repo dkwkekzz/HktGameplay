@@ -50,6 +50,11 @@ void UHktWorldPlayerComponent::UpdatePlayerUidFromPlayerState() const
     bPlayerUidCached = true;
 }
 
+bool UHktWorldPlayerComponent::IsInitialized() const
+{
+    return PlayerUid != 0;
+}
+
 void UHktWorldPlayerComponent::InvalidatePlayerUidCache()
 {
     bPlayerUidCached = false;

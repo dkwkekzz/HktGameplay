@@ -3,16 +3,9 @@
 #include "HktGameMode.h"
 #include "HktInGamePlayerController.h"
 #include "HktPlayerState.h"
-#include "HktRuleSubsystem.h"
-#include "HktRuleInterfaces.h"
+#include "HktServerRuleInterfaces.h"
 #include "HktRuntimeConverter.h"
 #include "Rules/HktServerRule.h"
-#include "Components/HktGridRelevancyComponent.h"
-#include "Components/HktFileDatabaseComponent.h"
-#include "Components/HktFilePersistentFrameComponent.h"
-#include "Components/HktIntentCollectorComponent.h"
-#include "Components/HktBatchBuilderComponent.h"
-#include "Components/HktWorldPlayerComponent.h"
 
 #if WITH_HKT_INSIGHTS
 #include "HktRuntimeInsightsCollector.h"
@@ -23,23 +16,38 @@ AHktGameMode::AHktGameMode()
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickGroup = TG_PrePhysics;
 
-    PersistentFrameComponent  = CreateDefaultSubobject<UHktFilePersistentFrameComponent>(TEXT("PersistentFrame"));
-    GridRelevancyComponent    = CreateDefaultSubobject<UHktGridRelevancyComponent>(TEXT("GridRelevancy"));
-    PlayerDatabaseComponent   = CreateDefaultSubobject<UHktFileDatabaseComponent>(TEXT("PlayerDatabase"));
-    IntentCollectorComponent  = CreateDefaultSubobject<UHktIntentCollectorComponent>(TEXT("IntentCollector"));
-    BatchBuilderComponent     = CreateDefaultSubobject<UHktBatchBuilderComponent>(TEXT("BatchBuilder"));
+    // 컴포넌트는 블루프린트나 다른 방식으로 추가됨
 }
 
 void AHktGameMode::BeginPlay()
 {
     Super::BeginPlay();
 
-    if (UHktRuleSubsystem* RuleSS = UHktRuleSubsystem::Get(GetWorld()))
+    if (!ServerRule)
     {
-        if (!RuleSS->GetServerRule())
-        {
-            RuleSS->SetServerRule(MakeShared<FHktDefaultServerRule>());
-        }
+        ServerRule = MakeUnique<FHktDefaultServerRule>();
+    }
+
+    // FindComponentByInterface를 이용해서 인터페이스들을 캐싱
+    if (IHktFrameManager* FrameManager = FindComponentByInterface<IHktFrameManager>())
+    {
+        CachedFrameManager = TScriptInterface<IHktFrameManager>(FrameManager);
+    }
+    if (IHktRelevancyGraph* RelevancyGraph = FindComponentByInterface<IHktRelevancyGraph>())
+    {
+        CachedRelevancyGraph = TScriptInterface<IHktRelevancyGraph>(RelevancyGraph);
+    }
+    if (IHktWorldDatabase* WorldDatabase = FindComponentByInterface<IHktWorldDatabase>())
+    {
+        CachedWorldDatabase = TScriptInterface<IHktWorldDatabase>(WorldDatabase);
+    }
+    if (IHktIntentCollector* IntentCollector = FindComponentByInterface<IHktIntentCollector>())
+    {
+        CachedIntentCollector = TScriptInterface<IHktIntentCollector>(IntentCollector);
+    }
+    if (IHktBatchBuilder* BatchBuilder = FindComponentByInterface<IHktBatchBuilder>())
+    {
+        CachedBatchBuilder = TScriptInterface<IHktBatchBuilder>(BatchBuilder);
     }
 
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
@@ -64,11 +72,11 @@ void AHktGameMode::Tick(float DeltaSeconds)
     IHktServerRule* Rule = GetServerRule();
     if (!Rule) return;
 
-    IHktFrameManager*    Frame       = PersistentFrameComponent;
-    IHktRelevancyGraph*  Graph       = GridRelevancyComponent;
-    IHktIntentCollector* Collector   = IntentCollectorComponent;
-    IHktBatchBuilder*    Builder     = BatchBuilderComponent;
-    IHktWorldDatabase*   Database    = PlayerDatabaseComponent;
+    IHktFrameManager*    Frame       = CachedFrameManager.GetInterface();
+    IHktRelevancyGraph*  Graph       = CachedRelevancyGraph.GetInterface();
+    IHktIntentCollector* Collector   = CachedIntentCollector.GetInterface();
+    IHktBatchBuilder*    Builder     = CachedBatchBuilder.GetInterface();
+    IHktWorldDatabase*   Database    = CachedWorldDatabase.GetInterface();
 
     if (!Frame || !Graph || !Collector || !Builder || !Database) return;
     if (!Frame->IsInitialized()) return;
@@ -90,7 +98,7 @@ void AHktGameMode::Tick(float DeltaSeconds)
     
     // 2. 전송 (단일 루프 - Cache Friendly)
     // TArrayView를 통해 유효한 데이터만 순회
-    TArrayView<const FHktFrameSendPayload> ValidPayloads = BatchBuilderComponent->GetValidPayloads();
+    TArrayView<const FHktFrameSendPayload> ValidPayloads = Builder->GetValidPayloads();
     
     for (const FHktFrameSendPayload& Payload : ValidPayloads)
     {
@@ -108,7 +116,11 @@ void AHktGameMode::Tick(float DeltaSeconds)
         }
     }
 
-    IntentCollectorComponent->EndFrame();
+    // EndFrame 호출
+    if (Collector)
+    {
+        Collector->EndFrame();
+    }
 
 #if WITH_HKT_INSIGHTS
     LastTickDurationMs = static_cast<float>((FPlatformTime::Seconds() - TickStart) * 1000.0);
@@ -125,16 +137,21 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
     IHktServerRule* Rule = GetServerRule();
     if (!Rule) return;
 
-    UHktWorldPlayerComponent* WorldPlayerComp = HktPC->FindComponentByClass<UHktWorldPlayerComponent>();
-    if (!WorldPlayerComp) return;
+    TScriptInterface<IHktWorldPlayer> WorldPlayerInterface;
+    if (IHktWorldPlayer* WorldPlayer = HktPC->FindComponentByInterface<IHktWorldPlayer>())
+    {
+        WorldPlayerInterface = TScriptInterface<IHktWorldPlayer>(WorldPlayer);
+    }
+    if (!WorldPlayerInterface.GetInterface()) return;
 
+    IHktWorldPlayer* WorldPlayer = WorldPlayerInterface.GetInterface();
     // 컴포넌트가 자동으로 PlayerState에서 UID를 계산하므로 수동 설정 불필요
-    int64 PlayerUid = WorldPlayerComp->GetPlayerUid();
+    int64 PlayerUid = WorldPlayer->GetPlayerUid();
 
-    IHktWorldDatabase* Database = PlayerDatabaseComponent;
+    IHktWorldDatabase* Database = CachedWorldDatabase.GetInterface();
     if (Database)
     {
-        Rule->OnLogin_EnterWorldPlayer(*WorldPlayerComp, *Database);
+        Rule->OnLogin_EnterWorldPlayer(*WorldPlayer, *Database);
     }
 
     UE_LOG(LogTemp, Log, TEXT("[HktGameMode] PostLogin: PlayerUid=%lld"), PlayerUid);
@@ -146,20 +163,25 @@ void AHktGameMode::Logout(AController* Exiting)
     if (HktPC)
     {
         IHktServerRule* Rule = GetServerRule();
-        UHktWorldPlayerComponent* WorldPlayerComp = HktPC->FindComponentByClass<UHktWorldPlayerComponent>();
+        TScriptInterface<IHktWorldPlayer> WorldPlayerInterface;
+    if (IHktWorldPlayer* WorldPlayer = HktPC->FindComponentByInterface<IHktWorldPlayer>())
+    {
+        WorldPlayerInterface = TScriptInterface<IHktWorldPlayer>(WorldPlayer);
+    }
+        IHktWorldPlayer* WorldPlayer = WorldPlayerInterface.GetInterface();
 
-        if (Rule && WorldPlayerComp && WorldPlayerComp->IsInitialized())
+        if (Rule && WorldPlayer && WorldPlayer->IsInitialized())
         {
-            IHktWorldDatabase* Database = PlayerDatabaseComponent;
+            IHktWorldDatabase* Database = CachedWorldDatabase.GetInterface();
             if (Database)
             {
-                Rule->OnLogout_ExitWorldPlayer(*WorldPlayerComp, *Database);
+                Rule->OnLogout_ExitWorldPlayer(*WorldPlayer, *Database);
             }
 
-            IHktRelevancyGraph* Graph = GridRelevancyComponent;
+            IHktRelevancyGraph* Graph = CachedRelevancyGraph.GetInterface();
             if (Graph)
             {
-                Graph->UnregisterPlayer(WorldPlayerComp->GetPlayerUid());
+                Graph->UnregisterPlayer(WorldPlayer->GetPlayerUid());
             }
         }
     }
@@ -173,12 +195,12 @@ void AHktGameMode::PushIntent(int64 PlayerUid, const FHktEvent& Event)
     if (!Rule) return;
 
     IHktWorldPlayer* WorldPlayer = nullptr;
-    IHktRelevancyGraph* Graph = GridRelevancyComponent;
+    IHktRelevancyGraph* Graph = CachedRelevancyGraph.GetInterface();
     if (Graph)
     {
         WorldPlayer = Graph->GetWorldPlayer(PlayerUid);
     }
-    IHktIntentCollector* Collector = IntentCollectorComponent;
+    IHktIntentCollector* Collector = CachedIntentCollector.GetInterface();
 
     if (WorldPlayer && Collector)
     {
@@ -188,12 +210,7 @@ void AHktGameMode::PushIntent(int64 PlayerUid, const FHktEvent& Event)
 
 IHktServerRule* AHktGameMode::GetServerRule() const
 {
-    if (UHktRuleSubsystem* RuleSS = UHktRuleSubsystem::Get(GetWorld()))
-    {
-        TSharedPtr<IHktServerRule> Rule = RuleSS->GetServerRule();
-        return Rule.Get();
-    }
-    return nullptr;
+    return ServerRule.Get();
 }
 
 // ============================================================================
@@ -208,12 +225,13 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
     // === Frame 정보 ===
     {
         const FString Cat = TEXT("Frame");
-        if (PersistentFrameComponent)
+        if (CachedFrameManager.GetInterface())
         {
+            const IHktFrameManager* Frame = CachedFrameManager.GetInterface();
             OutSnapshot.AddInfo(Cat, TEXT("Initialized"),
-                PersistentFrameComponent->IsInitialized() ? TEXT("Yes") : TEXT("No"));
+                Frame->IsInitialized() ? TEXT("Yes") : TEXT("No"));
             OutSnapshot.AddInfo(Cat, TEXT("CurrentFrame"),
-                FString::Printf(TEXT("%lld"), PersistentFrameComponent->GetFrameNumber()));
+                FString::Printf(TEXT("%lld"), Frame->GetFrameNumber()));
         }
         else
         {
@@ -232,9 +250,9 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
     // === Relevancy / Player 정보 ===
     {
         const FString Cat = TEXT("Relevancy");
-        if (GridRelevancyComponent)
+        if (CachedRelevancyGraph.GetInterface())
         {
-            const IHktRelevancyGraph* Graph = GridRelevancyComponent;
+            const IHktRelevancyGraph* Graph = CachedRelevancyGraph.GetInterface();
             int32 NumGroups = Graph->NumRelevancyGroup();
             OutSnapshot.AddInfo(Cat, TEXT("NumGroups"), FString::FromInt(NumGroups));
 
@@ -289,15 +307,15 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
     {
         const FString Cat = TEXT("Components");
         OutSnapshot.AddInfo(Cat, TEXT("PersistentFrame"),
-            PersistentFrameComponent ? TEXT("OK") : TEXT("NULL"));
+            CachedFrameManager.GetInterface() ? TEXT("OK") : TEXT("NULL"));
         OutSnapshot.AddInfo(Cat, TEXT("GridRelevancy"),
-            GridRelevancyComponent ? TEXT("OK") : TEXT("NULL"));
+            CachedRelevancyGraph.GetInterface() ? TEXT("OK") : TEXT("NULL"));
         OutSnapshot.AddInfo(Cat, TEXT("PlayerDatabase"),
-            PlayerDatabaseComponent ? TEXT("OK") : TEXT("NULL"));
+            CachedWorldDatabase.GetInterface() ? TEXT("OK") : TEXT("NULL"));
         OutSnapshot.AddInfo(Cat, TEXT("IntentCollector"),
-            IntentCollectorComponent ? TEXT("OK") : TEXT("NULL"));
+            CachedIntentCollector.GetInterface() ? TEXT("OK") : TEXT("NULL"));
         OutSnapshot.AddInfo(Cat, TEXT("BatchBuilder"),
-            BatchBuilderComponent ? TEXT("OK") : TEXT("NULL"));
+            CachedBatchBuilder.GetInterface() ? TEXT("OK") : TEXT("NULL"));
     }
 }
 #endif

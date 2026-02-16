@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "HktUserEventConsumer.h"
 #include "HktLoginPlayerController.generated.h"
 
 /**
@@ -12,7 +11,7 @@
  * UI 입력만 처리하며, RequestLogin 성공 시 GameInstance에 토큰 저장 후 인게임 맵으로 전환.
  */
 UCLASS()
-class HKTRUNTIME_API AHktLoginPlayerController : public APlayerController, public IHktUserEventConsumer
+class HKTRUNTIME_API AHktLoginPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 
@@ -33,7 +32,4 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-
-	// === IHktUserEventConsumer Interface ===
-	virtual void OnUserEvent(const FHktUserEvent& Event) override;
 };

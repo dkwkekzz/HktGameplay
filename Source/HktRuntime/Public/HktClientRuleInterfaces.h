@@ -6,6 +6,7 @@
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
 #include "HktCoreTypes.h"
+#include "HktRuntimeTypes.h"
 #include "HktClientRuleInterfaces.generated.h"
 
 // ============================================================================
@@ -81,6 +82,21 @@ public:
 
 	/** Intent Submit (서버로 전송) */
 	virtual bool Submit() = 0;
+
+	/** 현재 Subject 엔티티 ID 조회 */
+	virtual FHktEntityId GetSubjectEntityId() const = 0;
+
+	/** 현재 Target 엔티티 ID 조회 */
+	virtual FHktEntityId GetTargetEntityId() const = 0;
+
+	/** 현재 EventTag 조회 */
+	virtual FGameplayTag GetEventTag() const = 0;
+
+	/** Submit이 호출되어 대기 중인 Intent가 있는지 확인 */
+	virtual bool HasPendingSubmit() const = 0;
+
+	/** 대기 중인 Intent를 소비 (Actor가 RPC로 전송) */
+	virtual FHktRuntimeEvent ConsumePendingSubmit() = 0;
 };
 
 // ============================================================================
@@ -139,4 +155,32 @@ public:
 
 	/** 슬롯 개수 조회 */
 	virtual int32 GetNumSlots() const = 0;
+
+	/** SlotActions 배열 설정 */
+	virtual void SetSlotActions(const TArray<TObjectPtr<UHktInputAction>>& InSlotActions) = 0;
+};
+
+//=============================================================================
+// IHktClientRule
+//=============================================================================
+
+class HKTRUNTIME_API IHktClientRule
+{
+public:
+    virtual ~IHktClientRule() = default;
+
+    // === 유저 입력 ===
+    virtual void OnUserEvent_LoginButtonClick() = 0;
+    virtual void OnUserEvent_SubjectInputAction(const IHktUnitSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder) = 0;
+    virtual void OnUserEvent_TargetInputAction(const IHktUnitSelectionPolicy& InPolicy, IHktIntentBuilder& InBuilder) = 0;
+    virtual void OnUserEvent_CommandInputAction(const IHktCommandContainer& InContainer, int32 InSlotIndex, IHktIntentBuilder& InBuilder) = 0;
+    virtual void OnUserEvent_ZoomInputAction(float InDelta) = 0;
+
+    // === 서버 수신 ===
+
+    /** 신규 유저: 그룹 시뮬레이션 결과를 받아 즉시 동기화 (접속 직후 1회) */
+    virtual void OnReceived_InitialSimulationState(const FHktWorldState& InState, IHktClientSimulator& InSimulator) = 0;
+
+    /** 기존 유저: FrameBatch(입력)를 받아 로컬 시뮬레이션 수행 (매 프레임) */
+    virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch, IHktClientSimulator& InSimulator) = 0;
 };

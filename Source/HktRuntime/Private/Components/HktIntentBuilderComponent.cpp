@@ -89,9 +89,25 @@ bool UHktIntentBuilderComponent::Submit()
     return true;
 }
 
-// ============================================================================
-// Submit 결과 관리
-// ============================================================================
+FHktEntityId UHktIntentBuilderComponent::GetSubjectEntityId() const
+{
+    return SubjectEntityId;
+}
+
+FHktEntityId UHktIntentBuilderComponent::GetTargetEntityId() const
+{
+    return TargetEntityId;
+}
+
+FGameplayTag UHktIntentBuilderComponent::GetEventTag() const
+{
+    return EventTag;
+}
+
+bool UHktIntentBuilderComponent::HasPendingSubmit() const
+{
+    return bHasPendingSubmit;
+}
 
 FHktRuntimeEvent UHktIntentBuilderComponent::ConsumePendingSubmit()
 {

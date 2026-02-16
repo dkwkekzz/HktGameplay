@@ -21,11 +21,8 @@ public:
 
     virtual int64 GetPlayerUid() const override;
     virtual AActor* GetOwnerActor() const override { return GetOwner(); }
-
-    /** PlayerState 변경 시 캐시를 무효화합니다. */
-    void InvalidatePlayerUidCache();
-
-    bool IsInitialized() const { return PlayerUid != 0; }
+    virtual bool IsInitialized() const override;
+    virtual void InvalidatePlayerUidCache() override;
 
 protected:
     virtual void BeginPlay() override;

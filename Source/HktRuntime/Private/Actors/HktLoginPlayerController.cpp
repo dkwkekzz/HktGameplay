@@ -70,17 +70,3 @@ void AHktLoginPlayerController::OnLoginSuccess(const FString& Token, const FStri
 	UE_LOG(LogTemp, Log, TEXT("HktLoginPlayerController: Login success, opening level '%s'"), *Level.GetLongPackageName());
 	UGameplayStatics::OpenLevelBySoftObjectPtr(this, Level);
 }
-
-void AHktLoginPlayerController::OnUserEvent(const FHktUserEvent& Event)
-{
-	if (Event.Datas.Num() < 2)
-		return;
-
-	const FString ID = Event.Datas[0].GetValue<FString>();
-	const FString PW = Event.Datas[1].GetValue<FString>();
-	
-	// 클라이언트에서 호출 → 서버로 RPC
-	Server_RequestLogin(ID, PW);
-
-	UE_LOG(LogTemp, Log, TEXT("HktLoginPlayerController: OnUserEvent: %s"), *Event.Name.ToString());
-}

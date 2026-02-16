@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "HktRuntimeTypes.h"
-#include "HktRuleInterfaces.h"
 #include "HktServerRuleInterfaces.h"
 
 //=============================================================================
