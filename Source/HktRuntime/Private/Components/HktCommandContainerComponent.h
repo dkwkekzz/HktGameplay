@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Rules/HktClientRule.h"
+#include "HktClientRuleInterfaces.h"
 #include "HktCommandContainerComponent.generated.h"
 
 class UHktInputAction;

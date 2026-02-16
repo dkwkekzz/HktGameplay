@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Rules/HktServerRule.h"
+#include "HktServerRuleInterfaces.h"
 #include "HktServerSimulator.h"
 #include "HktRuntimeTypes.h"
 #include "HktGridRelevancyComponent.generated.h"

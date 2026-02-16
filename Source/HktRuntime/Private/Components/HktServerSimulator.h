@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Rules/HktServerRule.h"
+#include "HktServerRuleInterfaces.h"
 #include "HktSimulator.h"
 
 class HKTRUNTIME_API FHktServerSimulator : public IHktServerSimulator

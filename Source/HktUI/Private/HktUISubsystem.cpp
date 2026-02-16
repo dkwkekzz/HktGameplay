@@ -141,7 +141,7 @@ UHktUIElement* UHktUISubsystem::CreateElement(TSharedPtr<IHktUIView> InView, UHk
 {
 	if (!InView.IsValid() || !InStrategy) return nullptr;
 
-	UHktUIElement* ParentElement = Parent ? Parent : RootElement;
+	UHktUIElement* ParentElement = Parent ? Parent : RootElement.Get();
 	if (!ParentElement) return nullptr;
 
 	UHktUIElement* Element = NewObject<UHktUIElement>(this);

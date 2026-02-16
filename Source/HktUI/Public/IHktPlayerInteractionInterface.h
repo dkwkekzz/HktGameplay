@@ -5,9 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "IHktPlayerInteractionInterface.generated.h"
-
 #include "HktRuntimeTypes.h"
+#include "IHktPlayerInteractionInterface.generated.h"
 
 /**
  * UI가 PlayerController에게 이벤트를 전달하기 위한 통신 인터페이스.

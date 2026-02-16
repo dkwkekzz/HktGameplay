@@ -30,11 +30,9 @@ protected:
 	 * @param WidgetTag 로드할 위젯의 GameplayTag (HktAsset 태그 맵과 매핑)
 	 * @param OnCreated 로드 및 생성 완료 시 호출되는 콜백 (nullptr 가능)
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Hkt|UI")
 	void LoadAndCreateWidget(FGameplayTag WidgetTag, TFunction<void(UHktUIElement*)> OnCreated = nullptr);
 
 	/** HktRuntime의 WorldView 참조 (설정 시 UpdateEntityUI에서 엔티티 UI 갱신) */
-	UPROPERTY(BlueprintReadOnly, Category = "Hkt|UI")
 	TSharedPtr<void> WorldView;
 
 	/** 엔티티 UI 생성/제거/갱신 (WorldView가 설정된 경우에만 유효) */

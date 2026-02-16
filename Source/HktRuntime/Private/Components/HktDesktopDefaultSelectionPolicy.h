@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "HktCoreTypes.h"
-#include "Rules/HktClientRule.h"
+#include "HktClientRuleInterfaces.h"
 #include "HktDesktopDefaultSelectionPolicy.generated.h"
 
 /**

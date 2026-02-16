@@ -16,7 +16,7 @@ HktUI는 UI의 생명주기, 계층 구조(Hierarchy), 그리고 배치(Layout)�
 
 ### 2.1 클래스 다이어그램 요약
 
-- **UHktUISubsystem**: 시스템의 백엔드. 전체 UI 트리의 기술적 루트를 관리하고 렌더링 틱(Tick)을 주관합니다.
+- **UHktUISubsystem**: 시스템의 백엔드 (ULocalPlayerSubsystem). 전체 UI 트리의 기술적 루트를 관리하고 렌더링 틱(Tick)을 주관합니다. 현재 PlayerController의 IHktPlayerInteractionInterface에 접근할 수 있습니다.
 - **AHktHUD** (Root Manager): 뷰포트 UI의 논리적 관리자. 최초 레이아웃을 결정하고 UI 이벤트를 처리합니다.
 - **FHktWorldView** (Data Bridge): HktRuntime 모듈의 인터페이스. 변경된 엔티티 속성을 순회하며 UI 시스템에 전파합니다.
 - **UHktTagDataAsset** (Configuration): UI 구성에 필요한 리소스(텍스처, 폰트, 미디어 등)를 정의하는 데이터 에셋입니다. GameplayTag로 관리됩니다.
@@ -116,6 +116,8 @@ private:
 뷰포트 UI의 진입점입니다. AssetSubsystem을 통해 필요한 UI 데이터를 비동기 로드하고, 로드가 완료되면 위젯을 생성합니다.
 HUD는 구체적인 위젯 타입(LoginHud 등)을 알 필요가 없으며, 추상화된 생성 인터페이스만 호출합니다.
 
+**UHktUISubsystem 접근**: `GetOwningPlayerController()`를 통해 `UHktUISubsystem::Get(PC)`로 서브시스템을 획득합니다.
+
 ```cpp
 // AHktHUD.h
 UCLASS()
@@ -208,15 +210,24 @@ public:
 
 ### 3.6 UHktUISubsystem (The Manager)
 
-시스템의 백엔드입니다. 생성된 Element를 등록하고 Tick을 돌립니다. 또한 Entity ID와 UI Element 간의 매핑을 관리합니다.
+시스템의 백엔드입니다. **ULocalPlayerSubsystem**을 상속받아 플레이어별로 인스턴스가 생성되며, 현재 PlayerController의 **IHktPlayerInteractionInterface**에 접근할 수 있습니다. 생성된 Element를 등록하고 Tick을 돌리며, Entity ID와 UI Element 간의 매핑을 관리합니다.
 
 ```cpp
 // HktUISubsystem.h
 UCLASS()
-class HKTUI_API UHktUISubsystem : public UWorldSubsystem, public FTickableGameObject
+class HKTUI_API UHktUISubsystem : public ULocalPlayerSubsystem, public FTickableGameObject
 {
     GENERATED_BODY()
 public:
+    // 정적 접근: PlayerController로부터 서브시스템 획득
+    static UHktUISubsystem* Get(APlayerController* PC);
+
+    // ULocalPlayerSubsystem: PlayerController 변경 시 호출
+    virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
+
+    // IHktPlayerInteractionInterface 접근 (현재 PC가 인터페이스를 구현한 경우)
+    IHktPlayerInteractionInterface* GetPlayerInteraction() const { return PlayerInteraction; }
+
     // Factory: 뷰와 전략을 받아 Element 생성
     UHktUIElement* CreateElement(TSharedPtr<IHktUIView> InView, UHktUIAnchorStrategy* InStrategy, UHktUIElement* Parent = nullptr);
     
@@ -228,6 +239,12 @@ public:
     virtual void Tick(float DeltaTime) override;
     
 private:
+    void BindPlayerInteraction(APlayerController* PC);
+    void UnbindPlayerInteraction();
+
+    TWeakObjectPtr<APlayerController> CachedPlayerController;
+    IHktPlayerInteractionInterface* PlayerInteraction = nullptr;
+
     UPROPERTY()
     UHktUIElement* RootElement;
     
@@ -238,6 +255,11 @@ private:
     TMap<int32, UHktUIElement*> EntityUIMap;
 };
 ```
+
+**주요 특징**:
+- **ULocalPlayerSubsystem**: 플레이어별 인스턴스로, 멀티플레이어 환경에서 각 플레이어의 UI를 독립적으로 관리합니다.
+- **IHktPlayerInteractionInterface 접근**: `PlayerControllerChanged`에서 현재 PC를 `Cast<IHktPlayerInteractionInterface>`하여 바인딩하고, `GetPlayerInteraction()`으로 접근합니다.
+- **World 접근**: `GetLocalPlayer()->GetWorld()`를 통해 World를 획득합니다.
 
 ---
 
@@ -264,8 +286,8 @@ private:
 1. **UI 입력 (Input)**: SHktLoginHudWidget에서 로그인 버튼 클릭.
 2. **인터페이스 호출 (Interface Call)**:
    - 위젯은 `GetOwningPlayer()`를 통해 APlayerController를 가져옵니다.
-   - `Cast<IHktPlayerInteractionInterface>`를 수행합니다.
-   - `HandleUICommand(Tag_Login, JSONPayload)` 또는 `SendRuntimeEvent(Event)`를 호출합니다.
+   - 방법 A: 직접 `Cast<IHktPlayerInteractionInterface>(PC)` 후 `HandleUICommand` / `SendRuntimeEvent` 호출.
+   - 방법 B: `UHktUISubsystem::Get(PC)->GetPlayerInteraction()`으로 인터페이스 획득 후 호출.
 3. **컨트롤러 라우팅 (Routing)**:
    - APlayerController는 인터페이스 구현부에서 Tag를 확인합니다.
    - 로그인 관련 태그라면 `UHktLoginComponent::Server_RequestLogin`을 호출합니다.

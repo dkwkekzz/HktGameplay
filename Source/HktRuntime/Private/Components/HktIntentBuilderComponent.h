@@ -6,7 +6,8 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "HktCoreTypes.h"
-#include "Rules/HktClientRule.h"
+#include "HktRuntimeTypes.h"
+#include "HktClientRuleInterfaces.h"
 #include "HktIntentBuilderComponent.generated.h"
 
 /**

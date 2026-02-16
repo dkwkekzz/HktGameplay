@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Rules/HktServerRule.h"
+#include "HktServerRuleInterfaces.h"
 #include "HktFilePersistentFrameComponent.generated.h"
 
 /**

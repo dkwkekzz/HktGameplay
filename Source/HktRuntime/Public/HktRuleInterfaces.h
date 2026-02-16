@@ -5,23 +5,11 @@
 #include "CoreMinimal.h"
 #include "HktDatabaseTypes.h"
 #include "HktRuntimeTypes.h"
+#include "HktClientRuleInterfaces.h"
+#include "HktServerRuleInterfaces.h"
 
 // === Forward Declarations ===
-class IHktAuthenticator;
-class IHktBatchBuilder;
-class IHktIntentCollector;
-class IHktPrincipal;
-class IHktWorldPlayer;
-class IHktRelevancyGraph;
-class IHktWorldDatabase;
-class IHktFrameManager;
-class IHktServerSimulator;
-class IHktClientSimulator;
-class IHktUnitSelectionPolicy;
-class IHktCommandContainer;
-class IHktIntentBuilder;
 class UWorld;
-struct FHktFrameSendPayload;
 
 // ============================================================================
 // IHktServerRule
@@ -71,16 +59,3 @@ public:
     /** 기존 유저: FrameBatch(입력)를 받아 로컬 시뮬레이션 수행 (매 프레임) */
     virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch, IHktClientSimulator& InSimulator) = 0;
 };
-
-// ============================================================================
-// 팩토리 함수
-// ============================================================================
-
-namespace HktRule
-{
-    /** IHktServerRule 인스턴스 생성 (HktRuntime 내부 구현) */
-    HKTRUNTIME_API TSharedPtr<IHktServerRule> GetServerRule(UWorld* InWorld);
-    
-    /** IHktClientRule 인스턴스 생성 (HktRuntime 내부 구현) */
-    HKTRUNTIME_API TSharedPtr<IHktClientRule> GetClientRule(UWorld* InWorld);
-}

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Rules/HktServerRule.h"
+#include "HktServerRuleInterfaces.h"
 #include "HktBatchBuilderComponent.generated.h"
 
 UCLASS(ClassGroup=(HktSimulation), meta=(BlueprintSpawnableComponent))

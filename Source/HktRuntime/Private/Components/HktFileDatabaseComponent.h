@@ -6,7 +6,7 @@
 #include "Misc/Optional.h"
 #include "Components/ActorComponent.h"
 #include "HktDatabaseTypes.h"
-#include "Rules/HktServerRule.h"
+#include "HktServerRuleInterfaces.h"
 #include "HktFileDatabaseComponent.generated.h"
 
 /**
