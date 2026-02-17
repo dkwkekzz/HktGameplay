@@ -3,7 +3,6 @@
 #include "Widgets/SHktLoginHudWidget.h"
 #include "HktUIHelpers.h"
 #include "HktLoginComponent.h"
-#include "HktWidgetLoginHudDataAsset.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 

@@ -10,7 +10,7 @@
  * - GameState에 부착되어 태그 데이터를 전파하는 역할
  * - Manager(로컬/스레드세이프) <-> Component(네트워크/게임스레드) 가교 역할
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class  UHktTagNetworkComponent : public UActorComponent
 {
     GENERATED_BODY()

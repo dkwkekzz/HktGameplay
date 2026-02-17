@@ -9,7 +9,7 @@
 /**
  * 로그인 기능을 ActorComponent로 분리. PlayerController에 부착하여 사용합니다.
  */
-UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (HktUI), meta = (BlueprintSpawnableComponent))
 class HKTUI_API UHktLoginComponent : public UActorComponent
 {
 	GENERATED_BODY()

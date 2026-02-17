@@ -16,8 +16,8 @@ void UHktUIElement::TickElement(float DeltaTime)
 {
 	if (!View.IsValid() || !AnchorStrategy) return;
 
-	// WorldContext: 이 Element를 소유한 Subsystem을 넘기려면 Outer가 UWorldSubsystem이어야 함.
-	// 호출측(UHktUISubsystem::Tick)에서 this(Subsystem)를 넘기므로, 여기서는 Outer 사용.
+	// WorldContext: Element의 Outer (AHktHUD::UpdateAllElements에서 Element 소유자는 HUD).
+	// 호출측(AHktHUD::UpdateAllElements)에서 TickElement를 호출하므로, 여기서는 GetOuter() 사용.
 	UObject* WorldContext = GetOuter();
 	if (!WorldContext) return;
 

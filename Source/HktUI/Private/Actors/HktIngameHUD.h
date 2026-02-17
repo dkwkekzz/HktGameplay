@@ -7,7 +7,6 @@
 #include "HktCoreTypes.h"
 #include "HktIngameHUD.generated.h"
 
-class UHktUISubsystem;
 class UHktWorldViewAnchorStrategy;
 
 /**
@@ -22,7 +21,6 @@ class HKTUI_API AHktIngameHUD : public AHktHUD
 
 public:
 	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaSeconds) override;
 
 protected:
 	/** 인게임 뷰포트 위젯 태그 (기본값: Widget.IngameHud) */
@@ -40,12 +38,17 @@ protected:
 	void UpdateEntityUI() override;
 
 private:
+	/** WorldView 갱신 이벤트 핸들러 (FrameBatch/InitialState 수신 시 호출) */
+	void OnWorldViewUpdated();
+
 	void RefreshWorldView();
 	void SyncEntityElements();
+	void CreateEntityElement(FHktEntityId EntityId);
 	void UpdateEntityProperties();
 
 	FHktWorldView CachedWorldView;
 	bool bWorldViewValid = false;
+	bool bInitialSyncDone = false;
 
 	/** 현재 추적 중인 엔티티 ID 목록 (삭제 감지용) */
 	TSet<FHktEntityId> TrackedEntities;

@@ -23,7 +23,7 @@
  *   - 데이터 구조가 락프리로 설계되어 락 불필요
  *   - GetIntents, EndFrame은 메인 스레드에서만 호출
  */
-UCLASS(ClassGroup=(HktSimulation), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktIntentCollectorComponent : public UActorComponent, public IHktIntentCollector
 {
     GENERATED_BODY()

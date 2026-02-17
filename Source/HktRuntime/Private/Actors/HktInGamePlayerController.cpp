@@ -117,6 +117,7 @@ void AHktInGamePlayerController::OnSubjectAction(const FInputActionValue& Value)
     IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy;
     IHktIntentBuilder* Builder = CachedIntentBuilder;
     if (!Rule || !Policy || !Builder) return;
+
     Rule->OnUserEvent_SubjectInputAction(*Policy, *Builder);
     SubjectChangedDelegate.Broadcast(Builder->GetSubjectEntityId());
 }
@@ -127,6 +128,7 @@ void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
     IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy;
     IHktIntentBuilder* Builder = CachedIntentBuilder;
     if (!Rule || !Policy || !Builder) return;
+
     Rule->OnUserEvent_TargetInputAction(*Policy, *Builder);
     TargetChangedDelegate.Broadcast(Builder->GetTargetEntityId());
 
@@ -144,6 +146,7 @@ void AHktInGamePlayerController::OnSlotAction(const FInputActionValue& Value, in
     IHktCommandContainer* Container = CachedCommandContainer;
     IHktIntentBuilder* Builder = CachedIntentBuilder;
     if (!Rule || !Container || !Builder) return;
+
     Rule->OnUserEvent_CommandInputAction(*Container, SlotIndex, *Builder);
     CommandChangedDelegate.Broadcast(Builder->GetEventTag());
 
@@ -159,6 +162,7 @@ void AHktInGamePlayerController::OnZoom(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
+    
     if (Value.GetValueType() == EInputActionValueType::Axis1D)
     {
         float Delta = Value.Get<float>();
@@ -188,6 +192,7 @@ void AHktInGamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
     IHktClientSimulator* Simulator = CachedClientSimulator;
     if (!Rule || !Simulator) return;
     Rule->OnReceived_FrameBatch(Batch, *Simulator);
+    WorldViewUpdatedDelegate.Broadcast();
 }
 
 void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State)
@@ -211,6 +216,7 @@ void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const
     IHktClientSimulator* Simulator = CachedClientSimulator;
     if (!Rule || !Simulator) return;
     Rule->OnReceived_InitialSimulationState(State, *Simulator);
+    WorldViewUpdatedDelegate.Broadcast();
 }
 
 bool AHktInGamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)
@@ -246,6 +252,31 @@ void AHktInGamePlayerController::Server_ReceiveIntent_Implementation(const FHktR
 IHktClientRule* AHktInGamePlayerController::GetClientRule() const
 {
     return ClientRule.Get();
+}
+
+// ============================================================================
+// IHktPlayerInteractionInterface 구현
+// ============================================================================
+
+void AHktInGamePlayerController::HandleUICommand(FGameplayTag CommandTag, const FString& Payload)
+{
+    // TODO: 필요 시 Command 라우팅 구현
+}
+
+void AHktInGamePlayerController::SendRuntimeEvent(const FHktRuntimeEvent& Event)
+{
+    Server_ReceiveIntent(Event);
+}
+
+bool AHktInGamePlayerController::GetWorldView(FHktWorldView& OutView) const
+{
+    if (!CachedClientSimulator || !CachedClientSimulator->IsInitialized())
+    {
+        return false;
+    }
+    OutView.WorldState = &CachedClientSimulator->GetSimulationState();
+    OutView.IntOverlays.Reset();
+    return true;
 }
 
 int64 AHktInGamePlayerController::GetPlayerUid() const

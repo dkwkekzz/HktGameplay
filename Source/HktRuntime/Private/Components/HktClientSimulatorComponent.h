@@ -8,7 +8,7 @@
 #include "HktSimulator.h"
 #include "HktClientSimulatorComponent.generated.h"
 
-UCLASS(ClassGroup=(HktSimulation), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktClientSimulatorComponent : public UActorComponent, public IHktClientSimulator
 {
     GENERATED_BODY()

@@ -3,44 +3,33 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/LocalPlayerSubsystem.h"
-#include "Tickable.h"
+#include "GameFramework/HUD.h"
+#include "GameplayTagContainer.h"
 #include "IHktUIView.h"
-#include "HktUISubsystem.generated.h"
+#include "HktHUD.generated.h"
 
 class UHktUIElement;
 class UHktUIAnchorStrategy;
+class IHktUIViewFactory;
 class APlayerController;
 class IHktPlayerInteractionInterface;
+class SConstraintCanvas;
 
 /**
- * HktUI 시스템의 백엔드 (LocalPlayerSubsystem).
- * 전체 UI 트리의 기술적 루트를 관리하고, 현재 PlayerController의 IHktPlayerInteractionInterface에 접근합니다.
+ * 뷰포트 UI의 진입점.
+ * AssetSubsystem으로 UI DataAsset을 비동기 로드하고, 로드 완료 시 위젯을 생성합니다.
+ * 전체 UI 트리(RootElement, MainCanvasWidget, EntityUIMap)와 PlayerInteraction을 관리합니다.
  */
 UCLASS()
-class HKTUI_API UHktUISubsystem : public ULocalPlayerSubsystem, public FTickableGameObject
+class HKTUI_API AHktHUD : public AHUD
 {
 	GENERATED_BODY()
 
 public:
-	static UHktUISubsystem* Get(APlayerController* PC);
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// --- USubsystem ---
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
-
-	// --- ULocalPlayerSubsystem ---
-	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
-
-	// --- FTickableGameObject ---
-	virtual UWorld* GetTickableGameObjectWorld() const override;
-	virtual ETickableTickType GetTickableTickType() const override;
-	virtual bool IsAllowedToTick() const override;
-	virtual void Tick(float DeltaTime) override;
-	virtual TStatId GetStatId() const override;
-
-	// --- IHktPlayerInteractionInterface 접근 ---
+	/** 현재 PlayerController의 IHktPlayerInteractionInterface (없으면 nullptr) */
 	IHktPlayerInteractionInterface* GetPlayerInteraction() const { return PlayerInteraction; }
 
 	/** 뷰와 전략을 받아 Element를 생성하고 트리/캔버스에 등록 */
@@ -61,6 +50,20 @@ public:
 	/** Element의 View를 메인 캔버스에서 제거 */
 	void RemoveElementFromCanvas(UHktUIElement* Element);
 
+	/** 전체 Element의 스크린 좌표 재계산 + 캔버스 슬롯 반영. OnWorldViewUpdated에서 호출. */
+	void UpdateAllElements();
+
+protected:
+	/**
+	 * 태그에 해당하는 UI DataAsset을 비동기 로드한 뒤 CreateView/CreateStrategy로 Element 생성 및 등록.
+	 * @param WidgetTag 로드할 위젯의 GameplayTag (HktAsset 태그 맵과 매핑)
+	 * @param OnCreated 로드 및 생성 완료 시 호출되는 콜백 (nullptr 가능)
+	 */
+	void LoadAndCreateWidget(FGameplayTag WidgetTag, TFunction<void(UHktUIElement*)> OnCreated = nullptr);
+
+	/** 엔티티 UI 생성/제거/갱신. 서브클래스에서 오버라이드하여 구현. */
+	virtual void UpdateEntityUI();
+
 private:
 	void BindPlayerInteraction(APlayerController* PC);
 	void UnbindPlayerInteraction();
@@ -71,13 +74,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UHktUIElement> RootElement;
 
-	TSharedPtr<class SConstraintCanvas> MainCanvasWidget;
+	TSharedPtr<SConstraintCanvas> MainCanvasWidget;
 
 	UPROPERTY()
 	TMap<int32, TObjectPtr<UHktUIElement>> EntityUIMap;
-
-	bool bInitialized = false;
-
-	void TickAllElements(float DeltaTime);
-	void UpdateCanvasSlots();
 };

@@ -1,8 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktLoginHUD.h"
-#include "HktLoginComponent.h"
-#include "HktUISubsystem.h"
 #include "HktUIElement.h"
 #include "Widgets/SHktLoginHudWidget.h"
 #include "HktGameplayTags.h"
@@ -18,14 +16,6 @@ void AHktLoginHUD::BeginPlay()
 	// UI 전용 입력 모드 설정
 	PC->SetInputMode(FInputModeUIOnly());
 	PC->bShowMouseCursor = true;
-
-	// LoginComponent 부착 (이미 없는 경우에만)
-	LoginComponent = PC->FindComponentByClass<UHktLoginComponent>();
-	if (!LoginComponent)
-	{
-		LoginComponent = NewObject<UHktLoginComponent>(PC, TEXT("LoginComponent"));
-		LoginComponent->RegisterComponent();
-	}
 
 	// 위젯 태그 설정 (기본값 없으면 Widget.LoginHud)
 	if (!LoginWidgetTag.IsValid())

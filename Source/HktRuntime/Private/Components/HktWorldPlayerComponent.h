@@ -11,7 +11,7 @@ class AHktInGamePlayerController;
 class APlayerController;
 class APlayerState;
 
-UCLASS(ClassGroup=(HktSimulation), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktWorldPlayerComponent : public UActorComponent, public IHktWorldPlayer
 {
     GENERATED_BODY()

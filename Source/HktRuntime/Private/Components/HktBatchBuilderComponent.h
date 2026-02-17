@@ -7,7 +7,7 @@
 #include "HktServerRuleInterfaces.h"
 #include "HktBatchBuilderComponent.generated.h"
 
-UCLASS(ClassGroup=(HktSimulation), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktBatchBuilderComponent : public UActorComponent, public IHktBatchBuilder
 {
     GENERATED_BODY()

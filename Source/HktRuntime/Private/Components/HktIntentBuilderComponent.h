@@ -28,7 +28,7 @@
  *   → Actor(PlayerController)가 HasPendingSubmit() 확인 후 ConsumePendingSubmit()으로 가져감
  *   → Actor가 Server_ReceiveIntent RPC 발행
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktIntentBuilderComponent
     : public UActorComponent
     , public IHktIntentBuilder

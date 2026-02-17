@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DataAssets/HktWidgetLoginHudDataAsset.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
@@ -10,7 +11,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 
-class UHktWidgetLoginHudDataAsset;
 class APlayerController;
 class UHktLoginComponent;
 

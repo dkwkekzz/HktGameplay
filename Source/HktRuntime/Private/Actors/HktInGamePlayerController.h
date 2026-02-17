@@ -9,6 +9,7 @@
 #include "HktRuntimeDelegates.h"
 #include "HktClientRuleInterfaces.h"
 #include "HktServerRuleInterfaces.h"
+#include "IHktPlayerInteractionInterface.h"
 
 #if WITH_HKT_INSIGHTS
 #include "HktInsightProvider.h"
@@ -25,6 +26,7 @@ struct FHktRuntimeSimulationState;
 
 UCLASS()
 class HKTRUNTIME_API AHktInGamePlayerController : public APlayerController
+    , public IHktPlayerInteractionInterface
 #if WITH_HKT_INSIGHTS
     , public IHktInsightProvider
 #endif
@@ -51,6 +53,12 @@ public:
     FOnHktCommandChanged& OnCommandChanged() { return CommandChangedDelegate; }
     FOnHktIntentSubmitted& OnIntentSubmitted() { return IntentSubmittedDelegate; }
     FOnHktWheelInput& OnWheelInput() { return WheelInputDelegate; }
+
+    // === IHktPlayerInteractionInterface ===
+    virtual void HandleUICommand(FGameplayTag CommandTag, const FString& Payload) override;
+    virtual void SendRuntimeEvent(const FHktRuntimeEvent& Event) override;
+    virtual bool GetWorldView(FHktWorldView& OutView) const override;
+    virtual FOnHktWorldViewUpdated& OnWorldViewUpdated() override { return WorldViewUpdatedDelegate; }
 
     // === Player UID ===
     /** 인터페이스를 통해 Player UID를 반환합니다. */
@@ -98,6 +106,7 @@ private:
     FOnHktCommandChanged CommandChangedDelegate;
     FOnHktIntentSubmitted IntentSubmittedDelegate;
     FOnHktWheelInput WheelInputDelegate;
+    FOnHktWorldViewUpdated WorldViewUpdatedDelegate;
 
     /** 클라이언트 규칙 */
     TUniquePtr<IHktClientRule> ClientRule;

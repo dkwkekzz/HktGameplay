@@ -62,17 +62,16 @@ public:
 #endif
 
 private:
+    /** Insight 통계: 틱 당 처리 시간 추적 */
+    float LastTickDurationMs = 0.0f;
+
+    /** 서버 규칙 */
+    TUniquePtr<IHktServerRule> ServerRule;
+    
     /** 캐싱된 인터페이스 포인터들 */
     IHktFrameManager* CachedFrameManager = nullptr;
     IHktRelevancyGraph* CachedRelevancyGraph = nullptr;
     IHktWorldDatabase* CachedWorldDatabase = nullptr;
     IHktIntentCollector* CachedIntentCollector = nullptr;
     IHktBatchBuilder* CachedBatchBuilder = nullptr;
-
-private:
-    /** Insight 통계: 틱 당 처리 시간 추적 */
-    float LastTickDurationMs = 0.0f;
-
-    /** 서버 규칙 */
-    TUniquePtr<IHktServerRule> ServerRule;
 };

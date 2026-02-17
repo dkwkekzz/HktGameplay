@@ -28,7 +28,7 @@ private:
     TArray<IHktWorldPlayer*> CachedPlayers;
 };
 
-UCLASS(ClassGroup=(HktSimulation), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktGridRelevancyComponent : public UActorComponent, public IHktRelevancyGraph
 {
     GENERATED_BODY()

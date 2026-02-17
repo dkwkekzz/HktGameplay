@@ -17,3 +17,4 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktIntentSubmitted, const FHktRuntimeEven
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktWheelInput, float);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktEntityCreated, FHktEntityId);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktEntityDestroyed, FHktEntityId);
+DECLARE_MULTICAST_DELEGATE(FOnHktWorldViewUpdated);

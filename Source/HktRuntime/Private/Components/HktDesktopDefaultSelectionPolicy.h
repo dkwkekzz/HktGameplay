@@ -26,7 +26,7 @@
  *   Rule->OnUserEvent_SubjectInputAction(*SelectionPolicy, *IntentBuilder);
  *   Rule->OnUserEvent_TargetInputAction(*SelectionPolicy, *IntentBuilder);
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktDesktopDefaultSelectionPolicy
     : public UActorComponent
     , public IHktUnitSelectionPolicy

@@ -23,7 +23,7 @@
  *   - IHktWorldDatabase: 비동기 플레이어 레코드 로드/저장
  *   - 파일 I/O 직접 수행 (Provider 분리 없음)
  */
-UCLASS(ClassGroup=(HktSimulation), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktFileDatabaseComponent : public UActorComponent, public IHktWorldDatabase
 {
     GENERATED_BODY()
