@@ -18,9 +18,9 @@ struct FHktVMProgram;
  * 
  * 사용 예:
  *   Flow(TEXT("Ability.Skill.Fireball"))
- *       .PlayAnim(Self, "CastStart")
+ *       .PlayAnim(Self, TAG_Anim_CastStart)
  *       .WaitSeconds(1.0f)
- *       .SpawnEntity("Fireball").MoveForward(500)
+ *       .SpawnEntity(TAG_Entity_Fireball).MoveForward(500)
  *       .OnCollision()
  *           .DestroyEntity(Spawned)
  *           .ApplyDamageConst(Hit, 100)
@@ -96,7 +96,7 @@ public:
     // ========== Entity Management ==========
 
     /** 엔티티 스폰 → Spawned 레지스터에 저장 */
-    FHktFlowBuilder& SpawnEntity(const FString& ClassPath);
+    FHktFlowBuilder& SpawnEntity(const FGameplayTag& ClassTag);
 
     /** 엔티티 제거 */
     FHktFlowBuilder& DestroyEntity(RegisterIndex Entity);
@@ -140,37 +140,37 @@ public:
     FHktFlowBuilder& ApplyDamageConst(RegisterIndex Target, int32 Amount);
 
     /** 이펙트 적용 (버프/디버프) */
-    FHktFlowBuilder& ApplyEffect(RegisterIndex Target, const FString& EffectTag);
+    FHktFlowBuilder& ApplyEffect(RegisterIndex Target, const FGameplayTag& EffectTag);
 
     /** 이펙트 제거 */
-    FHktFlowBuilder& RemoveEffect(RegisterIndex Target, const FString& EffectTag);
+    FHktFlowBuilder& RemoveEffect(RegisterIndex Target, const FGameplayTag& EffectTag);
 
     // ========== Animation & VFX ==========
 
     /** 애니메이션 재생 */
-    FHktFlowBuilder& PlayAnim(RegisterIndex Entity, const FString& AnimName);
+    FHktFlowBuilder& PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag);
 
     /** 몽타주 재생 */
-    FHktFlowBuilder& PlayAnimMontage(RegisterIndex Entity, const FString& MontageName);
+    FHktFlowBuilder& PlayAnimMontage(RegisterIndex Entity, const FGameplayTag& MontageTag);
 
     /** 애니메이션 중지 */
     FHktFlowBuilder& StopAnim(RegisterIndex Entity);
 
     /** VFX 재생 (위치) */
-    FHktFlowBuilder& PlayVFX(RegisterIndex PosBase, const FString& VFXPath);
+    FHktFlowBuilder& PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag);
 
     /** VFX 재생 (엔티티에 부착) */
-    FHktFlowBuilder& PlayVFXAttached(RegisterIndex Entity, const FString& VFXPath);
+    FHktFlowBuilder& PlayVFXAttached(RegisterIndex Entity, const FGameplayTag& VFXTag);
 
     // ========== Audio ==========
 
-    FHktFlowBuilder& PlaySound(const FString& SoundPath);
-    FHktFlowBuilder& PlaySoundAtLocation(RegisterIndex PosBase, const FString& SoundPath);
+    FHktFlowBuilder& PlaySound(const FGameplayTag& SoundTag);
+    FHktFlowBuilder& PlaySoundAtLocation(RegisterIndex PosBase, const FGameplayTag& SoundTag);
 
     // ========== Equipment ==========
 
     /** 장비 스폰 및 부착 */
-    FHktFlowBuilder& SpawnEquipment(RegisterIndex Owner, int32 Slot, const FString& EquipClass);
+    FHktFlowBuilder& SpawnEquipment(RegisterIndex Owner, int32 Slot, const FGameplayTag& EquipTag);
 
     // ========== Utility ==========
 
@@ -187,6 +187,7 @@ private:
     void Emit(FInstruction Inst);
     int32 AddString(const FString& Str);
     int32 AddConstant(int32 Value);
+    int32 TagToInt(const FGameplayTag& Tag);
     void ResolveLabels();
 
 private:
@@ -209,7 +210,7 @@ private:
 // ============================================================================
 
 /** 간단한 Flow 생성 시작 */
-inline FHktFlowBuilder Flow(const FName& TagName)
+inline FHktFlowBuilder Flow(FGameplayTag TagName)
 {
     return FHktFlowBuilder::Create(TagName);
 }

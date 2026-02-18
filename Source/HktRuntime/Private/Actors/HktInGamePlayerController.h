@@ -15,7 +15,7 @@
 #include "HktInsightProvider.h"
 #endif
 
-#include "HktInGamePlayerController.generated.h"
+#include "HktIngamePlayerController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
@@ -25,7 +25,7 @@ struct FHktRuntimeBatch;
 struct FHktRuntimeSimulationState;
 
 UCLASS()
-class HKTRUNTIME_API AHktInGamePlayerController : public APlayerController
+class HKTRUNTIME_API AHktIngamePlayerController : public APlayerController
     , public IHktPlayerInteractionInterface
 #if WITH_HKT_INSIGHTS
     , public IHktInsightProvider
@@ -34,7 +34,7 @@ class HKTRUNTIME_API AHktInGamePlayerController : public APlayerController
     GENERATED_BODY()
 
 public:
-    AHktInGamePlayerController();
+    AHktIngamePlayerController();
 
     // === S2C RPC ===
     UFUNCTION(Client, Reliable)

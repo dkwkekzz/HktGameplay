@@ -2,6 +2,7 @@
 
 #include "HktFlowBuilder.h"
 #include "VM/HktVMProgram.h"
+#include "GameplayTagsManager.h"
 
 // ============================================================================
 // FHktFlowBuilder - Construction
@@ -48,6 +49,16 @@ int32 FHktFlowBuilder::AddConstant(int32 Value)
         Program->Constants.Add(Value);
     }
     return Index;
+}
+
+int32 FHktFlowBuilder::TagToInt(const FGameplayTag& Tag)
+{
+    if (Tag.IsValid())
+    {
+        FGameplayTagNetIndex NetIndex = UGameplayTagsManager::Get().GetNetIndexFromTag(Tag);
+        return static_cast<int32>(NetIndex);
+    }
+    return 0;
 }
 
 // ============================================================================
@@ -250,10 +261,10 @@ FHktFlowBuilder& FHktFlowBuilder::CmpGe(RegisterIndex Dst, RegisterIndex Src1, R
 // Entity Management
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::SpawnEntity(const FString& ClassPath)
+FHktFlowBuilder& FHktFlowBuilder::SpawnEntity(const FGameplayTag& ClassTag)
 {
-    int32 StrIdx = AddString(ClassPath);
-    Emit(FInstruction::MakeImm(EOpCode::SpawnEntity, Reg::Spawned, StrIdx));
+    int32 TagIdx = TagToInt(ClassTag);
+    Emit(FInstruction::MakeImm(EOpCode::SpawnEntity, Reg::Spawned, TagIdx));
     return *this;
 }
 
@@ -363,17 +374,17 @@ FHktFlowBuilder& FHktFlowBuilder::ApplyDamageConst(RegisterIndex Target, int32 A
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::ApplyEffect(RegisterIndex Target, const FString& EffectTag)
+FHktFlowBuilder& FHktFlowBuilder::ApplyEffect(RegisterIndex Target, const FGameplayTag& EffectTag)
 {
-    int32 StrIdx = AddString(EffectTag);
-    Emit(FInstruction::Make(EOpCode::ApplyEffect, 0, Target, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(EffectTag);
+    Emit(FInstruction::Make(EOpCode::ApplyEffect, 0, Target, 0, TagIdx & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::RemoveEffect(RegisterIndex Target, const FString& EffectTag)
+FHktFlowBuilder& FHktFlowBuilder::RemoveEffect(RegisterIndex Target, const FGameplayTag& EffectTag)
 {
-    int32 StrIdx = AddString(EffectTag);
-    Emit(FInstruction::Make(EOpCode::RemoveEffect, 0, Target, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(EffectTag);
+    Emit(FInstruction::Make(EOpCode::RemoveEffect, 0, Target, 0, TagIdx & 0xFFF));
     return *this;
 }
 
@@ -381,17 +392,17 @@ FHktFlowBuilder& FHktFlowBuilder::RemoveEffect(RegisterIndex Target, const FStri
 // Animation & VFX
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::PlayAnim(RegisterIndex Entity, const FString& AnimName)
+FHktFlowBuilder& FHktFlowBuilder::PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
 {
-    int32 StrIdx = AddString(AnimName);
-    Emit(FInstruction::Make(EOpCode::PlayAnim, 0, Entity, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(AnimTag);
+    Emit(FInstruction::Make(EOpCode::PlayAnim, 0, Entity, 0, TagIdx & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::PlayAnimMontage(RegisterIndex Entity, const FString& MontageName)
+FHktFlowBuilder& FHktFlowBuilder::PlayAnimMontage(RegisterIndex Entity, const FGameplayTag& MontageTag)
 {
-    int32 StrIdx = AddString(MontageName);
-    Emit(FInstruction::Make(EOpCode::PlayAnimMontage, 0, Entity, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(MontageTag);
+    Emit(FInstruction::Make(EOpCode::PlayAnimMontage, 0, Entity, 0, TagIdx & 0xFFF));
     return *this;
 }
 
@@ -401,17 +412,17 @@ FHktFlowBuilder& FHktFlowBuilder::StopAnim(RegisterIndex Entity)
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::PlayVFX(RegisterIndex PosBase, const FString& VFXPath)
+FHktFlowBuilder& FHktFlowBuilder::PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag)
 {
-    int32 StrIdx = AddString(VFXPath);
-    Emit(FInstruction::Make(EOpCode::PlayVFX, 0, PosBase, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(VFXTag);
+    Emit(FInstruction::Make(EOpCode::PlayVFX, 0, PosBase, 0, TagIdx & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::PlayVFXAttached(RegisterIndex Entity, const FString& VFXPath)
+FHktFlowBuilder& FHktFlowBuilder::PlayVFXAttached(RegisterIndex Entity, const FGameplayTag& VFXTag)
 {
-    int32 StrIdx = AddString(VFXPath);
-    Emit(FInstruction::Make(EOpCode::PlayVFXAttached, 0, Entity, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(VFXTag);
+    Emit(FInstruction::Make(EOpCode::PlayVFXAttached, 0, Entity, 0, TagIdx & 0xFFF));
     return *this;
 }
 
@@ -419,17 +430,17 @@ FHktFlowBuilder& FHktFlowBuilder::PlayVFXAttached(RegisterIndex Entity, const FS
 // Audio
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::PlaySound(const FString& SoundPath)
+FHktFlowBuilder& FHktFlowBuilder::PlaySound(const FGameplayTag& SoundTag)
 {
-    int32 StrIdx = AddString(SoundPath);
-    Emit(FInstruction::MakeImm(EOpCode::PlaySound, 0, StrIdx));
+    int32 TagIdx = TagToInt(SoundTag);
+    Emit(FInstruction::MakeImm(EOpCode::PlaySound, 0, TagIdx));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::PlaySoundAtLocation(RegisterIndex PosBase, const FString& SoundPath)
+FHktFlowBuilder& FHktFlowBuilder::PlaySoundAtLocation(RegisterIndex PosBase, const FGameplayTag& SoundTag)
 {
-    int32 StrIdx = AddString(SoundPath);
-    Emit(FInstruction::Make(EOpCode::PlaySoundAtLocation, 0, PosBase, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(SoundTag);
+    Emit(FInstruction::Make(EOpCode::PlaySoundAtLocation, 0, PosBase, 0, TagIdx & 0xFFF));
     return *this;
 }
 
@@ -437,10 +448,10 @@ FHktFlowBuilder& FHktFlowBuilder::PlaySoundAtLocation(RegisterIndex PosBase, con
 // Equipment
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::SpawnEquipment(RegisterIndex Owner, int32 Slot, const FString& EquipClass)
+FHktFlowBuilder& FHktFlowBuilder::SpawnEquipment(RegisterIndex Owner, int32 Slot, const FGameplayTag& EquipTag)
 {
-    int32 StrIdx = AddString(EquipClass);
-    Emit(FInstruction::Make(EOpCode::SpawnEquipment, Reg::Spawned, Owner, Slot & 0xF, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(EquipTag);
+    Emit(FInstruction::Make(EOpCode::SpawnEquipment, Reg::Spawned, Owner, Slot & 0xF, TagIdx & 0xFFF));
     return *this;
 }
 

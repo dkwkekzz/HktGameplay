@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktInGamePlayerController.h"
+#include "HktIngamePlayerController.h"
 #include "HktPlayerState.h"
 #include "HktClientRuleInterfaces.h"
 #include "Rules/HktClientRule.h"
@@ -14,14 +14,14 @@
 #include "HktInsightsRuntimeTypes.h"
 #endif
 
-AHktInGamePlayerController::AHktInGamePlayerController()
+AHktIngamePlayerController::AHktIngamePlayerController()
 {
     bShowMouseCursor = true;
     bEnableClickEvents = true;
     bEnableMouseOverEvents = true;
 }
 
-void AHktInGamePlayerController::BeginPlay()
+void AHktIngamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
@@ -72,7 +72,7 @@ void AHktInGamePlayerController::BeginPlay()
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
 }
 
-void AHktInGamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void AHktIngamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     CachedIntentBuilder = nullptr;
     CachedSelectionPolicy = nullptr;
@@ -84,7 +84,7 @@ void AHktInGamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReaso
     Super::EndPlay(EndPlayReason);
 }
 
-void AHktInGamePlayerController::OnRep_PlayerState()
+void AHktIngamePlayerController::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
     // PlayerState가 변경되면 컴포넌트의 캐시를 무효화
@@ -94,24 +94,24 @@ void AHktInGamePlayerController::OnRep_PlayerState()
     }
 }
 
-void AHktInGamePlayerController::SetupInputComponent()
+void AHktIngamePlayerController::SetupInputComponent()
 {
     Super::SetupInputComponent();
 
     UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent);
     if (!EnhancedInput) return;
 
-    if (SubjectAction) EnhancedInput->BindAction(SubjectAction, ETriggerEvent::Triggered, this, &AHktInGamePlayerController::OnSubjectAction);
-    if (TargetAction) EnhancedInput->BindAction(TargetAction, ETriggerEvent::Triggered, this, &AHktInGamePlayerController::OnTargetAction);
-    if (ZoomAction) EnhancedInput->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &AHktInGamePlayerController::OnZoom);
+    if (SubjectAction) EnhancedInput->BindAction(SubjectAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnSubjectAction);
+    if (TargetAction) EnhancedInput->BindAction(TargetAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnTargetAction);
+    if (ZoomAction) EnhancedInput->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnZoom);
 
     for (int32 i = 0; i < SlotActions.Num(); ++i)
     {
-        if (SlotActions[i]) EnhancedInput->BindAction(SlotActions[i], ETriggerEvent::Triggered, this, &AHktInGamePlayerController::OnSlotAction, i);
+        if (SlotActions[i]) EnhancedInput->BindAction(SlotActions[i], ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnSlotAction, i);
     }
 }
 
-void AHktInGamePlayerController::OnSubjectAction(const FInputActionValue& Value)
+void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
     IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy;
@@ -122,7 +122,7 @@ void AHktInGamePlayerController::OnSubjectAction(const FInputActionValue& Value)
     SubjectChangedDelegate.Broadcast(Builder->GetSubjectEntityId());
 }
 
-void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
+void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
     IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy;
@@ -140,7 +140,7 @@ void AHktInGamePlayerController::OnTargetAction(const FInputActionValue& Value)
     }
 }
 
-void AHktInGamePlayerController::OnSlotAction(const FInputActionValue& Value, int32 SlotIndex)
+void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, int32 SlotIndex)
 {
     IHktClientRule* Rule = GetClientRule();
     IHktCommandContainer* Container = CachedCommandContainer;
@@ -158,7 +158,7 @@ void AHktInGamePlayerController::OnSlotAction(const FInputActionValue& Value, in
     }
 }
 
-void AHktInGamePlayerController::OnZoom(const FInputActionValue& Value)
+void AHktIngamePlayerController::OnZoom(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
@@ -171,7 +171,7 @@ void AHktInGamePlayerController::OnZoom(const FInputActionValue& Value)
     }
 }
 
-void AHktInGamePlayerController::Client_ReceiveFrameBatch_Implementation(const FHktRuntimeBatch& Batch)
+void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const FHktRuntimeBatch& Batch)
 {
 #if WITH_HKT_INSIGHTS
     InsightReceivedBatchCount++;
@@ -195,7 +195,7 @@ void AHktInGamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
     WorldViewUpdatedDelegate.Broadcast();
 }
 
-void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State)
+void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State)
 {
 #if WITH_HKT_INSIGHTS
     InsightReceivedInitialStateCount++;
@@ -219,12 +219,12 @@ void AHktInGamePlayerController::Client_ReceiveInitialState_Implementation(const
     WorldViewUpdatedDelegate.Broadcast();
 }
 
-bool AHktInGamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)
+bool AHktIngamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)
 {
     return Event.IsValid();
 }
 
-void AHktInGamePlayerController::Server_ReceiveIntent_Implementation(const FHktRuntimeEvent& Event)
+void AHktIngamePlayerController::Server_ReceiveIntent_Implementation(const FHktRuntimeEvent& Event)
 {
 #if WITH_HKT_INSIGHTS
     InsightSentIntentCount++;
@@ -249,7 +249,7 @@ void AHktInGamePlayerController::Server_ReceiveIntent_Implementation(const FHktR
     }
 }
 
-IHktClientRule* AHktInGamePlayerController::GetClientRule() const
+IHktClientRule* AHktIngamePlayerController::GetClientRule() const
 {
     return ClientRule.Get();
 }
@@ -258,12 +258,12 @@ IHktClientRule* AHktInGamePlayerController::GetClientRule() const
 // IHktPlayerInteractionInterface 구현
 // ============================================================================
 
-void AHktInGamePlayerController::ExecuteCommand(UObject* CommandData)
+void AHktIngamePlayerController::ExecuteCommand(UObject* CommandData)
 {
     // TODO: 필요 시 Command 라우팅 구현
 }
 
-bool AHktInGamePlayerController::GetWorldView(FHktWorldView& OutView) const
+bool AHktIngamePlayerController::GetWorldView(FHktWorldView& OutView) const
 {
     if (!CachedClientSimulator || !CachedClientSimulator->IsInitialized())
     {
@@ -274,7 +274,7 @@ bool AHktInGamePlayerController::GetWorldView(FHktWorldView& OutView) const
     return true;
 }
 
-int64 AHktInGamePlayerController::GetPlayerUid() const
+int64 AHktIngamePlayerController::GetPlayerUid() const
 {
     if (CachedWorldPlayer)
     {
@@ -288,7 +288,7 @@ int64 AHktInGamePlayerController::GetPlayerUid() const
 // ============================================================================
 
 #if WITH_HKT_INSIGHTS
-void AHktInGamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
+void AHktIngamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
 {
     OutSnapshot.ProviderName = GetInsightProviderName();
 

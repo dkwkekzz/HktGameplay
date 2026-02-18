@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktGameMode.h"
-#include "HktInGamePlayerController.h"
+#include "HktIngamePlayerController.h"
 #include "HktPlayerState.h"
 #include "HktServerRuleInterfaces.h"
 #include "HktRuntimeConverter.h"
@@ -19,9 +19,9 @@ AHktGameMode::AHktGameMode()
     // 컴포넌트는 블루프린트나 다른 방식으로 추가됨
 }
 
-void AHktGameMode::BeginPlay()
+void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
-    Super::BeginPlay();
+    Super::InitGame(MapName, Options, ErrorMessage);
 
     if (!ServerRule)
     {
@@ -114,7 +114,7 @@ void AHktGameMode::Tick(float DeltaSeconds)
     for (const FHktFrameSendPayload& Payload : ValidPayloads)
     {
         // 여기서 Payload.TargetActor가 유효한지 체크할 수도 있음 (nullptr 처리 관련)
-        if (AHktInGamePlayerController* PC = Cast<AHktInGamePlayerController>(Payload.TargetActor))
+        if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Payload.TargetActor))
         {
             if (Payload.StateToSend)
             {
@@ -142,7 +142,7 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
 {
     Super::PostLogin(NewPlayer);
 
-    AHktInGamePlayerController* HktPC = Cast<AHktInGamePlayerController>(NewPlayer);
+    AHktIngamePlayerController* HktPC = Cast<AHktIngamePlayerController>(NewPlayer);
     if (!HktPC) return;
 
     IHktServerRule* Rule = GetServerRule();
@@ -162,7 +162,7 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
 
 void AHktGameMode::Logout(AController* Exiting)
 {
-    AHktInGamePlayerController* HktPC = Cast<AHktInGamePlayerController>(Exiting);
+    AHktIngamePlayerController* HktPC = Cast<AHktIngamePlayerController>(Exiting);
     if (!HktPC) return;
 
     IHktServerRule* Rule = GetServerRule();

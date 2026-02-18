@@ -12,7 +12,7 @@
 
 #include "HktGameMode.generated.h"
 
-class AHktInGamePlayerController;
+class AHktIngamePlayerController;
 class IHktServerRule;
 struct FHktFrameSendPayload;
 
@@ -47,7 +47,7 @@ public:
     void PushIntent(int64 PlayerUid, const FHktEvent& Event);
 
 protected:
-    virtual void BeginPlay() override;
+    virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void PostLogin(APlayerController* NewPlayer) override;
