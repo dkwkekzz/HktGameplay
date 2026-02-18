@@ -3,7 +3,7 @@
 #include "HktLoginHUD.h"
 #include "HktUIElement.h"
 #include "Widgets/SHktLoginHudWidget.h"
-#include "HktGameplayTags.h"
+#include "HktUITags.h"
 #include "GameFramework/PlayerController.h"
 
 void AHktLoginHUD::BeginPlay()

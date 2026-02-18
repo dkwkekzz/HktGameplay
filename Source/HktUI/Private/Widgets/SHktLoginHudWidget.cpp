@@ -1,10 +1,11 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Widgets/SHktLoginHudWidget.h"
-#include "HktUIHelpers.h"
-#include "HktLoginComponent.h"
+#include "IHktPlayerInteractionInterface.h"
+#include "HktRuntimeCommands.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
+#include "Engine/Texture2D.h"
 
 void SHktLoginHudWidget::Construct(const FArguments& InArgs)
 {
@@ -14,9 +15,24 @@ void SHktLoginHudWidget::Construct(const FArguments& InArgs)
 			const_cast<UHktWidgetLoginHudDataAsset*>(InArgs._LoginWidgetDataAsset));
 	}
 
-	ChildSlot
-	[
-		SNew(SBox)
+	// DataAsset에 설정한 배경 텍스처를 Brush에 연결
+	if (DataAsset.IsValid() && DataAsset->LoginBackgroundTexture)
+	{
+		UTexture2D* Tex = const_cast<UTexture2D*>(DataAsset->LoginBackgroundTexture.Get());
+		BackgroundBrush.SetResourceObject(Tex);
+		int32 SizeX = Tex->GetSizeX();
+		int32 SizeY = Tex->GetSizeY();
+		if (SizeX <= 0 || SizeY <= 0)
+		{
+			SizeX = 1920;
+			SizeY = 1080;
+		}
+		BackgroundBrush.SetImageSize(FVector2D(static_cast<float>(SizeX), static_cast<float>(SizeY)));
+		BackgroundBrush.DrawAs = ESlateBrushDrawType::Image;
+		BackgroundBrush.Tiling = ESlateBrushTileType::NoTile;
+	}
+
+	TSharedRef<SWidget> FormContent = SNew(SBox)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
@@ -111,8 +127,33 @@ void SHktLoginHudWidget::Construct(const FArguments& InArgs)
 					]
 				]
 			]
-		]
-	];
+		];
+
+	// 배경 이미지(있을 때) 위에 로그인 폼을 올림
+	if (DataAsset.IsValid() && DataAsset->LoginBackgroundTexture)
+	{
+		ChildSlot
+		[
+			SNew(SOverlay)
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			[
+				SNew(SImage)
+				.Image(&BackgroundBrush)
+			]
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			[
+				FormContent
+			]
+		];
+	}
+	else
+	{
+		ChildSlot[FormContent];
+	}
 }
 
 FReply SHktLoginHudWidget::OnLoginClicked()
@@ -132,11 +173,6 @@ FReply SHktLoginHudWidget::OnLoginClicked()
 	APlayerController* PC = CachedPC.Get();
 	if (!PC)
 	{
-		PC = HktUI::GetFirstLocalPlayerController();
-	}
-
-	if (!PC)
-	{
 		if (StatusText.IsValid())
 		{
 			StatusText->SetText(FText::FromString(TEXT("PlayerController not found.")));
@@ -144,14 +180,27 @@ FReply SHktLoginHudWidget::OnLoginClicked()
 		return FReply::Handled();
 	}
 
-	// LoginComponent를 통한 로그인 요청
-	UHktLoginComponent* LoginComp = HktUI::FindComponent<UHktLoginComponent>(PC);
-	if (LoginComp)
+	// IHktPlayerInteractionInterface를 통한 로그인 요청
+	if (IHktPlayerInteractionInterface* InteractionInterface = Cast<IHktPlayerInteractionInterface>(PC))
 	{
-		LoginComp->Server_RequestLogin(ID, PW);
+		// 로그인 요청 데이터 생성
+		UHktLoginRequest* LoginRequest = NewObject<UHktLoginRequest>();
+		LoginRequest->UserID = ID;
+		LoginRequest->Password = PW;
+
+		// ExecuteCommand를 통해 전달
+		InteractionInterface->ExecuteCommand(LoginRequest);
+		
 		if (StatusText.IsValid())
 		{
 			StatusText->SetText(FText::FromString(TEXT("Logging in...")));
+		}
+	}
+	else
+	{
+		if (StatusText.IsValid())
+		{
+			StatusText->SetText(FText::FromString(TEXT("PlayerController does not support UI commands.")));
 		}
 	}
 

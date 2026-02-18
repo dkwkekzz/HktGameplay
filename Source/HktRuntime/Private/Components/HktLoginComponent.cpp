@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktLoginComponent.h"
-#include "Settings/HktUIGlobalSetting.h"
+#include "Components/HktLoginComponent.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 
@@ -51,10 +51,10 @@ void UHktLoginComponent::OnLoginSuccess(const FString& Token, const FString& InU
 	ClientUserSessionToken = Token;
 	ClientUserID = InUserID;
 
-	const UHktUIGlobalSetting* Settings = GetDefault<UHktUIGlobalSetting>();
+	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
 	if (!Settings || Settings->InGameMap.IsNull())
 	{
-		UE_LOG(LogTemp, Error, TEXT("HktLoginComponent: InGameMap is not set in Hkt UI Settings"));
+		UE_LOG(LogTemp, Error, TEXT("HktLoginComponent: InGameMap is not set in Hkt Runtime Settings"));
 		return;
 	}
 

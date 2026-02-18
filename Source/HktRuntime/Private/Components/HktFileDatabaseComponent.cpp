@@ -252,6 +252,31 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
         {
             FHktPlayerRecord& Record = Loaded.GetValue();
             Record.PlayerUid = InPlayerUid;
+            
+            // 기존 레코드에 월드 진입 이벤트가 없으면 추가 (재진입 시)
+            FGameplayTag InWorldTag = FGameplayTag::RequestGameplayTag(TEXT("State.Player.InWorld"), false);
+            bool bHasInWorldEvent = false;
+            for (const FHktEvent& Event : Record.Events)
+            {
+                if (Event.EventTag == InWorldTag)
+                {
+                    bHasInWorldEvent = true;
+                    break;
+                }
+            }
+            
+            if (!bHasInWorldEvent)
+            {
+                FHktEvent EnterWorldEvent;
+                EnterWorldEvent.EventTag = InWorldTag;
+                EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid); // 임시, 플로우에서 실제 엔티티 생성
+                EnterWorldEvent.TargetEntity = InvalidEntityId;
+                EnterWorldEvent.Location = Record.LastPosition;
+                EnterWorldEvent.Param0 = static_cast<int32>(InPlayerUid & 0xFFFFFFFF); // 플레이어 UID 하위 32비트
+                EnterWorldEvent.Param1 = static_cast<int32>((InPlayerUid >> 32) & 0xFFFFFFFF); // 플레이어 UID 상위 32비트
+                Record.Events.Add(EnterWorldEvent);
+            }
+            
             CachedRecords.Add(InPlayerUid, Record);
             InCallback(MakeUnique<FHktPlayerRecord>(MoveTemp(Record)));
         }
@@ -261,6 +286,16 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
             NewRecord.PlayerUid = InPlayerUid;
             NewRecord.CreatedTime = FDateTime::UtcNow();
             NewRecord.LastLoginTime = NewRecord.CreatedTime;
+            
+            // 신규 플레이어 레코드에 월드 진입 이벤트 추가
+            FHktEvent EnterWorldEvent;
+            EnterWorldEvent.EventTag = FGameplayTag::RequestGameplayTag(TEXT("State.Player.InWorld"), false);
+            EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid); // 임시, 플로우에서 실제 엔티티 생성
+            EnterWorldEvent.TargetEntity = InvalidEntityId;
+            EnterWorldEvent.Location = FVector::ZeroVector; // 기본 스폰 위치
+            EnterWorldEvent.Param0 = static_cast<int32>(InPlayerUid & 0xFFFFFFFF); // 플레이어 UID 하위 32비트
+            EnterWorldEvent.Param1 = static_cast<int32>((InPlayerUid >> 32) & 0xFFFFFFFF); // 플레이어 UID 상위 32비트
+            NewRecord.Events.Add(EnterWorldEvent);
 
             CachedRecords.Add(InPlayerUid, NewRecord);
             InCallback(MakeUnique<FHktPlayerRecord>(MoveTemp(NewRecord)));

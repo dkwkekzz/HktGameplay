@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "IHktPlayerInteractionInterface.h"
 #include "HktLoginPlayerController.generated.h"
 
 /**
@@ -12,12 +13,21 @@
  */
 UCLASS()
 class HKTRUNTIME_API AHktLoginPlayerController : public APlayerController
+	, public IHktPlayerInteractionInterface
 {
 	GENERATED_BODY()
 
 public:
 	AHktLoginPlayerController();
 
+	// === IHktPlayerInteractionInterface ===
+	virtual void ExecuteCommand(UObject* CommandData) override;
+	virtual bool GetWorldView(FHktWorldView& OutView) const override;
+	virtual FOnHktWorldViewUpdated& OnWorldViewUpdated() override;
+
 protected:
 	virtual void BeginPlay() override;
+
+private:
+	FOnHktWorldViewUpdated WorldViewUpdatedDelegate;
 };

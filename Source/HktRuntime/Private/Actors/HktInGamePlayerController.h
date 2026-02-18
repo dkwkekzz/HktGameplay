@@ -55,8 +55,7 @@ public:
     FOnHktWheelInput& OnWheelInput() { return WheelInputDelegate; }
 
     // === IHktPlayerInteractionInterface ===
-    virtual void HandleUICommand(FGameplayTag CommandTag, const FString& Payload) override;
-    virtual void SendRuntimeEvent(const FHktRuntimeEvent& Event) override;
+    virtual void ExecuteCommand(UObject* CommandData) override;
     virtual bool GetWorldView(FHktWorldView& OutView) const override;
     virtual FOnHktWorldViewUpdated& OnWorldViewUpdated() override { return WorldViewUpdatedDelegate; }
 

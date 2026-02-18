@@ -25,11 +25,8 @@ class HKTRUNTIME_API IHktPlayerInteractionInterface
 	GENERATED_BODY()
 
 public:
-	/** 일반적인 게임플레이 관련 명령 전달 (Component로 라우팅) */
-	virtual void HandleUICommand(FGameplayTag CommandTag, const FString& Payload) = 0;
-
-	/** 시뮬레이션 시스템으로 이벤트 전달 */
-	virtual void SendRuntimeEvent(const FHktRuntimeEvent& Event) = 0;
+	/** 일반적인 게임플레이 관련 명령 전달 (UObject를 통한 유연한 데이터 전달) */
+	virtual void ExecuteCommand(UObject* CommandData) = 0;
 
 	/** 현재 클라이언트의 WorldView를 가져옵니다. 시뮬레이터 미초기화 시 false 반환. */
 	virtual bool GetWorldView(FHktWorldView& OutView) const = 0;

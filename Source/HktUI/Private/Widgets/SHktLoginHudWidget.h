@@ -10,9 +10,11 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Images/SImage.h"
+#include "Styling/SlateBrush.h"
 
 class APlayerController;
-class UHktLoginComponent;
 
 /**
  * 로그인 화면 Slate 위젯.
@@ -34,6 +36,8 @@ public:
 
 private:
 	FReply OnLoginClicked();
+
+	FSlateBrush BackgroundBrush;
 
 	TSharedPtr<SEditableTextBox> IDInputBox;
 	TSharedPtr<SEditableTextBox> PWInputBox;

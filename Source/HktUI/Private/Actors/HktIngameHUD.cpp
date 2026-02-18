@@ -6,7 +6,7 @@
 #include "HktSlateView.h"
 #include "Widgets/SHktIngameHudWidget.h"
 #include "Widgets/SHktEntityHudWidget.h"
-#include "HktGameplayTags.h"
+#include "HktUITags.h"
 #include "HktPropertyIds.h"
 #include "HktUIHelpers.h"
 #include "IHktPlayerInteractionInterface.h"

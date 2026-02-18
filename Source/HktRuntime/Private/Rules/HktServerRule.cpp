@@ -72,10 +72,8 @@ void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
         InGraph.RegisterPlayer(NewPlayer, StartGroupIdx);
         InCollector.EnterWorldPlayer(StartGroupIdx, Record.PlayerUid);
 
-        if (Record.Events.Num() > 0)
-        {
-            InCollector.PushIntents(Record.PlayerUid, Record.Events);
-        }
+        // Database에서 이미 완전한 Record를 제공하므로 무조건 PushIntents 호출
+        InCollector.PushIntents(Record.PlayerUid, Record.Events);
     }
 
     int64 LogoutUid;

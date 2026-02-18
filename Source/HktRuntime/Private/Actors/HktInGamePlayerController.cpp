@@ -258,14 +258,9 @@ IHktClientRule* AHktInGamePlayerController::GetClientRule() const
 // IHktPlayerInteractionInterface 구현
 // ============================================================================
 
-void AHktInGamePlayerController::HandleUICommand(FGameplayTag CommandTag, const FString& Payload)
+void AHktInGamePlayerController::ExecuteCommand(UObject* CommandData)
 {
     // TODO: 필요 시 Command 라우팅 구현
-}
-
-void AHktInGamePlayerController::SendRuntimeEvent(const FHktRuntimeEvent& Event)
-{
-    Server_ReceiveIntent(Event);
 }
 
 bool AHktInGamePlayerController::GetWorldView(FHktWorldView& OutView) const

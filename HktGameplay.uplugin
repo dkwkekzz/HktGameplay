@@ -21,6 +21,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "HktFlow",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "HktRuntime",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
