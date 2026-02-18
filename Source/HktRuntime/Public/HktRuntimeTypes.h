@@ -187,11 +187,6 @@ struct HKTRUNTIME_API FHktRuntimeSimulationState
     // 1. 코어 월드 상태를 내부에 값으로 소유 (동적 할당 및 포인터 연산 없음)
     FHktWorldState CoreState;
 
-    // [결정론 보장] 현재 진행 중인, 아직 만료되지 않은 지속성 이벤트나 상태
-    // 예: 쿨타임 정보, 날씨 상태, 현재 RNG의 내부 상태값 등
-    UPROPERTY()
-    TArray<FHktRuntimeEvent> ActiveEvents;
-
     FHktRuntimeSimulationState() = default;
 
     // 이동 생성자: 제로 카피로 코어 상태 소유권 이전

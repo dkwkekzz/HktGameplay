@@ -14,6 +14,8 @@
 #include "HktInsightsRuntimeTypes.h"
 #endif
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktIngamePlayerController, Log, All);
+
 AHktIngamePlayerController::AHktIngamePlayerController()
 {
     bShowMouseCursor = true;
@@ -32,8 +34,6 @@ void AHktIngamePlayerController::BeginPlay()
             Subsystem->AddMappingContext(DefaultMappingContext, 0);
         }
     }
-
-    // 컴포넌트는 블루프린트나 다른 방식으로 추가됨
 
     if (!ClientRule)
     {
@@ -60,7 +60,6 @@ void AHktIngamePlayerController::BeginPlay()
         else if (IHktCommandContainer* CommandContainer = Cast<IHktCommandContainer>(Comp))
         {
             CachedCommandContainer = CommandContainer;
-            // SetSlotActions 설정
             CommandContainer->SetSlotActions(SlotActions);
         }
         else if (IHktWorldPlayer* WorldPlayer = Cast<IHktWorldPlayer>(Comp))
@@ -87,11 +86,14 @@ void AHktIngamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReaso
 void AHktIngamePlayerController::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
+
     // PlayerState가 변경되면 컴포넌트의 캐시를 무효화
     if (CachedWorldPlayer)
     {
         CachedWorldPlayer->InvalidatePlayerUidCache();
     }
+
+    UE_LOG(LogHktIngamePlayerController, Log, TEXT("OnRep_PlayerState"));
 }
 
 void AHktIngamePlayerController::SetupInputComponent()
@@ -119,7 +121,10 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
     if (!Rule || !Policy || !Builder) return;
 
     Rule->OnUserEvent_SubjectInputAction(*Policy, *Builder);
-    SubjectChangedDelegate.Broadcast(Builder->GetSubjectEntityId());
+    const int32 SubjectEntityId = Builder->GetSubjectEntityId();
+    SubjectChangedDelegate.Broadcast(SubjectEntityId);
+    
+    UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSubjectAction SubjectEntityId=%d"), SubjectEntityId);
 }
 
 void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
@@ -130,13 +135,20 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
     if (!Rule || !Policy || !Builder) return;
 
     Rule->OnUserEvent_TargetInputAction(*Policy, *Builder);
-    TargetChangedDelegate.Broadcast(Builder->GetTargetEntityId());
+    const int32 TargetEntityId = Builder->GetTargetEntityId();
+    TargetChangedDelegate.Broadcast(TargetEntityId);
 
     if (Builder->HasPendingSubmit())
     {
         FHktRuntimeEvent Event = Builder->ConsumePendingSubmit();
         Server_ReceiveIntent(Event);
         IntentSubmittedDelegate.Broadcast(Event);
+        
+        UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnTargetAction Submit %s"), *Event.CoreEvent.ToString());
+    }
+    else
+    {
+        UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnTargetAction TargetEntityId=%d"), TargetEntityId);
     }
 }
 
@@ -148,13 +160,20 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
     if (!Rule || !Container || !Builder) return;
 
     Rule->OnUserEvent_CommandInputAction(*Container, SlotIndex, *Builder);
-    CommandChangedDelegate.Broadcast(Builder->GetEventTag());
+    const FGameplayTag EventTag = Builder->GetEventTag();
+    CommandChangedDelegate.Broadcast(EventTag);
 
     if (Builder->HasPendingSubmit())
     {
         FHktRuntimeEvent Event = Builder->ConsumePendingSubmit();
         Server_ReceiveIntent(Event);
         IntentSubmittedDelegate.Broadcast(Event);
+        
+        UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSlotAction Submit %s"), *Event.CoreEvent.ToString());
+    }
+    else
+    {
+        UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSlotAction SlotIndex=%d EventTag=%s"), SlotIndex, *EventTag.ToString());
     }
 }
 
@@ -174,9 +193,9 @@ void AHktIngamePlayerController::OnZoom(const FInputActionValue& Value)
 void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const FHktRuntimeBatch& Batch)
 {
 #if WITH_HKT_INSIGHTS
+    const FHktSimulationEvent& CoreEvent = Batch;
     InsightReceivedBatchCount++;
     // 암시적 변환을 통해 CoreEvent에 접근
-    const FHktSimulationEvent& CoreEvent = Batch;
     HKT_INSIGHTS_RECORD_PACKET(
         EHktPacketDirection::ServerToClient, 
         EHktPacketType::FrameBatch,
@@ -191,6 +210,7 @@ void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
     IHktClientRule* Rule = GetClientRule();
     IHktClientSimulator* Simulator = CachedClientSimulator;
     if (!Rule || !Simulator) return;
+
     Rule->OnReceived_FrameBatch(Batch, *Simulator);
     WorldViewUpdatedDelegate.Broadcast();
 }
@@ -198,9 +218,9 @@ void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
 void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State)
 {
 #if WITH_HKT_INSIGHTS
+    const FHktWorldState& CoreState = State;
     InsightReceivedInitialStateCount++;
     // 암시적 변환을 통해 CoreState에 접근
-    const FHktWorldState& CoreState = State;
     HKT_INSIGHTS_RECORD_PACKET(
         EHktPacketDirection::ServerToClient, 
         EHktPacketType::InitialState,
@@ -215,6 +235,7 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
     IHktClientRule* Rule = GetClientRule();
     IHktClientSimulator* Simulator = CachedClientSimulator;
     if (!Rule || !Simulator) return;
+    
     Rule->OnReceived_InitialSimulationState(State, *Simulator);
     WorldViewUpdatedDelegate.Broadcast();
 }

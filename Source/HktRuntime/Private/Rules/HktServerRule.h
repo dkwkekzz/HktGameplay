@@ -25,7 +25,7 @@ public:
 private:
     struct FPendingLoginResult
     {
-        int64 PlayerUid;
+        TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer;
         TUniquePtr<FHktPlayerRecord> Record;
     };
 

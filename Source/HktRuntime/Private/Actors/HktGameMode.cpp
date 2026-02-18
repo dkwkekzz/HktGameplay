@@ -11,6 +11,8 @@
 #include "HktRuntimeInsightsCollector.h"
 #endif
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktGameMode, Log, All);
+
 AHktGameMode::AHktGameMode()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -56,12 +58,11 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
     }
 
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
-
-    UE_LOG(LogTemp, Log, TEXT("[HktGameMode] BeginPlay"));
 }
 
 void AHktGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    ServerRule.Reset();
     CachedFrameManager = nullptr;
     CachedRelevancyGraph = nullptr;
     CachedWorldDatabase = nullptr;
@@ -81,7 +82,11 @@ void AHktGameMode::Tick(float DeltaSeconds)
 #endif
 
     IHktServerRule* Rule = GetServerRule();
-    if (!Rule) return;
+    if (!Rule)
+    {
+        UE_LOG(LogHktGameMode, Warning, TEXT("Tick: ServerRule is null"));
+        return;
+    }
 
     IHktFrameManager*    Frame       = CachedFrameManager;
     IHktRelevancyGraph*  Graph       = CachedRelevancyGraph;
@@ -89,8 +94,18 @@ void AHktGameMode::Tick(float DeltaSeconds)
     IHktBatchBuilder*    Builder     = CachedBatchBuilder;
     IHktWorldDatabase*   Database    = CachedWorldDatabase;
 
-    if (!Frame || !Graph || !Collector || !Builder || !Database) return;
-    if (!Frame->IsInitialized()) return;
+    if (!Frame || !Graph || !Collector || !Builder || !Database)
+    {
+        UE_LOG(LogHktGameMode, Warning, TEXT("Tick: Required component missing (Frame=%d Graph=%d Collector=%d Builder=%d Database=%d)"),
+            Frame != nullptr, Graph != nullptr, Collector != nullptr, Builder != nullptr, Database != nullptr);
+        return;
+    }
+
+    if (!Frame->IsInitialized())
+    {
+        UE_LOG(LogHktGameMode, Verbose, TEXT("Tick: Frame not initialized yet"));
+        return;
+    }
 
     Frame->AdvanceFrame();
 
@@ -157,7 +172,7 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
     // 컴포넌트가 자동으로 PlayerState에서 UID를 계산하므로 수동 설정 불필요
     Rule->OnLogin_EnterWorldPlayer(*WorldPlayer, *Database);
 
-    UE_LOG(LogTemp, Log, TEXT("[HktGameMode] PostLogin: PlayerUid=%lld"), WorldPlayer->GetPlayerUid());
+    UE_LOG(LogHktGameMode, Log, TEXT("PostLogin PlayerUid=%lld"), WorldPlayer->GetPlayerUid());
 }
 
 void AHktGameMode::Logout(AController* Exiting)
@@ -176,6 +191,9 @@ void AHktGameMode::Logout(AController* Exiting)
 
     IHktWorldPlayer* WorldPlayer = HktPC->FindComponentByInterface<IHktWorldPlayer>();
     if (!WorldPlayer || !WorldPlayer->IsInitialized()) return;
+
+    const int64 PlayerUid = WorldPlayer->GetPlayerUid();
+    UE_LOG(LogHktGameMode, Log, TEXT("Logout PlayerUid=%lld"), PlayerUid);
 
     Rule->OnLogout_ExitWorldPlayer(*WorldPlayer, *Database);
 

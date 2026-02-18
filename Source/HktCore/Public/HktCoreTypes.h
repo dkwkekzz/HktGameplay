@@ -101,6 +101,11 @@ struct HKTCORE_API FHktEvent
     int32 Param0 = 0;
     int32 Param1 = 0;
 
+    FString ToString() const
+    {
+        return FString::Printf(TEXT("EventId=%d Tag=%s Src=%d Tgt=%d"), EventId, *EventTag.ToString(), SourceEntity, TargetEntity);
+    }
+
     // [핵심] FArchive 직렬화 연산자 오버로딩
     // 이 친구가 있으면 TArray<FHktEvent>를 Ar << Events; 한 줄로 보낼 수 있습니다.
     friend FArchive& operator<<(FArchive& Ar, FHktEvent& Event)
@@ -132,6 +137,12 @@ struct HKTCORE_API FHktSimulationEvent
     float DeltaSeconds = 0.0f;
     TArray<int64> RemovedOwnerIds;
     TArray<FHktEvent> Events;
+
+    FString ToString() const
+    {
+        return FString::Printf(TEXT("Frame=%lld Seed=%d Dt=%.3f Removed=%d Events=%d"),
+            FrameNumber, RandomSeed, DeltaSeconds, RemovedOwnerIds.Num(), Events.Num());
+    }
 
     void Reset()
     {

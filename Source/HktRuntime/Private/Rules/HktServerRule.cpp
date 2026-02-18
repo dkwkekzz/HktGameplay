@@ -29,12 +29,13 @@ void FHktDefaultServerRule::OnReceived_FireIntentEvent(const FHktEvent& InEvent,
 void FHktDefaultServerRule::OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB)
 {
     const int64 PlayerUid = InPlayer.GetPlayerUid();
+    TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer(const_cast<IHktWorldPlayer*>(&InPlayer));
 
-    InDB.LoadPlayerRecordAsync(PlayerUid, [this, PlayerUid](TUniquePtr<FHktPlayerRecord> RecordPtr)
+    InDB.LoadPlayerRecordAsync(PlayerUid, [this, WeakPlayer](TUniquePtr<FHktPlayerRecord> RecordPtr)
     {
         if (RecordPtr.IsValid())
         {
-            PendingLoginResults.Enqueue({ PlayerUid, MoveTemp(RecordPtr) });
+            PendingLoginResults.Enqueue({ WeakPlayer, MoveTemp(RecordPtr) });
         }
     });
 }
@@ -63,7 +64,7 @@ void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
     {
         if (!LoginResult.Record.IsValid()) continue;
 
-        IHktWorldPlayer* NewPlayer = InGraph.GetWorldPlayer(LoginResult.PlayerUid);
+        IHktWorldPlayer* NewPlayer = LoginResult.WeakPlayer.Get();
         if (NewPlayer == nullptr) continue;
 
         const FHktPlayerRecord& Record = *LoginResult.Record;

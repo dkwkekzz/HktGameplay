@@ -8,6 +8,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/InputSettings.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktLoginPlayerController, Log, All);
+
 AHktLoginPlayerController::AHktLoginPlayerController()
 {
 }
@@ -19,6 +21,8 @@ void AHktLoginPlayerController::BeginPlay()
 	// 로그인 화면은 UI 전용 입력
 	SetInputMode(FInputModeUIOnly());
 	bShowMouseCursor = true;
+
+	UE_LOG(LogHktLoginPlayerController, Log, TEXT("LoginPlayerController ready"));
 }
 
 // ============================================================================
@@ -35,7 +39,6 @@ void AHktLoginPlayerController::ExecuteCommand(UObject* CommandData)
 	// 로그인 명령 처리
 	if (UHktLoginRequest* LoginRequest = Cast<UHktLoginRequest>(CommandData))
 	{
-		// HktLoginComponent 찾기
 		UHktLoginComponent* LoginComp = FindComponentByClass<UHktLoginComponent>();
 		if (LoginComp)
 		{
