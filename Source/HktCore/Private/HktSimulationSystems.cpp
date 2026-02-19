@@ -19,13 +19,13 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
     // 제거된 소유자에 속하는 엔티티를 찾아서 삭제
     ScratchRemoveList.Reset();  // 용량 유지
 
-    const FHktDataColumn* OwnerCol = WorldState.GetColumn(PropertyId::OwnerPlayerHash);
-    if (!OwnerCol)
+    auto OwnerCol = WorldState.GetColumn(PropertyId::OwnerPlayerHash);
+    if (!OwnerCol.Data)
         return;
 
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
     {
-        int32 OwnerHash = OwnerCol->GetInt(SlotIndex);
+        int32 OwnerHash = OwnerCol.GetInt(SlotIndex);
         for (int64 RemovedId : RemovedOwnerIds)
         {
             if (static_cast<int64>(OwnerHash) == RemovedId)
@@ -56,13 +56,6 @@ void FHktVMBuildSystem::Process(
 {
     for (const FHktEvent& Event : Events)
     {
-        // 소스 엔티티가 유효한지 확인
-        if (!WorldState.IsValidEntity(Event.SourceEntity))
-        {
-            UE_LOG(LogTemp, Warning, TEXT("VM Build: SourceEntity %d not valid"), Event.SourceEntity);
-            continue;
-        }
-
         // 프로그램 찾기
         const FHktVMProgram* Program = FHktVMProgramRegistry::Get().FindProgram(Event.EventTag);
         if (!Program)
@@ -225,14 +218,14 @@ FHktPhysicsSystem::FCellCoord FHktPhysicsSystem::WorldToCell(const FVector& Pos)
 void FHktPhysicsSystem::RebuildGrid(const FHktWorldState& WorldState)
 {
     GridMap.Reset();
-    const FHktDataColumn* ColX = WorldState.GetColumn(PropertyId::PosX);
-    const FHktDataColumn* ColY = WorldState.GetColumn(PropertyId::PosY);
+    auto ColX = WorldState.GetColumn(PropertyId::PosX);
+    auto ColY = WorldState.GetColumn(PropertyId::PosY);
 
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
     {
         FVector Pos;
-        Pos.X = ColX ? static_cast<float>(ColX->GetInt(SlotIndex)) : 0.f;
-        Pos.Y = ColY ? static_cast<float>(ColY->GetInt(SlotIndex)) : 0.f;
+        Pos.X = ColX.Data ? static_cast<float>(ColX.GetInt(SlotIndex)) : 0.f;
+        Pos.Y = ColY.Data ? static_cast<float>(ColY.GetInt(SlotIndex)) : 0.f;
         // Z는 2D 그리드에서 불필요
         FCellCoord Cell = WorldToCell(Pos);
         GridMap.FindOrAdd(Cell).Add(Id);
@@ -247,9 +240,9 @@ void FHktPhysicsSystem::Process(
     RebuildGrid(WorldState);
 
     // 컬럼 포인터 사전 캐싱 (루프 내 TMap 룩업 제거)
-    const FHktDataColumn* ColX = WorldState.GetColumn(PropertyId::PosX);
-    const FHktDataColumn* ColY = WorldState.GetColumn(PropertyId::PosY);
-    const FHktDataColumn* ColZ = WorldState.GetColumn(PropertyId::PosZ);
+    auto ColX = WorldState.GetColumn(PropertyId::PosX);
+    auto ColY = WorldState.GetColumn(PropertyId::PosY);
+    auto ColZ = WorldState.GetColumn(PropertyId::PosZ);
 
     // 간단한 충돌 감지: 같은 셀 내 엔티티 쌍 비교
     static constexpr float CollisionRadius = 50.0f; // 기본 충돌 반경 (cm)
@@ -272,13 +265,13 @@ void FHktPhysicsSystem::Process(
                 int32 IdxB = WorldState.EntityToIndex[B];
 
                 FVector PosA(
-                    ColX ? static_cast<float>(ColX->GetInt(IdxA)) : 0.f,
-                    ColY ? static_cast<float>(ColY->GetInt(IdxA)) : 0.f,
-                    ColZ ? static_cast<float>(ColZ->GetInt(IdxA)) : 0.f);
+                    ColX.Data ? static_cast<float>(ColX.GetInt(IdxA)) : 0.f,
+                    ColY.Data ? static_cast<float>(ColY.GetInt(IdxA)) : 0.f,
+                    ColZ.Data ? static_cast<float>(ColZ.GetInt(IdxA)) : 0.f);
                 FVector PosB(
-                    ColX ? static_cast<float>(ColX->GetInt(IdxB)) : 0.f,
-                    ColY ? static_cast<float>(ColY->GetInt(IdxB)) : 0.f,
-                    ColZ ? static_cast<float>(ColZ->GetInt(IdxB)) : 0.f);
+                    ColX.Data ? static_cast<float>(ColX.GetInt(IdxB)) : 0.f,
+                    ColY.Data ? static_cast<float>(ColY.GetInt(IdxB)) : 0.f,
+                    ColZ.Data ? static_cast<float>(ColZ.GetInt(IdxB)) : 0.f);
 
                 float DistSq = FVector::DistSquared(PosA, PosB);
                 if (DistSq <= CollisionRadiusSq)
@@ -314,8 +307,8 @@ void FHktApplyStoreSystem::Process(
             if (WorldState.IsValidEntity(W.Entity))
             {
                 int32 Idx = WorldState.EntityToIndex[W.Entity];
-                FHktDataColumn& Col = WorldState.GetOrCreateColumn(static_cast<int32>(W.PropertyId));
-                Col.SetIntDirty(Idx, W.Value);
+                // [Flat SOA] 단일 버퍼 직접 쓰기 + Dirty 마킹
+                WorldState.SetPropertyDirty(Idx, static_cast<int32>(W.PropertyId), W.Value);
             }
         }
         Runtime.Store->ClearPendingWrites();

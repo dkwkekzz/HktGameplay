@@ -56,8 +56,7 @@ void FHktDefaultServerRule::OnEvent_RequestAutosave(int64 PlayerUid)
 }
 
 void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
-    IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktWorldDatabase& InDB,
-    TFunction<IHktWorldPlayer*(const FHktPlayerRecord&)> PlayerFactory)
+    IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktWorldDatabase& InDB)
 {
     FPendingLoginResult LoginResult;
     while (PendingLoginResults.Dequeue(LoginResult))
@@ -74,7 +73,13 @@ void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
         InCollector.EnterWorldPlayer(StartGroupIdx, Record.PlayerUid);
 
         // Database에서 이미 완전한 Record를 제공하므로 무조건 PushIntents 호출
-        InCollector.PushIntents(Record.PlayerUid, Record.Events);
+        InCollector.PushIntents(Record.PlayerUid, Record.ActiveEvents);
+
+        // [추가] EntityStates가 있으면 해당 그룹의 다음 배치에 주입
+        if (Record.HasEntities())
+        {
+            InCollector.PushEntityStates(StartGroupIdx, Record.EntityStates);
+        }
     }
 
     int64 LogoutUid;
@@ -88,7 +93,7 @@ void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
 
             FHktPlayerRecord NewRecord;
             NewRecord.PlayerUid = LogoutUid;
-            NewRecord.Events = MoveTemp(OwnerState.ActiveEvents);
+            NewRecord.ActiveEvents = MoveTemp(OwnerState.ActiveEvents);
             NewRecord.EntityStates = MoveTemp(OwnerState.EntityStates);
             InDB.SavePlayerRecordAsync(NewRecord);
         }
@@ -144,6 +149,9 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
             InCollector.GetIntents(PlayerUid, NewEvents);
             GroupBatch.Events.Append(NewEvents);
         }
+        
+        // [추가] 복원할 EntityStates 수집
+        InCollector.GetEntityStatesToRestore(GroupIndex, GroupBatch.RestoredEntityStates);
         
         // 3. 나간 유저 처리
         InCollector.GetExitedPlayers(GroupIndex, GroupBatch.RemovedOwnerIds);

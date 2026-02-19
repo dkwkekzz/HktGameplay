@@ -81,12 +81,6 @@ namespace HktFlowPlayerInWorld
 
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))
 
-			// 무한 루프로 유지 (캐릭터 파괴 전까지)
-			// Yield를 사용하여 매 프레임 실행되지만 완료되지 않도록 함
-			.Label(TEXT("MainLoop"))
-			.Yield(1)                                   // 매 프레임 Yield하여 완료되지 않도록
-			.Jump(TEXT("MainLoop"))                     // 무한 루프
-
 			.BuildAndRegister();
 	}
 }

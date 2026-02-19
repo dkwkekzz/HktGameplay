@@ -37,7 +37,7 @@ void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TF
     EnterWorldEvent.Location = FVector::ZeroVector; // 기본 스폰 위치
     EnterWorldEvent.Param0 = static_cast<int32>(InPlayerUid & 0xFFFFFFFF); // 플레이어 UID 하위 32비트
     EnterWorldEvent.Param1 = static_cast<int32>((InPlayerUid >> 32) & 0xFFFFFFFF); // 플레이어 UID 상위 32비트
-    NewRecord.Events.Add(EnterWorldEvent);
+    NewRecord.ActiveEvents.Add(EnterWorldEvent);
 
     TransientRecords.Add(InPlayerUid, NewRecord);
     InCallback(MakeUnique<FHktPlayerRecord>(MoveTemp(NewRecord)));

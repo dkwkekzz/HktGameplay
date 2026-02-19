@@ -109,13 +109,7 @@ void AHktGameMode::Tick(float DeltaSeconds)
 
     Frame->AdvanceFrame();
 
-    Rule->OnTick_ProcessPendingConnections(
-        *Graph, *Collector, *Database,
-        [Graph](const FHktPlayerRecord& Record) -> IHktWorldPlayer*
-        {
-            return Graph->GetWorldPlayer(Record.PlayerUid);
-        }
-    );
+    Rule->OnTick_ProcessPendingConnections(*Graph, *Collector, *Database);
 
     Graph->UpdateRelevancy();
 

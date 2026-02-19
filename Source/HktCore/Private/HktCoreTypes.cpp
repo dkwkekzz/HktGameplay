@@ -1,36 +1,108 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
+// [Flat SOA Refactor] - FHktWorldState 구현부
 
 #include "HktCoreTypes.h"
 
 // ============================================================================
-// FHktWorldState
+// FHktWorldState — Flat SOA Implementation
 // ============================================================================
 
 void FHktWorldState::Initialize()
 {
-    // SOA 인덱스 매핑
+    NumProperties = HktLimits::MaxProperties;
+    MaxSlots = HktLimits::MaxEntities;
+
+    // 단일 연속 버퍼 할당: MaxProperties × MaxEntities = 64 × 1024 = 65536 int32 = 256KB
+    FlatData.SetNumZeroed(NumProperties * MaxSlots);
+
+    // 인덱스 매핑
     EntityToIndex.Reserve(HktLimits::MaxEntities);
     IndexToEntity.Reserve(HktLimits::MaxEntities);
     FreeIndices.Reserve(HktLimits::MaxEntities);
     TagColumn.Reserve(HktLimits::MaxEntities);
     ActiveEvents.Reserve(HktLimits::MaxActiveEvents);
 
-    // 전체 컬럼 슬롯 사전 활성화 (64 × 4KB = 256KB)
-    // PropertyId 하드코딩 없이 [0, MaxProperties) 범위 전체를 즉시 사용 가능
-    Columns.SetNum(HktLimits::MaxProperties);
-    for (int32 i = 0; i < HktLimits::MaxProperties; ++i)
+    // DirtyTracker
+    DirtyTracker.Initialize(NumProperties);
+}
+
+// ============================================================================
+// 내부: 용량 확장
+// ============================================================================
+
+void FHktWorldState::EnsurePropertyCapacity(int32 PropertyId)
+{
+    if (PropertyId < NumProperties && MaxSlots > 0)
+        return;
+
+    // Property 수 확장이 필요한 경우
+    if (PropertyId >= NumProperties)
     {
-        FHktDataColumn& Col = Columns[i];
-        Col.PropertyId = i;
-        Col.IntData.Reserve(HktLimits::MaxEntities);
-        Col.DirtyIndices.Reserve(HktLimits::MaxDirtyPerColumn);
+        int32 NewNumProperties = PropertyId + 1;
+        int32 EffectiveMaxSlots = FMath::Max(MaxSlots, 1);
+
+        // 새 버퍼 할당 및 기존 데이터 복사
+        TArray<int32> NewFlatData;
+        NewFlatData.SetNumZeroed(NewNumProperties * EffectiveMaxSlots);
+
+        // 기존 데이터를 새 레이아웃으로 복사
+        for (int32 Prop = 0; Prop < NumProperties; ++Prop)
+        {
+            const int32 OldOffset = Prop * MaxSlots;
+            const int32 NewOffset = Prop * EffectiveMaxSlots;
+            const int32 CopyCount = FMath::Min(MaxSlots, EffectiveMaxSlots);
+            if (CopyCount > 0)
+            {
+                FMemory::Memcpy(
+                    NewFlatData.GetData() + NewOffset,
+                    FlatData.GetData() + OldOffset,
+                    CopyCount * sizeof(int32));
+            }
+        }
+
+        FlatData = MoveTemp(NewFlatData);
+        MaxSlots = EffectiveMaxSlots;
+        NumProperties = NewNumProperties;
+
+        DirtyTracker.EnsurePropertyId(PropertyId);
     }
 }
+
+void FHktWorldState::GrowSlots(int32 NewMaxSlots)
+{
+    if (NewMaxSlots <= MaxSlots)
+        return;
+
+    TArray<int32> NewFlatData;
+    NewFlatData.SetNumZeroed(NumProperties * NewMaxSlots);
+
+    // 각 Property 컬럼의 기존 데이터를 새 스트라이드로 복사
+    for (int32 Prop = 0; Prop < NumProperties; ++Prop)
+    {
+        const int32 OldOffset = Prop * MaxSlots;
+        const int32 NewOffset = Prop * NewMaxSlots;
+        if (MaxSlots > 0)
+        {
+            FMemory::Memcpy(
+                NewFlatData.GetData() + NewOffset,
+                FlatData.GetData() + OldOffset,
+                MaxSlots * sizeof(int32));
+        }
+    }
+
+    FlatData = MoveTemp(NewFlatData);
+    MaxSlots = NewMaxSlots;
+}
+
+// ============================================================================
+// Entity 할당/제거
+// ============================================================================
 
 FHktEntityId FHktWorldState::AllocateEntity()
 {
     FHktEntityId NewId = NextEntityId++;
     int32 SlotIndex;
+
     if (FreeIndices.Num() > 0)
     {
         SlotIndex = FreeIndices.Pop();
@@ -41,14 +113,15 @@ FHktEntityId FHktWorldState::AllocateEntity()
         SlotIndex = IndexToEntity.Num();
         IndexToEntity.Add(NewId);
         TagColumn.AddDefaulted();
-        // 모든 컬럼에 슬롯 확장
-        for (FHktDataColumn& Col : Columns)
+
+        // 슬롯 수가 MaxSlots를 넘으면 확장
+        if (SlotIndex >= MaxSlots)
         {
-            Col.IntData.Add(0);
+            GrowSlots(FMath::Max(MaxSlots * 2, SlotIndex + 1));
         }
     }
 
-    // EntityToIndex 확장 (EntityId가 배열 범위를 넘으면)
+    // EntityToIndex 확장
     if (NewId >= EntityToIndex.Num())
     {
         int32 OldNum = EntityToIndex.Num();
@@ -60,10 +133,10 @@ FHktEntityId FHktWorldState::AllocateEntity()
     }
     EntityToIndex[NewId] = SlotIndex;
 
-    // 슬롯 데이터 초기화
-    for (FHktDataColumn& Col : Columns)
+    // 슬롯 데이터 초기화 (모든 Property의 해당 슬롯을 0으로)
+    for (int32 Prop = 0; Prop < NumProperties; ++Prop)
     {
-        Col.SetInt(SlotIndex, 0);
+        FlatData[Prop * MaxSlots + SlotIndex] = 0;
     }
     TagColumn[SlotIndex].Reset();
 
@@ -81,49 +154,11 @@ void FHktWorldState::RemoveEntity(FHktEntityId Id)
     FreeIndices.Add(SlotIndex);
 }
 
-int32 FHktWorldState::GetProperty(FHktEntityId Entity, uint16 PropertyId) const
-{
-    if (!IsValidEntity(Entity))
-        return 0;
-    int32 SlotIndex = EntityToIndex[Entity];
-    const FHktDataColumn* Col = GetColumn(static_cast<int32>(PropertyId));
-    return Col ? Col->GetInt(SlotIndex) : 0;
-}
+// GetProperty와 SetProperty는 헤더에 인라인으로 정의됨
 
-void FHktWorldState::SetProperty(FHktEntityId Entity, uint16 PropertyId, int32 Value)
-{
-    if (!IsValidEntity(Entity))
-        return;
-    int32 SlotIndex = EntityToIndex[Entity];
-    FHktDataColumn& Col = GetOrCreateColumn(PropertyId);
-    Col.SetInt(SlotIndex, Value);
-}
-
-FHktDataColumn& FHktWorldState::GetOrCreateColumn(int32 PropertyId)
-{
-    check(PropertyId >= 0);
-
-    // MaxProperties 범위를 넘으면 Columns 확장 (동적 PropertyId 지원)
-    if (PropertyId >= Columns.Num())
-    {
-        int32 OldNum = Columns.Num();
-        Columns.SetNum(PropertyId + 1);
-        for (int32 i = OldNum; i < Columns.Num(); ++i)
-        {
-            Columns[i].PropertyId = i;
-            Columns[i].IntData.Reserve(HktLimits::MaxEntities);
-            Columns[i].DirtyIndices.Reserve(HktLimits::MaxDirtyPerColumn);
-        }
-    }
-
-    FHktDataColumn& Col = Columns[PropertyId];
-    // Initialize()에서 이미 활성화되었으므로 IntData만 확인
-    if (Col.IntData.Num() < IndexToEntity.Num())
-    {
-        Col.SetZeroed(IndexToEntity.Num());
-    }
-    return Col;
-}
+// ============================================================================
+// DTO 변환
+// ============================================================================
 
 FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
 {
@@ -147,25 +182,57 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
 
     // Properties — 0이 아닌 값이 있는 최대 PropertyId까지 배열 구성
     int32 MaxPropId = -1;
-    for (const FHktDataColumn& Col : Columns)
+    for (int32 Prop = 0; Prop < NumProperties; ++Prop)
     {
-        if (Col.GetInt(SlotIndex) != 0 && Col.PropertyId > MaxPropId)
-            MaxPropId = Col.PropertyId;
+        if (FlatData[Prop * MaxSlots + SlotIndex] != 0 && Prop > MaxPropId)
+            MaxPropId = Prop;
     }
     if (MaxPropId >= 0)
     {
         State.Properties.SetNumZeroed(MaxPropId + 1);
-        for (const FHktDataColumn& Col : Columns)
+        for (int32 Prop = 0; Prop <= MaxPropId; ++Prop)
         {
-            if (Col.PropertyId <= MaxPropId)
-            {
-                State.Properties[Col.PropertyId] = Col.GetInt(SlotIndex);
-            }
+            State.Properties[Prop] = FlatData[Prop * MaxSlots + SlotIndex];
         }
     }
 
     return State;
 }
+
+// ============================================================================
+// [EntityStates 복원] Flat SOA에 엔터티 상태 주입
+// ============================================================================
+
+void FHktWorldState::RestoreEntities(const TArray<FHktEntityState>& InEntityStates)
+{
+    for (const FHktEntityState& State : InEntityStates)
+    {
+        // 1. 엔터티 슬롯 할당
+        FHktEntityId NewId = AllocateEntity();
+        const int32 SlotIndex = GetIndex(NewId);
+        if (SlotIndex == -1) continue;
+
+        // 2. Properties → Flat SOA에 직접 기록
+        for (int32 PropIdx = 0; PropIdx < State.Properties.Num(); ++PropIdx)
+        {
+            if (State.Properties[PropIdx] != 0)
+            {
+                EnsurePropertyCapacity(PropIdx);
+                FlatData[PropIdx * MaxSlots + SlotIndex] = State.Properties[PropIdx];
+            }
+        }
+
+        // 3. TagColumn 복원
+        if (TagColumn.IsValidIndex(SlotIndex))
+        {
+            TagColumn[SlotIndex] = State.TagIndices;
+        }
+    }
+}
+
+// ============================================================================
+// Snapshot / Rollback — memcpy 1회!
+// ============================================================================
 
 void FHktWorldState::CopyFrom(const FHktWorldState& Other)
 {
@@ -175,10 +242,22 @@ void FHktWorldState::CopyFrom(const FHktWorldState& Other)
     EntityToIndex = Other.EntityToIndex;
     IndexToEntity = Other.IndexToEntity;
     FreeIndices = Other.FreeIndices;
-    Columns = Other.Columns;
+
+    // [Flat SOA 핵심] 단일 버퍼 복사
+    NumProperties = Other.NumProperties;
+    MaxSlots = Other.MaxSlots;
+    FlatData = Other.FlatData;  // TArray 복사 (내부적으로 memcpy)
+
     TagColumn = Other.TagColumn;
     ActiveEvents = Other.ActiveEvents;
+
+    // DirtyTracker는 Transient — 복사하지 않고 초기화
+    DirtyTracker.Initialize(NumProperties);
 }
+
+// ============================================================================
+// 직렬화
+// ============================================================================
 
 FArchive& operator<<(FArchive& Ar, FHktWorldState& WorldState)
 {
@@ -189,57 +268,81 @@ FArchive& operator<<(FArchive& Ar, FHktWorldState& WorldState)
     Ar << WorldState.IndexToEntity;
     Ar << WorldState.FreeIndices;
 
-    // Columns: 데이터가 있는 컬럼만 저장/로드
+    // [Flat SOA] 메타데이터 + 데이터
+    Ar << WorldState.NumProperties;
+    Ar << WorldState.MaxSlots;
+
     if (Ar.IsLoading())
     {
-        int32 ColCount;
-        Ar << ColCount;
+        WorldState.FlatData.SetNumZeroed(WorldState.NumProperties * WorldState.MaxSlots);
+        WorldState.DirtyTracker.Initialize(WorldState.NumProperties);
+    }
 
-        // 로드 시 필요한 크기만큼 Columns 확보
-        int32 RequiredSize = HktLimits::MaxProperties;
-        // 첫 패스: 최대 Key를 파악하기 위해 일단 기본 크기로 시작
-        WorldState.Columns.SetNum(RequiredSize);
-        for (int32 i = 0; i < RequiredSize; ++i)
+    // 0이 아닌 데이터가 있는 Property만 직렬화 (대역폭 절약)
+    if (Ar.IsSaving())
+    {
+        // 데이터가 있는 컬럼 수 카운트
+        int32 ActiveColCount = 0;
+        for (int32 Prop = 0; Prop < WorldState.NumProperties; ++Prop)
         {
-            WorldState.Columns[i].PropertyId = i;
-            WorldState.Columns[i].IntData.Reset();
-            WorldState.Columns[i].DirtyIndices.Reset();
-        }
-
-        for (int32 i = 0; i < ColCount; ++i)
-        {
-            int32 Key;
-            Ar << Key;
-            check(Key >= 0);
-
-            // 동적 범위 확장
-            if (Key >= WorldState.Columns.Num())
+            bool bHasData = false;
+            const int32 Offset = Prop * WorldState.MaxSlots;
+            for (int32 Slot = 0; Slot < WorldState.IndexToEntity.Num(); ++Slot)
             {
-                int32 OldNum = WorldState.Columns.Num();
-                WorldState.Columns.SetNum(Key + 1);
-                for (int32 j = OldNum; j < WorldState.Columns.Num(); ++j)
+                if (WorldState.FlatData[Offset + Slot] != 0)
                 {
-                    WorldState.Columns[j].PropertyId = j;
+                    bHasData = true;
+                    break;
                 }
             }
-            Ar << WorldState.Columns[Key];
+            if (bHasData) ++ActiveColCount;
+        }
+        Ar << ActiveColCount;
+
+        for (int32 Prop = 0; Prop < WorldState.NumProperties; ++Prop)
+        {
+            bool bHasData = false;
+            const int32 Offset = Prop * WorldState.MaxSlots;
+            for (int32 Slot = 0; Slot < WorldState.IndexToEntity.Num(); ++Slot)
+            {
+                if (WorldState.FlatData[Offset + Slot] != 0)
+                {
+                    bHasData = true;
+                    break;
+                }
+            }
+            if (!bHasData) continue;
+
+            int32 PropId = Prop;
+            Ar << PropId;
+
+            // 유효한 슬롯 수만 직렬화
+            int32 SlotCount = WorldState.IndexToEntity.Num();
+            Ar << SlotCount;
+            Ar.Serialize(
+                WorldState.FlatData.GetData() + Offset,
+                SlotCount * sizeof(int32));
         }
     }
-    else
+    else // Loading
     {
-        // 저장 시 IntData가 있는 컬럼만 기록
-        int32 ColCount = 0;
-        for (const FHktDataColumn& Col : WorldState.Columns)
+        int32 ActiveColCount;
+        Ar << ActiveColCount;
+
+        for (int32 i = 0; i < ActiveColCount; ++i)
         {
-            if (Col.IntData.Num() > 0) ++ColCount;
-        }
-        Ar << ColCount;
-        for (FHktDataColumn& Col : WorldState.Columns)
-        {
-            if (Col.IntData.Num() == 0) continue;
-            int32 Key = Col.PropertyId;
-            Ar << Key;
-            Ar << Col;
+            int32 PropId;
+            Ar << PropId;
+
+            WorldState.EnsurePropertyCapacity(PropId);
+
+            int32 SlotCount;
+            Ar << SlotCount;
+
+            const int32 Offset = PropId * WorldState.MaxSlots;
+            Ar.Serialize(
+                WorldState.FlatData.GetData() + Offset,
+                SlotCount * sizeof(int32));
         }
     }
 

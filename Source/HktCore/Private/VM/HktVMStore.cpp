@@ -1,4 +1,5 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
+// [Flat SOA Refactor] - FHktVMStore 구현부
 
 #include "HktVMStore.h"
 
@@ -13,14 +14,13 @@ int32 FHktVMStore::Read(uint16 PropertyId) const
 
 int32 FHktVMStore::ReadEntity(FHktEntityId Entity, uint16 PropertyId) const
 {
-    uint64 Key = MakeCacheKey(Entity, PropertyId);
-    for (const FLocalCacheEntry& Entry : LocalCache)
-    {
-        if (Entry.Key == Key)
-            return Entry.Value;
-    }
+    // 1. LocalCache에서 O(1) 검색
+    const uint64 Key = MakeCacheKey(Entity, PropertyId);
+    const int32 Cached = CacheLookup(Key);
+    if (Cached != INT32_MIN)
+        return Cached;
 
-    // WorldState SOA에서 읽기
+    // 2. WorldState Flat SOA에서 읽기
     if (WorldState)
     {
         return WorldState->GetProperty(Entity, PropertyId);
@@ -35,24 +35,12 @@ void FHktVMStore::Write(uint16 PropertyId, int32 Value)
 
 void FHktVMStore::WriteEntity(FHktEntityId Entity, uint16 PropertyId, int32 Value)
 {
-    uint64 Key = MakeCacheKey(Entity, PropertyId);
+    const uint64 Key = MakeCacheKey(Entity, PropertyId);
 
-    // LocalCache 업데이트 (기존 항목 덮어쓰기 or 추가)
-    bool bFound = false;
-    for (FLocalCacheEntry& Entry : LocalCache)
-    {
-        if (Entry.Key == Key)
-        {
-            Entry.Value = Value;
-            bFound = true;
-            break;
-        }
-    }
-    if (!bFound)
-    {
-        LocalCache.Add({ Key, Value });
-    }
+    // LocalCache에 O(1) 삽입/갱신
+    CacheInsert(Key, Value);
 
+    // PendingWrites에 기록 (ApplyStoreSystem에서 일괄 커밋)
     PendingWrites.Add({ PropertyId, Entity, Value });
 }
 
@@ -64,7 +52,15 @@ void FHktVMStore::ClearPendingWrites()
 void FHktVMStore::Reset()
 {
     PendingWrites.Reset();  // 용량 유지
-    LocalCache.Reset();     // 용량 유지
+
+    // LocalCache 초기화 (전체 memset)
+    for (int32 i = 0; i < CacheCapacity; ++i)
+    {
+        LocalCache[i].Key = EmptyKey;
+        LocalCache[i].Value = 0;
+    }
+    CacheCount = 0;
+
     SourceEntity = InvalidEntityId;
     TargetEntity = InvalidEntityId;
 }

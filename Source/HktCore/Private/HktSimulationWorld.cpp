@@ -17,7 +17,7 @@ struct FHktSimWorldInternalData
         {
             Store.WorldState = WorldState;
             Store.PendingWrites.Reserve(HktLimits::MaxPendingWritesPerVM);
-            Store.LocalCache.Reserve(HktLimits::MaxLocalCachePerVM);
+            // LocalCache는 고정 배열이므로 Reserve 불필요
         }
     }
 };
@@ -67,6 +67,17 @@ void FHktSimulationWorld::ProcessBatch(const FHktSimulationEvent& Event)
 
     // 이전 프레임 DirtyIndices 초기화 (메모리 해제 없이 카운트만 0)
     WorldState.ResetDirtyIndices();
+
+    // ============================
+    // Phase 1-0: 엔터티 복원 (Arrange 전에 실행)
+    // ============================
+    // 재접속/그룹 이동으로 전달된 EntityStates를 WorldState에 주입.
+    // Arrange 전에 실행해야 복원된 엔터티가 OwnerPlayerHash를 가진 상태에서
+    // ArrangeSystem의 삭제 대상 검사를 통과할 수 있음.
+    if (Event.RestoredEntityStates.Num() > 0)
+    {
+        WorldState.RestoreEntities(Event.RestoredEntityStates);
+    }
 
     // ============================
     // Phase 1: 준비 (Preparation)

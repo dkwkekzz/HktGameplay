@@ -27,7 +27,7 @@ struct HKTRUNTIME_API FHktPlayerRecord
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     FVector LastPosition;
 
-    TArray<FHktEvent> Events;
+    TArray<FHktEvent> ActiveEvents;
     TArray<FHktEntityState> EntityStates;
 
     FHktPlayerRecord()

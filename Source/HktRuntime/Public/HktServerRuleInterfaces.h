@@ -107,6 +107,12 @@ public:
 	
 	/** 프레임 종료 시 소비된 데이터 정리 */
 	virtual void EndFrame() = 0;
+
+	// === [EntityStates 복원] EntityStates 복원 큐 ===
+	/** 그룹에 복원할 EntityStates 추가 */
+	virtual void PushEntityStates(int32 GroupIndex, const TArray<FHktEntityState>& InStates) = 0;
+	/** 그룹에 복원할 EntityStates 조회 */
+	virtual bool GetEntityStatesToRestore(int32 GroupIndex, TArray<FHktEntityState>& OutStates) = 0;
 };
 
 //=============================================================================
@@ -286,6 +292,6 @@ public:
 
     // --- 틱 ---
     virtual void OnEvent_RequestAutosave(int64 PlayerUid) {}
-    virtual void OnTick_ProcessPendingConnections(IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktWorldDatabase& InDB, TFunction<IHktWorldPlayer*(const FHktPlayerRecord&)> PlayerFactory) {}
+    virtual void OnTick_ProcessPendingConnections(IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktWorldDatabase& InDB) {}
     virtual void OnTick_ProcessSimulationAndPayloads(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& InOutBuilder) {}
 };

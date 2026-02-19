@@ -1,4 +1,5 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
+// [Flat SOA Refactor] - 분리형 SOA → 단일 연속 버퍼 Flat SOA
 
 #pragma once
 
@@ -22,7 +23,7 @@ namespace HktLimits
     constexpr int32 MaxProperties = 64;       // PropertyId 최대값 52 + 여유
     constexpr int32 MaxVMs = 256;
     constexpr int32 MaxActiveEvents = 256;
-    constexpr int32 MaxPendingEvents = 512;   // 충돌당 2개씩 생성
+    constexpr int32 MaxPendingEvents = 512;
     constexpr int32 MaxPhysicsEvents = 256;
     constexpr int32 MaxOverlayEntries = 1024;
     constexpr int32 MaxSpatialResults = 128;
@@ -52,8 +53,6 @@ struct FHktInlinePayload
     template <typename T>
     void Write(const T& Value)
     {
-        // [수정됨] TIsTriviallyCopyable 대신 언리얼 표준인 TIsBitwiseConstructible 사용
-        // FVector 등 언리얼 수학 타입들은 생성자가 있어도 Bitwise Copy가 안전하다고 엔진에 정의되어 있음
         static_assert(TIsBitwiseConstructible<T>::Value, "Only bitwise-copyable types are supported.");
         if (Size + sizeof(T) <= Capacity)
         {
@@ -77,20 +76,19 @@ struct FHktInlinePayload
     }
     bool operator!=(const FHktInlinePayload& Other) const { return !(*this == Other); }
 
-    // [핵심] FArchive 직렬화 연산자 오버로딩
-    // 이것 덕분에 TArray<FHktEvent> 내부에서 Payload를 만났을 때 자동으로 처리됩니다.
-    friend FArchive& operator<<(FArchive& Ar, FHktInlinePayload& Payload)
+    friend FArchive& operator<<(FArchive& Ar, FHktInlinePayload& P)
     {
-        Ar << Payload.Size;
-        if (Payload.Size > 0)
-        {
-            Ar.Serialize(Payload.Data, Payload.Size);
-        }
+        Ar << P.Size;
+        if (Ar.IsLoading()) FMemory::Memset(P.Data, 0, Capacity);
+        Ar.Serialize(P.Data, P.Size);
         return Ar;
     }
 };
 
-/** 범용 게임플레이 이벤트 */
+// ============================================================================
+// Events
+// ============================================================================
+
 struct HKTCORE_API FHktEvent
 {
     int32 EventId = 0;
@@ -100,28 +98,29 @@ struct HKTCORE_API FHktEvent
     FVector Location = FVector::ZeroVector;
     int32 Param0 = 0;
     int32 Param1 = 0;
+    FHktInlinePayload Payload;
+
+    bool IsValid() const { return EventTag.IsValid(); }
 
     FString ToString() const
     {
         return FString::Printf(TEXT("EventId=%d Tag=%s Src=%d Tgt=%d"), EventId, *EventTag.ToString(), SourceEntity, TargetEntity);
     }
 
-    // [핵심] FArchive 직렬화 연산자 오버로딩
-    // 이 친구가 있으면 TArray<FHktEvent>를 Ar << Events; 한 줄로 보낼 수 있습니다.
     friend FArchive& operator<<(FArchive& Ar, FHktEvent& Event)
     {
         Ar << Event.EventId;
-        Ar << Event.SourceEntity;
         Ar << Event.EventTag;
+        Ar << Event.SourceEntity;
         Ar << Event.TargetEntity;
         Ar << Event.Location;
         Ar << Event.Param0;
         Ar << Event.Param1;
+        Ar << Event.Payload;
         return Ar;
     }
 };
 
-/** 물리 충돌 이벤트 */
 struct HKTCORE_API FHktPhysicsEvent
 {
     FHktEntityId EntityA = InvalidEntityId;
@@ -129,44 +128,9 @@ struct HKTCORE_API FHktPhysicsEvent
     FVector ContactPoint = FVector::ZeroVector;
 };
 
-/** 프레임 단위 시뮬레이션 입력 */
-struct HKTCORE_API FHktSimulationEvent
-{
-    int64 FrameNumber = 0;
-    int32 RandomSeed = 0;
-    float DeltaSeconds = 0.0f;
-    TArray<int64> RemovedOwnerIds;
-    TArray<FHktEvent> Events;
-
-    FString ToString() const
-    {
-        return FString::Printf(TEXT("Frame=%lld Seed=%d Dt=%.3f Removed=%d Events=%d"),
-            FrameNumber, RandomSeed, DeltaSeconds, RemovedOwnerIds.Num(), Events.Num());
-    }
-
-    void Reset()
-    {
-        FrameNumber = 0;
-        RandomSeed = 0;
-        DeltaSeconds = 0.0f;
-        RemovedOwnerIds.Reset();
-        Events.Reset();
-    }
-
-    // SimulationEvent 자체도 중첩 구조로 사용될 수 있으므로 연산자를 정의합니다.
-    friend FArchive& operator<<(FArchive& Ar, FHktSimulationEvent& SimEvent)
-    {
-        Ar << SimEvent.FrameNumber;
-        Ar << SimEvent.RandomSeed;
-        Ar << SimEvent.DeltaSeconds;
-        Ar << SimEvent.RemovedOwnerIds;
-        Ar << SimEvent.Events; // TArray가 내부 요소의 operator<<를 자동으로 호출함
-        return Ar;
-    }
-};
-
 // ============================================================================
-// Entity & World State
+// Entity State (DTO — 네트워크/DB 직렬화 전용)
+// FHktSimulationEvent.RestoredEntityStates에서 참조하므로 먼저 정의
 // ============================================================================
 
 struct HKTCORE_API FHktEntityState
@@ -174,17 +138,13 @@ struct HKTCORE_API FHktEntityState
     FHktEntityId EntityId = InvalidEntityId;
     FVector Position = FVector::ZeroVector;
     TArray<int32> TagIndices;
-
-    // VM은 int32 단위로 Property를 읽고 쓰므로 int32 배열로 관리
     TArray<int32> Properties;
 
-    /** PropertyId 인덱스로 값 읽기 (범위 밖이면 0) */
     int32 GetProperty(uint16 PropertyId) const
     {
         return (PropertyId < static_cast<uint16>(Properties.Num())) ? Properties[PropertyId] : 0;
     }
 
-    /** PropertyId 인덱스로 값 쓰기 (필요 시 배열 확장) */
     void SetProperty(uint16 PropertyId, int32 Value)
     {
         if (PropertyId >= static_cast<uint16>(Properties.Num()))
@@ -194,7 +154,6 @@ struct HKTCORE_API FHktEntityState
         Properties[PropertyId] = Value;
     }
 
-    // 직렬화 연산자 오버로딩
     friend FArchive& operator<<(FArchive& Ar, FHktEntityState& State)
     {
         Ar << State.EntityId;
@@ -205,41 +164,111 @@ struct HKTCORE_API FHktEntityState
     }
 };
 
-/** SOA 데이터 컬럼 — PropertyId별 int32 배열 */
-struct HKTCORE_API FHktDataColumn
+struct HKTCORE_API FHktSimulationEvent
 {
-    int32 PropertyId = -1;
-    TArray<int32> IntData;
+    int64 FrameNumber = 0;
+    int32 RandomSeed = 0;
+    float DeltaSeconds = 0.f;
+    TArray<int64> RemovedOwnerIds;
+    TArray<FHktEvent> Events;
 
-    /** 이번 프레임에 값이 변경된 Internal Index 목록 (Transient — 직렬화 제외) */
-    TArray<int32> DirtyIndices;
+    // [EntityStates 복원] 재접속/그룹 이동 시 DB 또는 소스 그룹에서 추출된 엔터티 상태
+    // ProcessBatch의 Phase 1-0에서 WorldState에 주입됨
+    TArray<FHktEntityState> RestoredEntityStates;
 
-    void Resize(int32 Size) { IntData.SetNum(Size); }
-    void SetZeroed(int32 Size) { IntData.SetNumZeroed(Size); }
-
-    int32 GetInt(int32 Index) const { return IntData.IsValidIndex(Index) ? IntData[Index] : 0; }
-    void SetInt(int32 Index, int32 Value) { if (IntData.IsValidIndex(Index)) IntData[Index] = Value; }
-
-    /** 값을 쓰고 DirtyIndices에 기록 */
-    void SetIntDirty(int32 Index, int32 Value)
+    void Reset()
     {
-        if (IntData.IsValidIndex(Index))
-        {
-            IntData[Index] = Value;
-            DirtyIndices.Add(Index);
-        }
+        FrameNumber = 0;
+        RandomSeed = 0;
+        DeltaSeconds = 0.f;
+        RemovedOwnerIds.Reset();
+        Events.Reset();
+        RestoredEntityStates.Reset();
     }
 
-    friend FArchive& operator<<(FArchive& Ar, FHktDataColumn& Col)
+    friend FArchive& operator<<(FArchive& Ar, FHktSimulationEvent& SimEvent)
     {
-        Ar << Col.PropertyId;
-        Ar << Col.IntData;
-        // DirtyIndices는 Transient — 직렬화하지 않음
+        Ar << SimEvent.FrameNumber;
+        Ar << SimEvent.RandomSeed;
+        Ar << SimEvent.DeltaSeconds;
+        Ar << SimEvent.RemovedOwnerIds;
+        Ar << SimEvent.Events;
+        Ar << SimEvent.RestoredEntityStates;
         return Ar;
     }
 };
 
-/** 시뮬레이션의 전체 스냅샷 — SOA 기반 (Deep Copy 및 Rollback 지원 필수) */
+// ============================================================================
+// [Flat SOA] DirtyTracker — PropertyId별 변경 SlotIndex 추적
+// ============================================================================
+
+struct HKTCORE_API FHktDirtyTracker
+{
+    /** DirtyIndices[PropertyId] = 이번 프레임에 변경된 SlotIndex 목록 */
+    TArray<TArray<int32>> DirtyIndices;
+
+    void Initialize(int32 NumProperties)
+    {
+        DirtyIndices.SetNum(NumProperties);
+        for (auto& Arr : DirtyIndices)
+        {
+            Arr.Reserve(HktLimits::MaxDirtyPerColumn);
+        }
+    }
+
+    void MarkDirty(int32 PropertyId, int32 SlotIndex)
+    {
+        if (DirtyIndices.IsValidIndex(PropertyId))
+        {
+            DirtyIndices[PropertyId].Add(SlotIndex);
+        }
+    }
+
+    const TArray<int32>& GetDirtySlots(int32 PropertyId) const
+    {
+        static const TArray<int32> Empty;
+        return DirtyIndices.IsValidIndex(PropertyId) ? DirtyIndices[PropertyId] : Empty;
+    }
+
+    void ResetAll()
+    {
+        for (auto& Arr : DirtyIndices)
+        {
+            Arr.Reset(); // 용량 유지, 카운트만 0
+        }
+    }
+
+    void EnsurePropertyId(int32 PropertyId)
+    {
+        if (PropertyId >= DirtyIndices.Num())
+        {
+            int32 OldNum = DirtyIndices.Num();
+            DirtyIndices.SetNum(PropertyId + 1);
+            for (int32 i = OldNum; i < DirtyIndices.Num(); ++i)
+            {
+                DirtyIndices[i].Reserve(HktLimits::MaxDirtyPerColumn);
+            }
+        }
+    }
+};
+
+// ============================================================================
+// [Flat SOA] FHktWorldState — 단일 연속 버퍼 기반
+// ============================================================================
+//
+// 메모리 레이아웃:
+//   FlatData[PropertyId * MaxSlots + SlotIndex] = int32 값
+//
+// 이전 분리형 SOA:  64개의 독립 TArray<int32> (64개 heap 블록)
+// 새 Flat SOA:      1개의 TArray<int32> (1개 heap 블록)
+//
+// 이점:
+//   - CopyFrom: memcpy 1회 (기존 64회)
+//   - VM 랜덤 접근: 같은 메모리 영역 내 오프셋 점프 (TLB 미스 감소)
+//   - 시스템 벌크 순회: 컬럼 내부 연속성 동일 (GetColumnPtr)
+//
+// ============================================================================
+
 struct HKTCORE_API FHktWorldState
 {
     int64 FrameNumber = 0;
@@ -253,23 +282,115 @@ struct HKTCORE_API FHktWorldState
     TArray<FHktEntityId> IndexToEntity;  // SlotIndex -> EntityId
     TArray<int32> FreeIndices;           // 재사용 가능 슬롯
 
-    // --- SOA Data Columns (PropertyId로 직접 인덱싱, size = MaxProperties) ---
-    TArray<FHktDataColumn> Columns;
+    // --- [Flat SOA] 단일 연속 데이터 버퍼 ---
+    // Layout: FlatData[PropertyId * MaxSlots + SlotIndex]
+    TArray<int32> FlatData;
+    int32 NumProperties = 0;    // 현재 활성 Property 수
+    int32 MaxSlots = 0;         // 현재 할당된 슬롯 수 (== IndexToEntity의 예약 크기)
+
+    // --- [Flat SOA] 변경 추적 ---
+    FHktDirtyTracker DirtyTracker;
+
+    // --- Tag 데이터 (Property 시스템 밖이므로 별도 관리) ---
     TArray<TArray<int32>> TagColumn;  // SlotIndex -> TagIndices
 
-    // --- Active Events (진행 중인 이벤트 — 중간 합류 클라이언트 동기화용) ---
+    // --- Active Events ---
     TArray<FHktEvent> ActiveEvents;
 
-    // --- Core Operations ---
+    // ========================================================================
+    // Flat SOA 접근자 (인라인 — 핫 경로)
+    // ========================================================================
+
+    /** 단일 값 읽기 (VM Store fallback, 외부 API) */
+    FORCEINLINE int32 GetProperty(FHktEntityId Entity, uint16 PropertyId) const
+    {
+        if (!IsValidEntity(Entity)) return 0;
+        const int32 SlotIndex = EntityToIndex[Entity];
+        const int32 PropId = static_cast<int32>(PropertyId);
+        if (PropId >= NumProperties) return 0;
+        return FlatData[PropId * MaxSlots + SlotIndex];
+    }
+
+    /** 단일 값 쓰기 (시스템에서 직접 사용) */
+    FORCEINLINE void SetProperty(FHktEntityId Entity, uint16 PropertyId, int32 Value)
+    {
+        if (!IsValidEntity(Entity)) return;
+        const int32 SlotIndex = EntityToIndex[Entity];
+        const int32 PropId = static_cast<int32>(PropertyId);
+        EnsurePropertyCapacity(PropId);
+        FlatData[PropId * MaxSlots + SlotIndex] = Value;
+    }
+
+    /** 값 쓰기 + Dirty 마킹 (ApplyStoreSystem에서 사용) */
+    FORCEINLINE void SetPropertyDirty(int32 SlotIndex, int32 PropertyId, int32 Value)
+    {
+        EnsurePropertyCapacity(PropertyId);
+        FlatData[PropertyId * MaxSlots + SlotIndex] = Value;
+        DirtyTracker.MarkDirty(PropertyId, SlotIndex);
+    }
+
+    /** 컬럼 시작 포인터 (시스템 벌크 순회용 — 루프 밖에서 캐싱) */
+    FORCEINLINE const int32* GetColumnPtr(int32 PropertyId) const
+    {
+        if (PropertyId >= NumProperties || MaxSlots == 0) return nullptr;
+        return FlatData.GetData() + (PropertyId * MaxSlots);
+    }
+
+    FORCEINLINE int32* GetMutableColumnPtr(int32 PropertyId)
+    {
+        EnsurePropertyCapacity(PropertyId);
+        return FlatData.GetData() + (PropertyId * MaxSlots);
+    }
+
+    /** 특정 SlotIndex에서 직접 읽기 (컬럼 포인터 캐싱 후 사용) */
+    FORCEINLINE int32 GetFast(int32 PropertyId, int32 SlotIndex) const
+    {
+        return FlatData[PropertyId * MaxSlots + SlotIndex];
+    }
+
+    // ========================================================================
+    // 하위 호환 — 기존 GetColumn 인터페이스 (읽기 전용 래퍼)
+    // ========================================================================
+
+    /** [하위 호환] FHktDataColumn-like 읽기 래퍼 */
+    struct FColumnView
+    {
+        const int32* Data = nullptr;
+        int32 Count = 0;
+
+        FORCEINLINE int32 GetInt(int32 SlotIndex) const
+        {
+            return (Data && SlotIndex >= 0 && SlotIndex < Count) ? Data[SlotIndex] : 0;
+        }
+    };
+
+    /** [하위 호환] 시스템이 기존 패턴으로 사용 가능 */
+    FORCEINLINE FColumnView GetColumn(int32 PropertyId) const
+    {
+        if (PropertyId < 0 || PropertyId >= NumProperties || MaxSlots == 0)
+            return { nullptr, 0 };
+        return { FlatData.GetData() + (PropertyId * MaxSlots), MaxSlots };
+    }
+
+    /** [하위 호환] DirtyIndices 접근 */
+    const TArray<int32>& GetDirtySlots(int32 PropertyId) const
+    {
+        return DirtyTracker.GetDirtySlots(PropertyId);
+    }
+
+    // ========================================================================
+    // Core Operations
+    // ========================================================================
+
     FHktEntityId AllocateEntity();
     void RemoveEntity(FHktEntityId Id);
 
-    bool IsValidEntity(FHktEntityId Id) const
+    FORCEINLINE bool IsValidEntity(FHktEntityId Id) const
     {
         return Id >= 0 && Id < EntityToIndex.Num() && EntityToIndex[Id] != -1;
     }
 
-    int32 GetIndex(FHktEntityId Id) const
+    FORCEINLINE int32 GetIndex(FHktEntityId Id) const
     {
         return IsValidEntity(Id) ? EntityToIndex[Id] : -1;
     }
@@ -279,32 +400,16 @@ struct HKTCORE_API FHktWorldState
         return IndexToEntity.Num() - FreeIndices.Num();
     }
 
-    // --- Property Access ---
-    int32 GetProperty(FHktEntityId Entity, uint16 PropertyId) const;
-    void SetProperty(FHktEntityId Entity, uint16 PropertyId, int32 Value);
-
-    // --- Column Access ---
-    const FHktDataColumn* GetColumn(int32 PropertyId) const
-    {
-        if (PropertyId >= 0 && PropertyId < Columns.Num())
-            return &Columns[PropertyId];
-        return nullptr;
-    }
-    FHktDataColumn& GetOrCreateColumn(int32 PropertyId);
-
     /** 고정 버퍼 사전 할당 (생성 시 1회 호출) */
     void Initialize();
 
-    /** 모든 컬럼의 DirtyIndices를 Reset (프레임 시작 시 호출) */
+    /** 모든 DirtyIndices를 Reset (프레임 시작 시 호출) */
     void ResetDirtyIndices()
     {
-        for (FHktDataColumn& Col : Columns)
-        {
-            Col.DirtyIndices.Reset();
-        }
+        DirtyTracker.ResetAll();
     }
 
-    // --- Iteration (template — 헤더에 유지) ---
+    // --- Iteration ---
     template<typename Func>
     void ForEachEntity(Func&& Callback) const
     {
@@ -318,28 +423,36 @@ struct HKTCORE_API FHktWorldState
         }
     }
 
-    // --- Compatibility: Entity 추출 (HktRuntime DTO 변환용) ---
+    // --- DTO 변환 ---
     FHktEntityState ExtractEntityState(FHktEntityId Id) const;
+
+    // --- [EntityStates 복원] DB/그룹 이동에서 로드된 EntityStates를 Flat SOA에 주입 ---
+    void RestoreEntities(const TArray<FHktEntityState>& InEntityStates);
 
     // --- Snapshot/Rollback ---
     void CopyFrom(const FHktWorldState& Other);
 
     // --- 직렬화 ---
     friend HKTCORE_API FArchive& operator<<(FArchive& Ar, FHktWorldState& WorldState);
+
+private:
+    /** PropertyId가 현재 용량을 넘으면 FlatData 확장 */
+    void EnsurePropertyCapacity(int32 PropertyId);
+
+    /** 슬롯 수 확장 (엔터티 추가 시) */
+    void GrowSlots(int32 NewMaxSlots);
 };
 
 // ============================================================================
 // World View (Zero-Copy Interface)
 // ============================================================================
 
-/** 로컬 오버레이 단일 항목 (정렬됨) */
 struct HKTCORE_API FHktOverlayEntry
 {
     int32 PropertyId;
     FHktEntityId EntityId;
     int32 Value;
 
-    // 정렬 및 이진 탐색을 위한 비교 연산자
     bool operator<(const FHktOverlayEntry& Other) const
     {
         if (PropertyId != Other.PropertyId) return PropertyId < Other.PropertyId;
@@ -347,167 +460,117 @@ struct HKTCORE_API FHktOverlayEntry
     }
 };
 
-/** * [Zero-Copy View]
- * 렌더러가 상태를 조회하기 위한 인터페이스입니다.
- * - 단일 Array로 평탄화된 오버레이를 사용하여 생성 비용을 최소화합니다.
- */
 struct HKTCORE_API FHktWorldView
 {
-    // 원본 데이터 참조
     const FHktWorldState* WorldState = nullptr;
-
-    // 로컬 오버레이 (Active VM Context) - Int32 Only
-    // [최적화] PublishRenderSystem에서 PropertyId -> EntityId 순으로 정렬(Sort)하여 채웁니다.
     TArray<FHktOverlayEntry> IntOverlays;
-
-    // --- Accessors ---
 
     int32 GetValue(FHktEntityId Entity, int32 PropertyId) const
     {
-        // 1. Check Local Overlay (Binary Search for O(log N))
-        // 오버레이는 정렬되어 있으므로 이진 탐색 사용 가능
-        // (직접 구현 혹은 Algo::BinarySearchBy 사용)
+        // 1. Overlay 이진 탐색
         int32 Low = 0;
         int32 High = IntOverlays.Num() - 1;
-
         while (Low <= High)
         {
             int32 Mid = (Low + High) / 2;
             const FHktOverlayEntry& Entry = IntOverlays[Mid];
-
-            if (Entry.PropertyId < PropertyId)
-            {
-                Low = Mid + 1;
-            }
-            else if (Entry.PropertyId > PropertyId)
-            {
-                High = Mid - 1;
-            }
-            else // PropertyId Match
+            if (Entry.PropertyId < PropertyId) Low = Mid + 1;
+            else if (Entry.PropertyId > PropertyId) High = Mid - 1;
+            else
             {
                 if (Entry.EntityId < Entity) Low = Mid + 1;
                 else if (Entry.EntityId > Entity) High = Mid - 1;
-                else return Entry.Value; // Found
+                else return Entry.Value;
             }
         }
 
-        // 2. Check Committed World State
+        // 2. WorldState Flat SOA
         if (WorldState)
         {
-            if (const FHktDataColumn* Col = WorldState->GetColumn(PropertyId))
-            {
-                int32 Index = WorldState->GetIndex(Entity);
-                if (Index != -1) return Col->GetInt(Index);
-            }
+            return WorldState->GetProperty(Entity, static_cast<uint16>(PropertyId));
         }
         return 0;
     }
 
-    /** [Full Iteration]
-     * 특정 프로퍼티에 대해 모든 엔티티를 순회합니다. (초기화 및 전체 갱신 용도)
-     * - Dirty 여부와 상관없이 현재 존재하는 모든 유효한 엔티티를 방문합니다.
-     * - WorldState의 IndexToEntity는 Dense Array이므로 순회 효율이 높습니다.
-     */
     template<typename Func>
     void ForEachEntity(int32 PropertyId, Func&& Callback) const
     {
         if (WorldState)
         {
-            if (WorldState->GetColumn(PropertyId))
+            for (const FHktEntityId& EntityId : WorldState->IndexToEntity)
             {
-                for (const FHktEntityId& EntityId : WorldState->IndexToEntity)
-                {
-                    Callback(EntityId);
-                }
+                Callback(EntityId);
             }
         }
     }
 
-    /** [Dirty Iteration — O(Changes)]
-     * 이번 프레임에 변경된 엔티티만 순회합니다.
-     * - 커밋된 변경(WorldState DirtyIndices) + 미커밋 변경(Overlay)을 합산.
-     * - Callback(EntityId, int32 Value): 변경된 엔티티의 최종값을 전달.
-     */
     template<typename Func>
     void ForEachDirtyEntity(int32 PropertyId, Func&& Callback) const
     {
-        if (!WorldState)
-            return;
+        if (!WorldState) return;
 
-        const FHktDataColumn* Col = WorldState->GetColumn(PropertyId);
-
-        // 1. 커밋된 변경: DirtyIndices 순회 (캐시 친화적 — 연속 배열)
-        if (Col)
+        // 1. 커밋된 변경
+        const TArray<int32>& DirtySlots = WorldState->GetDirtySlots(PropertyId);
+        const int32* ColPtr = WorldState->GetColumnPtr(PropertyId);
+        if (ColPtr)
         {
-            for (int32 Idx : Col->DirtyIndices)
+            for (int32 Idx : DirtySlots)
             {
                 FHktEntityId EntityId = WorldState->IndexToEntity[Idx];
                 if (EntityId != InvalidEntityId)
                 {
-                    Callback(EntityId, Col->GetInt(Idx));
+                    Callback(EntityId, ColPtr[Idx]);
                 }
             }
         }
 
-        // 2. 미커밋 Overlay: 정렬된 배열에서 PropertyId 범위만 순회
-        //    이진 탐색으로 시작 위치를 찾고, PropertyId가 다를 때까지 진행
-        int32 Low = 0;
-        int32 High = IntOverlays.Num() - 1;
-        int32 Start = IntOverlays.Num(); // not found
-
+        // 2. 미커밋 Overlay
+        int32 Low = 0, High = IntOverlays.Num() - 1;
+        int32 Start = IntOverlays.Num();
         while (Low <= High)
         {
             int32 Mid = (Low + High) / 2;
-            if (IntOverlays[Mid].PropertyId < PropertyId)
-            {
-                Low = Mid + 1;
-            }
+            if (IntOverlays[Mid].PropertyId < PropertyId) Low = Mid + 1;
             else
             {
                 if (IntOverlays[Mid].PropertyId == PropertyId) Start = Mid;
                 High = Mid - 1;
             }
         }
-
-        // LowerBound 위치에서 연속 순회
         for (int32 i = Start; i < IntOverlays.Num() && IntOverlays[i].PropertyId == PropertyId; ++i)
         {
             Callback(IntOverlays[i].EntityId, IntOverlays[i].Value);
         }
     }
 
-    /** [All-Property Dirty Iteration]
-     * 모든 PropertyId에 대해 이번 프레임 변경점을 순회합니다.
-     * - Callback(int32 PropertyId, EntityId, int32 Value)
-     */
     template<typename Func>
     void ForEachDirtyEntry(Func&& Callback) const
     {
-        if (!WorldState)
-            return;
+        if (!WorldState) return;
 
-        // 1. 커밋된 변경: 모든 컬럼의 DirtyIndices 순회
-        for (const FHktDataColumn& Col : WorldState->Columns)
+        // 1. 커밋된 변경
+        for (int32 PropId = 0; PropId < WorldState->NumProperties; ++PropId)
         {
-            int32 PropId = Col.PropertyId;
-            for (int32 Idx : Col.DirtyIndices)
+            const TArray<int32>& DirtySlots = WorldState->GetDirtySlots(PropId);
+            const int32* ColPtr = WorldState->GetColumnPtr(PropId);
+            if (!ColPtr) continue;
+            for (int32 Idx : DirtySlots)
             {
                 FHktEntityId EntityId = WorldState->IndexToEntity[Idx];
                 if (EntityId != InvalidEntityId)
                 {
-                    Callback(PropId, EntityId, Col.GetInt(Idx));
+                    Callback(PropId, EntityId, ColPtr[Idx]);
                 }
             }
         }
 
-        // 2. 미커밋 Overlay: 이미 정렬되어 있으므로 선형 순회
+        // 2. 미커밋 Overlay
         for (const FHktOverlayEntry& Entry : IntOverlays)
         {
             Callback(Entry.PropertyId, Entry.EntityId, Entry.Value);
         }
     }
 
-    // 전체 엔티티 순회 헬퍼
     const TArray<FHktEntityId>& GetAllEntities() const
     {
         return WorldState ? WorldState->IndexToEntity : DummyEntities;
