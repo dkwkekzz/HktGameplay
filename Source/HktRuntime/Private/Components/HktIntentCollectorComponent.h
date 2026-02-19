@@ -40,6 +40,8 @@ public:
     virtual void EnterWorldPlayer(int32 GroupIndex, int64 InPlayerUid) override;
     virtual void ExitWorldPlayer(int32 GroupIndex, int64 InPlayerUid) override;
     virtual void EndFrame() override;
+    virtual void PushEntityStates(int32 GroupIndex, const TArray<FHktEntityState>& InStates) override;
+    virtual bool GetEntityStatesToRestore(int32 GroupIndex, TArray<FHktEntityState>& OutStates) override;
 
     // === 추가 API (Rule 시그니처의 PushIntent 단일 이벤트) ===
 
@@ -53,4 +55,7 @@ private:
     // 그룹별 진입/퇴장 큐
     TMap<int32, TArray<int64>> EnteredPlayers;
     TMap<int32, TArray<int64>> ExitedPlayers;
+
+    // [추가] 그룹별 복원 대기 EntityStates
+    TMap<int32, TArray<FHktEntityState>> PendingEntityStates;
 };

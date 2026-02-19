@@ -62,6 +62,21 @@ bool UHktIntentCollectorComponent::GetExitedPlayers(int32 GroupIndex, TArray<int
     return false;
 }
 
+void UHktIntentCollectorComponent::PushEntityStates(int32 GroupIndex, const TArray<FHktEntityState>& InStates)
+{
+    PendingEntityStates.FindOrAdd(GroupIndex).Append(InStates);
+}
+
+bool UHktIntentCollectorComponent::GetEntityStatesToRestore(int32 GroupIndex, TArray<FHktEntityState>& OutStates)
+{
+    if (TArray<FHktEntityState>* Found = PendingEntityStates.Find(GroupIndex))
+    {
+        OutStates.Append(*Found);
+        return Found->Num() > 0;
+    }
+    return false;
+}
+
 // ============================================================================
 // 프레임 관리
 // ============================================================================
@@ -71,4 +86,5 @@ void UHktIntentCollectorComponent::EndFrame()
     PlayerIntents.Reset();
     EnteredPlayers.Reset();
     ExitedPlayers.Reset();
+    PendingEntityStates.Reset();
 }
