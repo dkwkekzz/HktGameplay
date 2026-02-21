@@ -1,0 +1,84 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+
+#include "HktSingleRelevancyComponent.h"
+
+UHktSingleRelevancyComponent::UHktSingleRelevancyComponent() 
+	: Simulator(CreateAuthoritySimulator())
+{ 
+    PrimaryComponentTick.bCanEverTick = false; 
+}
+
+void UHktSingleRelevancyComponent::BeginPlay()
+{
+    Super::BeginPlay();
+}
+
+void UHktSingleRelevancyComponent::RegisterPlayer(IHktWorldPlayer* Player, int32 GroupIndex)
+{
+    if (!Player) return;
+    const int64 Uid = Player->GetPlayerUid();
+    RegisteredPlayers.Add(Uid, Player);
+
+    PlayerUids.AddUnique(Uid);
+    CachedPlayers.AddUnique(Player);
+}
+
+void UHktSingleRelevancyComponent::UnregisterPlayer(int64 PlayerUid)
+{
+    int32 Index = PlayerUids.IndexOfByKey(PlayerUid);
+    if (Index != INDEX_NONE)
+    {
+        PlayerUids.RemoveAt(Index);
+        CachedPlayers.RemoveAt(Index);
+    }
+
+    RegisteredPlayers.Remove(PlayerUid);
+}
+
+void UHktSingleRelevancyComponent::UpdateRelevancy() 
+{ 
+    // 단일 그룹 컴포넌트는 그룹 재배치가 필요 없습니다.
+}
+
+IHktWorldPlayer* UHktSingleRelevancyComponent::GetWorldPlayer(int64 PlayerUid) const
+{
+    if (IHktWorldPlayer* const* Found = RegisteredPlayers.Find(PlayerUid)) 
+    { 
+        return *Found; 
+    }
+    return nullptr;
+}
+
+int32 UHktSingleRelevancyComponent::NumRelevancyGroup() const 
+{ 
+    return 1; 
+}
+
+IHktRelevancyGroup& UHktSingleRelevancyComponent::GetRelevancyGroup(int32 Index) 
+{ 
+    return *this; 
+}
+
+const IHktRelevancyGroup& UHktSingleRelevancyComponent::GetRelevancyGroup(int32 Index) const 
+{ 
+    return *this; 
+}
+
+IHktRelevancyGroup* UHktSingleRelevancyComponent::GetRelevancyGroupByPlayer(int64 PlayerUid)
+{
+    return const_cast<IHktRelevancyGroup*>(static_cast<const UHktSingleRelevancyComponent*>(this)->GetRelevancyGroupByPlayer(PlayerUid));
+}
+
+const IHktRelevancyGroup* UHktSingleRelevancyComponent::GetRelevancyGroupByPlayer(int64 PlayerUid) const
+{
+    return this;
+}
+
+int32 UHktSingleRelevancyComponent::GetRelevancyGroupIndex(int64 PlayerUid) const
+{
+    if (RegisteredPlayers.Contains(PlayerUid))
+    {
+        return 0;
+    }
+    return INDEX_NONE;
+}

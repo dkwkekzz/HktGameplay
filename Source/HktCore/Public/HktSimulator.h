@@ -26,3 +26,19 @@ public:
 
 /** IHktSimulator 인스턴스 생성 (HktCore 내부 구현) */
 HKTCORE_API TUniquePtr<IHktSimulator> CreateSimulationWorld();
+
+// ============================================================================
+// IHktAuthoritySimulator - 결정론적 시뮬레이터 인터페이스
+// ============================================================================
+class HKTCORE_API IHktAuthoritySimulator
+{
+public:
+    virtual ~IHktAuthoritySimulator() = default;
+
+    virtual void AdvanceFrame(const FHktSimulationEvent& InEvent) = 0;
+    virtual void ExportPlayerState(FHktPlayerState& OutState) = 0;
+    virtual void ApplyPlayerState(const FHktPlayerState& InState) = 0;
+    virtual const FHktWorldState& GetWorldState() const = 0;
+};
+
+HKTCORE_API TUniquePtr<IHktAuthoritySimulator> CreateAuthoritySimulator();

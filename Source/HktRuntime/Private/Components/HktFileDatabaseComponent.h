@@ -48,7 +48,7 @@ public:
 	// === IHktWorldDatabase 구현 ===
 
 	virtual void LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(TUniquePtr<FHktPlayerRecord>)> InCallback) override;
-	virtual void SavePlayerRecordAsync(FHktPlayerRecord InRecord) override;
+	virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState) override;
 
 	// === 기본값 설정 ===
 

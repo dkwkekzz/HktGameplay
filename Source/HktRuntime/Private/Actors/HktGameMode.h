@@ -72,6 +72,5 @@ private:
     IHktFrameManager* CachedFrameManager = nullptr;
     IHktRelevancyGraph* CachedRelevancyGraph = nullptr;
     IHktWorldDatabase* CachedWorldDatabase = nullptr;
-    IHktIntentCollector* CachedIntentCollector = nullptr;
-    IHktBatchBuilder* CachedBatchBuilder = nullptr;
+    IHktSimulationEventBuilder* CachedSimulationEventBuilder = nullptr;
 };

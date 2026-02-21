@@ -47,13 +47,9 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
         {
             CachedWorldDatabase = WorldDatabase;
         }
-        else if (IHktIntentCollector* IntentCollector = Cast<IHktIntentCollector>(Comp))
+        else if (IHktSimulationEventBuilder* SimulationEventBuilder = Cast<IHktSimulationEventBuilder>(Comp))
         {
-            CachedIntentCollector = IntentCollector;
-        }
-        else if (IHktBatchBuilder* BatchBuilder = Cast<IHktBatchBuilder>(Comp))
-        {
-            CachedBatchBuilder = BatchBuilder;
+            CachedSimulationEventBuilder = SimulationEventBuilder;
         }
     }
 
@@ -66,8 +62,7 @@ void AHktGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
     CachedFrameManager = nullptr;
     CachedRelevancyGraph = nullptr;
     CachedWorldDatabase = nullptr;
-    CachedIntentCollector = nullptr;
-    CachedBatchBuilder = nullptr;
+    CachedSimulationEventBuilder = nullptr;
 
     HKT_INSIGHTS_UNREGISTER_PROVIDER(this);
     Super::EndPlay(EndPlayReason);
@@ -88,16 +83,15 @@ void AHktGameMode::Tick(float DeltaSeconds)
         return;
     }
 
-    IHktFrameManager*    Frame       = CachedFrameManager;
-    IHktRelevancyGraph*  Graph       = CachedRelevancyGraph;
-    IHktIntentCollector* Collector   = CachedIntentCollector;
-    IHktBatchBuilder*    Builder     = CachedBatchBuilder;
-    IHktWorldDatabase*   Database    = CachedWorldDatabase;
+    IHktFrameManager*     Frame    = CachedFrameManager;
+    IHktRelevancyGraph*   Graph    = CachedRelevancyGraph;
+    IHktSimulationEventBuilder*  Builder  = CachedSimulationEventBuilder;
+    IHktWorldDatabase*    Database = CachedWorldDatabase;
 
-    if (!Frame || !Graph || !Collector || !Builder || !Database)
+    if (!Frame || !Graph || !Builder || !Database)
     {
-        UE_LOG(LogHktGameMode, Warning, TEXT("Tick: Required component missing (Frame=%d Graph=%d Collector=%d Builder=%d Database=%d)"),
-            Frame != nullptr, Graph != nullptr, Collector != nullptr, Builder != nullptr, Database != nullptr);
+        UE_LOG(LogHktGameMode, Warning, TEXT("Tick: Required component missing (Frame=%d Graph=%d Builder=%d Database=%d)"),
+            Frame != nullptr, Graph != nullptr, Builder != nullptr, Database != nullptr);
         return;
     }
 
@@ -107,15 +101,13 @@ void AHktGameMode::Tick(float DeltaSeconds)
         return;
     }
 
-    Frame->AdvanceFrame();
+    Rule->OnTick_ProcessReady(*Frame);
 
-    Rule->OnTick_ProcessPendingConnections(*Graph, *Collector, *Database);
-
-    Graph->UpdateRelevancy();
+    Rule->OnTick_ProcessPendingConnections(*Graph, *Builder, *Database);
 
     // 1. 실행
-    Rule->OnTick_ProcessSimulationAndPayloads(DeltaSeconds, *Frame, *Graph, *Collector, *Builder);
-    
+    Rule->OnTick_ProcessSimulationAndPayloads(DeltaSeconds, *Frame, *Graph, *Builder);
+
     // 2. 전송 (단일 루프 - Cache Friendly)
     // TArrayView를 통해 유효한 데이터만 순회
     TArrayView<const FHktFrameSendPayload> ValidPayloads = Builder->GetValidPayloads();
@@ -136,11 +128,7 @@ void AHktGameMode::Tick(float DeltaSeconds)
         }
     }
 
-    // EndFrame 호출
-    if (Collector)
-    {
-        Collector->EndFrame();
-    }
+    Builder->EndFrame();
 
 #if WITH_HKT_INSIGHTS
     LastTickDurationMs = static_cast<float>((FPlatformTime::Seconds() - TickStart) * 1000.0);
@@ -202,13 +190,13 @@ void AHktGameMode::PushIntent(int64 PlayerUid, const FHktEvent& Event)
     IHktRelevancyGraph* Graph = CachedRelevancyGraph;
     if (!Graph) return;
 
-    IHktIntentCollector* Collector = CachedIntentCollector;
-    if (!Collector) return;
+    IHktSimulationEventBuilder* Builder = CachedSimulationEventBuilder;
+    if (!Builder) return;
 
     IHktWorldPlayer* WorldPlayer = Graph->GetWorldPlayer(PlayerUid);
     if (!WorldPlayer) return;
 
-    Rule->OnReceived_FireIntentEvent(Event, *WorldPlayer, *Collector);
+    Rule->OnReceived_FireIntentEvent(Event, *WorldPlayer, *Graph, *Builder);
 }
 
 IHktServerRule* AHktGameMode::GetServerRule() const
@@ -315,10 +303,8 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
             CachedRelevancyGraph ? TEXT("OK") : TEXT("NULL"));
         OutSnapshot.AddInfo(Cat, TEXT("PlayerDatabase"),
             CachedWorldDatabase ? TEXT("OK") : TEXT("NULL"));
-        OutSnapshot.AddInfo(Cat, TEXT("IntentCollector"),
-            CachedIntentCollector ? TEXT("OK") : TEXT("NULL"));
-        OutSnapshot.AddInfo(Cat, TEXT("BatchBuilder"),
-            CachedBatchBuilder ? TEXT("OK") : TEXT("NULL"));
+        OutSnapshot.AddInfo(Cat, TEXT("SimulationEventBuilder"),
+            CachedSimulationEventBuilder ? TEXT("OK") : TEXT("NULL"));
     }
 }
 #endif

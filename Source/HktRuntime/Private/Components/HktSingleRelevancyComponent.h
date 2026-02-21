@@ -7,35 +7,17 @@
 #include "HktServerRuleInterfaces.h"
 #include "HktSimulator.h"
 #include "HktRuntimeTypes.h"
-#include "HktGridRelevancyComponent.generated.h"
-
-class FHktRelevancyGroupImpl : public IHktRelevancyGroup
-{
-public:
-    FHktRelevancyGroupImpl();
-
-    virtual IHktAuthoritySimulator& GetSimulator() override { return *Simulator; }
-    virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }
-    virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const override { return CachedPlayers; }
-
-    void AddPlayer(int64 Uid, IHktWorldPlayer* Player);
-    void RemovePlayer(int64 Uid);
-    bool HasPlayer(int64 Uid) const;
-
-private:
-    TUniquePtr<IHktAuthoritySimulator> Simulator;
-    TArray<int64> PlayerUids;
-    TArray<IHktWorldPlayer*> CachedPlayers;
-};
+#include "HktSingleRelevancyComponent.generated.h"
 
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
-class HKTRUNTIME_API UHktGridRelevancyComponent : public UActorComponent, public IHktRelevancyGraph
+class HKTRUNTIME_API UHktSingleRelevancyComponent : public UActorComponent, public IHktRelevancyGraph, public IHktRelevancyGroup
 {
     GENERATED_BODY()
 
 public:
-    UHktGridRelevancyComponent();
+    UHktSingleRelevancyComponent();
 
+    // IHktRelevancyGraph
     virtual void RegisterPlayer(IHktWorldPlayer* Player, int32 GroupIndex) override;
     virtual void UnregisterPlayer(int64 PlayerUid) override;
     virtual void UpdateRelevancy() override;
@@ -48,18 +30,17 @@ public:
     virtual const IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) const override;
     virtual int32 GetRelevancyGroupIndex(int64 PlayerUid) const override;
 
-    FIntPoint LocationToCell(const FVector& Location) const;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hkt|Grid")
-    float CellSize = 5000.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hkt|Grid")
-    int32 NumInitialGroups = 1;
+    // IHktRelevancyGroup
+    virtual IHktAuthoritySimulator& GetSimulator() override { return *Simulator; }
+    virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }
+    virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const override { return CachedPlayers; }
 
 protected:
     virtual void BeginPlay() override;
 
 private:
     TMap<int64, IHktWorldPlayer*> RegisteredPlayers;
-    TArray<FHktRelevancyGroupImpl> Groups;
+    TUniquePtr<IHktAuthoritySimulator> Simulator;
+    TArray<int64> PlayerUids;
+    TArray<IHktWorldPlayer*> CachedPlayers;
 };

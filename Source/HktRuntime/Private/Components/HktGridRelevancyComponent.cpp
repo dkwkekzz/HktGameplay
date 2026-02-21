@@ -2,7 +2,10 @@
 
 #include "HktGridRelevancyComponent.h"
 
-FHktRelevancyGroupImpl::FHktRelevancyGroupImpl() {}
+FHktRelevancyGroupImpl::FHktRelevancyGroupImpl() 
+    : Simulator(CreateAuthoritySimulator())
+{
+}
 
 void FHktRelevancyGroupImpl::AddPlayer(int64 Uid, IHktWorldPlayer* Player)
 {
@@ -55,15 +58,10 @@ IHktWorldPlayer* UHktGridRelevancyComponent::GetWorldPlayer(int64 PlayerUid) con
     return nullptr;
 }
 
-int32 UHktGridRelevancyComponent::GetGroupIndexByLocation(const FVector& Location) const
-{
-    if (Groups.Num() <= 1) return 0;
-    FIntPoint Cell = LocationToCell(Location);
-    return HashCombine(GetTypeHash(Cell.X), GetTypeHash(Cell.Y)) % Groups.Num();
-}
-
 int32 UHktGridRelevancyComponent::NumRelevancyGroup() const { return Groups.Num(); }
+
 IHktRelevancyGroup& UHktGridRelevancyComponent::GetRelevancyGroup(int32 Index) { return Groups[Index]; }
+
 const IHktRelevancyGroup& UHktGridRelevancyComponent::GetRelevancyGroup(int32 Index) const { return Groups[Index]; }
 
 IHktRelevancyGroup* UHktGridRelevancyComponent::GetRelevancyGroupByPlayer(int64 PlayerUid)
@@ -85,4 +83,16 @@ const IHktRelevancyGroup* UHktGridRelevancyComponent::GetRelevancyGroupByPlayer(
 FIntPoint UHktGridRelevancyComponent::LocationToCell(const FVector& Location) const
 {
     return FIntPoint(FMath::FloorToInt(Location.X / CellSize), FMath::FloorToInt(Location.Y / CellSize));
+}
+
+int32 UHktGridRelevancyComponent::GetRelevancyGroupIndex(int64 PlayerUid) const
+{
+    for (int32 Index = 0; Index < Groups.Num(); ++Index)
+    {
+        if (Groups[Index].HasPlayer(PlayerUid))
+        {
+            return Index;
+        }
+    }
+    return INDEX_NONE;
 }

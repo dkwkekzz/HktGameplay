@@ -164,6 +164,10 @@ struct HKTCORE_API FHktEntityState
     }
 };
 
+// ============================================================================
+// Simulation Event
+// ============================================================================
+
 struct HKTCORE_API FHktSimulationEvent
 {
     int64 FrameNumber = 0;
@@ -578,4 +582,21 @@ struct HKTCORE_API FHktWorldView
 
 private:
     static inline TArray<FHktEntityId> DummyEntities;
+};
+
+// ============================================================================
+// Player State
+// ============================================================================
+
+struct HKTCORE_API FHktPlayerState
+{
+    TArray<FHktEvent> ActiveEvents;
+    TArray<FHktEntityState> EntityStates;
+
+    friend HKTCORE_API FArchive& operator<<(FArchive& Ar, FHktPlayerState& State)
+    {
+        Ar << State.ActiveEvents;
+        Ar << State.EntityStates;
+        return Ar;
+    }
 };

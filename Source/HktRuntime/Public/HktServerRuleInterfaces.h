@@ -12,6 +12,7 @@
 
 // Forward declarations
 class AActor;
+class IHktAuthoritySimulator;
 
 //=============================================================================
 // FHktFrameSendPayload - 전송할 데이터를 묶어두는 페이로드 구조체
@@ -25,37 +26,6 @@ struct HKTRUNTIME_API FHktFrameSendPayload
     // 구조체 내부에는 포인터만 저장하여 대용량 데이터 복사 방지
     const FHktWorldState* StateToSend = nullptr;
     const FHktSimulationEvent* BatchToSend = nullptr;
-};
-
-// ============================================================================
-// IHktServerSimulator - 결정론적 시뮬레이터
-//
-// 서버: RelevancyGroup별로 하나씩 소유 (GridRelevancyComponent 내부)
-//
-// 공통 흐름:
-//   Execute(Batch)    : FrameBatch(입력)로 한 프레임 시뮬레이션
-//   RestoreState(State): 시뮬레이션 결과로 상태 즉시 복원 (신규 유저)
-//   GetSimulationState(): 현재 시뮬레이션 상태 조회
-// ============================================================================
-
-UINTERFACE(MinimalAPI, BlueprintType)
-class UHktServerSimulator : public UInterface
-{
-	GENERATED_BODY()
-};
-
-class HKTRUNTIME_API IHktServerSimulator
-{
-	GENERATED_BODY()
-
-public:
-	/** FrameBatch(입력)로 한 프레임 시뮬레이션 */
-	virtual void Execute(const FHktSimulationEvent& InBatch) = 0;
-
-	/** 현재 시뮬레이션 상태 조회 (Newbie 전송, 저장 등에 사용) */
-	virtual const FHktWorldState& GetSimulationState() const = 0;
-
-	virtual FHktRuntimeOwnerState GetOwnerState(int64 InOwnerId) const = 0;
 };
 
 //=============================================================================
@@ -84,67 +54,46 @@ public:
 };
 
 //=============================================================================
-// IHktIntentCollector
+// IHktSimulationEventBuilder - 그룹별 SimulationEvent 구성을 위한 통합 인터페이스
+// Intent 수집(재료)과 Batch 조립(묶기)을 단일 객체로 처리합니다.
 //=============================================================================
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class UHktIntentCollector : public UInterface
+class UHktSimulationEventBuilder : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class HKTRUNTIME_API IHktIntentCollector
+class HKTRUNTIME_API IHktSimulationEventBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool GetIntents(int64 InPlayerUid, TArray<FHktEvent>& OutIntents) = 0;
-	virtual bool GetEnteredPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) = 0;
-	virtual bool GetExitedPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) = 0;
-	virtual void PushIntents(int64 InPlayerUid, const TArray<FHktEvent>& InEvents) = 0;
-	virtual void EnterWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
-	virtual void ExitWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
-	
-	/** 프레임 종료 시 소비된 데이터 정리 */
-	virtual void EndFrame() = 0;
-
-	// === [EntityStates 복원] EntityStates 복원 큐 ===
-	/** 그룹에 복원할 EntityStates 추가 */
-	virtual void PushEntityStates(int32 GroupIndex, const TArray<FHktEntityState>& InStates) = 0;
-	/** 그룹에 복원할 EntityStates 조회 */
-	virtual bool GetEntityStatesToRestore(int32 GroupIndex, TArray<FHktEntityState>& OutStates) = 0;
-};
-
-//=============================================================================
-// IHktBatchBuilder (NewbieState 제거됨 → Simulator::GetSimulationState()로 직접 접근)
-//=============================================================================
-
-UINTERFACE(MinimalAPI, BlueprintType)
-class UHktBatchBuilder : public UInterface
-{
-	GENERATED_BODY()
-};
-
-class HKTRUNTIME_API IHktBatchBuilder
-{
-	GENERATED_BODY()
-
-public:
-	// 프레임 시작 전 초기화
+	// --- 프레임 초기화/정리 ---
 	// MaxTotalPlayers: 서버의 최대 동접자 수 (여유 있게 잡음, 예: 10000)
 	virtual void ResetFast(int32 NumGroups, int32 MaxTotalPlayers) = 0;
-	
-	// [핵심] 쓰기 공간 확보 (Lock-Free)
-	// 필요한 개수(Count)를 요청하면, 쓰기 시작할 인덱스(StartIndex)를 반환
-	virtual int32 ClaimPayloadSlots(int32 Count) = 0;
-	
-	// 읽기 전용 접근자 (Send 단계에서 사용)
-	// 전체 배열이 아니라, 실제 유효한 데이터가 있는 범위까지만 TArrayView 등으로 반환하면 더 좋음
-	virtual TArrayView<const FHktFrameSendPayload> GetValidPayloads() const = 0;
-	
+	virtual void EndFrame() = 0;
+
+	// --- Intent 입력 ---
+	virtual void PushIntents(int32 GroupIndex, const TArray<FHktEvent>& InEvents) = 0;
+	virtual bool GetIntents(int32 GroupIndex, TArray<FHktEvent>& OutIntents) = 0;
+
+	// --- 플레이어 진입/퇴장 ---
+	virtual void EnterWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
+	virtual void ExitWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
+	virtual bool GetEnteredPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) = 0;
+	virtual bool GetExitedPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) = 0;
+
+	// --- EntityState 복원 큐 ---
+	virtual void PushEntityStates(int32 GroupIndex, const TArray<FHktEntityState>& InStates) = 0;
+	virtual bool GetEntityStatesToRestore(int32 GroupIndex, TArray<FHktEntityState>& OutStates) = 0;
+
+	// --- Batch 조립 (Lock-Free Payload) ---
 	virtual FHktSimulationEvent& CreateOrGetGroupFrameBatch(int32 GroupIndex) = 0;
+	virtual int32 ClaimPayloadSlots(int32 Count) = 0;
 	virtual TArray<FHktFrameSendPayload>& GetMutablePayloads() = 0;
 	virtual TArray<int64>& GetMutableNewbieOwners(int32 GroupIndex) = 0;
+	virtual TArrayView<const FHktFrameSendPayload> GetValidPayloads() const = 0;
 };
 
 //=============================================================================
@@ -162,7 +111,7 @@ class HKTRUNTIME_API IHktRelevancyGroup
 	GENERATED_BODY()
 
 public:
-	virtual IHktServerSimulator& GetSimulator() = 0;
+	virtual IHktAuthoritySimulator& GetSimulator() = 0;
 	virtual const TArray<int64>& GetPlayerUids() const = 0;
 	virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const = 0;
 };
@@ -187,12 +136,14 @@ public:
 	virtual void UpdateRelevancy() = 0;
 	virtual IHktWorldPlayer* GetWorldPlayer(int64 PlayerUid) const = 0;
 	virtual int32 GetWorldPlayerCount() const = 0;
-	virtual int32 GetGroupIndexByLocation(const FVector& Location) const = 0;
 	virtual int32 NumRelevancyGroup() const = 0;
 	virtual IHktRelevancyGroup& GetRelevancyGroup(int32 Index) = 0;
 	virtual const IHktRelevancyGroup& GetRelevancyGroup(int32 Index) const = 0;
 	virtual IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) = 0;
 	virtual const IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) const = 0;
+	
+	/** 플레이어가 속한 그룹의 인덱스를 반환합니다. 플레이어를 찾을 수 없으면 INDEX_NONE을 반환합니다. */
+	virtual int32 GetRelevancyGroupIndex(int64 PlayerUid) const = 0;
 };
 
 //=============================================================================
@@ -211,7 +162,7 @@ class HKTRUNTIME_API IHktWorldDatabase
 
 public:
 	virtual void LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(TUniquePtr<FHktPlayerRecord>)> InCallback) = 0;
-	virtual void SavePlayerRecordAsync(FHktPlayerRecord InRecord) = 0;
+	virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState) = 0;
 };
 
 //=============================================================================
@@ -284,14 +235,14 @@ public:
     virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) {}
 
     // --- Intent 수신 ---
-    virtual void OnReceived_FireIntentEvent(const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktIntentCollector& InCollector) {}
+    virtual void OnReceived_FireIntentEvent(const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktRelevancyGraph& InGraph, IHktSimulationEventBuilder& InBuilder) {}
 
     // --- 로그인/로그아웃 ---
     virtual void OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) {}
     virtual void OnLogout_ExitWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) {}
 
     // --- 틱 ---
-    virtual void OnEvent_RequestAutosave(int64 PlayerUid) {}
-    virtual void OnTick_ProcessPendingConnections(IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktWorldDatabase& InDB) {}
-    virtual void OnTick_ProcessSimulationAndPayloads(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktIntentCollector& InCollector, IHktBatchBuilder& InOutBuilder) {}
+    virtual void OnTick_ProcessReady(IHktFrameManager& InFrame) {}
+    virtual void OnTick_ProcessPendingConnections(IHktRelevancyGraph& InGraph, IHktSimulationEventBuilder& InBuilder, IHktWorldDatabase& InDB) {}
+    virtual void OnTick_ProcessSimulationAndPayloads(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktSimulationEventBuilder& InOutBuilder) {}
 };

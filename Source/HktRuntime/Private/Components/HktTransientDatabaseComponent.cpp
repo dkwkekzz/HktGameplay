@@ -43,11 +43,31 @@ void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TF
     InCallback(MakeUnique<FHktPlayerRecord>(MoveTemp(NewRecord)));
 }
 
-void UHktTransientDatabaseComponent::SavePlayerRecordAsync(FHktPlayerRecord InRecord)
+void UHktTransientDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState)
 {
-    // 메모리에만 저장 (파일 저장 없음)
-    int64 Uid = InRecord.PlayerUid;
-    TransientRecords.Add(Uid, InRecord);
+    // 기존 레코드 로드 또는 새로 생성
+    FHktPlayerRecord* ExistingRecord = TransientRecords.Find(InPlayerUid);
     
-    UE_LOG(LogTemp, VeryVerbose, TEXT("[TransientDatabase] Saved player record in memory: PlayerUid=%lld"), Uid);
+    if (ExistingRecord)
+    {
+        // 기존 레코드 업데이트: ActiveEvents와 EntityStates만 이동
+        ExistingRecord->ActiveEvents = MoveTemp(InState.ActiveEvents);
+        ExistingRecord->EntityStates = MoveTemp(InState.EntityStates);
+        // LastLoginTime, CreatedTime, LastPosition은 유지
+    }
+    else
+    {
+        // 신규 레코드 생성
+        FHktPlayerRecord NewRecord;
+        NewRecord.PlayerUid = InPlayerUid;
+        NewRecord.CreatedTime = FDateTime::UtcNow();
+        NewRecord.LastLoginTime = NewRecord.CreatedTime;
+        NewRecord.LastPosition = FVector::ZeroVector;
+        NewRecord.ActiveEvents = MoveTemp(InState.ActiveEvents);
+        NewRecord.EntityStates = MoveTemp(InState.EntityStates);
+        
+        TransientRecords.Add(InPlayerUid, MoveTemp(NewRecord));
+    }
+    
+    UE_LOG(LogTemp, VeryVerbose, TEXT("[TransientDatabase] Saved player record in memory: PlayerUid=%lld"), InPlayerUid);
 }

@@ -184,3 +184,48 @@ TUniquePtr<IHktSimulator> CreateSimulationWorld()
     return MakeUnique<FHktSimulationWorld>();
 }
 
+// ============================================================================
+// FHktAuthoritySimulatorImpl
+// ============================================================================
+
+FHktAuthoritySimulatorImpl::FHktAuthoritySimulatorImpl()
+{
+    SimulationWorld = MakeUnique<FHktSimulationWorld>();
+    CachedWorldState.Initialize();
+    SimulationWorld->SnapshotWorldState(CachedWorldState);
+}
+
+void FHktAuthoritySimulatorImpl::AdvanceFrame(const FHktSimulationEvent& InEvent)
+{
+    SimulationWorld->ProcessBatch(InEvent);
+    SimulationWorld->SnapshotWorldState(CachedWorldState);
+}
+
+void FHktAuthoritySimulatorImpl::ExportPlayerState(FHktPlayerState& OutState)
+{
+    OutState.ActiveEvents = CachedWorldState.ActiveEvents;
+    OutState.EntityStates.Reset();
+    CachedWorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
+    {
+        OutState.EntityStates.Add(CachedWorldState.ExtractEntityState(Id));
+    });
+}
+
+void FHktAuthoritySimulatorImpl::ApplyPlayerState(const FHktPlayerState& InState)
+{
+    SimulationWorld->SnapshotWorldState(CachedWorldState);
+    CachedWorldState.RestoreEntities(InState.EntityStates);
+    CachedWorldState.ActiveEvents = InState.ActiveEvents;
+    SimulationWorld->RestoreWorldState(CachedWorldState);
+    SimulationWorld->SnapshotWorldState(CachedWorldState);
+}
+
+const FHktWorldState& FHktAuthoritySimulatorImpl::GetWorldState() const
+{
+    return CachedWorldState;
+}
+
+TUniquePtr<IHktAuthoritySimulator> CreateAuthoritySimulator()
+{
+    return MakeUnique<FHktAuthoritySimulatorImpl>();
+}

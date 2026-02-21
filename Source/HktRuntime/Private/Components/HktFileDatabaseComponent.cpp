@@ -176,16 +176,64 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 	});
 }
 
-void UHktFileDatabaseComponent::SavePlayerRecordAsync(FHktPlayerRecord InRecord)
+void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState)
 {
-	int64 Uid = InRecord.PlayerUid;
-	CachedRecords.Add(Uid, InRecord);
-
-	SaveToSlot(Uid, InRecord, [Uid](bool bSuccess)
+	// 기존 레코드 로드 또는 새로 생성
+	FHktPlayerRecord* ExistingRecord = CachedRecords.Find(InPlayerUid);
+	
+	if (ExistingRecord)
 	{
-		if (!bSuccess)
+		// 기존 레코드 업데이트: ActiveEvents와 EntityStates만 이동
+		ExistingRecord->ActiveEvents = MoveTemp(InState.ActiveEvents);
+		ExistingRecord->EntityStates = MoveTemp(InState.EntityStates);
+		// LastLoginTime, CreatedTime, LastPosition은 유지
+		
+		SaveToSlot(InPlayerUid, *ExistingRecord, [InPlayerUid](bool bSuccess)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), Uid);
-		}
-	});
+			if (!bSuccess)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), InPlayerUid);
+			}
+		});
+	}
+	else
+	{
+		// 캐시에 없으면 파일에서 로드 시도
+		// 람다에서 이동하기 위해 State를 이동 캡처
+		LoadFromSlot(InPlayerUid, [this, InPlayerUid, State = MoveTemp(InState)](TOptional<FHktPlayerRecord> Loaded) mutable
+		{
+			FHktPlayerRecord RecordToSave;
+			
+			if (Loaded.IsSet())
+			{
+				// 파일에서 로드된 레코드 사용
+				RecordToSave = Loaded.GetValue();
+				RecordToSave.PlayerUid = InPlayerUid;
+			}
+			else
+			{
+				// 신규 레코드 생성
+				RecordToSave.PlayerUid = InPlayerUid;
+				RecordToSave.CreatedTime = FDateTime::UtcNow();
+				RecordToSave.LastLoginTime = RecordToSave.CreatedTime;
+				RecordToSave.LastPosition = FVector::ZeroVector;
+			}
+			
+			// ActiveEvents와 EntityStates 이동
+			RecordToSave.ActiveEvents = MoveTemp(State.ActiveEvents);
+			RecordToSave.EntityStates = MoveTemp(State.EntityStates);
+			
+			// 캐시에 저장
+			CachedRecords.Add(InPlayerUid, MoveTemp(RecordToSave));
+			
+			// 파일에 저장
+			SaveToSlot(InPlayerUid, CachedRecords[InPlayerUid], [InPlayerUid](bool bSuccess)
+			{
+				if (!bSuccess)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), InPlayerUid);
+				}
+			});
+		});
+	}
 }

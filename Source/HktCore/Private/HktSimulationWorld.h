@@ -68,3 +68,22 @@ private:
     // --- Interpreter ---
     TUniquePtr<FHktVMInterpreter> Interpreter;
 };
+
+// ============================================================================
+// IHktAuthoritySimulator 구현체 (Authority 전용: AdvanceFrame + PlayerState 입출력)
+// ============================================================================
+class HKTCORE_API FHktAuthoritySimulatorImpl : public IHktAuthoritySimulator
+{
+public:
+    FHktAuthoritySimulatorImpl();
+    virtual ~FHktAuthoritySimulatorImpl() override = default;
+
+    virtual void AdvanceFrame(const FHktSimulationEvent& InEvent) override;
+    virtual void ExportPlayerState(FHktPlayerState& OutState) override;
+    virtual void ApplyPlayerState(const FHktPlayerState& InState) override;
+    virtual const FHktWorldState& GetWorldState() const override;
+
+private:
+    TUniquePtr<FHktSimulationWorld> SimulationWorld;
+    FHktWorldState CachedWorldState;  // GetWorldState/ExportPlayerState용 스냅샷
+};
