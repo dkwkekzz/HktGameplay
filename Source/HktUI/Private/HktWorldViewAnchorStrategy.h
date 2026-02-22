@@ -3,14 +3,15 @@
 #pragma once
 
 #include "HktUIAnchorStrategy.h"
-#include "HktCoreTypes.h"
+#include "HktCoreMinimal.h"
+#include "HktWorldState.h"
 #include "HktPropertyIds.h"
 #include "HktWorldViewAnchorStrategy.generated.h"
 
 class APlayerController;
 
 /**
- * FHktWorldView의 엔티티 PosX/Y/Z를 읽어 월드→스크린 투영하는 전략.
+ * FHktWorldState의 엔티티 PosX/Y/Z를 읽어 월드→스크린 투영하는 전략.
  * AActor가 없는 순수 시뮬레이션 엔티티의 위치를 추적합니다.
  */
 UCLASS(BlueprintType)
@@ -25,9 +26,9 @@ public:
 		WorldOffset = InWorldOffset;
 	}
 
-	void SetWorldView(const FHktWorldView* InWorldView)
+	void SetWorldState(const FHktWorldState* InWorldState)
 	{
-		WorldViewPtr = InWorldView;
+		WorldStatePtr = InWorldState;
 	}
 
 	FHktEntityId GetTargetEntityId() const { return TargetEntityId; }
@@ -36,6 +37,6 @@ public:
 
 private:
 	FHktEntityId TargetEntityId = InvalidEntityId;
-	const FHktWorldView* WorldViewPtr = nullptr;
+	const FHktWorldState* WorldStatePtr = nullptr;
 	FVector WorldOffset = FVector(0.f, 0.f, 100.f);
 };

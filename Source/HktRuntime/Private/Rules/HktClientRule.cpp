@@ -35,14 +35,21 @@ void FHktDefaultClientRule::OnUserEvent_CommandInputAction(const IHktCommandCont
 
 void FHktDefaultClientRule::OnUserEvent_ZoomInputAction(float InDelta) {}
 
-void FHktDefaultClientRule::OnReceived_InitialSimulationState(const FHktWorldState& InState, IHktClientSimulator& InSimulator)
+void FHktDefaultClientRule::OnReceived_InitialState(const FHktWorldState& InState, IHktProxySimulator& InSimulator)
 {
-    InSimulator.RestoreState(InState, MoveTemp(PendingFrameBatches));
-    PendingFrameBatches.Empty();
+    InSimulator.RestoreState(InState);
+    for (const FHktSimulationDiff& D : PendingDiffs)
+        if (D.FrameNumber > InState.FrameNumber)
+            InSimulator.ApplyDiff(D);
+    PendingDiffs.Empty();
 }
 
-void FHktDefaultClientRule::OnReceived_FrameBatch(const FHktSimulationEvent& InBatch, IHktClientSimulator& InSimulator)
+void FHktDefaultClientRule::OnReceived_FrameDiff(const FHktSimulationDiff& InDiff, IHktProxySimulator& InSimulator)
 {
-    if (!InSimulator.IsInitialized()) { PendingFrameBatches.Add(InBatch); return; }
-    InSimulator.Execute(InBatch);
+    if (!InSimulator.IsInitialized())
+    {
+        PendingDiffs.Add(InDiff);
+        return;
+    }
+    InSimulator.ApplyDiff(InDiff);
 }

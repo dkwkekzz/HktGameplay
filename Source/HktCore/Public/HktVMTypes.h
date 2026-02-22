@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "HktCoreTypes.h"
+#include "HktCoreMinimal.h"
 
 // ============================================================================
 // VM 핸들
@@ -31,7 +31,7 @@ struct FHktVMHandle
 
 /** 레지스터 인덱스 */
 using RegisterIndex = uint8;
-constexpr int32 MaxRegisters = 16;
+constexpr RegisterIndex MaxRegisters = 16;
 
 /**
  * Reg - 특수 레지스터 별칭
@@ -262,22 +262,3 @@ struct FInstruction
 };
 
 static_assert(sizeof(FInstruction) == 4, "Instruction must be 32 bits");
-
-// ============================================================================
-// Property IDs
-// ============================================================================
-
-#include "HktPropertyIds.h"
-
-// ============================================================================
-// EntityType 상수
-// ============================================================================
-
-namespace HktEntityType
-{
-    constexpr int32 None = 0;
-    constexpr int32 Unit = 1;
-    constexpr int32 Projectile = 2;
-    constexpr int32 Equipment = 3;
-    constexpr int32 Building = 4;
-}

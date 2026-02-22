@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "HktCoreTypes.h"
+#include "HktCoreMinimal.h"
+#include "HktEvents.h"
+#include "HktWorldState.h"
+#include "HktSimulationDiff.h"
 #include "HktDatabaseTypes.h"
 #include "HktRuntimeTypes.h"
 #include "Containers/ArrayView.h"
@@ -22,10 +25,11 @@ struct HKTRUNTIME_API FHktFrameSendPayload
 {
     AActor* TargetActor = nullptr;
     int64 PlayerUid = 0;
-    
-    // 구조체 내부에는 포인터만 저장하여 대용량 데이터 복사 방지
+
+    /** 전체 상태 (신규 유저 등) */
     const FHktWorldState* StateToSend = nullptr;
-    const FHktSimulationEvent* BatchToSend = nullptr;
+    /** 프레임 Diff (프록시 시뮬레이터용) */
+    const FHktSimulationDiff* DiffToSend = nullptr;
 };
 
 //=============================================================================
@@ -75,7 +79,7 @@ public:
 	virtual void EndFrame() = 0;
 
 	// --- Intent 입력 ---
-	virtual void PushIntents(int32 GroupIndex, const TArray<FHktEvent>& InEvents) = 0;
+	virtual void PushIntent(int32 GroupIndex, const FHktEvent& InEvent) = 0;
 	virtual bool GetIntents(int32 GroupIndex, TArray<FHktEvent>& OutIntents) = 0;
 
 	// --- 플레이어 진입/퇴장 ---
@@ -83,10 +87,6 @@ public:
 	virtual void ExitWorldPlayer(int32 GroupIndex, int64 InPlayerUid) = 0;
 	virtual bool GetEnteredPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) = 0;
 	virtual bool GetExitedPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) = 0;
-
-	// --- EntityState 복원 큐 ---
-	virtual void PushEntityStates(int32 GroupIndex, const TArray<FHktEntityState>& InStates) = 0;
-	virtual bool GetEntityStatesToRestore(int32 GroupIndex, TArray<FHktEntityState>& OutStates) = 0;
 
 	// --- Batch 조립 (Lock-Free Payload) ---
 	virtual FHktSimulationEvent& CreateOrGetGroupFrameBatch(int32 GroupIndex) = 0;
@@ -161,8 +161,9 @@ class HKTRUNTIME_API IHktWorldDatabase
 	GENERATED_BODY()
 
 public:
-	virtual void LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(TUniquePtr<FHktPlayerRecord>)> InCallback) = 0;
+	virtual void LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(const FHktPlayerRecord&)> InCallback) = 0;
 	virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState) = 0;
+	virtual const FHktPlayerRecord* GetCachedPlayerRecord(int64 InPlayerUid) const = 0;
 };
 
 //=============================================================================
@@ -244,5 +245,5 @@ public:
     // --- 틱 ---
     virtual void OnTick_ProcessReady(IHktFrameManager& InFrame) {}
     virtual void OnTick_ProcessPendingConnections(IHktRelevancyGraph& InGraph, IHktSimulationEventBuilder& InBuilder, IHktWorldDatabase& InDB) {}
-    virtual void OnTick_ProcessSimulationAndPayloads(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktSimulationEventBuilder& InOutBuilder) {}
+    virtual void OnTick_ProcessSimulationAndPayloads(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktSimulationEventBuilder& InOutBuilder, const IHktWorldDatabase& InDB) {}
 };

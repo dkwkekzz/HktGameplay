@@ -2,7 +2,7 @@
 
 #include "HktVMInterpreter.h"
 #include "HktVMProgram.h"
-#include "HktVMStore.h"
+#include "HktVMContext.h"
 
 // ============================================================================
 // Helper
@@ -20,21 +20,20 @@ const FString& FHktVMInterpreter::GetString(FHktVMRuntime& Runtime, int32 Index)
 // Entity Management
 // ============================================================================
 
-void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex)
+void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, FHktTypeId TypeId, int32 StringIndex)
 {
     const FString& ClassPath = GetString(Runtime, StringIndex);
-    UE_LOG(LogTemp, Log, TEXT("[VM] SpawnEntity: %s"), *ClassPath);
+    UE_LOG(LogTemp, Log, TEXT("[VM] SpawnEntity: Type=%d, Class=%s"), TypeId, *ClassPath);
 
     if (WorldState)
     {
-        FHktEntityId NewEntity = WorldState->AllocateEntity();
+        FHktEntityId NewEntity = WorldState->AllocateEntity(TypeId);
         Runtime.SetRegEntity(Reg::Spawned, NewEntity);
 
-        // 소유자 설정 (Store를 통해 버퍼링)
-        if (Runtime.Store)
+        if (Runtime.Context)
         {
-            Runtime.Store->WriteEntity(NewEntity, PropertyId::OwnerEntity, Runtime.GetRegEntity(Reg::Self));
-            Runtime.Store->WriteEntity(NewEntity, PropertyId::EntityType, HktEntityType::Projectile);
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::OwnerEntity, Runtime.GetRegEntity(Reg::Self));
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::EntityType, TypeId);
         }
     }
 }
@@ -57,40 +56,40 @@ void FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex E
 
 void FHktVMInterpreter::Op_GetPosition(FHktVMRuntime& Runtime, RegisterIndex DstBase, RegisterIndex Entity)
 {
-    if (Runtime.Store)
+    if (Runtime.Context)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.SetReg(DstBase, Runtime.Store->ReadEntity(E, PropertyId::PosX));
-        Runtime.SetReg(DstBase + 1, Runtime.Store->ReadEntity(E, PropertyId::PosY));
-        Runtime.SetReg(DstBase + 2, Runtime.Store->ReadEntity(E, PropertyId::PosZ));
+        Runtime.SetReg(DstBase, Runtime.Context->ReadEntity(E, PropertyId::PosX));
+        Runtime.SetReg(DstBase + 1, Runtime.Context->ReadEntity(E, PropertyId::PosY));
+        Runtime.SetReg(DstBase + 2, Runtime.Context->ReadEntity(E, PropertyId::PosZ));
     }
 }
 
 void FHktVMInterpreter::Op_SetPosition(FHktVMRuntime& Runtime, RegisterIndex Entity, RegisterIndex SrcBase)
 {
-    if (Runtime.Store)
+    if (Runtime.Context)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.Store->WriteEntity(E, PropertyId::PosX, Runtime.GetReg(SrcBase));
-        Runtime.Store->WriteEntity(E, PropertyId::PosY, Runtime.GetReg(SrcBase + 1));
-        Runtime.Store->WriteEntity(E, PropertyId::PosZ, Runtime.GetReg(SrcBase + 2));
+        Runtime.Context->WriteEntity(E, PropertyId::PosX, Runtime.GetReg(SrcBase));
+        Runtime.Context->WriteEntity(E, PropertyId::PosY, Runtime.GetReg(SrcBase + 1));
+        Runtime.Context->WriteEntity(E, PropertyId::PosZ, Runtime.GetReg(SrcBase + 2));
     }
 }
 
 void FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2)
 {
-    if (Runtime.Store)
+    if (Runtime.Context)
     {
         FHktEntityId E1 = Runtime.GetRegEntity(Entity1);
         FHktEntityId E2 = Runtime.GetRegEntity(Entity2);
 
-        int32 X1 = Runtime.Store->ReadEntity(E1, PropertyId::PosX);
-        int32 Y1 = Runtime.Store->ReadEntity(E1, PropertyId::PosY);
-        int32 Z1 = Runtime.Store->ReadEntity(E1, PropertyId::PosZ);
+        int32 X1 = Runtime.Context->ReadEntity(E1, PropertyId::PosX);
+        int32 Y1 = Runtime.Context->ReadEntity(E1, PropertyId::PosY);
+        int32 Z1 = Runtime.Context->ReadEntity(E1, PropertyId::PosZ);
 
-        int32 X2 = Runtime.Store->ReadEntity(E2, PropertyId::PosX);
-        int32 Y2 = Runtime.Store->ReadEntity(E2, PropertyId::PosY);
-        int32 Z2 = Runtime.Store->ReadEntity(E2, PropertyId::PosZ);
+        int32 X2 = Runtime.Context->ReadEntity(E2, PropertyId::PosX);
+        int32 Y2 = Runtime.Context->ReadEntity(E2, PropertyId::PosY);
+        int32 Z2 = Runtime.Context->ReadEntity(E2, PropertyId::PosZ);
 
         int64 DX = X2 - X1;
         int64 DY = Y2 - Y1;
@@ -103,35 +102,35 @@ void FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst
 
 void FHktVMInterpreter::Op_MoveToward(FHktVMRuntime& Runtime, RegisterIndex Entity, RegisterIndex TargetBase, int32 Speed)
 {
-    if (Runtime.Store)
+    if (Runtime.Context)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.Store->WriteEntity(E, PropertyId::MoveTargetX, Runtime.GetReg(TargetBase));
-        Runtime.Store->WriteEntity(E, PropertyId::MoveTargetY, Runtime.GetReg(TargetBase + 1));
-        Runtime.Store->WriteEntity(E, PropertyId::MoveTargetZ, Runtime.GetReg(TargetBase + 2));
-        Runtime.Store->WriteEntity(E, PropertyId::MoveSpeed, Speed);
-        Runtime.Store->WriteEntity(E, PropertyId::IsMoving, 1);
+        Runtime.Context->WriteEntity(E, PropertyId::MoveTargetX, Runtime.GetReg(TargetBase));
+        Runtime.Context->WriteEntity(E, PropertyId::MoveTargetY, Runtime.GetReg(TargetBase + 1));
+        Runtime.Context->WriteEntity(E, PropertyId::MoveTargetZ, Runtime.GetReg(TargetBase + 2));
+        Runtime.Context->WriteEntity(E, PropertyId::MoveSpeed, Speed);
+        Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 1);
     }
     UE_LOG(LogTemp, Log, TEXT("[VM] MoveToward: Entity %d, Speed %d"), Runtime.GetRegEntity(Entity), Speed);
 }
 
 void FHktVMInterpreter::Op_MoveForward(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 Speed)
 {
-    if (Runtime.Store)
+    if (Runtime.Context)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.Store->WriteEntity(E, PropertyId::MoveSpeed, Speed);
-        Runtime.Store->WriteEntity(E, PropertyId::IsMoving, 1);
+        Runtime.Context->WriteEntity(E, PropertyId::MoveSpeed, Speed);
+        Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 1);
     }
     UE_LOG(LogTemp, Log, TEXT("[VM] MoveForward: Entity %d, Speed %d"), Runtime.GetRegEntity(Entity), Speed);
 }
 
 void FHktVMInterpreter::Op_StopMovement(FHktVMRuntime& Runtime, RegisterIndex Entity)
 {
-    if (Runtime.Store)
+    if (Runtime.Context)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.Store->WriteEntity(E, PropertyId::IsMoving, 0);
+        Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 0);
     }
     UE_LOG(LogTemp, Log, TEXT("[VM] StopMovement: Entity %d"), Runtime.GetRegEntity(Entity));
 }
@@ -144,15 +143,15 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
 {
     Runtime.SpatialQuery.Reset();
 
-    if (WorldState && Runtime.Store)
+    if (WorldState && Runtime.Context)
     {
         FHktEntityId Center = Runtime.GetRegEntity(CenterEntity);
 
         // 중심 위치는 Store에서 읽기 (현재 VM의 로컬 캐시 반영)
-        int32 CX = Runtime.Store->ReadEntity(Center, PropertyId::PosX);
-        int32 CY = Runtime.Store->ReadEntity(Center, PropertyId::PosY);
-        int32 CZ = Runtime.Store->ReadEntity(Center, PropertyId::PosZ);
-        int32 Team = Runtime.Store->ReadEntity(Center, PropertyId::Team);
+        int32 CX = Runtime.Context->ReadEntity(Center, PropertyId::PosX);
+        int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
+        int32 CZ = Runtime.Context->ReadEntity(Center, PropertyId::PosZ);
+        int32 Team = Runtime.Context->ReadEntity(Center, PropertyId::Team);
 
         int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
 
@@ -207,15 +206,15 @@ void FHktVMInterpreter::Op_ApplyDamage(FHktVMRuntime& Runtime, RegisterIndex Tar
 
     UE_LOG(LogTemp, Log, TEXT("[VM] ApplyDamage: Entity %d takes %d damage"), E, Dmg);
 
-    if (Runtime.Store && WorldState && WorldState->IsValidEntity(E))
+    if (Runtime.Context && WorldState && WorldState->IsValidEntity(E))
     {
-        int32 Health = Runtime.Store->ReadEntity(E, PropertyId::Health);
-        int32 Defense = Runtime.Store->ReadEntity(E, PropertyId::Defense);
+        int32 Health = Runtime.Context->ReadEntity(E, PropertyId::Health);
+        int32 Defense = Runtime.Context->ReadEntity(E, PropertyId::Defense);
 
         int32 ActualDmg = FMath::Max(1, Dmg - Defense);
         int32 NewHealth = FMath::Max(0, Health - ActualDmg);
 
-        Runtime.Store->WriteEntity(E, PropertyId::Health, NewHealth);
+        Runtime.Context->WriteEntity(E, PropertyId::Health, NewHealth);
     }
 }
 
@@ -294,11 +293,10 @@ void FHktVMInterpreter::Op_SpawnEquipment(FHktVMRuntime& Runtime, RegisterIndex 
 
     UE_LOG(LogTemp, Log, TEXT("[VM] SpawnEquipment: Owner %d, Slot %d, Class %s"), OwnerEntity, Slot, *EquipClass);
 
-    if (WorldState && Runtime.Store)
+    if (WorldState && Runtime.Context)
     {
-        FHktEntityId NewEquip = WorldState->AllocateEntity();
-        Runtime.Store->WriteEntity(NewEquip, PropertyId::EntityType, HktEntityType::Equipment);
-        Runtime.Store->WriteEntity(NewEquip, PropertyId::OwnerEntity, OwnerEntity);
+        FHktEntityId NewEquip = WorldState->AllocateEntity(HktType::Equipment);
+        Runtime.Context->WriteEntity(NewEquip, PropertyId::OwnerEntity, OwnerEntity);
         Runtime.SetRegEntity(Reg::Spawned, NewEquip);
     }
 }

@@ -51,7 +51,7 @@ namespace HktFlowFireball
 
 			// === 파이어볼 생성 및 발사 ===
 			.Log(TEXT("Fireball: 투사체 생성"))
-			.SpawnEntity(Entity_Projectile_Fireball)
+			.SpawnEntity(HktType::Projectile, Entity_Projectile_Fireball)
 
 			// 파이어볼 위치를 시전자 위치로 설정
 			.GetPosition(R0, Self)                      // R0,R1,R2 = 시전자 위치

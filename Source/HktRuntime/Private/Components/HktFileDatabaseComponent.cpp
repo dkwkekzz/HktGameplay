@@ -110,11 +110,11 @@ void UHktFileDatabaseComponent::SaveToSlot(int64 PlayerUid, const FHktPlayerReco
 // IHktWorldDatabase 구현
 // ============================================================================
 
-void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(TUniquePtr<FHktPlayerRecord>)> InCallback)
+void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(const FHktPlayerRecord&)> InCallback)
 {
 	if (FHktPlayerRecord* Cached = CachedRecords.Find(InPlayerUid))
 	{
-		InCallback(MakeUnique<FHktPlayerRecord>(*Cached));
+		InCallback(*Cached);
 		return;
 	}
 
@@ -150,12 +150,12 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 			}
 
 			CachedRecords.Add(InPlayerUid, Record);
-			InCallback(MakeUnique<FHktPlayerRecord>(MoveTemp(Record)));
+			InCallback(Record);
 		}
 		else
 		{
 			// 신규 레코드 생성
-			FHktPlayerRecord NewRecord;
+			FHktPlayerRecord& NewRecord = CachedRecords.Add(InPlayerUid);
 			NewRecord.PlayerUid = InPlayerUid;
 			NewRecord.CreatedTime = FDateTime::UtcNow();
 			NewRecord.LastLoginTime = NewRecord.CreatedTime;
@@ -170,8 +170,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 			EnterWorldEvent.Param1 = static_cast<int32>((InPlayerUid >> 32) & 0xFFFFFFFF);
 			NewRecord.ActiveEvents.Add(EnterWorldEvent);
 
-			CachedRecords.Add(InPlayerUid, NewRecord);
-			InCallback(MakeUnique<FHktPlayerRecord>(MoveTemp(NewRecord)));
+			InCallback(NewRecord);
 		}
 	});
 }
@@ -185,7 +184,7 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 	{
 		// 기존 레코드 업데이트: ActiveEvents와 EntityStates만 이동
 		ExistingRecord->ActiveEvents = MoveTemp(InState.ActiveEvents);
-		ExistingRecord->EntityStates = MoveTemp(InState.EntityStates);
+		ExistingRecord->EntityStates = MoveTemp(InState.OwnedEntities);
 		// LastLoginTime, CreatedTime, LastPosition은 유지
 		
 		SaveToSlot(InPlayerUid, *ExistingRecord, [InPlayerUid](bool bSuccess)
@@ -202,7 +201,7 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 		// 람다에서 이동하기 위해 State를 이동 캡처
 		LoadFromSlot(InPlayerUid, [this, InPlayerUid, State = MoveTemp(InState)](TOptional<FHktPlayerRecord> Loaded) mutable
 		{
-			FHktPlayerRecord RecordToSave;
+			FHktPlayerRecord& RecordToSave = CachedRecords.Add(InPlayerUid);
 			
 			if (Loaded.IsSet())
 			{
@@ -221,10 +220,7 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 			
 			// ActiveEvents와 EntityStates 이동
 			RecordToSave.ActiveEvents = MoveTemp(State.ActiveEvents);
-			RecordToSave.EntityStates = MoveTemp(State.EntityStates);
-			
-			// 캐시에 저장
-			CachedRecords.Add(InPlayerUid, MoveTemp(RecordToSave));
+			RecordToSave.EntityStates = MoveTemp(State.OwnedEntities);
 			
 			// 파일에 저장
 			SaveToSlot(InPlayerUid, CachedRecords[InPlayerUid], [InPlayerUid](bool bSuccess)
@@ -236,4 +232,9 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 			});
 		});
 	}
+}
+
+const FHktPlayerRecord* UHktFileDatabaseComponent::GetCachedPlayerRecord(int64 InPlayerUid) const
+{
+	return CachedRecords.Find(InPlayerUid);
 }

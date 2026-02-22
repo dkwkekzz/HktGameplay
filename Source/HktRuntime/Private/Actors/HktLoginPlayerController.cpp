@@ -47,9 +47,9 @@ void AHktLoginPlayerController::ExecuteCommand(UObject* CommandData)
 	}
 }
 
-bool AHktLoginPlayerController::GetWorldView(FHktWorldView& OutView) const
+bool AHktLoginPlayerController::GetWorldState(const FHktWorldState*& OutState) const
 {
-	// 로그인 화면에서는 사용하지 않음
+	OutState = nullptr;
 	return false;
 }
 

@@ -45,7 +45,7 @@ namespace HktFlowPlayerInWorld
 			.Log(TEXT("PlayerInWorld: 플레이어 캐릭터 생성"))
 
 			// 캐릭터 엔티티 생성
-			.SpawnEntity(Entity_Character_Player)
+			.SpawnEntity(HktType::Unit, Entity_Character_Player)
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
 			// 위치 설정 (이벤트의 Location에서)

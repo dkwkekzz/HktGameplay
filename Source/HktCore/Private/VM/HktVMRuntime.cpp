@@ -32,6 +32,7 @@ FHktVMRuntimePool::FHktVMRuntimePool()
     WaitFrameArr.SetNumZeroed(MaxVMs);
     Generations.SetNumZeroed(MaxVMs);
     Runtimes.SetNum(MaxVMs);
+    Contexts.SetNum(MaxVMs);
 
     FreeSlots.Reserve(MaxVMs);
     for (int32 i = MaxVMs - 1; i >= 0; --i)
@@ -58,7 +59,8 @@ FHktVMHandle FHktVMRuntimePool::Allocate()
 
     FHktVMRuntime& Runtime = Runtimes[Index];
     Runtime.Program = nullptr;
-    Runtime.Store = nullptr;
+    Runtime.Context = &Contexts[Index];
+    Contexts[Index].Reset();
     Runtime.PC = 0;
     Runtime.Status = EVMStatus::Ready;
     Runtime.CreationFrame = 0;
@@ -93,6 +95,20 @@ const FHktVMRuntime* FHktVMRuntimePool::Get(FHktVMHandle Handle) const
     if (!IsValid(Handle))
         return nullptr;
     return &Runtimes[Handle.Index];
+}
+
+FHktVMContext* FHktVMRuntimePool::GetContext(FHktVMHandle Handle)
+{
+    if (!IsValid(Handle) || Handle.Index >= static_cast<uint32>(Contexts.Num()))
+        return nullptr;
+    return &Contexts[Handle.Index];
+}
+
+const FHktVMContext* FHktVMRuntimePool::GetContext(FHktVMHandle Handle) const
+{
+    if (!IsValid(Handle) || Handle.Index >= static_cast<uint32>(Contexts.Num()))
+        return nullptr;
+    return &Contexts[Handle.Index];
 }
 
 bool FHktVMRuntimePool::IsValid(FHktVMHandle Handle) const

@@ -14,17 +14,17 @@ UHktTransientDatabaseComponent::UHktTransientDatabaseComponent()
 // IHktWorldDatabase 구현
 // ============================================================================
 
-void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(TUniquePtr<FHktPlayerRecord>)> InCallback)
+void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(const FHktPlayerRecord&)> InCallback)
 {
     // 메모리에서 레코드 찾기
     if (FHktPlayerRecord* Cached = TransientRecords.Find(InPlayerUid))
     {
-        InCallback(MakeUnique<FHktPlayerRecord>(*Cached));
+        InCallback(*Cached);
         return;
     }
 
     // 레코드가 없으면 새로 생성
-    FHktPlayerRecord NewRecord;
+    FHktPlayerRecord NewRecord = TransientRecords.Add(InPlayerUid);
     NewRecord.PlayerUid = InPlayerUid;
     NewRecord.CreatedTime = FDateTime::UtcNow();
     NewRecord.LastLoginTime = NewRecord.CreatedTime;
@@ -39,8 +39,7 @@ void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TF
     EnterWorldEvent.Param1 = static_cast<int32>((InPlayerUid >> 32) & 0xFFFFFFFF); // 플레이어 UID 상위 32비트
     NewRecord.ActiveEvents.Add(EnterWorldEvent);
 
-    TransientRecords.Add(InPlayerUid, NewRecord);
-    InCallback(MakeUnique<FHktPlayerRecord>(MoveTemp(NewRecord)));
+    InCallback(NewRecord);
 }
 
 void UHktTransientDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState)
@@ -52,7 +51,7 @@ void UHktTransientDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FH
     {
         // 기존 레코드 업데이트: ActiveEvents와 EntityStates만 이동
         ExistingRecord->ActiveEvents = MoveTemp(InState.ActiveEvents);
-        ExistingRecord->EntityStates = MoveTemp(InState.EntityStates);
+        ExistingRecord->EntityStates = MoveTemp(InState.OwnedEntities);
         // LastLoginTime, CreatedTime, LastPosition은 유지
     }
     else
@@ -64,10 +63,15 @@ void UHktTransientDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FH
         NewRecord.LastLoginTime = NewRecord.CreatedTime;
         NewRecord.LastPosition = FVector::ZeroVector;
         NewRecord.ActiveEvents = MoveTemp(InState.ActiveEvents);
-        NewRecord.EntityStates = MoveTemp(InState.EntityStates);
+        NewRecord.EntityStates = MoveTemp(InState.OwnedEntities);
         
         TransientRecords.Add(InPlayerUid, MoveTemp(NewRecord));
     }
     
     UE_LOG(LogTemp, VeryVerbose, TEXT("[TransientDatabase] Saved player record in memory: PlayerUid=%lld"), InPlayerUid);
+}
+
+const FHktPlayerRecord* UHktTransientDatabaseComponent::GetCachedPlayerRecord(int64 InPlayerUid) const
+{
+    return TransientRecords.Find(InPlayerUid);
 }

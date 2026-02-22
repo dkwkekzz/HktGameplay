@@ -5,44 +5,30 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "HktCoreTypes.h"
+#include "HktCoreMinimal.h"
+#include "HktEvents.h"
+#include "HktWorldState.h"
+#include "HktSimulationDiff.h"
 #include "HktRuntimeTypes.h"
 #include "HktClientRuleInterfaces.generated.h"
 
 class UHktInputAction;
 
 // ============================================================================
-// IHktClientSimulator - 클라이언트 시뮬레이터 인터페이스
-//
-// 용도: PlayerController에 붙는 컴포넌트 (ClientSimulatorComponent)
-//
-// 주요 메서드:
-//   Execute(Batch)    : FrameBatch(입력)를 받아 시뮬레이션 실행
-//   RestoreState(State): 초기 상태를 받아 시뮬레이션 복원 (신규 접속)
-//   GetSimulationState(): 현재 시뮬레이션 상태 조회 (Newbie 접속, 중간 합류)
+// IHktProxySimulator — 클라이언트 프록시 (Legacy / Diff 기반)
+// 서버에서 내려준 InitialState + FrameDiff만 적용. 로컬 시뮬레이션 없음.
 // ============================================================================
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class UHktClientSimulator : public UInterface
+class UHktProxySimulator : public UInterface { GENERATED_BODY() };
+
+class HKTRUNTIME_API IHktProxySimulator
 {
 	GENERATED_BODY()
-};
-
-class HKTRUNTIME_API IHktClientSimulator
-{
-	GENERATED_BODY()
-
 public:
-	/** FrameBatch(입력)를 받아 시뮬레이션 실행 */
-	virtual void Execute(const FHktSimulationEvent& InBatch) = 0;
-
-	/** 초기 상태를 받아 시뮬레이션 복원 + 대기 중인 배치 처리 */
-	virtual void RestoreState(const FHktWorldState& InState, TArray<FHktSimulationEvent>&& InPendingBatches) = 0;
-
-	/** 현재 시뮬레이션 상태 조회 (Newbie 접속, 중간 합류 시 사용) */
-	virtual const FHktWorldState& GetSimulationState() const = 0;
-
-	/** 초기화 여부 확인 (RestoreState 호출 후 Execute 가능하면 true) */
+	virtual void ApplyDiff(const FHktSimulationDiff& InDiff) = 0;
+	virtual void RestoreState(const FHktWorldState& InState) = 0;
+	virtual const FHktWorldState& GetWorldState() const = 0;
 	virtual bool IsInitialized() const = 0;
 };
 
@@ -180,9 +166,9 @@ public:
 
     // === 서버 수신 ===
 
-    /** 신규 유저: 그룹 시뮬레이션 결과를 받아 즉시 동기화 (접속 직후 1회) */
-    virtual void OnReceived_InitialSimulationState(const FHktWorldState& InState, IHktClientSimulator& InSimulator) = 0;
+    /** 신규 유저: 전체 상태 복원 + 대기 중인 Diff 적용 */
+    virtual void OnReceived_InitialState(const FHktWorldState& InState, IHktProxySimulator& InSimulator) = 0;
 
-    /** 기존 유저: FrameBatch(입력)를 받아 로컬 시뮬레이션 수행 (매 프레임) */
-    virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch, IHktClientSimulator& InSimulator) = 0;
+    /** 기존 유저: 프레임 Diff 적용 (매 프레임) */
+    virtual void OnReceived_FrameDiff(const FHktSimulationDiff& InDiff, IHktProxySimulator& InSimulator) = 0;
 };

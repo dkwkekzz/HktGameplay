@@ -41,7 +41,7 @@ public:
     virtual void EndFrame() override;
 
     // --- Intent 입력 ---
-    virtual void PushIntents(int32 GroupIndex, const TArray<FHktEvent>& InEvents) override;
+    virtual void PushIntent(int32 GroupIndex, const FHktEvent& InEvent) override;
     virtual bool GetIntents(int32 GroupIndex, TArray<FHktEvent>& OutIntents) override;
 
     // --- 플레이어 진입/퇴장 ---
@@ -50,21 +50,12 @@ public:
     virtual bool GetEnteredPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) override;
     virtual bool GetExitedPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids) override;
 
-    // --- EntityState 복원 큐 ---
-    virtual void PushEntityStates(int32 GroupIndex, const TArray<FHktEntityState>& InStates) override;
-    virtual bool GetEntityStatesToRestore(int32 GroupIndex, TArray<FHktEntityState>& OutStates) override;
-
     // --- Batch 조립 ---
     virtual FHktSimulationEvent& CreateOrGetGroupFrameBatch(int32 GroupIndex) override;
     virtual int32 ClaimPayloadSlots(int32 Count) override;
     virtual TArray<FHktFrameSendPayload>& GetMutablePayloads() override;
     virtual TArray<int64>& GetMutableNewbieOwners(int32 GroupIndex) override;
     virtual TArrayView<const FHktFrameSendPayload> GetValidPayloads() const override;
-
-    // === 추가 API ===
-
-    /** 단일 Intent 추가 (스레드 안전) */
-    void PushIntent(int32 GroupIndex, const FHktEvent& InEvent);
 
 private:
     // --- Intent 수집 (그룹별, ResetFast에서 NumGroups로 pre-sized) ---
@@ -73,7 +64,6 @@ private:
     // --- 그룹 기반 데이터 (ResetFast에서 NumGroups로 pre-sized) ---
     TArray<TArray<int64>>             EnteredPlayers;
     TArray<TArray<int64>>             ExitedPlayers;
-    TArray<TArray<FHktEntityState>>   PendingEntityStates;
     TArray<FHktSimulationEvent>       GroupFrameBatches;
     TArray<TArray<int64>>             GroupNewbieOwners;
 

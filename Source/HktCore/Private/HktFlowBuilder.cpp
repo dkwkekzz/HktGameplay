@@ -261,10 +261,10 @@ FHktFlowBuilder& FHktFlowBuilder::CmpGe(RegisterIndex Dst, RegisterIndex Src1, R
 // Entity Management
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::SpawnEntity(const FGameplayTag& ClassTag)
+FHktFlowBuilder& FHktFlowBuilder::SpawnEntity(FHktTypeId TypeId, const FGameplayTag& ClassTag)
 {
     int32 TagIdx = TagToInt(ClassTag);
-    Emit(FInstruction::MakeImm(EOpCode::SpawnEntity, Reg::Spawned, TagIdx));
+    Emit(FInstruction::Make(EOpCode::SpawnEntity, TypeId, 0, 0, TagIdx & 0xFFF));
     return *this;
 }
 

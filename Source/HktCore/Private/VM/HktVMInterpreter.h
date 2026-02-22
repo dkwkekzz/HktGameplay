@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "HktVMTypes.h"
 #include "HktVMRuntime.h"
+#include "HktPropertyIds.h"
 
 // Forward declarations
 struct FHktWorldState;
@@ -65,7 +66,7 @@ private:
     void Op_CmpGe(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
 
     // ===== Entity Management =====
-    void Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex);
+    void Op_SpawnEntity(FHktVMRuntime& Runtime, FHktTypeId TypeId, int32 StringIndex);
     void Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
     // ===== Position & Movement =====

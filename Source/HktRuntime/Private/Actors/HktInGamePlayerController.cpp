@@ -3,9 +3,11 @@
 #include "HktIngamePlayerController.h"
 #include "HktPlayerState.h"
 #include "HktClientRuleInterfaces.h"
+#include "HktGameMode.h"
+#include "HktRuntimeConverter.h"
+#include "HktRuntimeTypes.h"
 #include "Rules/HktClientRule.h"
 #include "DataAssets/HktInputAction.h"
-#include "HktGameMode.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 
@@ -53,9 +55,9 @@ void AHktIngamePlayerController::BeginPlay()
         {
             CachedSelectionPolicy = SelectionPolicy;
         }
-        else if (IHktClientSimulator* ClientSimulator = Cast<IHktClientSimulator>(Comp))
+        else if (IHktProxySimulator* ProxySimulator = Cast<IHktProxySimulator>(Comp))
         {
-            CachedClientSimulator = ClientSimulator;
+            CachedProxySimulator = ProxySimulator;
         }
         else if (IHktCommandContainer* CommandContainer = Cast<IHktCommandContainer>(Comp))
         {
@@ -75,7 +77,7 @@ void AHktIngamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReaso
 {
     CachedIntentBuilder = nullptr;
     CachedSelectionPolicy = nullptr;
-    CachedClientSimulator = nullptr;
+    CachedProxySimulator = nullptr;
     CachedCommandContainer = nullptr;
     CachedWorldPlayer = nullptr;
 
@@ -190,31 +192,6 @@ void AHktIngamePlayerController::OnZoom(const FInputActionValue& Value)
     }
 }
 
-void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const FHktRuntimeBatch& Batch)
-{
-#if WITH_HKT_INSIGHTS
-    const FHktSimulationEvent& CoreEvent = Batch;
-    InsightReceivedBatchCount++;
-    // 암시적 변환을 통해 CoreEvent에 접근
-    HKT_INSIGHTS_RECORD_PACKET(
-        EHktPacketDirection::ServerToClient, 
-        EHktPacketType::FrameBatch,
-        0, 
-        CoreEvent.FrameNumber, 
-        CoreEvent.Events.Num(),
-        static_cast<int32>(sizeof(FHktRuntimeBatch) + CoreEvent.Events.Num() * sizeof(FHktEvent)),
-        FString::Printf(TEXT("FrameBatch: Frame=%lld, Events=%d"), CoreEvent.FrameNumber, CoreEvent.Events.Num())
-    );
-#endif
-
-    IHktClientRule* Rule = GetClientRule();
-    IHktClientSimulator* Simulator = CachedClientSimulator;
-    if (!Rule || !Simulator) return;
-
-    Rule->OnReceived_FrameBatch(Batch, *Simulator);
-    WorldViewUpdatedDelegate.Broadcast();
-}
-
 void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State)
 {
 #if WITH_HKT_INSIGHTS
@@ -233,10 +210,19 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
 #endif
 
     IHktClientRule* Rule = GetClientRule();
-    IHktClientSimulator* Simulator = CachedClientSimulator;
-    if (!Rule || !Simulator) return;
-    
-    Rule->OnReceived_InitialSimulationState(State, *Simulator);
+    if (Rule && CachedProxySimulator)
+    {
+        Rule->OnReceived_InitialState(HktRuntimeConverter::ConvertToWorldState(State), *CachedProxySimulator);
+    }
+    WorldViewUpdatedDelegate.Broadcast();
+}
+
+void AHktIngamePlayerController::Client_ReceiveFrameDiff_Implementation(const FHktRuntimeDiff& Diff)
+{
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule || !CachedProxySimulator) return;
+
+    Rule->OnReceived_FrameDiff(static_cast<const FHktSimulationDiff&>(Diff), *CachedProxySimulator);
     WorldViewUpdatedDelegate.Broadcast();
 }
 
@@ -284,15 +270,15 @@ void AHktIngamePlayerController::ExecuteCommand(UObject* CommandData)
     // TODO: 필요 시 Command 라우팅 구현
 }
 
-bool AHktIngamePlayerController::GetWorldView(FHktWorldView& OutView) const
+bool AHktIngamePlayerController::GetWorldState(const FHktWorldState*& OutState) const
 {
-    if (!CachedClientSimulator || !CachedClientSimulator->IsInitialized())
+    if (CachedProxySimulator && CachedProxySimulator->IsInitialized())
     {
-        return false;
+        OutState = &CachedProxySimulator->GetWorldState();
+        return true;
     }
-    OutView.WorldState = &CachedClientSimulator->GetSimulationState();
-    OutView.IntOverlays.Reset();
-    return true;
+    OutState = nullptr;
+    return false;
 }
 
 int64 AHktIngamePlayerController::GetPlayerUid() const
@@ -344,20 +330,18 @@ void AHktIngamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnap
         OutSnapshot.AddInfo(Cat, TEXT("PendingSubmit"), Builder->HasPendingSubmit() ? TEXT("Yes") : TEXT("No"));
     }
 
-    // === ClientSimulator 상태 ===
-    if (CachedClientSimulator)
+    // === ProxySimulator 상태 ===
+    if (CachedProxySimulator)
     {
-        const FString Cat = TEXT("ClientSimulator");
-        const IHktClientSimulator* Simulator = CachedClientSimulator;
+        const FString Cat = TEXT("ProxySimulator");
+        const IHktProxySimulator* Simulator = CachedProxySimulator;
         bool bInit = Simulator->IsInitialized();
         OutSnapshot.AddInfo(Cat, TEXT("Initialized"), bInit ? TEXT("Yes") : TEXT("No"));
         if (bInit)
         {
-            const FHktWorldState& WorldState = Simulator->GetSimulationState();
-            // 암시적 변환을 통해 CoreState에 접근
+            const FHktWorldState& WorldState = Simulator->GetWorldState();
             OutSnapshot.AddInfo(Cat, TEXT("LastFrame"), FString::Printf(TEXT("%lld"), WorldState.FrameNumber));
             OutSnapshot.AddInfo(Cat, TEXT("Entities"), FString::FromInt(WorldState.GetEntityCount()));
-            //OutSnapshot.AddInfo(Cat, TEXT("ActiveEvents"), FString::FromInt(WorldState.ActiveEvents.Num()));
         }
     }
 

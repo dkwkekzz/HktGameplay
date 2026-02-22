@@ -20,7 +20,7 @@ struct FHktVMProgram;
  *   Flow(TEXT("Ability.Skill.Fireball"))
  *       .PlayAnim(Self, TAG_Anim_CastStart)
  *       .WaitSeconds(1.0f)
- *       .SpawnEntity(TAG_Entity_Fireball).MoveForward(500)
+ *       .SpawnEntity(HktType::Projectile, TAG_Entity_Fireball).MoveForward(500)
  *       .OnCollision()
  *           .DestroyEntity(Spawned)
  *           .ApplyDamageConst(Hit, 100)
@@ -96,7 +96,7 @@ public:
     // ========== Entity Management ==========
 
     /** 엔티티 스폰 → Spawned 레지스터에 저장 */
-    FHktFlowBuilder& SpawnEntity(const FGameplayTag& ClassTag);
+    FHktFlowBuilder& SpawnEntity(FHktTypeId TypeId, const FGameplayTag& ClassTag);
 
     /** 엔티티 제거 */
     FHktFlowBuilder& DestroyEntity(RegisterIndex Entity);

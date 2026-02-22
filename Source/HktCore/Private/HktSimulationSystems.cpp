@@ -4,8 +4,25 @@
 #include "HktPropertyIds.h"
 #include "VM/HktVMProgram.h"
 #include "VM/HktVMRuntime.h"
-#include "VM/HktVMStore.h"
 #include "VM/HktVMInterpreter.h"
+
+#if WITH_HKT_INSIGHTS
+#include "HktInsightsDataCollector.h"
+
+static EHktInsightsVMState ToInsightsVMState(EVMStatus Status)
+{
+    switch (Status)
+    {
+    case EVMStatus::Running:
+    case EVMStatus::Ready:        return EHktInsightsVMState::Running;
+    case EVMStatus::Yielded:
+    case EVMStatus::WaitingEvent: return EHktInsightsVMState::Blocked;
+    case EVMStatus::Completed:    return EHktInsightsVMState::Completed;
+    case EVMStatus::Failed:       return EHktInsightsVMState::Error;
+    default:                      return EHktInsightsVMState::Running;
+    }
+}
+#endif
 
 // ============================================================================
 // 1. Entity Arrange System
@@ -16,16 +33,11 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
     if (RemovedOwnerIds.Num() == 0)
         return;
 
-    // 제거된 소유자에 속하는 엔티티를 찾아서 삭제
-    ScratchRemoveList.Reset();  // 용량 유지
+    ScratchRemoveList.Reset();
 
-    auto OwnerCol = WorldState.GetColumn(PropertyId::OwnerPlayerHash);
-    if (!OwnerCol.Data)
-        return;
-
-    WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
-        int32 OwnerHash = OwnerCol.GetInt(SlotIndex);
+        int32 OwnerHash = WorldState.GetProperty(Id, PropertyId::OwnerPlayerHash);
         for (int64 RemovedId : RemovedOwnerIds)
         {
             if (static_cast<int64>(OwnerHash) == RemovedId)
@@ -51,12 +63,10 @@ void FHktVMBuildSystem::Process(
     int32 CurrentFrame,
     FHktVMRuntimePool& Pool,
     TArray<FHktVMHandle>& OutActiveVMs,
-    FHktWorldState& WorldState,
-    TArray<FHktVMStore>& StorePool)
+    FHktWorldState& WorldState)
 {
     for (const FHktEvent& Event : Events)
     {
-        // 프로그램 찾기
         const FHktVMProgram* Program = FHktVMProgramRegistry::Get().FindProgram(Event.EventTag);
         if (!Program)
         {
@@ -64,7 +74,6 @@ void FHktVMBuildSystem::Process(
             continue;
         }
 
-        // VM 할당
         FHktVMHandle Handle = Pool.Allocate();
         if (!Handle.IsValid())
         {
@@ -73,18 +82,15 @@ void FHktVMBuildSystem::Process(
         }
 
         FHktVMRuntime* Runtime = Pool.Get(Handle);
-        check(Runtime);
+        FHktVMContext* Context = Pool.GetContext(Handle);
+        check(Runtime && Context);
 
-        // Store 할당 및 초기화
-        FHktVMStore& Store = StorePool[Handle.Index];
-        Store.Reset();
-        Store.WorldState = &WorldState;
-        Store.SourceEntity = Event.SourceEntity;
-        Store.TargetEntity = Event.TargetEntity;
+        Context->WorldState = &WorldState;
+        Context->SourceEntity = Event.SourceEntity;
+        Context->TargetEntity = Event.TargetEntity;
 
-        // Runtime 초기화
         Runtime->Program = Program;
-        Runtime->Store = &Store;
+        Runtime->Context = Context;
         Runtime->PC = 0;
         Runtime->Status = EVMStatus::Ready;
         Runtime->CreationFrame = CurrentFrame;
@@ -93,21 +99,27 @@ void FHktVMBuildSystem::Process(
         Runtime->SpatialQuery.Reset();
         FMemory::Memzero(Runtime->Registers, sizeof(Runtime->Registers));
 
-        // 레지스터 초기화: Self, Target
         Runtime->SetRegEntity(Reg::Self, Event.SourceEntity);
         Runtime->SetRegEntity(Reg::Target, Event.TargetEntity);
 
-        // 이벤트 파라미터를 Store에 기록
-        Store.Write(PropertyId::Param0, Event.Param0);
-        Store.Write(PropertyId::Param1, Event.Param1);
-
-        // 타겟 위치 설정
-        Store.Write(PropertyId::TargetPosX, FMath::RoundToInt(Event.Location.X));
-        Store.Write(PropertyId::TargetPosY, FMath::RoundToInt(Event.Location.Y));
-        Store.Write(PropertyId::TargetPosZ, FMath::RoundToInt(Event.Location.Z));
+        Context->Write(PropertyId::Param0, Event.Param0);
+        Context->Write(PropertyId::Param1, Event.Param1);
+        Context->Write(PropertyId::TargetPosX, FMath::RoundToInt(Event.Location.X));
+        Context->Write(PropertyId::TargetPosY, FMath::RoundToInt(Event.Location.Y));
+        Context->Write(PropertyId::TargetPosZ, FMath::RoundToInt(Event.Location.Z));
 
         OutActiveVMs.Add(Handle);
         WorldState.ActiveEvents.Add(Event);
+
+#if WITH_HKT_INSIGHTS
+        Runtime->SourceEventId = Event.EventId;
+        FHktInsightsDataCollector::Get().RecordIntentEvent(
+            Event.EventId, Event.EventTag, Event.SourceEntity, Event.TargetEntity,
+            Event.Location, EHktInsightsEventState::Processing);
+        FHktInsightsDataCollector::Get().RecordVMCreated(
+            static_cast<int32>(Handle.Index), Event.EventId, Event.EventTag,
+            Program->CodeSize(), Event.SourceEntity);
+#endif
 
         UE_LOG(LogTemp, Log, TEXT("VM created: %s for Entity %d"), *Event.EventTag.ToString(), Event.SourceEntity);
     }
@@ -124,14 +136,11 @@ void FHktVMProcessSystem::Process(
     float DeltaSeconds,
     TArray<FHktPendingEvent>& PendingExternalEvents)
 {
-    // 외부 이벤트를 스크래치로 Swap (양쪽 용량 보존, O(1))
-    ScratchEvents.Reset();  // 용량 유지
+    ScratchEvents.Reset();
     Swap(ScratchEvents, PendingExternalEvents);
 
-    // 단일 ForEachActive — 이벤트 매칭 + 상태 전환
     Pool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
     {
-        // 1) WaitingEvent VM: 외부 이벤트 매칭 또는 타이머 업데이트
         if (Runtime.Status == EVMStatus::WaitingEvent)
         {
             if (Runtime.EventWait.Type == EWaitEventType::Timer)
@@ -163,7 +172,6 @@ void FHktVMProcessSystem::Process(
             }
         }
 
-        // 2) Yielded VM: 프레임 카운트다운
         if (Runtime.Status == EVMStatus::Yielded)
         {
             if (Runtime.WaitFrames <= 0)
@@ -177,7 +185,6 @@ void FHktVMProcessSystem::Process(
         }
     });
 
-    // VM 실행
     for (int32 i = ActiveVMs.Num() - 1; i >= 0; --i)
     {
         FHktVMHandle Handle = ActiveVMs[i];
@@ -195,8 +202,28 @@ void FHktVMProcessSystem::Process(
         EVMStatus Result = Interpreter->Execute(*Runtime);
         Runtime->Status = Result;
 
+#if WITH_HKT_INSIGHTS
+        {
+            FString OpName;
+            if (Runtime->Program && Runtime->PC > 0 && Runtime->Program->Code.Num() > 0)
+            {
+                int32 Idx = FMath::Min(Runtime->PC - 1, Runtime->Program->Code.Num() - 1);
+                OpName = FString::Printf(TEXT("Op%d"), static_cast<uint8>(Runtime->Program->Code[Idx].GetOpCode()));
+            }
+            FHktInsightsDataCollector::Get().RecordVMTick(
+                static_cast<int32>(Handle.Index), Runtime->PC, ToInsightsVMState(Result), OpName);
+        }
+#endif
+
         if (Result == EVMStatus::Completed || Result == EVMStatus::Failed)
         {
+#if WITH_HKT_INSIGHTS
+            FHktInsightsDataCollector::Get().RecordVMCompleted(
+                static_cast<int32>(Handle.Index), Result == EVMStatus::Completed);
+            FHktInsightsDataCollector::Get().UpdateIntentEventState(
+                Runtime->SourceEventId,
+                Result == EVMStatus::Completed ? EHktInsightsEventState::Completed : EHktInsightsEventState::Failed);
+#endif
             OutCompletedVMs.Add(Handle);
             ActiveVMs.RemoveAtSwap(i);
         }
@@ -218,15 +245,12 @@ FHktPhysicsSystem::FCellCoord FHktPhysicsSystem::WorldToCell(const FVector& Pos)
 void FHktPhysicsSystem::RebuildGrid(const FHktWorldState& WorldState)
 {
     GridMap.Reset();
-    auto ColX = WorldState.GetColumn(PropertyId::PosX);
-    auto ColY = WorldState.GetColumn(PropertyId::PosY);
-
-    WorldState.ForEachEntity([&](FHktEntityId Id, int32 SlotIndex)
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
         FVector Pos;
-        Pos.X = ColX.Data ? static_cast<float>(ColX.GetInt(SlotIndex)) : 0.f;
-        Pos.Y = ColY.Data ? static_cast<float>(ColY.GetInt(SlotIndex)) : 0.f;
-        // Z는 2D 그리드에서 불필요
+        Pos.X = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosX));
+        Pos.Y = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosY));
+        Pos.Z = 0.f;
         FCellCoord Cell = WorldToCell(Pos);
         GridMap.FindOrAdd(Cell).Add(Id);
     });
@@ -239,13 +263,7 @@ void FHktPhysicsSystem::Process(
     OutPhysicsEvents.Reset();
     RebuildGrid(WorldState);
 
-    // 컬럼 포인터 사전 캐싱 (루프 내 TMap 룩업 제거)
-    auto ColX = WorldState.GetColumn(PropertyId::PosX);
-    auto ColY = WorldState.GetColumn(PropertyId::PosY);
-    auto ColZ = WorldState.GetColumn(PropertyId::PosZ);
-
-    // 간단한 충돌 감지: 같은 셀 내 엔티티 쌍 비교
-    static constexpr float CollisionRadius = 50.0f; // 기본 충돌 반경 (cm)
+    static constexpr float CollisionRadius = 50.0f;
     static constexpr float CollisionRadiusSq = CollisionRadius * CollisionRadius;
 
     for (auto& CellPair : GridMap)
@@ -261,17 +279,14 @@ void FHktPhysicsSystem::Process(
                 if (!WorldState.IsValidEntity(A) || !WorldState.IsValidEntity(B))
                     continue;
 
-                int32 IdxA = WorldState.EntityToIndex[A];
-                int32 IdxB = WorldState.EntityToIndex[B];
-
                 FVector PosA(
-                    ColX.Data ? static_cast<float>(ColX.GetInt(IdxA)) : 0.f,
-                    ColY.Data ? static_cast<float>(ColY.GetInt(IdxA)) : 0.f,
-                    ColZ.Data ? static_cast<float>(ColZ.GetInt(IdxA)) : 0.f);
+                    static_cast<float>(WorldState.GetProperty(A, PropertyId::PosX)),
+                    static_cast<float>(WorldState.GetProperty(A, PropertyId::PosY)),
+                    static_cast<float>(WorldState.GetProperty(A, PropertyId::PosZ)));
                 FVector PosB(
-                    ColX.Data ? static_cast<float>(ColX.GetInt(IdxB)) : 0.f,
-                    ColY.Data ? static_cast<float>(ColY.GetInt(IdxB)) : 0.f,
-                    ColZ.Data ? static_cast<float>(ColZ.GetInt(IdxB)) : 0.f);
+                    static_cast<float>(WorldState.GetProperty(B, PropertyId::PosX)),
+                    static_cast<float>(WorldState.GetProperty(B, PropertyId::PosY)),
+                    static_cast<float>(WorldState.GetProperty(B, PropertyId::PosZ)));
 
                 float DistSq = FVector::DistSquared(PosA, PosB);
                 if (DistSq <= CollisionRadiusSq)
@@ -288,35 +303,7 @@ void FHktPhysicsSystem::Process(
 }
 
 // ============================================================================
-// 5. Apply Store System
-// ============================================================================
-
-void FHktApplyStoreSystem::Process(
-    FHktWorldState& WorldState,
-    const TArray<FHktVMHandle>& ActiveVMs,
-    FHktVMRuntimePool& Pool)
-{
-    // 모든 활성 VM의 PendingWrites를 WorldState SOA 컬럼에 배치 기록
-    Pool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
-    {
-        if (!Runtime.Store)
-            return;
-
-        for (const FHktVMStore::FPendingWrite& W : Runtime.Store->PendingWrites)
-        {
-            if (WorldState.IsValidEntity(W.Entity))
-            {
-                int32 Idx = WorldState.EntityToIndex[W.Entity];
-                // [Flat SOA] 단일 버퍼 직접 쓰기 + Dirty 마킹
-                WorldState.SetPropertyDirty(Idx, static_cast<int32>(W.PropertyId), W.Value);
-            }
-        }
-        Runtime.Store->ClearPendingWrites();
-    });
-}
-
-// ============================================================================
-// 6. VM Cleanup System
+// 5. VM Cleanup System
 // ============================================================================
 
 void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState)
@@ -329,55 +316,22 @@ void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRunt
             UE_LOG(LogTemp, Log, TEXT("VM finalized: %s"),
                 Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("unknown"));
 
-            // ActiveEvents에서 제거 (SourceEntity + EventTag 매칭)
-            if (Runtime->Program && Runtime->Store)
+            if (Runtime->Program && Runtime->Context)
             {
                 FGameplayTag Tag = Runtime->Program->Tag;
-                FHktEntityId Source = Runtime->Store->SourceEntity;
+                FHktEntityId Source = Runtime->Context->SourceEntity;
                 WorldState.ActiveEvents.RemoveAll([&](const FHktEvent& E)
                 {
                     return E.SourceEntity == Source && E.EventTag == Tag;
                 });
             }
 
-            if (Runtime->Store)
+            if (Runtime->Context)
             {
-                Runtime->Store->Reset();
+                Runtime->Context->Reset();
             }
         }
         Pool.Free(Handle);
     }
     CompletedVMs.Reset();
 }
-
-// ============================================================================
-// 7. Publish View System
-// ============================================================================
-
-void FHktPublishViewSystem::Process(
-    const FHktWorldState& WorldState,
-    const TArray<FHktVMHandle>& ActiveVMs,
-    FHktVMRuntimePool& Pool,
-    FHktWorldView& OutView)
-{
-    // 1) WorldState 원본 연결 (Zero Copy)
-    OutView.WorldState = &WorldState;
-    OutView.IntOverlays.Reset();
-
-    // 2) ActiveVMs의 Store를 순회하며 flat PendingWrites → Overlay 구축
-    for (const FHktVMHandle& Handle : ActiveVMs)
-    {
-        FHktVMRuntime* Runtime = Pool.Get(Handle);
-        if (!Runtime || !Runtime->Store)
-            continue;
-
-        for (const FHktVMStore::FPendingWrite& W : Runtime->Store->PendingWrites)
-        {
-            OutView.IntOverlays.Add({ static_cast<int32>(W.PropertyId), W.Entity, W.Value });
-        }
-    }
-
-    // PropertyId, EntityId 순으로 정렬 (GetValue 이진 탐색 및 ForEachDirtyEntity 범위 순회용)
-    OutView.IntOverlays.Sort();
-}
-

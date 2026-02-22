@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "HktHUD.h"
-#include "HktCoreTypes.h"
+#include "HktCoreMinimal.h"
+#include "HktWorldState.h"
 #include "HktIngameHUD.generated.h"
 
 class UHktWorldViewAnchorStrategy;
@@ -38,18 +39,15 @@ protected:
 	void UpdateEntityUI() override;
 
 private:
-	/** WorldView 갱신 이벤트 핸들러 (FrameBatch/InitialState 수신 시 호출) */
 	void OnWorldViewUpdated();
-
-	void RefreshWorldView();
+	void RefreshWorldState();
 	void SyncEntityElements();
 	void CreateEntityElement(FHktEntityId EntityId);
 	void UpdateEntityProperties();
 
-	FHktWorldView CachedWorldView;
-	bool bWorldViewValid = false;
+	const FHktWorldState* CachedWorldState = nullptr;
+	bool bWorldStateValid = false;
 	bool bInitialSyncDone = false;
 
-	/** 현재 추적 중인 엔티티 ID 목록 (삭제 감지용) */
 	TSet<FHktEntityId> TrackedEntities;
 };

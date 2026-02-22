@@ -2,7 +2,7 @@
 
 #include "HktVMInterpreter.h"
 #include "HktVMProgram.h"
-#include "HktVMStore.h"
+#include "HktVMContext.h"
 
 void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState)
 {
@@ -68,7 +68,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::CmpLe: Op_CmpLe(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     case EOpCode::CmpGt: Op_CmpGt(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     case EOpCode::CmpGe: Op_CmpGe(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
-    case EOpCode::SpawnEntity: Op_SpawnEntity(Runtime, Inst.GetSignedImm20()); break;
+    case EOpCode::SpawnEntity: Op_SpawnEntity(Runtime, static_cast<FHktTypeId>(Inst.Dst), Inst.Imm12); break;
     case EOpCode::DestroyEntity: Op_DestroyEntity(Runtime, Inst.Src1); break;
     case EOpCode::GetPosition: Op_GetPosition(Runtime, Inst.Dst, Inst.Src1); break;
     case EOpCode::SetPosition: Op_SetPosition(Runtime, Inst.Dst, Inst.Src1); break;
@@ -155,27 +155,27 @@ void FHktVMInterpreter::Op_LoadConstHigh(FHktVMRuntime& Runtime, RegisterIndex D
 
 void FHktVMInterpreter::Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, uint16 PropertyId)
 {
-    if (Runtime.Store)
-        Runtime.SetReg(Dst, Runtime.Store->Read(PropertyId));
+    if (Runtime.Context)
+        Runtime.SetReg(Dst, Runtime.Context->Read(PropertyId));
 }
 
 void FHktVMInterpreter::Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
 {
-    if (Runtime.Store)
-        Runtime.SetReg(Dst, Runtime.Store->ReadEntity(Runtime.GetRegEntity(Entity), PropertyId));
+    if (Runtime.Context)
+        Runtime.SetReg(Dst, Runtime.Context->ReadEntity(Runtime.GetRegEntity(Entity), PropertyId));
 }
 
 void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropertyId, RegisterIndex Src)
 {
-    if (Runtime.Store)
-        Runtime.Store->Write(PropertyId, Runtime.GetReg(Src));
+    if (Runtime.Context)
+        Runtime.Context->Write(PropertyId, Runtime.GetReg(Src));
 }
 
 void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
 {
-    if (Runtime.Store)
+    if (Runtime.Context)
     {
-        Runtime.Store->WriteEntity(Runtime.GetRegEntity(Entity), PropertyId, Runtime.GetReg(Src));
+        Runtime.Context->WriteEntity(Runtime.GetRegEntity(Entity), PropertyId, Runtime.GetReg(Src));
     }
 }
 

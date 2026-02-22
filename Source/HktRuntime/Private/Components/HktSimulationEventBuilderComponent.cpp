@@ -23,7 +23,6 @@ void UHktSimulationEventBuilderComponent::ResetFast(int32 NumGroups, int32 MaxTo
         GroupIntents.SetNum(NumGroups);
         EnteredPlayers.SetNum(NumGroups);
         ExitedPlayers.SetNum(NumGroups);
-        PendingEntityStates.SetNum(NumGroups);
     }
 
     for (int32 i = 0; i < NumGroups; ++i)
@@ -46,7 +45,6 @@ void UHktSimulationEventBuilderComponent::EndFrame()
     for (auto& A : GroupIntents)        A.Reset();
     for (auto& A : EnteredPlayers)     A.Reset();
     for (auto& A : ExitedPlayers)      A.Reset();
-    for (auto& A : PendingEntityStates) A.Reset();
 }
 
 // ============================================================================
@@ -57,12 +55,6 @@ void UHktSimulationEventBuilderComponent::PushIntent(int32 GroupIndex, const FHk
 {
     if (!GroupIntents.IsValidIndex(GroupIndex)) GroupIntents.SetNum(GroupIndex + 1);
     GroupIntents[GroupIndex].Add(InEvent);
-}
-
-void UHktSimulationEventBuilderComponent::PushIntents(int32 GroupIndex, const TArray<FHktEvent>& InEvents)
-{
-    if (!GroupIntents.IsValidIndex(GroupIndex)) GroupIntents.SetNum(GroupIndex + 1);
-    GroupIntents[GroupIndex].Append(InEvents);
 }
 
 bool UHktSimulationEventBuilderComponent::GetIntents(int32 GroupIndex, TArray<FHktEvent>& OutIntents)
@@ -100,23 +92,6 @@ bool UHktSimulationEventBuilderComponent::GetExitedPlayers(int32 GroupIndex, TAr
     if (!ExitedPlayers.IsValidIndex(GroupIndex)) return false;
     OutPlayerUids.Append(ExitedPlayers[GroupIndex]);
     return ExitedPlayers[GroupIndex].Num() > 0;
-}
-
-// ============================================================================
-// EntityState 복원 큐
-// ============================================================================
-
-void UHktSimulationEventBuilderComponent::PushEntityStates(int32 GroupIndex, const TArray<FHktEntityState>& InStates)
-{
-    if (!PendingEntityStates.IsValidIndex(GroupIndex)) PendingEntityStates.SetNum(GroupIndex + 1);
-    PendingEntityStates[GroupIndex].Append(InStates);
-}
-
-bool UHktSimulationEventBuilderComponent::GetEntityStatesToRestore(int32 GroupIndex, TArray<FHktEntityState>& OutStates)
-{
-    if (!PendingEntityStates.IsValidIndex(GroupIndex)) return false;
-    OutStates.Append(PendingEntityStates[GroupIndex]);
-    return PendingEntityStates[GroupIndex].Num() > 0;
 }
 
 // ============================================================================

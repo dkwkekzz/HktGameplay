@@ -76,9 +76,5 @@ const IHktRelevancyGroup* UHktSingleRelevancyComponent::GetRelevancyGroupByPlaye
 
 int32 UHktSingleRelevancyComponent::GetRelevancyGroupIndex(int64 PlayerUid) const
 {
-    if (RegisteredPlayers.Contains(PlayerUid))
-    {
-        return 0;
-    }
-    return INDEX_NONE;
+    return 0;
 }

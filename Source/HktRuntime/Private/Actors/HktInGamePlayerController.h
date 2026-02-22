@@ -5,10 +5,12 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
-#include "HktCoreTypes.h"
+#include "HktCoreMinimal.h"
+#include "HktWorldState.h"
 #include "HktRuntimeDelegates.h"
 #include "HktClientRuleInterfaces.h"
 #include "HktServerRuleInterfaces.h"
+#include "HktRuntimeTypes.h"
 #include "IHktPlayerInteractionInterface.h"
 
 #if WITH_HKT_INSIGHTS
@@ -21,8 +23,6 @@ class UInputMappingContext;
 class UInputAction;
 class UHktInputAction;
 class IHktClientRule;
-struct FHktRuntimeBatch;
-struct FHktRuntimeSimulationState;
 
 UCLASS()
 class HKTRUNTIME_API AHktIngamePlayerController : public APlayerController
@@ -38,10 +38,10 @@ public:
 
     // === S2C RPC ===
     UFUNCTION(Client, Reliable)
-    void Client_ReceiveFrameBatch(const FHktRuntimeBatch& Batch);
+    void Client_ReceiveInitialState(const FHktRuntimeSimulationState& State);
 
     UFUNCTION(Client, Reliable)
-    void Client_ReceiveInitialState(const FHktRuntimeSimulationState& State);
+    void Client_ReceiveFrameDiff(const FHktRuntimeDiff& Diff);
 
     // === C2S RPC ===
     UFUNCTION(Server, Reliable, WithValidation)
@@ -56,7 +56,7 @@ public:
 
     // === IHktPlayerInteractionInterface ===
     virtual void ExecuteCommand(UObject* CommandData) override;
-    virtual bool GetWorldView(FHktWorldView& OutView) const override;
+    virtual bool GetWorldState(const FHktWorldState*& OutState) const override;
     virtual FOnHktWorldViewUpdated& OnWorldViewUpdated() override { return WorldViewUpdatedDelegate; }
 
     // === Player UID ===
@@ -113,7 +113,7 @@ private:
     /** 캐싱된 인터페이스 포인터들 */
     IHktIntentBuilder* CachedIntentBuilder = nullptr;
     IHktUnitSelectionPolicy* CachedSelectionPolicy = nullptr;
-    IHktClientSimulator* CachedClientSimulator = nullptr;
+    IHktProxySimulator* CachedProxySimulator = nullptr;
     IHktCommandContainer* CachedCommandContainer = nullptr;
     IHktWorldPlayer* CachedWorldPlayer = nullptr;
 

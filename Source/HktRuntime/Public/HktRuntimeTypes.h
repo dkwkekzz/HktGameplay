@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "HktCoreTypes.h"
+#include "HktCoreMinimal.h"
+#include "HktEvents.h"
+#include "HktWorldState.h"
+#include "HktSimulationDiff.h"
 #include "HktRuntimeTypes.generated.h"
 
 // =========================================================================
@@ -241,6 +244,41 @@ template<>
 struct TStructOpsTypeTraits<FHktRuntimeSimulationState> : public TStructOpsTypeTraitsBase2<FHktRuntimeSimulationState>
 {
     enum { WithNetSerializer = true };
+};
+
+//=============================================================================
+// FHktRuntimeDiff - 기존 유저용 "프레임 Diff" 패킷 (Legacy / Proxy 시뮬레이터)
+// FHktSimulationDiff를 소유하며 암시적 변환 및 복제 지원.
+//=============================================================================
+USTRUCT()
+struct HKTRUNTIME_API FHktRuntimeDiff
+{
+	GENERATED_BODY()
+
+	FHktSimulationDiff CoreDiff;
+
+	FHktRuntimeDiff() = default;
+	explicit FHktRuntimeDiff(const FHktSimulationDiff& InDiff) : CoreDiff(InDiff) {}
+	explicit FHktRuntimeDiff(FHktSimulationDiff&& InDiff) : CoreDiff(MoveTemp(InDiff)) {}
+
+	FORCEINLINE operator FHktSimulationDiff&() { return CoreDiff; }
+	FORCEINLINE operator const FHktSimulationDiff&() const { return CoreDiff; }
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		Ar << CoreDiff.FrameNumber;
+		Ar << CoreDiff.SpawnedEntities;
+		Ar << CoreDiff.RemovedEntities;
+		Ar << CoreDiff.PropertyDeltas;
+		bOutSuccess = true;
+		return true;
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeDiff> : public TStructOpsTypeTraitsBase2<FHktRuntimeDiff>
+{
+	enum { WithNetSerializer = true };
 };
 
 //=============================================================================

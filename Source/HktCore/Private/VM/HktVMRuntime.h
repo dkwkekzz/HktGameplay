@@ -4,10 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "HktVMTypes.h"
+#include "HktVMContext.h"
+#include "HktSimulationLimits.h"
 
 // Forward declarations
 struct FHktVMProgram;
-struct FHktVMStore;
 
 // ============================================================================
 // FSpatialQueryResult - 공간 검색 결과 저장
@@ -18,7 +19,7 @@ struct FSpatialQueryResult
     TArray<FHktEntityId> Entities;
     int32 CurrentIndex = 0;
 
-    FSpatialQueryResult() { Entities.Reserve(HktLimits::MaxSpatialResults); }
+    FSpatialQueryResult() { Entities.Reserve(HktLimits::MaxPhysicsEvents); }
 
     void Reset()
     {
@@ -68,8 +69,8 @@ struct HKTCORE_API FHktVMRuntime
     /** 실행 중인 프로그램 (공유, 불변) */
     const FHktVMProgram* Program = nullptr;
 
-    /** 로컬 데이터 스토어 */
-    FHktVMStore* Store = nullptr;
+    /** VM 실행 컨텍스트 (WorldState 직접 읽기/쓰기) */
+    FHktVMContext* Context = nullptr;
 
     /** 프로그램 카운터 */
     int32 PC = 0;
@@ -167,6 +168,9 @@ public:
     FHktVMRuntime* Get(FHktVMHandle Handle);
     const FHktVMRuntime* Get(FHktVMHandle Handle) const;
 
+    FHktVMContext* GetContext(FHktVMHandle Handle);
+    const FHktVMContext* GetContext(FHktVMHandle Handle) const;
+
     bool IsValid(FHktVMHandle Handle) const;
 
     template<typename Func>
@@ -183,6 +187,7 @@ private:
     TArray<int32> WaitFrameArr;
     TArray<uint8> Generations;
     TArray<FHktVMRuntime> Runtimes;
+    TArray<FHktVMContext> Contexts;
     TArray<uint32> FreeSlots;
 };
 

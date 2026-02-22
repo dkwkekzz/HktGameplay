@@ -5,6 +5,7 @@
 #include "HktPlayerState.h"
 #include "HktServerRuleInterfaces.h"
 #include "HktRuntimeConverter.h"
+#include "HktRuntimeTypes.h"
 #include "Rules/HktServerRule.h"
 
 #if WITH_HKT_INSIGHTS
@@ -106,7 +107,7 @@ void AHktGameMode::Tick(float DeltaSeconds)
     Rule->OnTick_ProcessPendingConnections(*Graph, *Builder, *Database);
 
     // 1. 실행
-    Rule->OnTick_ProcessSimulationAndPayloads(DeltaSeconds, *Frame, *Graph, *Builder);
+    Rule->OnTick_ProcessSimulationAndPayloads(DeltaSeconds, *Frame, *Graph, *Builder, *Database);
 
     // 2. 전송 (단일 루프 - Cache Friendly)
     // TArrayView를 통해 유효한 데이터만 순회
@@ -121,9 +122,9 @@ void AHktGameMode::Tick(float DeltaSeconds)
             {
                 PC->Client_ReceiveInitialState(HktRuntimeConverter::ConvertWorldState(*Payload.StateToSend));
             }
-            else if (Payload.BatchToSend)
+            else if (Payload.DiffToSend)
             {
-                PC->Client_ReceiveFrameBatch(HktRuntimeConverter::ConvertToBatch(*Payload.BatchToSend));
+                PC->Client_ReceiveFrameDiff(FHktRuntimeDiff(*Payload.DiffToSend));
             }
         }
     }

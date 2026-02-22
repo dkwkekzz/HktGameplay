@@ -20,13 +20,13 @@ public:
     virtual void OnLogout_ExitWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB) override;
     virtual void OnTick_ProcessReady(IHktFrameManager& InFrame) override;
     virtual void OnTick_ProcessPendingConnections(IHktRelevancyGraph& InGraph, IHktSimulationEventBuilder& InBuilder, IHktWorldDatabase& InDB) override;
-    virtual void OnTick_ProcessSimulationAndPayloads(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktSimulationEventBuilder& InOutBuilder) override;
+    virtual void OnTick_ProcessSimulationAndPayloads(float InDeltaTime, const IHktFrameManager& InFrame, const IHktRelevancyGraph& InGraph, IHktSimulationEventBuilder& InOutBuilder, const IHktWorldDatabase& InDB) override;
 
 private:
     struct FPendingLoginResult
     {
         TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer;
-        TUniquePtr<FHktPlayerRecord> Record;
+        const FHktPlayerRecord* Record;
     };
 
     TQueue<FPendingLoginResult, EQueueMode::Mpsc> PendingLoginResults;

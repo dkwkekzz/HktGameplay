@@ -94,5 +94,5 @@ int32 UHktGridRelevancyComponent::GetRelevancyGroupIndex(int64 PlayerUid) const
             return Index;
         }
     }
-    return INDEX_NONE;
+    return 0;
 }

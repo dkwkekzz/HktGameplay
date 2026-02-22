@@ -67,17 +67,18 @@ SConstraintCanvas slot (Strategy에 의해 매 프레임마다 위치 지정)
 - 각 버튼은 샘플 데이터가 있는 패널을 엽니다
 
 **엔티티 UI:**
-- 매 틱마다 `IHktPlayerInteractionInterface::GetWorldView()`를 통해 `FHktWorldView` 읽기
-- `SyncEntityElements()`: 엔티티별로 `SHktEntityHudWidget` 생성/제거
-- `UpdateEntityProperties()`: `ForEachDirtyEntity`를 통해 Health, OwnerPlayerHash, Team을 더티 트래킹
-- `UHktWorldViewAnchorStrategy`: WorldView에서 PosX/Y/Z 읽기 -> `ProjectWorldLocationToScreen`
+- `IHktPlayerInteractionInterface::GetWorldState(OutState)`로 `FHktWorldState` 포인터 조회
+- `OnWorldViewUpdated` 델리게이트 구독 후 `RefreshWorldState()` → `SyncEntityElements()` / `UpdateEntityProperties()` 호출
+- `SyncEntityElements()`: 엔티티별로 `SHktEntityHudWidget` 생성/제거 (`FHktWorldState::ForEachEntity`, `IsValidEntity`)
+- `UpdateEntityProperties()`: `FHktWorldState::GetProperty`로 Health, OwnerPlayerHash, Team 갱신
+- `UHktWorldViewAnchorStrategy`: `FHktWorldState`에서 PosX/Y/Z 읽기 → `ProjectWorldLocationToScreen`
 
 ## 앵커 전략
 
 | 전략 | 사용 사례 | 위치 소스 |
 |------|----------|-----------|
 | `UHktViewportAnchorStrategy` | 로그인, 인게임 뷰포트 | 고정 화면 좌표 (기본값 0,0) |
-| `UHktWorldViewAnchorStrategy` | 엔티티 HUD | FHktWorldView PosX/Y/Z -> 월드 투 화면 투영 |
+| `UHktWorldViewAnchorStrategy` | 엔티티 HUD | FHktWorldState PosX/Y/Z -> 월드 투 화면 투영 |
 
 ## 주요 클래스
 
@@ -133,7 +134,7 @@ HktUI/
     +-- HktUIElement.h/cpp              <- UI 엘리먼트 노드
     +-- HktUIAnchorStrategy.h           <- 추상 앵커 전략
     +-- HktViewportAnchorStrategy.h     <- 고정 뷰포트 위치
-    +-- HktWorldViewAnchorStrategy.h/cpp <- WorldView 엔티티 위치
+    +-- HktWorldViewAnchorStrategy.h/cpp <- FHktWorldState 엔티티 위치
     +-- HktSlateView.h                  <- FHktSlateView (IHktUIView 구현)
     +-- IHktUIViewFactory.h (Public)    <- CreateView/CreateStrategy 인터페이스
     +-- HktWidgetLoginHudDataAsset.h/cpp
@@ -163,7 +164,7 @@ HktUI/
 
 ## 의존성
 
-- **HktCore**: FHktWorldView, FHktWorldState, FHktEntityId, PropertyId
+- **HktCore**: FHktWorldState, FHktEntityId, PropertyId
 - **HktRuntime**: HktGameplayTags, HktGameInstance, HktRuntimeGlobalSetting, IHktPlayerInteractionInterface
 - **HktAsset**: HktAssetSubsystem (태그 기반 비동기 로딩)
 - **UE5 Slate**: SConstraintCanvas, SCompoundWidget, SProgressBar, SEditableTextBox

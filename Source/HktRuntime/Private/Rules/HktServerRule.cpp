@@ -25,7 +25,7 @@ void FHktDefaultServerRule::OnReceived_Authentication(IHktAuthenticator& Authent
 void FHktDefaultServerRule::OnReceived_FireIntentEvent(const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer, IHktRelevancyGraph& InGraph, IHktSimulationEventBuilder& InBuilder)
 {
     const int32 GroupIndex = InGraph.GetRelevancyGroupIndex(InPlayer.GetPlayerUid());
-    InBuilder.PushIntents(GroupIndex, { InEvent });
+    InBuilder.PushIntent(GroupIndex, InEvent);
 }
 
 void FHktDefaultServerRule::OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPlayer, IHktWorldDatabase& InDB)
@@ -33,11 +33,11 @@ void FHktDefaultServerRule::OnLogin_EnterWorldPlayer(const IHktWorldPlayer& InPl
     const int64 PlayerUid = InPlayer.GetPlayerUid();
     TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer(const_cast<IHktWorldPlayer*>(&InPlayer));
 
-    InDB.LoadPlayerRecordAsync(PlayerUid, [this, WeakPlayer](TUniquePtr<FHktPlayerRecord> RecordPtr)
+    InDB.LoadPlayerRecordAsync(PlayerUid, [this, WeakPlayer](const FHktPlayerRecord& Record)
     {
-        if (RecordPtr.IsValid())
+        if (Record.IsValid())
         {
-            PendingLoginResults.Enqueue({ WeakPlayer, MoveTemp(RecordPtr) });
+            PendingLoginResults.Enqueue({ WeakPlayer, &Record });
         }
     });
 }
@@ -62,11 +62,7 @@ void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
         if (Group)
         {
             IHktAuthoritySimulator& GroupSimulator = Group->GetSimulator();
-
-            FHktPlayerState State;
-            GroupSimulator.ExportPlayerState(State);
-
-            InDB.SavePlayerRecordAsync(LogoutUid, MoveTemp(State));
+            InDB.SavePlayerRecordAsync(LogoutUid, GroupSimulator.ExportPlayerState(LogoutUid));
         }
 
         InGraph.UnregisterPlayer(LogoutUid);
@@ -75,27 +71,17 @@ void FHktDefaultServerRule::OnTick_ProcessPendingConnections(
     FPendingLoginResult LoginResult;
     while (PendingLoginResults.Dequeue(LoginResult))
     {
-        if (!LoginResult.Record.IsValid()) continue;
-
         IHktWorldPlayer* NewPlayer = LoginResult.WeakPlayer.Get();
         if (NewPlayer == nullptr) continue;
 
         const FHktPlayerRecord& Record = *LoginResult.Record;
         const int64 PlayerUid = Record.PlayerUid;
 
+        // TODO: RegisterPlayer전에 groupidx를 정할 수는 없다.
         const int32 StartGroupIdx = InGraph.GetRelevancyGroupIndex(PlayerUid);
         InGraph.RegisterPlayer(NewPlayer, StartGroupIdx);
-
+        
         InBuilder.EnterWorldPlayer(StartGroupIdx, PlayerUid);
-
-        // Database에서 이미 완전한 Record를 제공하므로 무조건 PushIntents 호출
-        InBuilder.PushIntents(StartGroupIdx, Record.ActiveEvents);
-
-        // [추가] EntityStates가 있으면 해당 그룹의 다음 배치에 주입
-        if (Record.HasEntities())
-        {
-            InBuilder.PushEntityStates(StartGroupIdx, Record.EntityStates);
-        }
     }
 
     InGraph.UpdateRelevancy();
@@ -105,10 +91,14 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
     float InDeltaTime,
     const IHktFrameManager& InFrame,
     const IHktRelevancyGraph& InGraph,
-    IHktSimulationEventBuilder& InOutBuilder)
+    IHktSimulationEventBuilder& InOutBuilder,
+    const IHktWorldDatabase& InDB)
 {
     const int32 NumGroups = InGraph.NumRelevancyGroup();
 	const int64 CurrentFrameNumber = InFrame.GetFrameNumber();
+
+    TArray<FHktSimulationDiff> LastFrameDiffs;
+    LastFrameDiffs.SetNum(NumGroups);
 
     // 1. 고속 초기화 (카운터 리셋)
     InOutBuilder.ResetFast(NumGroups, InGraph.GetWorldPlayerCount());
@@ -131,21 +121,28 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
         // 2. 그룹 Intent 수집 (Input Processing)
         InOutBuilder.GetIntents(GroupIndex, GroupBatch.Events);
 
-        // [추가] 복원할 EntityStates 수집
-        InOutBuilder.GetEntityStatesToRestore(GroupIndex, GroupBatch.RestoredEntityStates);
-
         // 3. 나간 유저 처리
         InOutBuilder.GetExitedPlayers(GroupIndex, GroupBatch.RemovedOwnerIds);
 
-        // 4. 시뮬레이터 실행 (State Update)
-        // GroupSimulator는 상태를 변경하므로 const_cast 필요
-        IHktAuthoritySimulator& GroupSimulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator();
-        GroupSimulator.AdvanceFrame(GroupBatch);
-
-        // 5. 신규 진입 유저 처리 (Phase 2에서 Full State 전송 판단용)
+        // 4. 신규 진입 유저 처리 (Phase 2에서 Full State 전송 판단용)
         TArray<int64>& NewbieOwners = InOutBuilder.GetMutableNewbieOwners(GroupIndex);
         InOutBuilder.GetEnteredPlayers(GroupIndex, NewbieOwners);
 
+        IHktAuthoritySimulator& GroupSimulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator();
+        for (int64 PlayerUid : NewbieOwners)
+        {
+            if (const FHktPlayerRecord* Rec = InDB.GetCachedPlayerRecord(PlayerUid))
+            {
+                FHktPlayerState PS;
+                PS.PlayerUid = Rec->PlayerUid;
+                PS.OwnedEntities = Rec->EntityStates;
+                PS.ActiveEvents = Rec->ActiveEvents;
+                GroupSimulator.ImportPlayerState(PS);
+            }
+        }
+
+        // 5. 시뮬레이터 실행 (State Update) 및 Diff 수집
+        LastFrameDiffs[GroupIndex] = GroupSimulator.AdvanceFrame(GroupBatch);
         
         // =========================================================
         // Phase 2: Lock-Free Payload Injection (Smarter Way)
@@ -194,7 +191,7 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
             }
             else
             {
-                Payload.BatchToSend = &GroupBatch;
+                Payload.DiffToSend = &LastFrameDiffs[GroupIndex];
             }
         }
     });

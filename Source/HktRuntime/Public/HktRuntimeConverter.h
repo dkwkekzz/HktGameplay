@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktCoreTypes.h"
+#include "HktCoreMinimal.h"
+#include "HktEvents.h"
+#include "HktWorldState.h"
+#include "HktSimulationDiff.h"
 #include "HktPropertyIds.h"
 #include "HktRuntimeTypes.h"
 

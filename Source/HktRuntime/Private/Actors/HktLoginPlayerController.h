@@ -22,7 +22,7 @@ public:
 
 	// === IHktPlayerInteractionInterface ===
 	virtual void ExecuteCommand(UObject* CommandData) override;
-	virtual bool GetWorldView(FHktWorldView& OutView) const override;
+	virtual bool GetWorldState(const FHktWorldState*& OutState) const override;
 	virtual FOnHktWorldViewUpdated& OnWorldViewUpdated() override;
 
 protected:

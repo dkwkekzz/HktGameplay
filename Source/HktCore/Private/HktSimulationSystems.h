@@ -3,13 +3,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktCoreTypes.h"
+#include "HktCoreMinimal.h"
+#include "HktEvents.h"
+#include "HktWorldState.h"
 #include "HktVMTypes.h"
 
 // Forward Declarations
 class FHktVMInterpreter;
 class FHktVMRuntimePool;
-struct FHktVMStore;
+
+/** Private: Physics 이벤트 (시스템 내부용) */
+struct FHktPhysicsEvent
+{
+    FHktEntityId EntityA = InvalidEntityId;
+    FHktEntityId EntityB = InvalidEntityId;
+    FVector ContactPoint = FVector::ZeroVector;
+};
 
 /** 1. Entity Arrange System: 제거된 소유자 정리 */
 struct HKTCORE_API FHktEntityArrangeSystem
@@ -26,8 +35,7 @@ struct HKTCORE_API FHktVMBuildSystem
         int32 CurrentFrame,
         FHktVMRuntimePool& Pool,
         TArray<FHktVMHandle>& OutActiveVMs,
-        FHktWorldState& WorldState,
-        TArray<FHktVMStore>& StorePool
+        FHktWorldState& WorldState
     );
 };
 
@@ -69,36 +77,8 @@ struct HKTCORE_API FHktPhysicsSystem
     );
 };
 
-/** 5. Apply Store System: 변경 사항(Store) 커밋 */
-struct HKTCORE_API FHktApplyStoreSystem
-{
-    void Process(
-        FHktWorldState& WorldState,
-        const TArray<FHktVMHandle>& ActiveVMs,
-        FHktVMRuntimePool& Pool
-    );
-};
-
-/** 6. VM Cleanup System: 종료된 VM 해제 */
+/** 5. VM Cleanup System: 종료된 VM 해제 */
 struct HKTCORE_API FHktVMCleanupSystem
 {
     void Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState);
-};
-
-/**
- * 7. Publish View System
- * - 전체 복사(Deep Copy)를 수행하지 않음.
- * - FHktWorldView 객체를 초기화:
- *   1) WorldState 원본을 연결
- *   2) ActiveVMs의 Store를 순회하며 Overlay Map을 구축
- *      (변경된 엔티티의 속성만 추출하므로 매우 빠름)
- */
-struct HKTCORE_API FHktPublishViewSystem
-{
-    void Process(
-        const FHktWorldState& WorldState,
-        const TArray<FHktVMHandle>& ActiveVMs,
-        FHktVMRuntimePool& Pool,
-        FHktWorldView& OutView
-    );
 };
