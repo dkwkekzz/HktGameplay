@@ -97,7 +97,6 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
     const int32 NumGroups = InGraph.NumRelevancyGroup();
 	const int64 CurrentFrameNumber = InFrame.GetFrameNumber();
 
-    TArray<FHktSimulationDiff> LastFrameDiffs;
     LastFrameDiffs.SetNum(NumGroups);
 
     // 1. 고속 초기화 (카운터 리셋)
@@ -188,9 +187,11 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
             if (bHasNewbies && NewbieOwners.Contains(Player->GetPlayerUid()) && NewbieState)
             {
                 Payload.StateToSend = NewbieState;
+                Payload.DiffToSend = nullptr;
             }
             else
             {
+                Payload.StateToSend = nullptr;
                 Payload.DiffToSend = &LastFrameDiffs[GroupIndex];
             }
         }

@@ -31,4 +31,5 @@ private:
 
     TQueue<FPendingLoginResult, EQueueMode::Mpsc> PendingLoginResults;
     TQueue<int64, EQueueMode::Mpsc> PendingLogoutRequests;
+    TArray<FHktSimulationDiff> LastFrameDiffs;
 };

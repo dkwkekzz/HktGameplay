@@ -24,7 +24,7 @@ void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TF
     }
 
     // 레코드가 없으면 새로 생성
-    FHktPlayerRecord NewRecord = TransientRecords.Add(InPlayerUid);
+    FHktPlayerRecord& NewRecord = TransientRecords.Add(InPlayerUid);
     NewRecord.PlayerUid = InPlayerUid;
     NewRecord.CreatedTime = FDateTime::UtcNow();
     NewRecord.LastLoginTime = NewRecord.CreatedTime;
