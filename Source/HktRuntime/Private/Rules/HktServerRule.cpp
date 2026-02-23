@@ -116,14 +116,8 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
         GroupBatch.RandomSeed = HashCombineHelper(CurrentFrameNumber, GroupIndex);
 
         const IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(GroupIndex);
-        
-        // 2. 그룹 Intent 수집 (Input Processing)
-        InOutBuilder.GetIntents(GroupIndex, GroupBatch.Events);
 
-        // 3. 나간 유저 처리
-        InOutBuilder.GetExitedPlayers(GroupIndex, GroupBatch.RemovedOwnerIds);
-
-        // 4. 신규 진입 유저 처리 (Phase 2에서 Full State 전송 판단용)
+        // 2. 신규 진입 유저: 엔터티만 import, ActiveEvents는 PushIntent로 주입 (GetIntents 전에 수행)
         TArray<int64>& NewbieOwners = InOutBuilder.GetMutableNewbieOwners(GroupIndex);
         InOutBuilder.GetEnteredPlayers(GroupIndex, NewbieOwners);
 
@@ -132,13 +126,19 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
         {
             if (const FHktPlayerRecord* Rec = InDB.GetCachedPlayerRecord(PlayerUid))
             {
-                FHktPlayerState PS;
-                PS.PlayerUid = Rec->PlayerUid;
-                PS.OwnedEntities = Rec->EntityStates;
-                PS.ActiveEvents = Rec->ActiveEvents;
-                GroupSimulator.ImportPlayerState(PS);
+                GroupSimulator.ImportEntityStates(Rec->EntityStates);
+                for (const FHktEvent& E : Rec->ActiveEvents)
+                {
+                    InOutBuilder.PushIntent(GroupIndex, E);
+                }
             }
         }
+
+        // 3. 그룹 Intent 수집 (Input Processing, 신규 진입자 ActiveEvents 포함)
+        InOutBuilder.GetIntents(GroupIndex, GroupBatch.Events);
+
+        // 4. 나간 유저 처리
+        InOutBuilder.GetExitedPlayers(GroupIndex, GroupBatch.RemovedOwnerIds);
 
         // 5. 시뮬레이터 실행 (State Update) 및 Diff 수집
         LastFrameDiffs[GroupIndex] = GroupSimulator.AdvanceFrame(GroupBatch);

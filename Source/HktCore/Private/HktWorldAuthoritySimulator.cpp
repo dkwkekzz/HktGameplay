@@ -129,6 +129,14 @@ void FHktWorldAuthoritySimulator::ImportPlayerState(const FHktPlayerState& InSta
     WorldState.ActiveEvents.Append(InState.ActiveEvents);
 }
 
+void FHktWorldAuthoritySimulator::ImportEntityStates(const TArray<FHktEntityState>& InStates)
+{
+    for (const FHktEntityState& ES : InStates)
+    {
+        WorldState.ImportEntityState(ES);
+    }
+}
+
 void FHktWorldAuthoritySimulator::RestoreWorldState(const FHktWorldState& InState)
 {
     WorldState.CopyFrom(InState);

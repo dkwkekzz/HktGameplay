@@ -16,6 +16,8 @@ public:
     virtual FHktSimulationDiff AdvanceFrame(const FHktSimulationEvent& InEvent) = 0;
     virtual FHktPlayerState ExportPlayerState(int64 OwnerHash) const = 0;
     virtual void ImportPlayerState(const FHktPlayerState& InState) = 0;
+    /** 엔터티 상태만 import (ActiveEvents는 Builder.PushIntent로 주입) */
+    virtual void ImportEntityStates(const TArray<FHktEntityState>& InStates) = 0;
     virtual const FHktWorldState& GetWorldState() const = 0;
 
     /** 클라이언트 복원: 전체 월드 상태 덮어쓰기 */
