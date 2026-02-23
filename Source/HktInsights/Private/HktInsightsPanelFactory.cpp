@@ -3,6 +3,7 @@
 #include "HktInsightsPanelFactory.h"
 #include "Slate/SHktInsightsPanel.h"
 #include "Slate/SHktRuntimeInsightsPanel.h"
+#include "Slate/SHktWorldStatePanel.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
@@ -46,6 +47,15 @@ public:
                     .Text(FText::FromString(TEXT("Runtime State")))
                     .OnClicked_Lambda([this]() { ShowTab(1); return FReply::Handled(); })
                 ]
+
+                + SHorizontalBox::Slot()
+                .AutoWidth()
+                .Padding(2.0f)
+                [
+                    SNew(SButton)
+                    .Text(FText::FromString(TEXT("World State")))
+                    .OnClicked_Lambda([this]() { ShowTab(2); return FReply::Handled(); })
+                ]
             ]
 
             + SVerticalBox::Slot()
@@ -68,6 +78,11 @@ public:
                 + SWidgetSwitcher::Slot()
                 [
                     SNew(SHktRuntimeInsightsPanel)
+                ]
+
+                + SWidgetSwitcher::Slot()
+                [
+                    SNew(SHktWorldStatePanel)
                 ]
             ]
         ];
@@ -106,6 +121,17 @@ TSharedRef<SWidget> FHktInsightsPanelFactory::CreateRuntimePanel()
 TSharedRef<SWidget> FHktInsightsPanelFactory::CreateRuntimePanel(float AutoRefreshInterval)
 {
     return SNew(SHktRuntimeInsightsPanel)
+        .AutoRefreshInterval(AutoRefreshInterval);
+}
+
+TSharedRef<SWidget> FHktInsightsPanelFactory::CreateWorldStatePanel()
+{
+    return SNew(SHktWorldStatePanel);
+}
+
+TSharedRef<SWidget> FHktInsightsPanelFactory::CreateWorldStatePanel(float AutoRefreshInterval)
+{
+    return SNew(SHktWorldStatePanel)
         .AutoRefreshInterval(AutoRefreshInterval);
 }
 

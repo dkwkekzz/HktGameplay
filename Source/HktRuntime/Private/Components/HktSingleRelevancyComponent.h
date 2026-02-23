@@ -32,6 +32,7 @@ public:
 
     // IHktRelevancyGroup
     virtual IHktAuthoritySimulator& GetSimulator() override { return *Simulator; }
+    virtual const IHktAuthoritySimulator& GetSimulator() const override { return *Simulator; }
     virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }
     virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const override { return CachedPlayers; }
 

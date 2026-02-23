@@ -70,6 +70,23 @@ public:
     /** 1초 윈도우 통계 조회 */
     FHktPacketStats GetPacketStats() const;
 
+    // ========== WorldState 스냅샷 ==========
+
+    /**
+     * WorldState 스냅샷 업데이트 (소스별 최신 1개 유지)
+     *
+     * CollectInsightData() 내부에서 사이드이펙트로 호출합니다.
+     * 스레드 세이프 (PacketLock과 동일한 패턴).
+     */
+    void PushWorldStateSnapshot(FHktWorldStateSnapshot&& Snapshot);
+
+    /**
+     * 등록된 모든 소스의 최신 WorldState 스냅샷 목록을 반환
+     *
+     * SourceName 알파벳 순으로 정렬됩니다.
+     */
+    TArray<FHktWorldStateSnapshot> GetWorldStateSnapshots() const;
+
     // ========== 설정 ==========
 
     void SetEnabled(bool bInEnabled) { bEnabled = bInEnabled; }
@@ -95,6 +112,10 @@ private:
 
     /** 최근 수집된 스냅샷 */
     TArray<FHktInsightSnapshot> CachedSnapshots;
+
+    /** WorldState 스냅샷 (소스명 → 최신 스냅샷) */
+    mutable FCriticalSection WorldStateLock;
+    TMap<FString, FHktWorldStateSnapshot> WorldStateBySource;
 
     /** 패킷 기록 (Ring buffer) */
     mutable FCriticalSection PacketLock;

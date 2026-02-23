@@ -112,6 +112,7 @@ class HKTRUNTIME_API IHktRelevancyGroup
 
 public:
 	virtual IHktAuthoritySimulator& GetSimulator() = 0;
+	virtual const IHktAuthoritySimulator& GetSimulator() const = 0;
 	virtual const TArray<int64>& GetPlayerUids() const = 0;
 	virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const = 0;
 };

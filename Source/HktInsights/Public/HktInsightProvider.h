@@ -108,6 +108,7 @@ class HKTINSIGHTS_API IHktInsightProvider
     GENERATED_BODY()
 
 public:
+#if WITH_HKT_INSIGHTS
     /**
      * 현재 상태 정보를 OutSnapshot에 채워넣습니다.
      * Insight 시스템이 주기적으로 호출합니다.
@@ -124,4 +125,5 @@ public:
     {
         return TEXT("Unknown");
     }
+#endif
 };

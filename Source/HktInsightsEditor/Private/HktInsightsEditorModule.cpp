@@ -16,6 +16,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogHktInsightsEditor, Log, All);
 
 static const FName HktInsightsTabName(TEXT("HktInsightsTab"));
 static const FName HktRuntimeInsightsTabName(TEXT("HktRuntimeInsightsTab"));
+static const FName HktWorldStateTabName(TEXT("HktWorldStateTab"));
 
 /**
  * HktInsightsEditor 모듈 구현
@@ -31,6 +32,7 @@ private:
     /** 도킹 탭 스폰 */
     TSharedRef<SDockTab> SpawnDebugTab(const FSpawnTabArgs& Args);
     TSharedRef<SDockTab> SpawnRuntimeTab(const FSpawnTabArgs& Args);
+    TSharedRef<SDockTab> SpawnWorldStateTab(const FSpawnTabArgs& Args);
 
     /** 메뉴 확장 등록 */
     void RegisterMenuExtensions();
@@ -66,6 +68,15 @@ void FHktInsightsEditorModule::StartupModule()
         .SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
         .SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));
 
+    // WorldState 탭
+    FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+        HktWorldStateTabName,
+        FOnSpawnTab::CreateRaw(this, &FHktInsightsEditorModule::SpawnWorldStateTab))
+        .SetDisplayName(LOCTEXT("HktWorldStateTabTitle", "HKT World State"))
+        .SetTooltipText(LOCTEXT("HktWorldStateTabTooltip", "Open the HKT WorldState entity/property viewer (server & client)"))
+        .SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
+        .SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));
+
     bTabSpawnerRegistered = true;
 
     // 메뉴 확장 등록
@@ -86,6 +97,7 @@ void FHktInsightsEditorModule::ShutdownModule()
     {
         FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktInsightsTabName);
         FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktRuntimeInsightsTabName);
+        FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktWorldStateTabName);
         bTabSpawnerRegistered = false;
     }
 
@@ -109,6 +121,16 @@ TSharedRef<SDockTab> FHktInsightsEditorModule::SpawnRuntimeTab(const FSpawnTabAr
         .Label(LOCTEXT("HktRuntimeTabLabel", "HKT Runtime"))
         [
             FHktInsightsPanelFactory::CreateRuntimePanel()
+        ];
+}
+
+TSharedRef<SDockTab> FHktInsightsEditorModule::SpawnWorldStateTab(const FSpawnTabArgs& Args)
+{
+    return SNew(SDockTab)
+        .TabRole(ETabRole::NomadTab)
+        .Label(LOCTEXT("HktWorldStateTabLabel", "HKT World State"))
+        [
+            FHktInsightsPanelFactory::CreateWorldStatePanel()
         ];
 }
 
@@ -144,6 +166,17 @@ void FHktInsightsEditorModule::RegisterMenuExtensions()
                     FGlobalTabmanager::Get()->TryInvokeTab(HktRuntimeInsightsTabName);
                 }))
             );
+
+            Section.AddMenuEntry(
+                "HktWorldState",
+                LOCTEXT("HktWorldStateMenuEntry", "HKT World State"),
+                LOCTEXT("HktWorldStateMenuTooltip", "Open the HKT WorldState entity/property viewer (server & client)"),
+                FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"),
+                FUIAction(FExecuteAction::CreateLambda([]()
+                {
+                    FGlobalTabmanager::Get()->TryInvokeTab(HktWorldStateTabName);
+                }))
+            );
         }
 
         // Tools 메뉴에도 추가
@@ -171,6 +204,17 @@ void FHktInsightsEditorModule::RegisterMenuExtensions()
                 FUIAction(FExecuteAction::CreateLambda([]()
                 {
                     FGlobalTabmanager::Get()->TryInvokeTab(HktRuntimeInsightsTabName);
+                }))
+            );
+
+            Section.AddMenuEntry(
+                "HktWorldStateTools",
+                LOCTEXT("HktWorldStateToolsMenuEntry", "HKT World State"),
+                LOCTEXT("HktWorldStateToolsMenuTooltip", "Open the HKT WorldState entity/property viewer (server & client)"),
+                FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"),
+                FUIAction(FExecuteAction::CreateLambda([]()
+                {
+                    FGlobalTabmanager::Get()->TryInvokeTab(HktWorldStateTabName);
                 }))
             );
         }

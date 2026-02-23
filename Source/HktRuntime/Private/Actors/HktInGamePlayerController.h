@@ -26,10 +26,7 @@ class IHktClientRule;
 
 UCLASS()
 class HKTRUNTIME_API AHktIngamePlayerController : public APlayerController
-    , public IHktPlayerInteractionInterface
-#if WITH_HKT_INSIGHTS
-    , public IHktInsightProvider
-#endif
+    , public IHktPlayerInteractionInterface, public IHktInsightProvider
 {
     GENERATED_BODY()
 

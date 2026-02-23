@@ -33,10 +33,7 @@ struct FHktFrameSendPayload;
  *   ReceiveIntent  → Rule->OnReceived_FireIntentEvent()
  */
 UCLASS()
-class HKTRUNTIME_API AHktGameMode : public AGameModeBase
-#if WITH_HKT_INSIGHTS
-    , public IHktInsightProvider
-#endif
+class HKTRUNTIME_API AHktGameMode : public AGameModeBase, public IHktInsightProvider
 {
     GENERATED_BODY()
 

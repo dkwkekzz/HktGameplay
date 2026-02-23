@@ -2,7 +2,7 @@
 
 #include "HktInsightsWindowManager.h"
 #include "HktInsightsLog.h"
-#include "Slate/SHktInsightsPanel.h"
+#include "HktInsightsPanelFactory.h"
 #include "Widgets/SWindow.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -84,12 +84,12 @@ void FHktInsightsWindowManager::SetWindowPosition(FVector2D NewPosition)
 
 void FHktInsightsWindowManager::CreateWindow()
 {
-    // 패널 위젯 생성
-    DebugPanel = SNew(SHktInsightsPanel);
+    // 통합 패널 생성 (Intent/VM + Runtime State + World State 탭)
+    TSharedRef<SWidget> CombinedPanel = FHktInsightsPanelFactory::CreateCombinedPanel();
 
     // 윈도우 생성
     DebugWindow = SNew(SWindow)
-        .Title(FText::FromString(TEXT("HKT Insights - Intent/VM Debug")))
+        .Title(FText::FromString(TEXT("HKT Insights")))
         .ClientSize(DefaultWindowSize)
         .SupportsMinimize(true)
         .SupportsMaximize(true)
@@ -98,7 +98,7 @@ void FHktInsightsWindowManager::CreateWindow()
         .AutoCenter(bHasLastPosition ? EAutoCenter::None : EAutoCenter::PreferredWorkArea)
         .ScreenPosition(bHasLastPosition ? LastWindowPosition : FVector2D::ZeroVector)
         [
-            DebugPanel.ToSharedRef()
+            CombinedPanel
         ];
 
     // 윈도우 닫힘 콜백 등록

@@ -183,6 +183,34 @@ void FHktRuntimeInsightsCollector::RecomputeStats() const
 }
 
 // ============================================================================
+// WorldState 스냅샷
+// ============================================================================
+
+void FHktRuntimeInsightsCollector::PushWorldStateSnapshot(FHktWorldStateSnapshot&& Snapshot)
+{
+    if (!bEnabled) return;
+
+    FScopeLock Lock(&WorldStateLock);
+    WorldStateBySource.Emplace(Snapshot.SourceName, MoveTemp(Snapshot));
+}
+
+TArray<FHktWorldStateSnapshot> FHktRuntimeInsightsCollector::GetWorldStateSnapshots() const
+{
+    FScopeLock Lock(&WorldStateLock);
+
+    TArray<FHktWorldStateSnapshot> Result;
+    WorldStateBySource.GenerateValueArray(Result);
+
+    // SourceName 알파벳 순 정렬
+    Result.Sort([](const FHktWorldStateSnapshot& A, const FHktWorldStateSnapshot& B)
+    {
+        return A.SourceName < B.SourceName;
+    });
+
+    return Result;
+}
+
+// ============================================================================
 // 유틸리티
 // ============================================================================
 
@@ -193,6 +221,11 @@ void FHktRuntimeInsightsCollector::Clear()
     {
         FScopeLock Lock(&PacketLock);
         PacketHistory.Reset();
+    }
+
+    {
+        FScopeLock Lock(&WorldStateLock);
+        WorldStateBySource.Empty();
     }
 
     CachedStats = FHktPacketStats();

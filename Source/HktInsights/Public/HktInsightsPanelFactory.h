@@ -41,7 +41,20 @@ public:
     static TSharedRef<SWidget> CreateRuntimePanel(float AutoRefreshInterval);
 
     /**
-     * 통합 패널 (기존 + 런타임 탭)
+     * WorldState 전용 패널 (서버/클라이언트 엔티티 & 프로퍼티 시각화)
+     * @return 새로 생성된 WorldState 패널 위젯
+     */
+    static TSharedRef<SWidget> CreateWorldStatePanel();
+
+    /**
+     * WorldState 전용 패널 (자동 새로고침 간격 지정)
+     * @param AutoRefreshInterval 자동 새로고침 간격 (초)
+     * @return 새로 생성된 WorldState 패널 위젯
+     */
+    static TSharedRef<SWidget> CreateWorldStatePanel(float AutoRefreshInterval);
+
+    /**
+     * 통합 패널 (Intent/VM + Runtime State + World State 탭)
      * @return 새로 생성된 통합 패널 위젯
      */
     static TSharedRef<SWidget> CreateCombinedPanel();

@@ -31,7 +31,7 @@ public:
     /** 디버그 윈도우가 열려있는지 확인 */
     bool IsWindowOpen() const;
 
-    /** 디버그 패널 포인터 반환 (UI 테스트용) */
+    /** 디버그 패널 포인터 반환 (UI 테스트용, CombinedPanel 전환 후 항상 nullptr) */
     TSharedPtr<SHktInsightsPanel> GetDebugPanel() const { return DebugPanel; }
 
     /** 윈도우 크기 설정 */

@@ -10,6 +10,8 @@
 
 #if WITH_HKT_INSIGHTS
 #include "HktRuntimeInsightsCollector.h"
+#include "HktSimulator.h"
+#include "HktWorldStateInsightsHelper.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogHktGameMode, Log, All);
@@ -281,6 +283,20 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
                 }
             }
             OutSnapshot.AddInfo(Cat, TEXT("TotalPlayers"), FString::FromInt(TotalPlayers));
+
+            // === WorldState 스냅샷 push (WorldState 패널용) ===
+            for (int32 i = 0; i < NumGroups; ++i)
+            {
+                const IHktRelevancyGroup& Group = Graph->GetRelevancyGroup(i);
+                const FHktWorldState& WS = Group.GetSimulator().GetWorldState();
+
+                const FString SourceName = (NumGroups == 1)
+                    ? TEXT("Server")
+                    : FString::Printf(TEXT("Server[%d]"), i);
+
+                FHktWorldStateSnapshot Snapshot = HktWorldStateInsights::BuildSnapshot(WS, SourceName);
+                FHktRuntimeInsightsCollector::Get().PushWorldStateSnapshot(MoveTemp(Snapshot));
+            }
         }
         else
         {
