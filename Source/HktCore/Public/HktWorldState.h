@@ -123,25 +123,6 @@ struct HKTCORE_API FHktEntityPool
 };
 
 // ============================================================================
-// FHktEntityState — 엔티티 DTO (직렬화 / Diff / DB)
-//
-// Data는 LocalIndex 순서. size = Stride. memcpy로 풀과 교환 가능.
-// ============================================================================
-
-struct HKTCORE_API FHktEntityState
-{
-    FHktEntityId EntityId = InvalidEntityId;
-    FHktTypeId TypeId = HktType::None;
-    TArray<int32> Data;
-
-    friend FArchive& operator<<(FArchive& Ar, FHktEntityState& S)
-    {
-        Ar << S.EntityId << S.TypeId << S.Data;
-        return Ar;
-    }
-};
-
-// ============================================================================
 // FHktWorldState — Archetype 기반 타입별 AOS
 // ============================================================================
 

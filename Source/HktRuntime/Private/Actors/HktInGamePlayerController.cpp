@@ -6,6 +6,7 @@
 #include "HktGameMode.h"
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
+#include "HktWorldView.h"
 #include "Rules/HktClientRule.h"
 #include "DataAssets/HktInputAction.h"
 #include "EnhancedInputSubsystems.h"
@@ -214,16 +215,30 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
     {
         Rule->OnReceived_InitialState(HktRuntimeConverter::ConvertToWorldState(State), *CachedProxySimulator);
     }
-    WorldViewUpdatedDelegate.Broadcast();
+
+    FHktWorldView View;
+    View.WorldState = &CachedProxySimulator->GetWorldState();
+    View.FrameNumber = CachedProxySimulator->GetWorldState().FrameNumber;
+    View.bIsInitialSync = true;
+    WorldViewUpdatedDelegate.Broadcast(View);
 }
 
-void AHktIngamePlayerController::Client_ReceiveFrameDiff_Implementation(const FHktRuntimeDiff& Diff)
+void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const FHktRuntimeBatch& Batch)
 {
     IHktClientRule* Rule = GetClientRule();
     if (!Rule || !CachedProxySimulator) return;
 
-    Rule->OnReceived_FrameDiff(static_cast<const FHktSimulationDiff&>(Diff), *CachedProxySimulator);
-    WorldViewUpdatedDelegate.Broadcast();
+    FHktSimulationDiff Diff = Rule->OnReceived_FrameBatch(
+        static_cast<const FHktSimulationEvent&>(Batch), *CachedProxySimulator);
+
+    FHktWorldView View;
+    View.WorldState = &CachedProxySimulator->GetWorldState();
+    View.FrameNumber = Batch.CoreEvent.FrameNumber;
+    View.bIsInitialSync = false;
+    View.SpawnedEntities = &Diff.SpawnedEntities;
+    View.RemovedEntities = &Diff.RemovedEntities;
+    View.PropertyDeltas = &Diff.PropertyDeltas;
+    WorldViewUpdatedDelegate.Broadcast(View);
 }
 
 bool AHktIngamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)

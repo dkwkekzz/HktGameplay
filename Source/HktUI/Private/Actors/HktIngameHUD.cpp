@@ -39,7 +39,7 @@ void AHktIngameHUD::BeginPlay()
 	});
 }
 
-void AHktIngameHUD::OnWorldViewUpdated()
+void AHktIngameHUD::OnWorldViewUpdated(const FHktWorldView& View)
 {
 	RefreshWorldState();
 	if (!bWorldStateValid) return;

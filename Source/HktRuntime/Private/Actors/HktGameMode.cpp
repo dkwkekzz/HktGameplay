@@ -124,9 +124,9 @@ void AHktGameMode::Tick(float DeltaSeconds)
             {
                 PC->Client_ReceiveInitialState(HktRuntimeConverter::ConvertWorldState(*Payload.StateToSend));
             }
-            else if (Payload.DiffToSend)
+            else if (Payload.BatchToSend)
             {
-                PC->Client_ReceiveFrameDiff(FHktRuntimeDiff(*Payload.DiffToSend));
+                PC->Client_ReceiveFrameBatch(FHktRuntimeBatch(*Payload.BatchToSend));
             }
         }
     }

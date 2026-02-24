@@ -26,10 +26,16 @@ class HKTRUNTIME_API IHktProxySimulator
 {
 	GENERATED_BODY()
 public:
-	virtual void ApplyDiff(const FHktSimulationDiff& InDiff) = 0;
+	// 기존
 	virtual void RestoreState(const FHktWorldState& InState) = 0;
 	virtual const FHktWorldState& GetWorldState() const = 0;
 	virtual bool IsInitialized() const = 0;
+
+	// 신규: 매 틱 로컬 시뮬레이션
+	virtual void AdvanceLocalFrame(float DeltaSeconds) = 0;
+
+	// 신규: 서버 Batch 수신 → 롤백 & 재시뮬레이션, 서버 프레임의 Diff 반환
+	virtual FHktSimulationDiff ReconcileWithServerBatch(const FHktSimulationEvent& InBatch) = 0;
 };
 
 // ============================================================================
@@ -166,9 +172,9 @@ public:
 
     // === 서버 수신 ===
 
-    /** 신규 유저: 전체 상태 복원 + 대기 중인 Diff 적용 */
-    virtual void OnReceived_InitialState(const FHktWorldState& InState, IHktProxySimulator& InSimulator) = 0;
+	// 기존 유지
+	virtual void OnReceived_InitialState(const FHktWorldState& InState, IHktProxySimulator& InSimulator) = 0;
 
-    /** 기존 유저: 프레임 Diff 적용 (매 프레임) */
-    virtual void OnReceived_FrameDiff(const FHktSimulationDiff& InDiff, IHktProxySimulator& InSimulator) = 0;
+	// 변경: FrameDiff → FrameBatch, 서버 프레임의 Diff 반환
+	virtual FHktSimulationDiff OnReceived_FrameBatch(const FHktSimulationEvent& InBatch, IHktProxySimulator& InSimulator) = 0;
 };

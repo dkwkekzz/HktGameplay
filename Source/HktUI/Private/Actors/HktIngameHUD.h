@@ -6,6 +6,7 @@
 #include "HktHUD.h"
 #include "HktCoreMinimal.h"
 #include "HktWorldState.h"
+#include "HktWorldView.h"
 #include "HktIngameHUD.generated.h"
 
 class UHktWorldViewAnchorStrategy;
@@ -39,7 +40,7 @@ protected:
 	void UpdateEntityUI() override;
 
 private:
-	void OnWorldViewUpdated();
+	void OnWorldViewUpdated(const FHktWorldView& View);
 	void RefreshWorldState();
 	void SyncEntityElements();
 	void CreateEntityElement(FHktEntityId EntityId);

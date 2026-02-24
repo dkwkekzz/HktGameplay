@@ -26,10 +26,11 @@ struct HKTRUNTIME_API FHktFrameSendPayload
     AActor* TargetActor = nullptr;
     int64 PlayerUid = 0;
 
-    /** 전체 상태 (신규 유저 등) */
-    const FHktWorldState* StateToSend = nullptr;
-    /** 프레임 Diff (프록시 시뮬레이터용) */
-    const FHktSimulationDiff* DiffToSend = nullptr;
+	/** 전체 상태 (신규 유저 등) */
+	const FHktWorldState* StateToSend = nullptr;
+
+	// 변경: DiffToSend → BatchToSend
+	const FHktSimulationEvent* BatchToSend = nullptr;    // 추가
 };
 
 //=============================================================================

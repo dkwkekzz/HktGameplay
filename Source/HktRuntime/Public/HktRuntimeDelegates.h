@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "HktRuntimeTypes.h"
+#include "HktWorldView.h"
 
 // ============================================================================
 // HktRuntime 델리게이트 선언
@@ -17,4 +18,4 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktIntentSubmitted, const FHktRuntimeEven
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktWheelInput, float);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktEntityCreated, FHktEntityId);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktEntityDestroyed, FHktEntityId);
-DECLARE_MULTICAST_DELEGATE(FOnHktWorldViewUpdated);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktWorldViewUpdated, const FHktWorldView&);

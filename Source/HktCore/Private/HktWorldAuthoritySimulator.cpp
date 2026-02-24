@@ -64,6 +64,12 @@ void FHktWorldAuthoritySimulator::ProcessBatch(const FHktSimulationEvent& Event)
 
 FHktSimulationDiff FHktWorldAuthoritySimulator::AdvanceFrame(const FHktSimulationEvent& InEvent)
 {
+    // ← 추가: NewEntityStates import (클라이언트 실행 시)
+    for (const FHktEntityState& ES : InEvent.NewEntityStates)
+    {
+        WorldState.ImportEntityState(ES);
+    }
+
     FHktEntityId PrevNext = WorldState.NextEntityId;
     ProcessBatch(InEvent);
 
@@ -120,21 +126,6 @@ FHktPlayerState FHktWorldAuthoritySimulator::ExportPlayerState(int64 OwnerHash) 
                 Out.ActiveEvents.Add(E);
 
     return Out;
-}
-
-void FHktWorldAuthoritySimulator::ImportPlayerState(const FHktPlayerState& InState)
-{
-    for (const FHktEntityState& ES : InState.OwnedEntities)
-        WorldState.ImportEntityState(ES);
-    WorldState.ActiveEvents.Append(InState.ActiveEvents);
-}
-
-void FHktWorldAuthoritySimulator::ImportEntityStates(const TArray<FHktEntityState>& InStates)
-{
-    for (const FHktEntityState& ES : InStates)
-    {
-        WorldState.ImportEntityState(ES);
-    }
 }
 
 void FHktWorldAuthoritySimulator::RestoreWorldState(const FHktWorldState& InState)

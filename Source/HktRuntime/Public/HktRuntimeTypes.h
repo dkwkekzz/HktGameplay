@@ -155,6 +155,7 @@ struct HKTRUNTIME_API FHktRuntimeBatch
         Ar << CoreEvent.DeltaSeconds;
         Ar << CoreEvent.RemovedOwnerIds;
         Ar << CoreEvent.Events; // TArray<FHktEvent> 자체 직렬화 지원
+        Ar << CoreEvent.NewEntityStates;  // ← 추가
 
         bOutSuccess = true;
         return true;
@@ -167,6 +168,7 @@ struct HKTRUNTIME_API FHktRuntimeBatch
         CoreEvent.DeltaSeconds = 0.0f;
         CoreEvent.RemovedOwnerIds.Reset();
         CoreEvent.Events.Reset();
+        CoreEvent.NewEntityStates.Reset();
     }
 };
 
@@ -279,37 +281,4 @@ template<>
 struct TStructOpsTypeTraits<FHktRuntimeDiff> : public TStructOpsTypeTraitsBase2<FHktRuntimeDiff>
 {
 	enum { WithNetSerializer = true };
-};
-
-//=============================================================================
-// FHktRuntimeOwnerState - 임의의 플레이어의 시뮬레이션 결과
-//=============================================================================
-USTRUCT()
-struct HKTRUNTIME_API FHktRuntimeOwnerState
-{
-    GENERATED_BODY()
-
-    // 엔티티들의 최종 스냅샷
-    TArray<FHktEntityState> EntityStates;
-
-    // [결정론 보장] 현재 진행 중인, 아직 만료되지 않은 지속성 이벤트나 상태
-    // 예: 쿨타임 정보, 날씨 상태, 현재 RNG의 내부 상태값 등
-    TArray<FHktEvent> ActiveEvents;
-
-    // 3. 커스텀 직렬화 (엔진의 UHT 리플렉션을 거치지 않고 직접 바이트 전송)
-    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-    {
-        Ar << EntityStates;
-        Ar << ActiveEvents;
-
-        bOutSuccess = true;
-        return true;
-    }
-};
-
-// 엔진에게 커스텀 직렬화 함수가 존재함을 알림
-template<>
-struct TStructOpsTypeTraits<FHktRuntimeOwnerState> : public TStructOpsTypeTraitsBase2<FHktRuntimeOwnerState>
-{
-    enum { WithNetSerializer = true };
 };

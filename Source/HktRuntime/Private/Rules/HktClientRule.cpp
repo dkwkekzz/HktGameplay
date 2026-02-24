@@ -2,8 +2,13 @@
 
 #include "HktClientRule.h"
 
-FHktDefaultClientRule::FHktDefaultClientRule() {}
-FHktDefaultClientRule::~FHktDefaultClientRule() {}
+FHktDefaultClientRule::FHktDefaultClientRule() 
+{
+}
+
+FHktDefaultClientRule::~FHktDefaultClientRule() 
+{
+}
 
 void FHktDefaultClientRule::OnUserEvent_LoginButtonClick() {}
 
@@ -33,23 +38,27 @@ void FHktDefaultClientRule::OnUserEvent_CommandInputAction(const IHktCommandCont
     if (!bTargetRequired && InBuilder.IsReadyToSubmit()) { InBuilder.Submit(); }
 }
 
-void FHktDefaultClientRule::OnUserEvent_ZoomInputAction(float InDelta) {}
+void FHktDefaultClientRule::OnUserEvent_ZoomInputAction(float InDelta) 
+{
+}
 
 void FHktDefaultClientRule::OnReceived_InitialState(const FHktWorldState& InState, IHktProxySimulator& InSimulator)
 {
     InSimulator.RestoreState(InState);
-    for (const FHktSimulationDiff& D : PendingDiffs)
-        if (D.FrameNumber > InState.FrameNumber)
-            InSimulator.ApplyDiff(D);
-    PendingDiffs.Empty();
+
+    // Pending Batch ó��
+    for (const FHktSimulationEvent& B : PendingBatches)
+        if (B.FrameNumber > InState.FrameNumber)
+            InSimulator.ReconcileWithServerBatch(B);
+    PendingBatches.Empty();
 }
 
-void FHktDefaultClientRule::OnReceived_FrameDiff(const FHktSimulationDiff& InDiff, IHktProxySimulator& InSimulator)
+FHktSimulationDiff FHktDefaultClientRule::OnReceived_FrameBatch(const FHktSimulationEvent& InBatch, IHktProxySimulator& InSimulator)
 {
     if (!InSimulator.IsInitialized())
     {
-        PendingDiffs.Add(InDiff);
-        return;
+        PendingBatches.Add(InBatch);
+        return FHktSimulationDiff();
     }
-    InSimulator.ApplyDiff(InDiff);
+    return InSimulator.ReconcileWithServerBatch(InBatch);
 }

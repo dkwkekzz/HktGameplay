@@ -38,7 +38,7 @@ public:
     void Client_ReceiveInitialState(const FHktRuntimeSimulationState& State);
 
     UFUNCTION(Client, Reliable)
-    void Client_ReceiveFrameDiff(const FHktRuntimeDiff& Diff);
+    void Client_ReceiveFrameBatch(const FHktRuntimeBatch& Batch);
 
     // === C2S RPC ===
     UFUNCTION(Server, Reliable, WithValidation)

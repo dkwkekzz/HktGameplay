@@ -2,12 +2,8 @@
 
 #include "HktServerRule.h"
 #include "HktSimulator.h"
+#include "HktRuntimeCommon.h"
 #include "GameplayTagsManager.h"
-
-static int32 HashCombineHelper(int64 A, int32 B) 
-{ 
-    return (int32)(A * 2654435761) ^ B; 
-}
 
 FHktDefaultServerRule::FHktDefaultServerRule() 
 {
@@ -113,7 +109,7 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
         
         GroupBatch.FrameNumber = CurrentFrameNumber;
         GroupBatch.DeltaSeconds = InDeltaTime;
-        GroupBatch.RandomSeed = HashCombineHelper(CurrentFrameNumber, GroupIndex);
+        GroupBatch.RandomSeed = HktRuntimeCommon::HashCombineHelper(CurrentFrameNumber, GroupIndex);
 
         const IHktRelevancyGroup& Group = InGraph.GetRelevancyGroup(GroupIndex);
 
@@ -121,21 +117,19 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
         TArray<int64>& NewbieOwners = InOutBuilder.GetMutableNewbieOwners(GroupIndex);
         InOutBuilder.GetEnteredPlayers(GroupIndex, NewbieOwners);
 
+        // 3. 그룹 Intent 수집 (Input Processing, 신규 진입자 ActiveEvents 포함)
+        InOutBuilder.GetIntents(GroupIndex, GroupBatch.Events);
+
         IHktAuthoritySimulator& GroupSimulator = const_cast<IHktRelevancyGroup&>(Group).GetSimulator();
         for (int64 PlayerUid : NewbieOwners)
         {
             if (const FHktPlayerRecord* Rec = InDB.GetCachedPlayerRecord(PlayerUid))
             {
-                GroupSimulator.ImportEntityStates(Rec->EntityStates);
-                for (const FHktEvent& E : Rec->ActiveEvents)
-                {
-                    InOutBuilder.PushIntent(GroupIndex, E);
-                }
+                // ← 추가: Batch에도 EntityStates를 실어서 기존 클라들이 import 가능하게
+                GroupBatch.NewEntityStates.Append(Rec->EntityStates);
+                GroupBatch.Events.Append(Rec->ActiveEvents);
             }
         }
-
-        // 3. 그룹 Intent 수집 (Input Processing, 신규 진입자 ActiveEvents 포함)
-        InOutBuilder.GetIntents(GroupIndex, GroupBatch.Events);
 
         // 4. 나간 유저 처리
         InOutBuilder.GetExitedPlayers(GroupIndex, GroupBatch.RemovedOwnerIds);
@@ -144,7 +138,7 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
         LastFrameDiffs[GroupIndex] = GroupSimulator.AdvanceFrame(GroupBatch);
         
         // =========================================================
-        // Phase 2: Lock-Free Payload Injection (Smarter Way)
+        // Phase 2: Payload Injection
         // =========================================================
         const TArray<IHktWorldPlayer*>& CachedPlayers = Group.GetCachedWorldPlayers();
         const int32 PlayerCount = CachedPlayers.Num();
@@ -155,13 +149,13 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
         // 그룹 내 플레이어 수만큼 인덱스를 밀어버림 (경합 최소화)
         const int32 StartIndex = InOutBuilder.ClaimPayloadSlots(PlayerCount);
 
-		TArray<FHktFrameSendPayload>& GlobalPayloads = InOutBuilder.GetMutablePayloads();
+        TArray<FHktFrameSendPayload>& GlobalPayloads = InOutBuilder.GetMutablePayloads();
         // [Safety] 버퍼 오버플로우 체크 (매우 중요)
         if (StartIndex + PlayerCount > GlobalPayloads.Num())
         {
             // 로그 출력 또는 Assert. 
             // 실시간 게임 서버라면 여기서 return하여 크래시 방지 후, 다음 프레임에 버퍼 늘리도록 유도
-            return; 
+            return;
         }
 
         const bool bHasNewbies = NewbieOwners.Num() > 0;
@@ -170,29 +164,39 @@ void FHktDefaultServerRule::OnTick_ProcessSimulationAndPayloads(
         {
             NewbieState = &GroupSimulator.GetWorldState();
         }
+        
+        // 변경: 이벤트가 있는 프레임에만 Batch를 보낸다
+        const bool bHasBatchContent =
+            GroupBatch.Events.Num() > 0 ||
+            GroupBatch.RemovedOwnerIds.Num() > 0 ||
+            GroupBatch.NewEntityStates.Num() > 0;
 
-        // [Smart] 2. 예약된 공간에 데이터 채우기 (Lock 없음, False Sharing 주의)
-        // 다른 스레드는 다른 인덱스 범위에 쓰고 있으므로 안전함
         for (int32 i = 0; i < PlayerCount; ++i)
         {
             IHktWorldPlayer* Player = CachedPlayers[i];
-            if (!Player) continue; // nullptr 체크 시 인덱스 밀림 주의 (아래 설명 참조)
+            if (!Player) continue;
 
-            // GlobalPayloads[StartIndex + i] 에 직접 접근
             FHktFrameSendPayload& Payload = GlobalPayloads[StartIndex + i];
-            
             Payload.TargetActor = Player->GetOwnerActor();
             Payload.PlayerUid = Player->GetPlayerUid();
 
             if (bHasNewbies && NewbieOwners.Contains(Player->GetPlayerUid()) && NewbieState)
             {
+                // 신규 유저: 전체 WorldState
                 Payload.StateToSend = NewbieState;
-                Payload.DiffToSend = nullptr;
+                Payload.BatchToSend = nullptr;
+            }
+            else if (bHasBatchContent)
+            {
+                // 이벤트가 있는 프레임: Batch 전송
+                Payload.StateToSend = nullptr;
+                Payload.BatchToSend = &GroupBatch;
             }
             else
             {
+                // 이벤트 없음: 전송하지 않음
                 Payload.StateToSend = nullptr;
-                Payload.DiffToSend = &LastFrameDiffs[GroupIndex];
+                Payload.BatchToSend = nullptr;
             }
         }
     });

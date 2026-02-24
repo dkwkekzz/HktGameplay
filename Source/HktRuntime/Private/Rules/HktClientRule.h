@@ -16,8 +16,8 @@ public:
     virtual void OnUserEvent_CommandInputAction(const IHktCommandContainer& InContainer, int32 InSlotIndex, IHktIntentBuilder& InBuilder) override;
     virtual void OnUserEvent_ZoomInputAction(float InDelta) override;
     virtual void OnReceived_InitialState(const FHktWorldState& InState, IHktProxySimulator& InSimulator) override;
-    virtual void OnReceived_FrameDiff(const FHktSimulationDiff& InDiff, IHktProxySimulator& InSimulator) override;
+    virtual FHktSimulationDiff OnReceived_FrameBatch(const FHktSimulationEvent& InBatch, IHktProxySimulator& InSimulator) override;
 
 private:
-    TArray<FHktSimulationDiff> PendingDiffs;
+    TArray<FHktSimulationEvent> PendingBatches;
 };

@@ -24,8 +24,6 @@ public:
 
     virtual FHktSimulationDiff AdvanceFrame(const FHktSimulationEvent& InEvent) override;
     virtual FHktPlayerState ExportPlayerState(int64 OwnerHash) const override;
-    virtual void ImportPlayerState(const FHktPlayerState& InState) override;
-    virtual void ImportEntityStates(const TArray<FHktEntityState>& InStates) override;
     virtual const FHktWorldState& GetWorldState() const override { return WorldState; }
     virtual void RestoreWorldState(const FHktWorldState& InState) override;
 

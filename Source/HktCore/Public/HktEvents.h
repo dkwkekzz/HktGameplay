@@ -83,6 +83,25 @@ struct HKTCORE_API FHktEvent
 };
 
 // ============================================================================
+// FHktEntityState — 엔티티 DTO (직렬화 / Diff / DB)
+//
+// Data는 LocalIndex 순서. size = Stride. memcpy로 풀과 교환 가능.
+// ============================================================================
+
+struct HKTCORE_API FHktEntityState
+{
+    FHktEntityId EntityId = InvalidEntityId;
+    FHktTypeId TypeId = HktType::None;
+    TArray<int32> Data;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktEntityState& S)
+    {
+        Ar << S.EntityId << S.TypeId << S.Data;
+        return Ar;
+    }
+};
+
+// ============================================================================
 // FHktSimulationEvent — 프레임 단위 시뮬레이션 입력
 // ============================================================================
 
@@ -93,23 +112,26 @@ struct HKTCORE_API FHktSimulationEvent
     float DeltaSeconds = 0.0f;
     TArray<int64> RemovedOwnerIds;
     TArray<FHktEvent> Events;
+    TArray<FHktEntityState> NewEntityStates;  // ← 추가: 신규 진입자 엔티티
 
     FString ToString() const
     {
-        return FString::Printf(TEXT("Frame=%lld Seed=%d Dt=%.3f Removed=%d Events=%d"),
-            FrameNumber, RandomSeed, DeltaSeconds, RemovedOwnerIds.Num(), Events.Num());
+        return FString::Printf(TEXT("Frame=%lld Seed=%d Dt=%.3f Removed=%d Events=%d NewStates=%d"),
+            FrameNumber, RandomSeed, DeltaSeconds, RemovedOwnerIds.Num(), Events.Num(), NewEntityStates.Num());
     }
 
     void Reset()
     {
         FrameNumber = 0; RandomSeed = 0; DeltaSeconds = 0.0f;
         RemovedOwnerIds.Reset(); Events.Reset();
+        NewEntityStates.Reset();  // ← 추가
     }
 
     friend FArchive& operator<<(FArchive& Ar, FHktSimulationEvent& E)
     {
         Ar << E.FrameNumber << E.RandomSeed << E.DeltaSeconds;
         Ar << E.RemovedOwnerIds << E.Events;
+        Ar << E.NewEntityStates;  // ← 추가
         return Ar;
     }
 };
