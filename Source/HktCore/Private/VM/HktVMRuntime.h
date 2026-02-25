@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktVMTypes.h"
+#include "VM/HktVMTypes.h"
 #include "HktVMContext.h"
 #include "HktSimulationLimits.h"
 

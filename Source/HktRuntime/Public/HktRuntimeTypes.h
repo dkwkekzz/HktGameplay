@@ -4,10 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "HktCoreMinimal.h"
-#include "HktEvents.h"
+#include "HktCoreDefs.h"
+#include "HktCoreEvents.h"
 #include "HktWorldState.h"
-#include "HktSimulationDiff.h"
 #include "HktRuntimeTypes.generated.h"
 
 // =========================================================================

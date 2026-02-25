@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktVMTypes.h"
+#include "HktFlowTypes.h"
 
 /**
  * FHktVMProgram - 컴파일된 바이트코드 프로그램 (불변, 공유 가능)

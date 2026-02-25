@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "HktServerRuleInterfaces.h"
-#include "HktSimulator.h"
+#include "HktCoreSimulator.h"
 #include "HktRuntimeTypes.h"
 #include "HktSingleRelevancyComponent.generated.h"
 
@@ -29,10 +29,14 @@ public:
     virtual IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) override;
     virtual const IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) const override;
     virtual int32 GetRelevancyGroupIndex(int64 PlayerUid) const override;
+    virtual int32 CalculateRelevancyGroupIndex(FVector PlayerPos) const override { return 0; }
+
+    // IHktAuthoritySimulator
+    virtual void AdvanceFrame(const FHktSimulationEvent& InEvent) override { Simulator->AdvanceFrame(InEvent); }
+    virtual const FHktWorldState& GetWorldState() const override { return Simulator->GetWorldState(); }
+    virtual FHktPlayerState ExportPlayerState(int64 OwnerUid) const override { return Simulator->ExportPlayerState(OwnerUid); }
 
     // IHktRelevancyGroup
-    virtual IHktAuthoritySimulator& GetSimulator() override { return *Simulator; }
-    virtual const IHktAuthoritySimulator& GetSimulator() const override { return *Simulator; }
     virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }
     virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const override { return CachedPlayers; }
 
@@ -40,8 +44,8 @@ protected:
     virtual void BeginPlay() override;
 
 private:
+    TUniquePtr<IHktDeterminismSimulator> Simulator;
     TMap<int64, IHktWorldPlayer*> RegisteredPlayers;
-    TUniquePtr<IHktAuthoritySimulator> Simulator;
     TArray<int64> PlayerUids;
     TArray<IHktWorldPlayer*> CachedPlayers;
 };

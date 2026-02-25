@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktWorldState.h"
 #include "HktRuntimeTypes.h"
 #include "HktRuntimeDelegates.h"

@@ -51,6 +51,6 @@ namespace PropertyId
     constexpr uint16 AnimState = 40;
     constexpr uint16 VisualState = 41;
 
-    // === 소유권 (플레이어 해시) ===
-    constexpr uint16 OwnerPlayerHash = 52;
+    // === 소유권 (플레이어 UID) ===
+    constexpr uint16 OwnedPlayerUid = 52;
 }

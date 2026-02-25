@@ -2,22 +2,21 @@
 
 #pragma once
 
-#include "HktSimulationDiff.h"
+#include "HktCoreEvents.h"
+#include "HktWorldState.h"
 
 // ============================================================================
-// IHktAuthoritySimulator — 서버 권위 시뮬레이터 인터페이스
+// IHktDeterminismSimulator — 클라/서버 공통 코어 시뮬레이터 (내부 시뮬레이션만)
 // ============================================================================
 
-class HKTCORE_API IHktAuthoritySimulator
+class HKTCORE_API IHktDeterminismSimulator
 {
 public:
-    virtual ~IHktAuthoritySimulator() = default;
+    virtual ~IHktDeterminismSimulator() = default;
 
     virtual FHktSimulationDiff AdvanceFrame(const FHktSimulationEvent& InEvent) = 0;
-    virtual FHktPlayerState ExportPlayerState(int64 OwnerHash) const = 0;
     virtual const FHktWorldState& GetWorldState() const = 0;
-
-    /** 클라이언트 복원: 전체 월드 상태 덮어쓰기 */
+    virtual FHktPlayerState ExportPlayerState(int64 OwnerUid) const = 0;
     virtual void RestoreWorldState(const FHktWorldState& InState) = 0;
 };
 
@@ -25,4 +24,5 @@ public:
 // Factory
 // ============================================================================
 
-HKTCORE_API TUniquePtr<IHktAuthoritySimulator> CreateAuthoritySimulator();
+/** 클라이언트/서버 공통: 결정론 시뮬레이터 (서버는 반환값을 IHktAuthoritySimulator*로 캐스트하여 사용) */
+HKTCORE_API TUniquePtr<IHktDeterminismSimulator> CreateDeterminismSimulator();

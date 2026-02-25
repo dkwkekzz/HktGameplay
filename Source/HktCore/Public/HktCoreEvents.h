@@ -2,8 +2,15 @@
 
 #pragma once
 
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "GameplayTagContainer.h"
+
+static FArchive& operator<<(FArchive& Ar, FGameplayTagContainer& Tags)
+{
+    bool bSuccess = false;
+    Tags.NetSerialize(Ar, nullptr, bSuccess);
+    return Ar;
+}
 
 // ============================================================================
 // Inline Payload — 이벤트 내 가변 데이터 컨테이너
@@ -93,10 +100,11 @@ struct HKTCORE_API FHktEntityState
     FHktEntityId EntityId = InvalidEntityId;
     FHktTypeId TypeId = HktType::None;
     TArray<int32> Data;
+    FGameplayTagContainer Tags;
 
     friend FArchive& operator<<(FArchive& Ar, FHktEntityState& S)
     {
-        Ar << S.EntityId << S.TypeId << S.Data;
+        Ar << S.EntityId << S.TypeId << S.Data << S.Tags;
         return Ar;
     }
 };
@@ -111,27 +119,96 @@ struct HKTCORE_API FHktSimulationEvent
     int32 RandomSeed = 0;
     float DeltaSeconds = 0.0f;
     TArray<int64> RemovedOwnerIds;
-    TArray<FHktEvent> Events;
+    TArray<FHktEvent> NewEvents;
     TArray<FHktEntityState> NewEntityStates;  // ← 추가: 신규 진입자 엔티티
 
     FString ToString() const
     {
         return FString::Printf(TEXT("Frame=%lld Seed=%d Dt=%.3f Removed=%d Events=%d NewStates=%d"),
-            FrameNumber, RandomSeed, DeltaSeconds, RemovedOwnerIds.Num(), Events.Num(), NewEntityStates.Num());
+            FrameNumber, RandomSeed, DeltaSeconds, RemovedOwnerIds.Num(), NewEvents.Num(), NewEntityStates.Num());
     }
 
     void Reset()
     {
         FrameNumber = 0; RandomSeed = 0; DeltaSeconds = 0.0f;
-        RemovedOwnerIds.Reset(); Events.Reset();
+        RemovedOwnerIds.Reset(); NewEvents.Reset();
         NewEntityStates.Reset();  // ← 추가
     }
 
     friend FArchive& operator<<(FArchive& Ar, FHktSimulationEvent& E)
     {
         Ar << E.FrameNumber << E.RandomSeed << E.DeltaSeconds;
-        Ar << E.RemovedOwnerIds << E.Events;
+        Ar << E.RemovedOwnerIds << E.NewEvents;
         Ar << E.NewEntityStates;  // ← 추가
+        return Ar;
+    }
+};
+
+// ============================================================================
+// FHktPropertyDelta — 단일 프로퍼티 변경
+// ============================================================================
+
+struct HKTCORE_API FHktPropertyDelta
+{
+    FHktEntityId EntityId = InvalidEntityId;
+    uint16 PropertyId = 0;
+    int32 NewValue = 0;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktPropertyDelta& D)
+    {
+        Ar << D.EntityId << D.PropertyId << D.NewValue;
+        return Ar;
+    }
+};
+
+// ============================================================================
+// FHktTagDelta — 엔티티 태그 변경 스냅샷 (서버 → 클라이언트)
+// ============================================================================
+
+struct HKTCORE_API FHktTagDelta
+{
+    FHktEntityId EntityId = InvalidEntityId;
+    FGameplayTagContainer Tags;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktTagDelta& D)
+    {
+        Ar << D.EntityId << D.Tags;
+        return Ar;
+    }
+};
+
+// ============================================================================
+// FHktSimulationDiff — 프레임별 변경점 (서버 → 클라이언트)
+// ============================================================================
+
+struct HKTCORE_API FHktSimulationDiff
+{
+    int64 FrameNumber = 0;
+    TArray<FHktEntityState> SpawnedEntities;
+    TArray<FHktEntityId> RemovedEntities;
+    TArray<FHktPropertyDelta> PropertyDeltas;
+    TArray<FHktTagDelta> TagDeltas;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktSimulationDiff& D)
+    {
+        Ar << D.FrameNumber << D.SpawnedEntities << D.RemovedEntities << D.PropertyDeltas << D.TagDeltas;
+        return Ar;
+    }
+};
+
+// ============================================================================
+// FHktPlayerState — 플레이어 단위 상태 (그룹 이동 / DB 저장)
+// ============================================================================
+
+struct HKTCORE_API FHktPlayerState
+{
+    int64 PlayerUid = 0;
+    TArray<FHktEntityState> OwnedEntities;
+    TArray<FHktEvent> ActiveEvents;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktPlayerState& S)
+    {
+        Ar << S.PlayerUid << S.OwnedEntities << S.ActiveEvents;
         return Ar;
     }
 };

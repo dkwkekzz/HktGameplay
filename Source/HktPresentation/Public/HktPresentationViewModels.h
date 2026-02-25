@@ -3,9 +3,9 @@
 #pragma once
 
 #include "HktVisualField.h"
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktWorldState.h"
-#include "HktPropertyIds.h"
+#include "HktCoreProperties.h"
 
 /** Transform 그룹 */
 struct FHktVM_Transform
@@ -56,7 +56,7 @@ struct FHktVM_Combat
 struct FHktVM_Ownership
 {
 	THktVisualField<int32> Team;
-	THktVisualField<int64> OwnerPlayerHash;
+	THktVisualField<int64> OwnedPlayerUid;
 
 	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
 	bool TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);

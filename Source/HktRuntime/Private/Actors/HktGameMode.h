@@ -3,8 +3,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "HktRuntimeTypes.h"
-#include "HktDatabaseTypes.h"
 #include "HktServerRuleInterfaces.h"
+#include "HktClientRuleInterfaces.h"
 
 #if WITH_HKT_INSIGHTS
 #include "HktInsightProvider.h"
@@ -14,22 +14,20 @@
 
 class AHktIngamePlayerController;
 class IHktServerRule;
-struct FHktFrameSendPayload;
+class IHktClientRule;
 
 /**
  * AHktGameMode - 서버 오케스트레이터
  *
  * 아키텍처 원칙:
  *   - Actor는 "이벤트 발행"에 집중 (인터페이스를 직접 구현하지 않음)
- *   - 로직 흐름은 ServerRule이 인터페이스를 통해 결정
+ *   - 로직 흐름은 ServerRule이 BindContext로 받은 인터페이스를 통해 결정 (item 2)
  *   - Component가 인터페이스 구현을 담당
  *
- * 이벤트 → Rule 매핑:
- *   PostLogin()    → Rule->OnLogin_EnterWorldPlayer()
- *   Logout()       → Rule->OnLogout_ExitWorldPlayer()
- *   Tick()         → Rule->OnTick_ProcessPendingConnections()
- *                  → Rule->OnTick_ExecuteFrame()
- *                  → Rule->OnTick_SendFrameBatch()
+ * 이벤트 → Rule 매핑 (item 1):
+ *   PostLogin()    → Rule->OnEvent_GameModePostLogin()
+ *   Logout()       → Rule->OnEvent_GameModeLogout()
+ *   Tick()         → Rule->OnEvent_GameModeTick() → FHktEventGameModeTickResult
  *   ReceiveIntent  → Rule->OnReceived_FireIntentEvent()
  */
 UCLASS()
@@ -40,7 +38,7 @@ class HKTRUNTIME_API AHktGameMode : public AGameModeBase, public IHktInsightProv
 public:
     AHktGameMode();
 
-    /** Intent를 IntentCollector에 푸시 (PlayerController에서 호출) */
+    /** Intent를 Rule에 전달 (PlayerController에서 호출) */
     void PushIntent(int64 PlayerUid, const FHktEvent& Event);
 
 protected:
@@ -62,12 +60,12 @@ private:
     /** Insight 통계: 틱 당 처리 시간 추적 */
     float LastTickDurationMs = 0.0f;
 
-    /** 서버 규칙 */
-    TUniquePtr<IHktServerRule> ServerRule;
-    
-    /** 캐싱된 인터페이스 포인터들 */
-    IHktFrameManager* CachedFrameManager = nullptr;
-    IHktRelevancyGraph* CachedRelevancyGraph = nullptr;
-    IHktWorldDatabase* CachedWorldDatabase = nullptr;
-    IHktSimulationEventBuilder* CachedSimulationEventBuilder = nullptr;
+    /** 서버 규칙 (UHktRuleSubsystem이 소유) */
+    IHktServerRule* CachedServerRule = nullptr;
+
+    /** Insights 및 PushIntent용 캐시 (Rule의 BindContext와 별개로 유지) */
+    IHktFrameManager*           CachedFrameManager            = nullptr;
+    IHktRelevancyGraph*         CachedRelevancyGraph          = nullptr;
+    IHktWorldDatabase*          CachedWorldDatabase           = nullptr;
+    IHktSimulationEventBuilder* CachedSimulationEventBuilder  = nullptr;
 };

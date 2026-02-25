@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktWorldState.h"
-#include "HktSimulationDiff.h"
+#include "HktCoreEvents.h"
 #include "Templates/UnrealTypeTraits.h"
 
 /**

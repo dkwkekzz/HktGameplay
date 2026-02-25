@@ -109,8 +109,8 @@ bool UHktIntentBuilderComponent::HasPendingSubmit() const
     return bHasPendingSubmit;
 }
 
-FHktRuntimeEvent UHktIntentBuilderComponent::ConsumePendingSubmit()
+FHktEvent UHktIntentBuilderComponent::ConsumePendingSubmit()
 {
     bHasPendingSubmit = false;
-    return PendingSubmitEvent;
+    return PendingSubmitEvent.CoreEvent;
 }

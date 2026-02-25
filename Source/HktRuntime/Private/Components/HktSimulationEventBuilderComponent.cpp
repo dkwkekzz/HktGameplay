@@ -1,126 +1,42 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSimulationEventBuilderComponent.h"
-#include "Containers/ArrayView.h"
 
 UHktSimulationEventBuilderComponent::UHktSimulationEventBuilderComponent()
-    : PayloadWriteOffset(0)
 {
-    PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
 // ============================================================================
-// 프레임 초기화/정리
+// IHktSimulationEventBuilder
 // ============================================================================
 
-void UHktSimulationEventBuilderComponent::ResetFast(int32 NumGroups, int32 MaxTotalPlayers)
+void UHktSimulationEventBuilderComponent::Resize(int32 NumGroups)
 {
-    // 그룹 수 변경 시 모든 그룹 배열을 한 번에 조정
-    if (GroupFrameBatches.Num() != NumGroups)
-    {
-        GroupFrameBatches.SetNum(NumGroups);
-        GroupNewbieOwners.SetNum(NumGroups);
-        GroupIntents.SetNum(NumGroups);
-        EnteredPlayers.SetNum(NumGroups);
-        ExitedPlayers.SetNum(NumGroups);
-    }
-
-    for (int32 i = 0; i < NumGroups; ++i)
-    {
-        GroupFrameBatches[i].Reset();
-        GroupNewbieOwners[i].Reset();
-        GroupIntents[i].Reset();
-    }
-
-    if (GlobalPayloads.Num() < MaxTotalPlayers)
-    {
-        GlobalPayloads.SetNumUninitialized(MaxTotalPlayers);
-    }
-
-    PayloadWriteOffset.store(0, std::memory_order_relaxed);
+	if (GroupIntents.Num() != NumGroups)
+	{
+		GroupIntents.SetNum(NumGroups);
+	}
+	for (int32 i = 0; i < GroupIntents.Num(); ++i)
+	{
+		GroupIntents[i].Reset();
+	}
 }
-
-void UHktSimulationEventBuilderComponent::EndFrame()
-{
-    for (auto& A : GroupIntents)        A.Reset();
-    for (auto& A : EnteredPlayers)     A.Reset();
-    for (auto& A : ExitedPlayers)      A.Reset();
-}
-
-// ============================================================================
-// Intent 입력
-// ============================================================================
 
 void UHktSimulationEventBuilderComponent::PushIntent(int32 GroupIndex, const FHktEvent& InEvent)
 {
-    if (!GroupIntents.IsValidIndex(GroupIndex)) GroupIntents.SetNum(GroupIndex + 1);
-    GroupIntents[GroupIndex].Add(InEvent);
+	if (GroupIntents.IsValidIndex(GroupIndex))
+	{
+		GroupIntents[GroupIndex].Add(InEvent);
+	}
 }
 
 bool UHktSimulationEventBuilderComponent::GetIntents(int32 GroupIndex, TArray<FHktEvent>& OutIntents)
 {
-    if (!GroupIntents.IsValidIndex(GroupIndex)) return false;
-    OutIntents.Append(GroupIntents[GroupIndex]);
-    return GroupIntents[GroupIndex].Num() > 0;
-}
-
-// ============================================================================
-// 플레이어 진입/퇴장
-// ============================================================================
-
-void UHktSimulationEventBuilderComponent::EnterWorldPlayer(int32 GroupIndex, int64 InPlayerUid)
-{
-    if (!EnteredPlayers.IsValidIndex(GroupIndex)) EnteredPlayers.SetNum(GroupIndex + 1);
-    EnteredPlayers[GroupIndex].AddUnique(InPlayerUid);
-}
-
-void UHktSimulationEventBuilderComponent::ExitWorldPlayer(int32 GroupIndex, int64 InPlayerUid)
-{
-    if (!ExitedPlayers.IsValidIndex(GroupIndex)) ExitedPlayers.SetNum(GroupIndex + 1);
-    ExitedPlayers[GroupIndex].AddUnique(InPlayerUid);
-}
-
-bool UHktSimulationEventBuilderComponent::GetEnteredPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids)
-{
-    if (!EnteredPlayers.IsValidIndex(GroupIndex)) return false;
-    OutPlayerUids.Append(EnteredPlayers[GroupIndex]);
-    return EnteredPlayers[GroupIndex].Num() > 0;
-}
-
-bool UHktSimulationEventBuilderComponent::GetExitedPlayers(int32 GroupIndex, TArray<int64>& OutPlayerUids)
-{
-    if (!ExitedPlayers.IsValidIndex(GroupIndex)) return false;
-    OutPlayerUids.Append(ExitedPlayers[GroupIndex]);
-    return ExitedPlayers[GroupIndex].Num() > 0;
-}
-
-// ============================================================================
-// Batch 조립
-// ============================================================================
-
-FHktSimulationEvent& UHktSimulationEventBuilderComponent::CreateOrGetGroupFrameBatch(int32 InGroupIdx)
-{
-    return GroupFrameBatches[InGroupIdx];
-}
-
-int32 UHktSimulationEventBuilderComponent::ClaimPayloadSlots(int32 Count)
-{
-    return PayloadWriteOffset.fetch_add(Count, std::memory_order_relaxed);
-}
-
-TArray<FHktFrameSendPayload>& UHktSimulationEventBuilderComponent::GetMutablePayloads()
-{
-    return GlobalPayloads;
-}
-
-TArray<int64>& UHktSimulationEventBuilderComponent::GetMutableNewbieOwners(int32 InGroupIdx)
-{
-    return GroupNewbieOwners[InGroupIdx];
-}
-
-TArrayView<const FHktFrameSendPayload> UHktSimulationEventBuilderComponent::GetValidPayloads() const
-{
-    int32 Count = PayloadWriteOffset.load(std::memory_order_relaxed);
-    if (Count > GlobalPayloads.Num()) Count = GlobalPayloads.Num();
-    return MakeArrayView(GlobalPayloads.GetData(), Count);
+	if (!GroupIntents.IsValidIndex(GroupIndex))
+	{
+		return false;
+	}
+	OutIntents.Append(MoveTemp(GroupIntents[GroupIndex]));
+	return true;
 }

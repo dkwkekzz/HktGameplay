@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktWorldState.h"
 #include "HktClientRuleInterfaces.h"
 #include "HktDesktopDefaultSelectionPolicy.generated.h"

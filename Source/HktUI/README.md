@@ -70,7 +70,7 @@ SConstraintCanvas slot (Strategy에 의해 매 프레임마다 위치 지정)
 - `IHktPlayerInteractionInterface::GetWorldState(OutState)`로 `FHktWorldState` 포인터 조회
 - `OnWorldViewUpdated` 델리게이트 구독 후 `RefreshWorldState()` → `SyncEntityElements()` / `UpdateEntityProperties()` 호출
 - `SyncEntityElements()`: 엔티티별로 `SHktEntityHudWidget` 생성/제거 (`FHktWorldState::ForEachEntity`, `IsValidEntity`)
-- `UpdateEntityProperties()`: `FHktWorldState::GetProperty`로 Health, OwnerPlayerHash, Team 갱신
+- `UpdateEntityProperties()`: `FHktWorldState::GetProperty`로 Health, OwnedPlayerUid, Team 갱신
 - `UHktWorldViewAnchorStrategy`: `FHktWorldState`에서 PosX/Y/Z 읽기 → `ProjectWorldLocationToScreen`
 
 ## 앵커 전략

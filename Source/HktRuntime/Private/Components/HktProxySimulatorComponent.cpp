@@ -16,7 +16,7 @@ void UHktProxySimulatorComponent::BeginPlay()
 {
     Super::BeginPlay();
     SchemaRegistry.Initialize();
-    Simulator = CreateAuthoritySimulator();
+    Simulator = CreateDeterminismSimulator();
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
 }
 
@@ -121,6 +121,9 @@ FHktSimulationDiff UHktProxySimulatorComponent::ReconcileWithServerBatch(const F
     {
         LocalFrame = ServerFrame;
     }
+
+    // 7. Accum 초기화 — 서버 Batch 수신 시 누적 시간 리셋
+    FrameAccumulator = 0.0f;
 
     return ServerDiff;
 }

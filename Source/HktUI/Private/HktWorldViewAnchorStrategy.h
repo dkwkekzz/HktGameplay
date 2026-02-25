@@ -3,9 +3,9 @@
 #pragma once
 
 #include "HktUIAnchorStrategy.h"
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktWorldState.h"
-#include "HktPropertyIds.h"
+#include "HktCoreProperties.h"
 #include "HktWorldViewAnchorStrategy.generated.h"
 
 class APlayerController;

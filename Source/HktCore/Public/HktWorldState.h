@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "HktCoreMinimal.h"
-#include "HktEvents.h"
+#include "HktCoreDefs.h"
+#include "HktCoreEvents.h"
+#include "HktCoreProperties.h"
 
 // ============================================================================
 // FHktEntitySchema — 타입별 프로퍼티 메타데이터
@@ -84,9 +85,47 @@ struct HKTCORE_API FHktEntityPool
     TArray<uint32> DirtyMask;
     TArray<int32> DirtySlots;
 
+    TArray<FGameplayTagContainer> TagContainers; // 슬롯 인덱스로 접근
+    TArray<uint8>  TagsDirtyMask;               // 슬롯별 태그 변경 여부
+    TArray<int32>  TagsDirtySlots;              // 변경된 슬롯 목록
+
+    /** OwnedPlayerUid → Slot 역인덱스. 플레이어 소유 엔티티 O(1) 조회. */
+    TMap<int64, TArray<int32>> OwnerToSlots;
+
     void Initialize(const FHktEntitySchema& InSchema, int32 ReserveCount);
     int32 AllocateSlot(FHktEntityId EntityId);
     void FreeSlot(int32 Slot);
+
+    /** OwnedPlayerUid 변경 시 역인덱스 갱신 (WorldState::SetPropertyDirty에서 호출) */
+    void TrackOwner(int32 Slot, int64 OldUid, int64 NewUid)
+    {
+        if (OldUid != 0)
+        {
+            if (TArray<int32>* OldSlots = OwnerToSlots.Find(OldUid))
+                OldSlots->RemoveSwap(Slot);
+        }
+        if (NewUid != 0)
+            OwnerToSlots.FindOrAdd(NewUid).Add(Slot);
+    }
+
+    /** 엔티티 제거 시 역인덱스에서 해당 슬롯 제거 (WorldState::RemoveEntity에서 호출) */
+    void UntrackOwner(int32 Slot, int64 OwnerUid)
+    {
+        if (OwnerUid != 0)
+            if (TArray<int32>* Slots = OwnerToSlots.Find(OwnerUid))
+                Slots->RemoveSwap(Slot);
+    }
+
+    /** OwnerUid에 속한 엔티티만 순회 */
+    template<typename F>
+    void ForEachEntityByOwner(int64 OwnerUid, F&& Cb) const
+    {
+        const TArray<int32>* Slots = OwnerToSlots.Find(OwnerUid);
+        if (!Slots) return;
+        for (int32 S : *Slots)
+            if (SlotToEntity.IsValidIndex(S) && SlotToEntity[S] != InvalidEntityId)
+                Cb(SlotToEntity[S], S);
+    }
 
     FORCEINLINE int32* EntityData(int32 Slot) { return Data.GetData() + Slot * Stride; }
     FORCEINLINE const int32* EntityData(int32 Slot) const { return Data.GetData() + Slot * Stride; }
@@ -100,10 +139,29 @@ struct HKTCORE_API FHktEntityPool
         DirtyMask[Slot] |= (1u << LP);
     }
 
+    FORCEINLINE void SetTagsDirty(int32 Slot)
+    {
+        if (!TagsDirtyMask[Slot]) { TagsDirtySlots.Add(Slot); TagsDirtyMask[Slot] = 1; }
+    }
+
+    FORCEINLINE void AddTag(int32 Slot, const FGameplayTag& Tag)    { TagContainers[Slot].AddTag(Tag);    SetTagsDirty(Slot); }
+    FORCEINLINE void RemoveTag(int32 Slot, const FGameplayTag& Tag) { TagContainers[Slot].RemoveTag(Tag); SetTagsDirty(Slot); }
+    FORCEINLINE bool HasTag(int32 Slot, const FGameplayTag& Tag) const     { return TagContainers[Slot].HasTag(Tag); }
+    FORCEINLINE bool HasTagExact(int32 Slot, const FGameplayTag& Tag) const { return TagContainers[Slot].HasTagExact(Tag); }
+    FORCEINLINE const FGameplayTagContainer& GetTags(int32 Slot) const     { return TagContainers[Slot]; }
+
     void ResetDirty()
     {
-        for (int32 S : DirtySlots) DirtyMask[S] = 0;
-        DirtySlots.Reset();
+        for (int32 S : DirtySlots)     DirtyMask[S] = 0;
+        for (int32 S : TagsDirtySlots) TagsDirtyMask[S] = 0;
+        DirtySlots.Reset(); TagsDirtySlots.Reset();
+    }
+
+    template<typename F> void ForEachTagDirtyEntity(F&& Cb) const
+    {
+        for (int32 S : TagsDirtySlots)
+            if (SlotToEntity.IsValidIndex(S) && SlotToEntity[S] != InvalidEntityId)
+                Cb(SlotToEntity[S], S);
     }
 
     template<typename F> void ForEachEntity(F&& Cb) const
@@ -173,7 +231,40 @@ struct HKTCORE_API FHktWorldState
         if (!IsValidEntity(Entity)) return;
         const FEntityLocation& L = EntityLocations[Entity];
         int8 LP = Registry->Get(L.TypeId).GetLocalIndex(PropId);
-        if (LP != -1) Pools[L.TypeId].SetDirty(L.PoolSlot, LP, Value);
+        if (LP == -1) return;
+        if (PropId == PropertyId::OwnedPlayerUid)
+        {
+            int64 OldUid = static_cast<int64>(Pools[L.TypeId].Get(L.PoolSlot, LP));
+            Pools[L.TypeId].TrackOwner(L.PoolSlot, OldUid, static_cast<int64>(Value));
+        }
+        Pools[L.TypeId].SetDirty(L.PoolSlot, LP, Value);
+    }
+
+    // --- Tag Access ---
+    const FGameplayTagContainer& GetTags(FHktEntityId Entity) const;
+    void AddTag(FHktEntityId Entity, const FGameplayTag& Tag);
+    void RemoveTag(FHktEntityId Entity, const FGameplayTag& Tag);
+    bool HasTag(FHktEntityId Entity, const FGameplayTag& Tag) const;
+
+    // --- Position shortcuts ---
+    FORCEINLINE FIntVector GetPosition(FHktEntityId Entity) const
+    {
+        return FIntVector(
+            GetProperty(Entity, PropertyId::PosX),
+            GetProperty(Entity, PropertyId::PosY),
+            GetProperty(Entity, PropertyId::PosZ));
+    }
+
+    FORCEINLINE void SetPosition(FHktEntityId Entity, int32 X, int32 Y, int32 Z)
+    {
+        SetPropertyDirty(Entity, PropertyId::PosX, X);
+        SetPropertyDirty(Entity, PropertyId::PosY, Y);
+        SetPropertyDirty(Entity, PropertyId::PosZ, Z);
+    }
+
+    FORCEINLINE void SetPosition(FHktEntityId Entity, const FIntVector& Pos)
+    {
+        SetPosition(Entity, Pos.X, Pos.Y, Pos.Z);
     }
 
     // --- Pool Access ---

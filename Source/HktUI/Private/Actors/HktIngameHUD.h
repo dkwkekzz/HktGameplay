@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HktHUD.h"
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktWorldState.h"
 #include "HktWorldView.h"
 #include "HktIngameHUD.generated.h"

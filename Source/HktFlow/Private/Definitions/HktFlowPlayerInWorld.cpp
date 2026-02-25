@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "HktFlowBuilder.h"
-#include "HktPropertyIds.h"
+#include "HktCoreProperties.h"
 #include "HktFlowRegistry.h"
 #include "NativeGameplayTags.h"
 
@@ -55,13 +55,13 @@ namespace HktFlowPlayerInWorld
 			.SetPosition(Self, R0)
 
 			// 플레이어 속성 초기화 (기본값 또는 저장된 값)
-			// OwnerPlayerHash 설정 (플레이어 UID를 해시로 변환)
-			// Param0와 Param1에서 플레이어 UID를 복원하여 OwnerPlayerHash에 설정
+			// OwnedPlayerUid 설정
+			// Param0와 Param1에서 플레이어 UID를 복원하여 OwnedPlayerUid에 설정
 			.LoadStore(R3, PropertyId::Param0)         // 플레이어 UID 하위 32비트
 			.LoadStore(R4, PropertyId::Param1)         // 플레이어 UID 상위 32비트
-			// R3와 R4를 조합하여 해시 생성 (간단한 해시 함수)
-			.Mul(R5, R4, R3)                           // R5 = R4 * R3 (간단한 해시)
-			.SaveEntityProperty(Self, PropertyId::OwnerPlayerHash, R5)
+			// R3와 R4를 조합 (간단한 해시)
+			.Mul(R5, R4, R3)                           // R5 = R4 * R3
+			.SaveEntityProperty(Self, PropertyId::OwnedPlayerUid, R5)
 
 			// 기본 체력 설정 (필요시)
 			// .LoadConst(R4, 100)

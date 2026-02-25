@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktEvents.h"
 #include "HktWorldState.h"
-#include "HktVMTypes.h"
+#include "VM/HktVMTypes.h"
 
 // Forward Declarations
 class FHktVMInterpreter;

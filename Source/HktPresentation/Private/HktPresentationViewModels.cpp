@@ -5,12 +5,9 @@
 // --------------------------------------------------------------------------- FHktVM_Transform
 void FHktVM_Transform::Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
 {
-	Location.Set(FVector(
-		static_cast<float>(WS.GetProperty(Id, PropertyId::PosX)),
-		static_cast<float>(WS.GetProperty(Id, PropertyId::PosY)),
-		static_cast<float>(WS.GetProperty(Id, PropertyId::PosZ))), Frame);
-	Rotation.Set(FRotator(
-		0.f, static_cast<float>(WS.GetProperty(Id, PropertyId::RotYaw)), 0.f), Frame);
+	FIntVector P = WS.GetPosition(Id);
+	Location.Set(FVector(static_cast<float>(P.X), static_cast<float>(P.Y), static_cast<float>(P.Z)), Frame);
+	Rotation.Set(FRotator(0.f, static_cast<float>(WS.GetProperty(Id, PropertyId::RotYaw)), 0.f), Frame);
 }
 
 bool FHktVM_Transform::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame, FVector& CachedLoc, FRotator& CachedRot)
@@ -109,15 +106,15 @@ bool FHktVM_Combat::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
 void FHktVM_Ownership::Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
 {
 	Team.Set(WS.GetProperty(Id, PropertyId::Team), Frame);
-	OwnerPlayerHash.Set(static_cast<int64>(WS.GetProperty(Id, PropertyId::OwnerPlayerHash)), Frame);
+	OwnedPlayerUid.Set(static_cast<int64>(WS.GetProperty(Id, PropertyId::OwnedPlayerUid)), Frame);
 }
 
 bool FHktVM_Ownership::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
 {
 	switch (PropId)
 	{
-	case PropertyId::Team:            Team.Set(NewValue, Frame); return true;
-	case PropertyId::OwnerPlayerHash: OwnerPlayerHash.Set(static_cast<int64>(NewValue), Frame); return true;
+	case PropertyId::Team:           Team.Set(NewValue, Frame); return true;
+	case PropertyId::OwnedPlayerUid: OwnedPlayerUid.Set(static_cast<int64>(NewValue), Frame); return true;
 	default: return false;
 	}
 }

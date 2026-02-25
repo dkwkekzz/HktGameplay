@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Subsystems/LocalPlayerSubsystem.h"
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktWorldView.h"
 #include "HktPresentationState.h"
 // TODO: 전방선언 이슈

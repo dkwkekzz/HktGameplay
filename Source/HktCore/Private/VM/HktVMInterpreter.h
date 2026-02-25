@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktVMTypes.h"
+#include "VM/HktVMTypes.h"
 #include "HktVMRuntime.h"
-#include "HktPropertyIds.h"
+#include "HktCoreProperties.h"
 
 // Forward declarations
 struct FHktWorldState;
@@ -99,6 +99,11 @@ private:
 
     // ===== Equipment =====
     void Op_SpawnEquipment(FHktVMRuntime& Runtime, RegisterIndex Owner, int32 Slot, int32 StringIndex);
+
+    // ===== Tags =====
+    void Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
+    void Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
+    void Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 StringIndex);
 
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);

@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSimulationSystems.h"
-#include "HktPropertyIds.h"
+#include "HktCoreProperties.h"
 #include "VM/HktVMProgram.h"
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
@@ -35,23 +35,20 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
 
     ScratchRemoveList.Reset();
 
-    WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
+    for (int32 T = 1; T < HktType::MaxTypes; ++T)
     {
-        int32 OwnerHash = WorldState.GetProperty(Id, PropertyId::OwnerPlayerHash);
+        const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
         for (int64 RemovedId : RemovedOwnerIds)
         {
-            if (static_cast<int64>(OwnerHash) == RemovedId)
+            Pool.ForEachEntityByOwner(RemovedId, [&](FHktEntityId Id, int32 /*Slot*/)
             {
                 ScratchRemoveList.Add(Id);
-                break;
-            }
+            });
         }
-    });
+    }
 
     for (FHktEntityId Id : ScratchRemoveList)
-    {
         WorldState.RemoveEntity(Id);
-    }
 }
 
 // ============================================================================
@@ -247,10 +244,8 @@ void FHktPhysicsSystem::RebuildGrid(const FHktWorldState& WorldState)
     GridMap.Reset();
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
-        FVector Pos;
-        Pos.X = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosX));
-        Pos.Y = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosY));
-        Pos.Z = 0.f;
+        FIntVector P = WorldState.GetPosition(Id);
+        FVector Pos(static_cast<float>(P.X), static_cast<float>(P.Y), 0.f);
         FCellCoord Cell = WorldToCell(Pos);
         GridMap.FindOrAdd(Cell).Add(Id);
     });
@@ -279,14 +274,10 @@ void FHktPhysicsSystem::Process(
                 if (!WorldState.IsValidEntity(A) || !WorldState.IsValidEntity(B))
                     continue;
 
-                FVector PosA(
-                    static_cast<float>(WorldState.GetProperty(A, PropertyId::PosX)),
-                    static_cast<float>(WorldState.GetProperty(A, PropertyId::PosY)),
-                    static_cast<float>(WorldState.GetProperty(A, PropertyId::PosZ)));
-                FVector PosB(
-                    static_cast<float>(WorldState.GetProperty(B, PropertyId::PosX)),
-                    static_cast<float>(WorldState.GetProperty(B, PropertyId::PosY)),
-                    static_cast<float>(WorldState.GetProperty(B, PropertyId::PosZ)));
+                FIntVector PA = WorldState.GetPosition(A);
+                FIntVector PB = WorldState.GetPosition(B);
+                FVector PosA(static_cast<float>(PA.X), static_cast<float>(PA.Y), static_cast<float>(PA.Z));
+                FVector PosB(static_cast<float>(PB.X), static_cast<float>(PB.Y), static_cast<float>(PB.Z));
 
                 float DistSq = FVector::DistSquared(PosA, PosB);
                 if (DistSq <= CollisionRadiusSq)

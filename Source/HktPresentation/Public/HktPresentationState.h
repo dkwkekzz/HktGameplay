@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktPresentationViewModels.h"
 #include "HktWorldState.h"
 

@@ -140,7 +140,7 @@ FHktWorldView — WorldState의 경량 읽기 뷰 (Zero Copy + Sparse Overlay)
 
     PublishViewSystem이 ActiveVMs의 Store를 순회하여 Overlay를 자동 구축
 
-3.6 Property IDs (HktPropertyIds.h)
+3.6 Property IDs (HktCoreProperties.h)
 
 PropertyId 네임스페이스에 uint16 상수로 정의:
 
@@ -149,7 +149,7 @@ PropertyId 네임스페이스에 uint16 상수로 정의:
     소유/타입: OwnerEntity(20), EntityType(21)
     이벤트 파라미터: TargetPosX/Y/Z(30-32), Param0-3(33-36)
     애니메이션: AnimState(40), VisualState(41)
-    소유권: OwnerPlayerHash(52)
+    소유권: OwnedPlayerUid(52)
 
 4. VM 런타임 규격 (VM Runtime Specification)
 
@@ -197,7 +197,7 @@ FHktSimulationWorld::ProcessBatch 함수 내에서 매 프레임 실행되는 �
 Phase 1: 준비 (Preparation)
 
     1-1. Arrange System: 삭제된 소유자에 속하는 엔티티 정리.
-        - OwnerPlayerHash 컬럼을 루프 밖에서 캐싱하여 순회.
+        - OwnedPlayerUid 컬럼을 루프 밖에서 캐싱하여 순회.
 
     1-2. Build System: FHktEvent를 순회하며 VM 생성 및 레지스터 초기화.
         - VM 생성 성공 시 WorldState.ActiveEvents에 이벤트 등록.
@@ -276,17 +276,21 @@ FHktEntityState는 DTO: HktCore 내부에서는 SOA WorldState를 직접 사용.
 
 HktCore/
 ├── Public/
-│   ├── HktCoreTypes.h         // FHktEvent, FHktEntityState, FHktDataColumn, FHktWorldState, FHktWorldView
-│   ├── HktPropertyIds.h       // PropertyId 네임스페이스 (uint16 상수)
-│   └── HktSimulator.h         // IHktSimulator 인터페이스
+│   ├── HktCoreDefs.h          // FHktEntityId, FHktTypeId, HktType
+│   ├── HktCoreEvents.h        // FHktEvent, FHktEntityState, FHktSimulationEvent, FHktSimulationDiff, FHktPlayerState
+│   ├── HktCoreProperties.h    // PropertyId 네임스페이스 (uint16 상수)
+│   ├── HktCoreSimulator.h     // IHktAuthoritySimulator 인터페이스
+│   ├── HktFlowTypes.h         // RegisterIndex, Reg, EOpCode, FInstruction (Flow 빌더 공개)
+│   ├── HktFlowBuilder.h
+│   ├── HktWorldState.h
+│   └── HktWorldView.h
 ├── Private/
-│   ├── HktCoreTypes.cpp       // FHktWorldState 구현부 (AllocateEntity, ExtractEntityState, 직렬화 등)
+│   ├── HktWorldState.cpp      // FHktWorldState 구현부
 │   ├── HktSimulationSystems.h // 각 단계별 시스템 클래스 선언
 │   ├── HktSimulationSystems.cpp
-│   ├── HktSimulationWorld.h   // FHktSimulationWorld 클래스 선언
-│   ├── HktSimulationWorld.cpp // 파이프라인 조율
-│   ├── HktVMTypes.h           // EVMStatus, FHktVMRuntime, FHktVMHandle, FHktVMRuntimePool
+│   ├── HktWorldDeterminismSimulator.h/cpp
 │   └── VM/
+│       ├── HktVMTypes.h       // EVMStatus, FHktVMHandle, FHktVMRuntime, FHktVMRuntimePool
 │       ├── HktVMStore.h       // FHktVMStore (SOA 배치 쓰기)
 │       ├── HktVMStore.cpp
 │       ├── HktVMInterpreter.h

@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktVMTypes.h"
+#include "GameplayTagContainer.h"
+#include "HktCoreDefs.h"
+#include "HktFlowTypes.h"
 
 struct FHktVMProgram;
 

@@ -155,8 +155,8 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
 
         int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
 
-        // WorldState SOA 순회
-        WorldState->ForEachEntity([&](FHktEntityId E, int32 SlotIndex)
+        // WorldState 순회
+        WorldState->ForEachEntity([&](FHktEntityId E, int32 /*SlotIndex*/)
         {
             if (E == Center)
                 return;
@@ -164,13 +164,10 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
             if (WorldState->GetProperty(E, PropertyId::Team) == Team)
                 return;
 
-            int32 EX = WorldState->GetProperty(E, PropertyId::PosX);
-            int32 EY = WorldState->GetProperty(E, PropertyId::PosY);
-            int32 EZ = WorldState->GetProperty(E, PropertyId::PosZ);
-
-            int64 DX = EX - CX;
-            int64 DY = EY - CY;
-            int64 DZ = EZ - CZ;
+            FIntVector EP = WorldState->GetPosition(E);
+            int64 DX = EP.X - CX;
+            int64 DY = EP.Y - CY;
+            int64 DZ = EP.Z - CZ;
 
             if (DX*DX + DY*DY + DZ*DZ <= RadiusSq)
                 Runtime.SpatialQuery.Entities.Add(E);
@@ -299,6 +296,41 @@ void FHktVMInterpreter::Op_SpawnEquipment(FHktVMRuntime& Runtime, RegisterIndex 
         Runtime.Context->WriteEntity(NewEquip, PropertyId::OwnerEntity, OwnerEntity);
         Runtime.SetRegEntity(Reg::Spawned, NewEquip);
     }
+}
+
+// ============================================================================
+// Tags
+// ============================================================================
+
+void FHktVMInterpreter::Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
+{
+    if (!WorldState) return;
+    const FString& TagName = GetString(Runtime, StringIndex);
+    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
+    if (Tag.IsValid())
+        WorldState->AddTag(Runtime.GetRegEntity(Entity), Tag);
+}
+
+void FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
+{
+    if (!WorldState) return;
+    const FString& TagName = GetString(Runtime, StringIndex);
+    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
+    if (Tag.IsValid())
+        WorldState->RemoveTag(Runtime.GetRegEntity(Entity), Tag);
+}
+
+void FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 StringIndex)
+{
+    bool bHas = false;
+    if (WorldState)
+    {
+        const FString& TagName = GetString(Runtime, StringIndex);
+        FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
+        if (Tag.IsValid())
+            bHas = WorldState->HasTag(Runtime.GetRegEntity(Entity), Tag);
+    }
+    Runtime.SetReg(Dst, bHas ? 1 : 0);
 }
 
 // ============================================================================

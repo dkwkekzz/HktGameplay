@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktWorldState.h"
 #include "HktRuntimeDelegates.h"
 #include "HktClientRuleInterfaces.h"
@@ -104,8 +104,8 @@ private:
     FOnHktWheelInput WheelInputDelegate;
     FOnHktWorldViewUpdated WorldViewUpdatedDelegate;
 
-    /** 클라이언트 규칙 */
-    TUniquePtr<IHktClientRule> ClientRule;
+    /** 클라이언트 규칙 (Subsystem 소유, 수명 동일) */
+    IHktClientRule* CachedClientRule = nullptr;
 
     /** 캐싱된 인터페이스 포인터들 */
     IHktIntentBuilder* CachedIntentBuilder = nullptr;

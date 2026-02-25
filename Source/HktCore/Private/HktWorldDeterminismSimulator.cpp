@@ -1,13 +1,13 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktWorldAuthoritySimulator.h"
+#include "HktWorldDeterminismSimulator.h"
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
 #include "VM/HktVMContext.h"
-#include "HktPropertyIds.h"
+#include "HktCoreProperties.h"
 #include "HktSimulationLimits.h"
 
-FHktWorldAuthoritySimulator::FHktWorldAuthoritySimulator()
+FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator()
 {
     SchemaRegistry.Initialize();
     WorldState.Initialize(SchemaRegistry);
@@ -26,9 +26,9 @@ FHktWorldAuthoritySimulator::FHktWorldAuthoritySimulator()
     VMProcessSystem.Interpreter = Interpreter.Get();
 }
 
-FHktWorldAuthoritySimulator::~FHktWorldAuthoritySimulator() = default;
+FHktWorldDeterminismSimulator::~FHktWorldDeterminismSimulator() = default;
 
-void FHktWorldAuthoritySimulator::ProcessBatch(const FHktSimulationEvent& Event)
+void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Event)
 {
     WorldState.FrameNumber = Event.FrameNumber;
     WorldState.RandomSeed = Event.RandomSeed;
@@ -62,9 +62,8 @@ void FHktWorldAuthoritySimulator::ProcessBatch(const FHktSimulationEvent& Event)
     VMCleanupSystem.Process(CompletedVMs, *VMPool, WorldState);
 }
 
-FHktSimulationDiff FHktWorldAuthoritySimulator::AdvanceFrame(const FHktSimulationEvent& InEvent)
+FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulationEvent& InEvent)
 {
-    // ← 추가: NewEntityStates import (클라이언트 실행 시)
     for (const FHktEntityState& ES : InEvent.NewEntityStates)
     {
         WorldState.ImportEntityState(ES);
@@ -97,38 +96,38 @@ FHktSimulationDiff FHktWorldAuthoritySimulator::AdvanceFrame(const FHktSimulatio
                 M &= M - 1;
             }
         });
+        Pool.ForEachTagDirtyEntity([&](FHktEntityId Id, int32 Slot)
+        {
+            if (Id >= PrevNext) return;
+            Diff.TagDeltas.Add({ Id, Pool.GetTags(Slot) });
+        });
     }
     return Diff;
 }
 
-FHktPlayerState FHktWorldAuthoritySimulator::ExportPlayerState(int64 OwnerHash) const
+FHktPlayerState FHktWorldDeterminismSimulator::ExportPlayerState(int64 OwnerUid) const
 {
     FHktPlayerState Out;
-    Out.PlayerUid = OwnerHash;
+    Out.PlayerUid = OwnerUid;
 
     for (int32 T = 1; T < HktType::MaxTypes; ++T)
     {
-        const FHktEntitySchema& Sch = SchemaRegistry.Get(static_cast<FHktTypeId>(T));
-        int8 OwnerLP = Sch.GetLocalIndex(PropertyId::OwnerPlayerHash);
-        if (OwnerLP == -1) continue;
-
         const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
-        Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
+        Pool.ForEachEntityByOwner(OwnerUid, [&](FHktEntityId Id, int32 /*Slot*/)
         {
-            if (static_cast<int64>(Pool.EntityData(Slot)[OwnerLP]) == OwnerHash)
-                Out.OwnedEntities.Add(WorldState.ExtractEntityState(Id));
+            Out.OwnedEntities.Add(WorldState.ExtractEntityState(Id));
         });
     }
 
     for (const FHktEvent& E : WorldState.ActiveEvents)
         if (WorldState.IsValidEntity(E.SourceEntity))
-            if (static_cast<int64>(WorldState.GetProperty(E.SourceEntity, PropertyId::OwnerPlayerHash)) == OwnerHash)
+            if (static_cast<int64>(WorldState.GetProperty(E.SourceEntity, PropertyId::OwnedPlayerUid)) == OwnerUid)
                 Out.ActiveEvents.Add(E);
 
     return Out;
 }
 
-void FHktWorldAuthoritySimulator::RestoreWorldState(const FHktWorldState& InState)
+void FHktWorldDeterminismSimulator::RestoreWorldState(const FHktWorldState& InState)
 {
     WorldState.CopyFrom(InState);
 }
@@ -137,7 +136,7 @@ void FHktWorldAuthoritySimulator::RestoreWorldState(const FHktWorldState& InStat
 // Factory
 // ============================================================================
 
-TUniquePtr<IHktAuthoritySimulator> CreateAuthoritySimulator()
+TUniquePtr<IHktDeterminismSimulator> CreateDeterminismSimulator()
 {
-    return MakeUnique<FHktWorldAuthoritySimulator>();
+    return MakeUnique<FHktWorldDeterminismSimulator>();
 }

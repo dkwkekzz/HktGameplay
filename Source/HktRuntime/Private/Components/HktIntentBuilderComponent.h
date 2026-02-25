@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
-#include "HktCoreMinimal.h"
+#include "HktCoreDefs.h"
 #include "HktWorldState.h"
 #include "HktRuntimeTypes.h"
 #include "HktClientRuleInterfaces.h"
@@ -51,7 +51,7 @@ public:
     virtual FHktEntityId GetTargetEntityId() const override;
     virtual FGameplayTag GetEventTag() const override;
     virtual bool HasPendingSubmit() const override;
-    virtual FHktRuntimeEvent ConsumePendingSubmit() override;
+    virtual FHktEvent ConsumePendingSubmit() override;
 
     // === 추가 API ===
 

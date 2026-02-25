@@ -7,7 +7,6 @@
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
 #include "HktWorldView.h"
-#include "Rules/HktClientRule.h"
 #include "DataAssets/HktInputAction.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
@@ -38,12 +37,14 @@ void AHktIngamePlayerController::BeginPlay()
         }
     }
 
-    if (!ClientRule)
+    // ClientRule — Standalone / Client 에서만 (DedicatedServer 제외)
+    const ENetMode NetMode = GetWorld()->GetNetMode();
+    if (NetMode == NM_Standalone || NetMode == NM_Client)
     {
-        ClientRule = MakeUnique<FHktDefaultClientRule>();
+        CachedClientRule = HktRule::GetClientRule(GetWorld());
     }
 
-    // GetComponents를 이용해서 인터페이스들을 캐싱
+    // 컴포넌트에서 인터페이스 캐싱
     TArray<UActorComponent*> Components;
     GetComponents(Components);
     for (UActorComponent* Comp : Components)
@@ -63,7 +64,12 @@ void AHktIngamePlayerController::BeginPlay()
         else if (IHktCommandContainer* CommandContainer = Cast<IHktCommandContainer>(Comp))
         {
             CachedCommandContainer = CommandContainer;
-            CommandContainer->SetSlotActions(SlotActions);
+            TArray<TObjectPtr<UObject>> AsObjects;
+            for (const TObjectPtr<UHktInputAction>& A : SlotActions)
+            {
+                AsObjects.Add(A.Get());
+            }
+            CommandContainer->SetSlotActions(AsObjects);
         }
         else if (IHktWorldPlayer* WorldPlayer = Cast<IHktWorldPlayer>(Comp))
         {
@@ -71,16 +77,32 @@ void AHktIngamePlayerController::BeginPlay()
         }
     }
 
+    // 컨텍스트 바인딩 — ServerRule::BindContext와 동일한 패턴
+    if (CachedClientRule)
+    {
+        CachedClientRule->BindContext(
+            CachedProxySimulator,
+            CachedIntentBuilder,
+            CachedSelectionPolicy,
+            CachedCommandContainer);
+    }
+
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
 }
 
 void AHktIngamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    CachedIntentBuilder = nullptr;
-    CachedSelectionPolicy = nullptr;
-    CachedProxySimulator = nullptr;
+    if (CachedClientRule)
+    {
+        CachedClientRule->BindContext(nullptr, nullptr, nullptr, nullptr);
+    }
+
+    CachedClientRule       = nullptr;
+    CachedIntentBuilder    = nullptr;
+    CachedSelectionPolicy  = nullptr;
+    CachedProxySimulator   = nullptr;
     CachedCommandContainer = nullptr;
-    CachedWorldPlayer = nullptr;
+    CachedWorldPlayer      = nullptr;
 
     HKT_INSIGHTS_UNREGISTER_PROVIDER(this);
     Super::EndPlay(EndPlayReason);
@@ -90,7 +112,6 @@ void AHktIngamePlayerController::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
 
-    // PlayerState가 변경되면 컴포넌트의 캐시를 무효화
     if (CachedWorldPlayer)
     {
         CachedWorldPlayer->InvalidatePlayerUidCache();
@@ -107,8 +128,8 @@ void AHktIngamePlayerController::SetupInputComponent()
     if (!EnhancedInput) return;
 
     if (SubjectAction) EnhancedInput->BindAction(SubjectAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnSubjectAction);
-    if (TargetAction) EnhancedInput->BindAction(TargetAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnTargetAction);
-    if (ZoomAction) EnhancedInput->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnZoom);
+    if (TargetAction)  EnhancedInput->BindAction(TargetAction,  ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnTargetAction);
+    if (ZoomAction)    EnhancedInput->BindAction(ZoomAction,    ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnZoom);
 
     for (int32 i = 0; i < SlotActions.Num(); ++i)
     {
@@ -116,67 +137,72 @@ void AHktIngamePlayerController::SetupInputComponent()
     }
 }
 
+// ============================================================================
+// 입력 이벤트 — Rule이 내부 캐싱된 컨텍스트 사용 (BindContext 후)
+// ============================================================================
+
 void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
-    IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy;
-    IHktIntentBuilder* Builder = CachedIntentBuilder;
-    if (!Rule || !Policy || !Builder) return;
+    if (!Rule) return;
 
-    Rule->OnUserEvent_SubjectInputAction(*Policy, *Builder);
-    const int32 SubjectEntityId = Builder->GetSubjectEntityId();
-    SubjectChangedDelegate.Broadcast(SubjectEntityId);
-    
-    UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSubjectAction SubjectEntityId=%d"), SubjectEntityId);
+    Rule->OnUserEvent_SubjectInputAction();
+
+    if (CachedIntentBuilder)
+    {
+        SubjectChangedDelegate.Broadcast(CachedIntentBuilder->GetSubjectEntityId());
+        UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId());
+    }
 }
 
 void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
-    IHktUnitSelectionPolicy* Policy = CachedSelectionPolicy;
-    IHktIntentBuilder* Builder = CachedIntentBuilder;
-    if (!Rule || !Policy || !Builder) return;
+    if (!Rule) return;
 
-    Rule->OnUserEvent_TargetInputAction(*Policy, *Builder);
-    const int32 TargetEntityId = Builder->GetTargetEntityId();
-    TargetChangedDelegate.Broadcast(TargetEntityId);
+    Rule->OnUserEvent_TargetInputAction();
 
-    if (Builder->HasPendingSubmit())
+    if (CachedIntentBuilder)
     {
-        FHktRuntimeEvent Event = Builder->ConsumePendingSubmit();
-        Server_ReceiveIntent(Event);
-        IntentSubmittedDelegate.Broadcast(Event);
-        
-        UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnTargetAction Submit %s"), *Event.CoreEvent.ToString());
-    }
-    else
-    {
-        UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnTargetAction TargetEntityId=%d"), TargetEntityId);
+        TargetChangedDelegate.Broadcast(CachedIntentBuilder->GetTargetEntityId());
+
+        if (CachedIntentBuilder->HasPendingSubmit())
+        {
+            FHktRuntimeEvent Event(CachedIntentBuilder->ConsumePendingSubmit());
+            Server_ReceiveIntent(Event);
+            IntentSubmittedDelegate.Broadcast(Event);
+            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnTargetAction Submit %s"), *Event.CoreEvent.ToString());
+        }
+        else
+        {
+            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnTargetAction TargetEntityId=%d"), CachedIntentBuilder->GetTargetEntityId());
+        }
     }
 }
 
 void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, int32 SlotIndex)
 {
     IHktClientRule* Rule = GetClientRule();
-    IHktCommandContainer* Container = CachedCommandContainer;
-    IHktIntentBuilder* Builder = CachedIntentBuilder;
-    if (!Rule || !Container || !Builder) return;
+    if (!Rule) return;
 
-    Rule->OnUserEvent_CommandInputAction(*Container, SlotIndex, *Builder);
-    const FGameplayTag EventTag = Builder->GetEventTag();
-    CommandChangedDelegate.Broadcast(EventTag);
+    Rule->OnUserEvent_CommandInputAction(SlotIndex);
 
-    if (Builder->HasPendingSubmit())
+    if (CachedIntentBuilder)
     {
-        FHktRuntimeEvent Event = Builder->ConsumePendingSubmit();
-        Server_ReceiveIntent(Event);
-        IntentSubmittedDelegate.Broadcast(Event);
-        
-        UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSlotAction Submit %s"), *Event.CoreEvent.ToString());
-    }
-    else
-    {
-        UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSlotAction SlotIndex=%d EventTag=%s"), SlotIndex, *EventTag.ToString());
+        CommandChangedDelegate.Broadcast(CachedIntentBuilder->GetEventTag());
+
+        if (CachedIntentBuilder->HasPendingSubmit())
+        {
+            FHktRuntimeEvent Event(CachedIntentBuilder->ConsumePendingSubmit());
+            Server_ReceiveIntent(Event);
+            IntentSubmittedDelegate.Broadcast(Event);
+            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSlotAction Submit %s"), *Event.CoreEvent.ToString());
+        }
+        else
+        {
+            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSlotAction SlotIndex=%d EventTag=%s"),
+                SlotIndex, *CachedIntentBuilder->GetEventTag().ToString());
+        }
     }
 }
 
@@ -184,7 +210,7 @@ void AHktIngamePlayerController::OnZoom(const FInputActionValue& Value)
 {
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
-    
+
     if (Value.GetValueType() == EInputActionValueType::Axis1D)
     {
         float Delta = Value.Get<float>();
@@ -193,17 +219,20 @@ void AHktIngamePlayerController::OnZoom(const FInputActionValue& Value)
     }
 }
 
+// ============================================================================
+// S2C RPC
+// ============================================================================
+
 void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State)
 {
 #if WITH_HKT_INSIGHTS
     const FHktWorldState& CoreState = State;
     InsightReceivedInitialStateCount++;
-    // 암시적 변환을 통해 CoreState에 접근
     HKT_INSIGHTS_RECORD_PACKET(
-        EHktPacketDirection::ServerToClient, 
+        EHktPacketDirection::ServerToClient,
         EHktPacketType::InitialState,
-        0, 
-        CoreState.FrameNumber, 
+        0,
+        CoreState.FrameNumber,
         CoreState.GetEntityCount(),
         static_cast<int32>(sizeof(FHktRuntimeSimulationState) + CoreState.GetEntityCount() * sizeof(FHktEntityState)),
         FString::Printf(TEXT("InitialState: Entities=%d"), CoreState.GetEntityCount())
@@ -211,34 +240,41 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
 #endif
 
     IHktClientRule* Rule = GetClientRule();
-    if (Rule && CachedProxySimulator)
+    if (Rule)
     {
-        Rule->OnReceived_InitialState(HktRuntimeConverter::ConvertToWorldState(State), *CachedProxySimulator);
+        // Rule이 내부 캐싱된 Simulator에 전달
+        Rule->OnReceived_InitialState(HktRuntimeConverter::ConvertToWorldState(State));
     }
 
-    FHktWorldView View;
-    View.WorldState = &CachedProxySimulator->GetWorldState();
-    View.FrameNumber = CachedProxySimulator->GetWorldState().FrameNumber;
-    View.bIsInitialSync = true;
-    WorldViewUpdatedDelegate.Broadcast(View);
+    if (CachedProxySimulator)
+    {
+        FHktWorldView View;
+        View.WorldState    = &CachedProxySimulator->GetWorldState();
+        View.FrameNumber   = CachedProxySimulator->GetWorldState().FrameNumber;
+        View.bIsInitialSync = true;
+        WorldViewUpdatedDelegate.Broadcast(View);
+    }
 }
 
 void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const FHktRuntimeBatch& Batch)
 {
     IHktClientRule* Rule = GetClientRule();
-    if (!Rule || !CachedProxySimulator) return;
+    if (!Rule) return;
 
-    FHktSimulationDiff Diff = Rule->OnReceived_FrameBatch(
-        static_cast<const FHktSimulationEvent&>(Batch), *CachedProxySimulator);
+    // Rule이 내부 캐싱된 Simulator에 전달, Diff 반환
+    FHktSimulationDiff Diff = Rule->OnReceived_FrameBatch(static_cast<const FHktSimulationEvent&>(Batch));
 
-    FHktWorldView View;
-    View.WorldState = &CachedProxySimulator->GetWorldState();
-    View.FrameNumber = Batch.CoreEvent.FrameNumber;
-    View.bIsInitialSync = false;
-    View.SpawnedEntities = &Diff.SpawnedEntities;
-    View.RemovedEntities = &Diff.RemovedEntities;
-    View.PropertyDeltas = &Diff.PropertyDeltas;
-    WorldViewUpdatedDelegate.Broadcast(View);
+    if (CachedProxySimulator)
+    {
+        FHktWorldView View;
+        View.WorldState      = &CachedProxySimulator->GetWorldState();
+        View.FrameNumber     = Batch.CoreEvent.FrameNumber;
+        View.bIsInitialSync  = false;
+        View.SpawnedEntities = &Diff.SpawnedEntities;
+        View.RemovedEntities = &Diff.RemovedEntities;
+        View.PropertyDeltas  = &Diff.PropertyDeltas;
+        WorldViewUpdatedDelegate.Broadcast(View);
+    }
 }
 
 bool AHktIngamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)
@@ -251,13 +287,12 @@ void AHktIngamePlayerController::Server_ReceiveIntent_Implementation(const FHktR
 #if WITH_HKT_INSIGHTS
     InsightSentIntentCount++;
     {
-        // 암시적 변환을 통해 CoreEvent에 접근
         const FHktEvent& CoreEvent = Event;
         HKT_INSIGHTS_RECORD_PACKET(
-            EHktPacketDirection::ClientToServer, 
+            EHktPacketDirection::ClientToServer,
             EHktPacketType::Intent,
-            GetPlayerUid(), 
-            0, 
+            GetPlayerUid(),
+            0,
             1,
             static_cast<int32>(sizeof(FHktRuntimeEvent)),
             FString::Printf(TEXT("Intent: %s Src=%d→Tgt=%d"), *CoreEvent.EventTag.ToString(), CoreEvent.SourceEntity, CoreEvent.TargetEntity)
@@ -273,7 +308,7 @@ void AHktIngamePlayerController::Server_ReceiveIntent_Implementation(const FHktR
 
 IHktClientRule* AHktIngamePlayerController::GetClientRule() const
 {
-    return ClientRule.Get();
+    return CachedClientRule;
 }
 
 // ============================================================================
@@ -282,7 +317,6 @@ IHktClientRule* AHktIngamePlayerController::GetClientRule() const
 
 void AHktIngamePlayerController::ExecuteCommand(UObject* CommandData)
 {
-    // TODO: 필요 시 Command 라우팅 구현
 }
 
 bool AHktIngamePlayerController::GetWorldState(const FHktWorldState*& OutState) const
@@ -298,11 +332,7 @@ bool AHktIngamePlayerController::GetWorldState(const FHktWorldState*& OutState) 
 
 int64 AHktIngamePlayerController::GetPlayerUid() const
 {
-    if (CachedWorldPlayer)
-    {
-        return CachedWorldPlayer->GetPlayerUid();
-    }
-    return 0;
+    return CachedWorldPlayer ? CachedWorldPlayer->GetPlayerUid() : 0;
 }
 
 // ============================================================================
@@ -314,7 +344,6 @@ void AHktIngamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnap
 {
     OutSnapshot.ProviderName = GetInsightProviderName();
 
-    // === 기본 정보 ===
     {
         const FString Cat = TEXT("PlayerController");
         OutSnapshot.AddInfo(Cat, TEXT("Name"), GetName());
@@ -331,59 +360,48 @@ void AHktIngamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnap
         OutSnapshot.AddInfo(Cat, TEXT("NetMode"), NetModeStr);
     }
 
-    // === IntentBuilder 상태 ===
     if (CachedIntentBuilder)
     {
         const FString Cat = TEXT("IntentBuilder");
-        const IHktIntentBuilder* Builder = CachedIntentBuilder;
-        OutSnapshot.AddInfo(Cat, TEXT("Subject"), FString::FromInt(Builder->GetSubjectEntityId()));
-        OutSnapshot.AddInfo(Cat, TEXT("Target"), FString::FromInt(Builder->GetTargetEntityId()));
-
-        FGameplayTag Tag = Builder->GetEventTag();
-        OutSnapshot.AddInfo(Cat, TEXT("Command"), Tag.IsValid() ? Tag.ToString() : TEXT("(none)"));
-        OutSnapshot.AddInfo(Cat, TEXT("ReadyToSubmit"), Builder->IsReadyToSubmit() ? TEXT("Yes") : TEXT("No"));
-        OutSnapshot.AddInfo(Cat, TEXT("PendingSubmit"), Builder->HasPendingSubmit() ? TEXT("Yes") : TEXT("No"));
+        OutSnapshot.AddInfo(Cat, TEXT("Subject"), FString::FromInt(CachedIntentBuilder->GetSubjectEntityId()));
+        OutSnapshot.AddInfo(Cat, TEXT("Target"),  FString::FromInt(CachedIntentBuilder->GetTargetEntityId()));
+        FGameplayTag Tag = CachedIntentBuilder->GetEventTag();
+        OutSnapshot.AddInfo(Cat, TEXT("Command"),       Tag.IsValid() ? Tag.ToString() : TEXT("(none)"));
+        OutSnapshot.AddInfo(Cat, TEXT("ReadyToSubmit"), CachedIntentBuilder->IsReadyToSubmit() ? TEXT("Yes") : TEXT("No"));
+        OutSnapshot.AddInfo(Cat, TEXT("PendingSubmit"), CachedIntentBuilder->HasPendingSubmit() ? TEXT("Yes") : TEXT("No"));
     }
 
-    // === ProxySimulator 상태 ===
     if (CachedProxySimulator)
     {
         const FString Cat = TEXT("ProxySimulator");
-        const IHktProxySimulator* Simulator = CachedProxySimulator;
-        bool bInit = Simulator->IsInitialized();
+        bool bInit = CachedProxySimulator->IsInitialized();
         OutSnapshot.AddInfo(Cat, TEXT("Initialized"), bInit ? TEXT("Yes") : TEXT("No"));
         if (bInit)
         {
-            const FHktWorldState& WorldState = Simulator->GetWorldState();
-            OutSnapshot.AddInfo(Cat, TEXT("LastFrame"), FString::Printf(TEXT("%lld"), WorldState.FrameNumber));
-            OutSnapshot.AddInfo(Cat, TEXT("Entities"), FString::FromInt(WorldState.GetEntityCount()));
+            const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
+            OutSnapshot.AddInfo(Cat, TEXT("LastFrame"), FString::Printf(TEXT("%lld"), WS.FrameNumber));
+            OutSnapshot.AddInfo(Cat, TEXT("Entities"),  FString::FromInt(WS.GetEntityCount()));
         }
     }
 
-    // === CommandContainer 상태 ===
     if (CachedCommandContainer)
     {
         const FString Cat = TEXT("CommandContainer");
-        const IHktCommandContainer* Container = CachedCommandContainer;
-        OutSnapshot.AddInfo(Cat, TEXT("NumSlots"), FString::FromInt(Container->GetNumSlots()));
+        OutSnapshot.AddInfo(Cat, TEXT("NumSlots"), FString::FromInt(CachedCommandContainer->GetNumSlots()));
     }
 
-    // === WorldPlayer 상태 (서버) ===
     if (CachedWorldPlayer)
     {
         const FString Cat = TEXT("WorldPlayer");
-        const IHktWorldPlayer* WorldPlayer = CachedWorldPlayer;
-        OutSnapshot.AddInfo(Cat, TEXT("PlayerUid"), FString::Printf(TEXT("%lld"), WorldPlayer->GetPlayerUid()));
-        OutSnapshot.AddInfo(Cat, TEXT("Initialized"), WorldPlayer->IsInitialized() ? TEXT("Yes") : TEXT("No"));
+        OutSnapshot.AddInfo(Cat, TEXT("PlayerUid"),   FString::Printf(TEXT("%lld"), CachedWorldPlayer->GetPlayerUid()));
+        OutSnapshot.AddInfo(Cat, TEXT("Initialized"), CachedWorldPlayer->IsInitialized() ? TEXT("Yes") : TEXT("No"));
     }
 
-    // === RPC 통계 ===
     {
         const FString Cat = TEXT("RPC Stats");
-        OutSnapshot.AddInfo(Cat, TEXT("SentIntents"), FString::FromInt(InsightSentIntentCount));
-        OutSnapshot.AddInfo(Cat, TEXT("ReceivedBatches"), FString::FromInt(InsightReceivedBatchCount));
-        OutSnapshot.AddInfo(Cat, TEXT("ReceivedInitialStates"), FString::FromInt(InsightReceivedInitialStateCount));
+        OutSnapshot.AddInfo(Cat, TEXT("SentIntents"),          FString::FromInt(InsightSentIntentCount));
+        OutSnapshot.AddInfo(Cat, TEXT("ReceivedBatches"),      FString::FromInt(InsightReceivedBatchCount));
+        OutSnapshot.AddInfo(Cat, TEXT("ReceivedInitialStates"),FString::FromInt(InsightReceivedInitialStateCount));
     }
 }
 #endif
-

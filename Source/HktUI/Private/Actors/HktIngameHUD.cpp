@@ -7,7 +7,7 @@
 #include "Widgets/SHktIngameHudWidget.h"
 #include "Widgets/SHktEntityHudWidget.h"
 #include "HktUITags.h"
-#include "HktPropertyIds.h"
+#include "HktCoreProperties.h"
 #include "HktUIHelpers.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "GameFramework/PlayerController.h"
@@ -125,11 +125,11 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId)
 
 	int32 Health = CachedWorldState->GetProperty(EntityId, PropertyId::Health);
 	int32 MaxHealth = CachedWorldState->GetProperty(EntityId, PropertyId::MaxHealth);
-	int32 OwnerHash = CachedWorldState->GetProperty(EntityId, PropertyId::OwnerPlayerHash);
+	int32 OwnerUid = CachedWorldState->GetProperty(EntityId, PropertyId::OwnedPlayerUid);
 	int32 Team = CachedWorldState->GetProperty(EntityId, PropertyId::Team);
 
 	EntityWidget->SetEntityId(EntityId);
-	EntityWidget->SetOwnerLabel(OwnerHash != 0 ? FString::Printf(TEXT("P:%d"), OwnerHash) : TEXT("-"));
+	EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%d"), OwnerUid) : TEXT("-"));
 	EntityWidget->SetHealthPercent(MaxHealth > 0 ? static_cast<float>(Health) / MaxHealth : 1.f);
 
 	static const FLinearColor TeamColors[] = {
@@ -167,11 +167,11 @@ void AHktIngameHUD::UpdateEntityProperties()
 
 		int32 Health = CachedWorldState->GetProperty(EntityId, PropertyId::Health);
 		int32 MaxHealth = CachedWorldState->GetProperty(EntityId, PropertyId::MaxHealth);
-		int32 OwnerHash = CachedWorldState->GetProperty(EntityId, PropertyId::OwnerPlayerHash);
+		int32 OwnerUid = CachedWorldState->GetProperty(EntityId, PropertyId::OwnedPlayerUid);
 		int32 Team = CachedWorldState->GetProperty(EntityId, PropertyId::Team);
 
 		EntityWidget->SetHealthPercent(MaxHealth > 0 ? static_cast<float>(Health) / MaxHealth : 0.f);
-		EntityWidget->SetOwnerLabel(OwnerHash != 0 ? FString::Printf(TEXT("P:%d"), OwnerHash) : TEXT("-"));
+		EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%d"), OwnerUid) : TEXT("-"));
 
 		static const FLinearColor TeamColors[] = {
 			FLinearColor::White,

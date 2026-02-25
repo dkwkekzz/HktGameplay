@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(find E:\\\\WS\\\\UE5\\\\HktProto\\\\Plugins\\\\HktGameplay\\\\Source\\\\HktCore\\\\Public:*)",
+      "Bash(grep:*)"
     ]
   }
 }

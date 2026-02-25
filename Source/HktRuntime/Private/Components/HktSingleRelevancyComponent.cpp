@@ -2,10 +2,10 @@
 
 #include "HktSingleRelevancyComponent.h"
 
-UHktSingleRelevancyComponent::UHktSingleRelevancyComponent() 
-	: Simulator(CreateAuthoritySimulator())
-{ 
-    PrimaryComponentTick.bCanEverTick = false; 
+UHktSingleRelevancyComponent::UHktSingleRelevancyComponent()
+{
+    PrimaryComponentTick.bCanEverTick = false;
+    Simulator = CreateDeterminismSimulator();
 }
 
 void UHktSingleRelevancyComponent::BeginPlay()

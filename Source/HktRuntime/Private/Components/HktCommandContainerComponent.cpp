@@ -8,9 +8,16 @@ UHktCommandContainerComponent::UHktCommandContainerComponent()
     PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UHktCommandContainerComponent::SetSlotActions(const TArray<TObjectPtr<UHktInputAction>>& InSlotActions)
+void UHktCommandContainerComponent::SetSlotActions(const TArray<TObjectPtr<UObject>>& InSlotActions)
 {
-    SlotActions = InSlotActions;
+    SlotActions.Reset();
+    for (UObject* Obj : InSlotActions)
+    {
+        if (UHktInputAction* Action = Cast<UHktInputAction>(Obj))
+        {
+            SlotActions.Add(Action);
+        }
+    }
 }
 
 // ============================================================================

@@ -8,7 +8,7 @@
 
 #include "HktInsightsRuntimeTypes.h"
 #include "HktWorldState.h"
-#include "HktPropertyIds.h"
+#include "HktCoreProperties.h"
 
 namespace HktWorldStateInsights
 {
@@ -44,7 +44,7 @@ namespace HktWorldStateInsights
         case PropertyId::Param3:          return TEXT("Param3");
         case PropertyId::AnimState:       return TEXT("AnimState");
         case PropertyId::VisualState:     return TEXT("VisState");
-        case PropertyId::OwnerPlayerHash: return TEXT("Owner");
+        case PropertyId::OwnedPlayerUid:  return TEXT("OwnedUid");
         default:                          return FString::Printf(TEXT("P%d"), PropId);
         }
     }

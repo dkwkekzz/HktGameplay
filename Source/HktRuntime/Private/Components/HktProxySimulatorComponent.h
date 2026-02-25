@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "HktClientRuleInterfaces.h"
-#include "HktSimulator.h"
+#include "HktCoreSimulator.h"
 
 #if WITH_HKT_INSIGHTS
 #include "HktInsightProvider.h"
@@ -46,8 +46,8 @@ private:
     /** ??? ?? ?????? ????? */
     void ReplayFromSnapshot();
 
-    // --- ?ù?????? ---
-    TUniquePtr<IHktAuthoritySimulator> Simulator;
+    // --- ??????? ---
+    TUniquePtr<IHktDeterminismSimulator> Simulator;
     FHktSchemaRegistry SchemaRegistry;
     bool bInitialized = false;
 

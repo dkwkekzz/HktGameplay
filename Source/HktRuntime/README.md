@@ -11,12 +11,11 @@ Component     인터페이스 구현      각 컴포넌트가 Rule에서 요구�
 Actor  이벤트 발행만        GameMode/PlayerController는 이벤트를 Rule에 위임만 함
 
 서버 (AHktGameMode → IHktServerRule)
-Tick() → Rule->OnTick_ProcessPendingConnections(Graph, Collector, DB)
-       → Rule->OnTick_ExecuteFrame(Frame, Graph, Collector, Builder)
-       → Rule->OnTick_SendFrameBatch(Graph, Builder)
-PostLogin() → Rule->OnLogin_EnterWorldPlayer(WorldPlayer, DB)
-Logout()    → Rule->OnLogout_ExitWorldPlayer(WorldPlayer, DB)
-PushIntent() → Rule->OnReceived_FireIntentEvent(Event, WorldPlayer, Collector)
+InitGame()   → Rule->BindContext(Frame, Graph, DB, Builder)  [item 2: 컨텍스트 바인딩]
+Tick()       → Rule->OnEvent_GameModeTick(DeltaTime) → FHktEventGameModeTickResult
+PostLogin()  → Rule->OnEvent_GameModePostLogin(WorldPlayer)
+Logout()     → Rule->OnEvent_GameModeLogout(WorldPlayer)
+PushIntent() → Rule->OnReceived_FireIntentEvent(Event, WorldPlayer)
 
 클라이언트 (AHktInGamePlayerController → IHktClientRule)
 OnSubjectAction → Rule->OnUserEvent_SubjectInputAction(Policy, Builder)

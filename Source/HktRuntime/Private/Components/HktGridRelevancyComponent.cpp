@@ -2,9 +2,10 @@
 
 #include "HktGridRelevancyComponent.h"
 
-FHktRelevancyGroupImpl::FHktRelevancyGroupImpl() 
-    : Simulator(CreateAuthoritySimulator())
+FHktRelevancyGroupImpl::FHktRelevancyGroupImpl()
 {
+    auto Det = CreateDeterminismSimulator();
+    Simulator = CreateDeterminismSimulator();
 }
 
 void FHktRelevancyGroupImpl::AddPlayer(int64 Uid, IHktWorldPlayer* Player)
@@ -94,5 +95,10 @@ int32 UHktGridRelevancyComponent::GetRelevancyGroupIndex(int64 PlayerUid) const
             return Index;
         }
     }
+    return 0;
+}
+
+int32 UHktGridRelevancyComponent::CalculateRelevancyGroupIndex(FVector PlayerPos) const
+{
     return 0;
 }

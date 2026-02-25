@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "HktServerRuleInterfaces.h"
-#include "HktSimulator.h"
+#include "HktCoreSimulator.h"
 #include "HktRuntimeTypes.h"
 #include "HktGridRelevancyComponent.generated.h"
 
@@ -14,8 +14,12 @@ class FHktRelevancyGroupImpl : public IHktRelevancyGroup
 public:
     FHktRelevancyGroupImpl();
 
-    virtual IHktAuthoritySimulator& GetSimulator() override { return *Simulator; }
-    virtual const IHktAuthoritySimulator& GetSimulator() const override { return *Simulator; }
+    // IHktAuthoritySimulator
+    virtual void AdvanceFrame(const FHktSimulationEvent& InEvent) override { Simulator->AdvanceFrame(InEvent); }
+    virtual const FHktWorldState& GetWorldState() const override { return Simulator->GetWorldState(); }
+    virtual FHktPlayerState ExportPlayerState(int64 OwnerUid) const override { return Simulator->ExportPlayerState(OwnerUid); }
+
+    // IHktRelevancyGroup
     virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }
     virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const override { return CachedPlayers; }
 
@@ -24,7 +28,7 @@ public:
     bool HasPlayer(int64 Uid) const;
 
 private:
-    TUniquePtr<IHktAuthoritySimulator> Simulator;
+    TUniquePtr<IHktDeterminismSimulator> Simulator;
     TArray<int64> PlayerUids;
     TArray<IHktWorldPlayer*> CachedPlayers;
 };
@@ -48,6 +52,7 @@ public:
     virtual IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) override;
     virtual const IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) const override;
     virtual int32 GetRelevancyGroupIndex(int64 PlayerUid) const override;
+    virtual int32 CalculateRelevancyGroupIndex(FVector PlayerPos) const override;
 
     FIntPoint LocationToCell(const FVector& Location) const;
 

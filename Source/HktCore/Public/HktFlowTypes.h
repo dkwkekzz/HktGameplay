@@ -3,30 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
-#include "HktCoreMinimal.h"
 
 // ============================================================================
-// VM 핸들
-// ============================================================================
-
-/** VM 핸들 (RuntimePool 내 슬롯 인덱스 + Generation) */
-struct FHktVMHandle
-{
-    uint32 Index : 24;
-    uint32 Generation : 8;
-
-    static constexpr FHktVMHandle Invalid() { return {0xFFFFFF, 0}; }
-    bool IsValid() const { return Index != 0xFFFFFF; }
-
-    bool operator==(const FHktVMHandle& Other) const
-    {
-        return Index == Other.Index && Generation == Other.Generation;
-    }
-};
-
-// ============================================================================
-// 레지스터
+// 레지스터 (FlowBuilder 공개 API)
 // ============================================================================
 
 /** 레지스터 인덱스 */
@@ -65,41 +44,7 @@ namespace Reg
 }
 
 // ============================================================================
-// VM 상태
-// ============================================================================
-
-enum class EVMStatus : uint8
-{
-    Ready,          // 실행 대기
-    Running,        // 실행 중
-    Yielded,        // yield 상태 (다음 틱에 재개)
-    WaitingEvent,   // 이벤트 대기 중
-    Completed,      // 정상 완료
-    Failed,         // 오류로 중단
-};
-
-/**
- * EWaitEventType - VM이 대기하는 이벤트 타입
- */
-enum class EWaitEventType : uint8
-{
-    None,
-    Timer,
-    Collision,
-};
-
-/**
- * FHktPendingEvent - 외부에서 주입된 이벤트 (큐에 적재, Execute에서 일괄 처리)
- */
-struct FHktPendingEvent
-{
-    EWaitEventType Type = EWaitEventType::None;
-    FHktEntityId WatchedEntity = InvalidEntityId;
-    FHktEntityId HitEntity = InvalidEntityId;  // Collision 전용
-};
-
-// ============================================================================
-// OpCode 정의
+// OpCode 정의 (Flow 빌더 / VM 공통)
 // ============================================================================
 
 enum class EOpCode : uint8
@@ -148,7 +93,7 @@ enum class EOpCode : uint8
     // Position & Movement
     GetPosition,            // 위치 가져오기
     SetPosition,            // 위치 설정
-    GetDistance,             // 거리 계산
+    GetDistance,            // 거리 계산
     MoveToward,             // 목표로 이동
     MoveForward,            // 전방 이동
     StopMovement,           // 이동 중지
@@ -176,6 +121,11 @@ enum class EOpCode : uint8
     // Equipment
     SpawnEquipment,         // 장비 생성 및 부착
 
+    // Tags
+    AddTag,                 // 엔티티에 태그 추가
+    RemoveTag,              // 엔티티에서 태그 제거
+    HasTag,                 // 엔티티 태그 보유 여부 (결과 → Dst 레지스터)
+
     // Utility
     Log,                    // 디버그 로그
 
@@ -183,7 +133,7 @@ enum class EOpCode : uint8
 };
 
 // ============================================================================
-// 명령어 인코딩
+// 명령어 인코딩 (Flow 빌더 / VM 공통)
 // ============================================================================
 
 /**

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "HktSimulator.h"
+#include "HktCoreSimulator.h"
 #include "HktSimulationSystems.h"
 
 class FHktVMRuntimePool;
@@ -11,19 +11,19 @@ struct FHktVMHandle;
 struct FHktPendingEvent;
 
 // ============================================================================
-// FHktWorldAuthoritySimulator (구 FHktSimulationWorld)
+// FHktWorldDeterminismSimulator
 //
 // 파이프라인: Arrange → Build → Process → Physics → Cleanup
 // ============================================================================
 
-class HKTCORE_API FHktWorldAuthoritySimulator : public IHktAuthoritySimulator
+class HKTCORE_API FHktWorldDeterminismSimulator : public IHktDeterminismSimulator
 {
 public:
-    FHktWorldAuthoritySimulator();
-    ~FHktWorldAuthoritySimulator();
+    FHktWorldDeterminismSimulator();
+    ~FHktWorldDeterminismSimulator();
 
     virtual FHktSimulationDiff AdvanceFrame(const FHktSimulationEvent& InEvent) override;
-    virtual FHktPlayerState ExportPlayerState(int64 OwnerHash) const override;
+    virtual FHktPlayerState ExportPlayerState(int64 OwnerUid) const override;
     virtual const FHktWorldState& GetWorldState() const override { return WorldState; }
     virtual void RestoreWorldState(const FHktWorldState& InState) override;
 

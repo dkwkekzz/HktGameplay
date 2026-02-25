@@ -4,13 +4,13 @@
 #include "HktIngamePlayerController.h"
 #include "HktPlayerState.h"
 #include "HktServerRuleInterfaces.h"
+#include "HktClientRuleInterfaces.h"
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
-#include "Rules/HktServerRule.h"
 
 #if WITH_HKT_INSIGHTS
 #include "HktRuntimeInsightsCollector.h"
-#include "HktSimulator.h"
+#include "HktCoreSimulator.h"
 #include "HktWorldStateInsightsHelper.h"
 #endif
 
@@ -20,40 +20,50 @@ AHktGameMode::AHktGameMode()
 {
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickGroup = TG_PrePhysics;
-
-    // 컴포넌트는 블루프린트나 다른 방식으로 추가됨
 }
 
 void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
     Super::InitGame(MapName, Options, ErrorMessage);
 
-    if (!ServerRule)
+    CachedServerRule = HktRule::GetServerRule(GetWorld());
+    if (!CachedServerRule) 
     {
-        ServerRule = MakeUnique<FHktDefaultServerRule>();
+        UE_LOG(LogHktGameMode, Error, TEXT("InitGame: ServerRule is null"));
+        return;
     }
 
-    // GetComponents를 이용해서 인터페이스들을 캐싱
+    // 컴포넌트에서 인터페이스 캐싱
     TArray<UActorComponent*> Components;
     GetComponents(Components);
     for (UActorComponent* Comp : Components)
     {
-        if (IHktFrameManager* FrameManager = Cast<IHktFrameManager>(Comp))
+        if (IHktFrameManager* FM = Cast<IHktFrameManager>(Comp))
         {
-            CachedFrameManager = FrameManager;
+            CachedFrameManager = FM;
         }
-        else if (IHktRelevancyGraph* RelevancyGraph = Cast<IHktRelevancyGraph>(Comp))
+        else if (IHktRelevancyGraph* RG = Cast<IHktRelevancyGraph>(Comp))
         {
-            CachedRelevancyGraph = RelevancyGraph;
+            CachedRelevancyGraph = RG;
         }
-        else if (IHktWorldDatabase* WorldDatabase = Cast<IHktWorldDatabase>(Comp))
+        else if (IHktWorldDatabase* WD = Cast<IHktWorldDatabase>(Comp))
         {
-            CachedWorldDatabase = WorldDatabase;
+            CachedWorldDatabase = WD;
         }
-        else if (IHktSimulationEventBuilder* SimulationEventBuilder = Cast<IHktSimulationEventBuilder>(Comp))
+        else if (IHktSimulationEventBuilder* SEB = Cast<IHktSimulationEventBuilder>(Comp))
         {
-            CachedSimulationEventBuilder = SimulationEventBuilder;
+            CachedSimulationEventBuilder = SEB;
         }
+    }
+
+    // Rule에 컨텍스트 바인딩 (item 2)
+    if (CachedServerRule)
+    {
+        CachedServerRule->BindContext(
+            CachedFrameManager,
+            CachedRelevancyGraph,
+            CachedWorldDatabase,
+            CachedSimulationEventBuilder);
     }
 
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
@@ -61,10 +71,15 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 
 void AHktGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    ServerRule.Reset();
-    CachedFrameManager = nullptr;
-    CachedRelevancyGraph = nullptr;
-    CachedWorldDatabase = nullptr;
+    if (CachedServerRule)
+    {
+        CachedServerRule->BindContext(nullptr, nullptr, nullptr, nullptr);
+    }
+
+    CachedServerRule             = nullptr;
+    CachedFrameManager           = nullptr;
+    CachedRelevancyGraph         = nullptr;
+    CachedWorldDatabase          = nullptr;
     CachedSimulationEventBuilder = nullptr;
 
     HKT_INSIGHTS_UNREGISTER_PROVIDER(this);
@@ -86,52 +101,34 @@ void AHktGameMode::Tick(float DeltaSeconds)
         return;
     }
 
-    IHktFrameManager*     Frame    = CachedFrameManager;
-    IHktRelevancyGraph*   Graph    = CachedRelevancyGraph;
-    IHktSimulationEventBuilder*  Builder  = CachedSimulationEventBuilder;
-    IHktWorldDatabase*    Database = CachedWorldDatabase;
-
-    if (!Frame || !Graph || !Builder || !Database)
-    {
-        UE_LOG(LogHktGameMode, Warning, TEXT("Tick: Required component missing (Frame=%d Graph=%d Builder=%d Database=%d)"),
-            Frame != nullptr, Graph != nullptr, Builder != nullptr, Database != nullptr);
-        return;
-    }
-
-    if (!Frame->IsInitialized())
+    if (!CachedFrameManager || !CachedFrameManager->IsInitialized())
     {
         UE_LOG(LogHktGameMode, Verbose, TEXT("Tick: Frame not initialized yet"));
         return;
     }
 
-    Rule->OnTick_ProcessReady(*Frame);
+    const FHktEventGameModeTickResult TickResult = Rule->OnEvent_GameModeTick(DeltaSeconds);
 
-    Rule->OnTick_ProcessPendingConnections(*Graph, *Builder, *Database);
-
-    // 1. 실행
-    Rule->OnTick_ProcessSimulationAndPayloads(DeltaSeconds, *Frame, *Graph, *Builder, *Database);
-
-    // 2. 전송 (단일 루프 - Cache Friendly)
-    // TArrayView를 통해 유효한 데이터만 순회
-    TArrayView<const FHktFrameSendPayload> ValidPayloads = Builder->GetValidPayloads();
-    
-    for (const FHktFrameSendPayload& Payload : ValidPayloads)
+    for (const FGroupEventSend& GroupSend : TickResult.EventSends)
     {
-        // 여기서 Payload.TargetActor가 유효한지 체크할 수도 있음 (nullptr 처리 관련)
-        if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Payload.TargetActor))
+        const TArray<IHktWorldPlayer*>& Existing = *GroupSend.Existing;
+        for (IHktWorldPlayer* Player : Existing)
         {
-            if (Payload.StateToSend)
+            if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Player->GetOwnerActor()))
             {
-                PC->Client_ReceiveInitialState(HktRuntimeConverter::ConvertWorldState(*Payload.StateToSend));
+                PC->Client_ReceiveFrameBatch(HktRuntimeConverter::ConvertToBatch(GroupSend.Batch));
             }
-            else if (Payload.BatchToSend)
+        }
+
+        const TArray<IHktWorldPlayer*>& Entered = GroupSend.Entered;
+        for (IHktWorldPlayer* Newbie : Entered)
+        {
+            if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Newbie->GetOwnerActor()))
             {
-                PC->Client_ReceiveFrameBatch(FHktRuntimeBatch(*Payload.BatchToSend));
+                PC->Client_ReceiveInitialState(HktRuntimeConverter::ConvertWorldState(*GroupSend.NewState));
             }
         }
     }
-
-    Builder->EndFrame();
 
 #if WITH_HKT_INSIGHTS
     LastTickDurationMs = static_cast<float>((FPlatformTime::Seconds() - TickStart) * 1000.0);
@@ -148,14 +145,11 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
     IHktServerRule* Rule = GetServerRule();
     if (!Rule) return;
 
-    IHktWorldDatabase* Database = CachedWorldDatabase;
-    if (!Database) return;
-
     IHktWorldPlayer* WorldPlayer = HktPC->FindComponentByInterface<IHktWorldPlayer>();
     if (!WorldPlayer) return;
 
-    // 컴포넌트가 자동으로 PlayerState에서 UID를 계산하므로 수동 설정 불필요
-    Rule->OnLogin_EnterWorldPlayer(*WorldPlayer, *Database);
+    // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
+    Rule->OnEvent_GameModePostLogin(*WorldPlayer);
 
     UE_LOG(LogHktGameMode, Log, TEXT("PostLogin PlayerUid=%lld"), WorldPlayer->GetPlayerUid());
 }
@@ -168,19 +162,14 @@ void AHktGameMode::Logout(AController* Exiting)
     IHktServerRule* Rule = GetServerRule();
     if (!Rule) return;
 
-    IHktWorldDatabase* Database = CachedWorldDatabase;
-    if (!Database) return;
-
-    IHktRelevancyGraph* Graph = CachedRelevancyGraph;
-    if (!Graph) return;
-
     IHktWorldPlayer* WorldPlayer = HktPC->FindComponentByInterface<IHktWorldPlayer>();
     if (!WorldPlayer || !WorldPlayer->IsInitialized()) return;
 
     const int64 PlayerUid = WorldPlayer->GetPlayerUid();
     UE_LOG(LogHktGameMode, Log, TEXT("Logout PlayerUid=%lld"), PlayerUid);
 
-    Rule->OnLogout_ExitWorldPlayer(*WorldPlayer, *Database);
+    // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
+    Rule->OnEvent_GameModeLogout(*WorldPlayer);
 
     Super::Logout(Exiting);
 }
@@ -193,18 +182,16 @@ void AHktGameMode::PushIntent(int64 PlayerUid, const FHktEvent& Event)
     IHktRelevancyGraph* Graph = CachedRelevancyGraph;
     if (!Graph) return;
 
-    IHktSimulationEventBuilder* Builder = CachedSimulationEventBuilder;
-    if (!Builder) return;
-
     IHktWorldPlayer* WorldPlayer = Graph->GetWorldPlayer(PlayerUid);
     if (!WorldPlayer) return;
 
-    Rule->OnReceived_FireIntentEvent(Event, *WorldPlayer, *Graph, *Builder);
+    // item 2: Graph/Builder 파라미터 없음 — Rule이 내부 캐싱된 컨텍스트 사용
+    Rule->OnReceived_FireIntentEvent(Event, *WorldPlayer);
 }
 
 IHktServerRule* AHktGameMode::GetServerRule() const
 {
-    return ServerRule.Get();
+    return CachedServerRule;
 }
 
 // ============================================================================
@@ -221,11 +208,10 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
         const FString Cat = TEXT("Frame");
         if (CachedFrameManager)
         {
-            const IHktFrameManager* Frame = CachedFrameManager;
             OutSnapshot.AddInfo(Cat, TEXT("Initialized"),
-                Frame->IsInitialized() ? TEXT("Yes") : TEXT("No"));
+                CachedFrameManager->IsInitialized() ? TEXT("Yes") : TEXT("No"));
             OutSnapshot.AddInfo(Cat, TEXT("CurrentFrame"),
-                FString::Printf(TEXT("%lld"), Frame->GetFrameNumber()));
+                FString::Printf(TEXT("%lld"), CachedFrameManager->GetFrameNumber()));
         }
         else
         {
@@ -238,7 +224,7 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
         const FString Cat = TEXT("Performance");
         OutSnapshot.Add(Cat, TEXT("TickDuration"),
             FString::Printf(TEXT("%.2f ms"), LastTickDurationMs),
-            LastTickDurationMs > 16.0f ? 1 : 0); // 16ms 초과 시 Warning
+            LastTickDurationMs > 16.0f ? 1 : 0);
     }
 
     // === Relevancy / Player 정보 ===
@@ -263,7 +249,6 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
                         FString::Printf(TEXT("Group[%d].Players"), i),
                         FString::FromInt(PlayerCount));
 
-                    // 그룹 내 플레이어 UID 목록
                     const TArray<int64>& Uids = Group.GetPlayerUids();
                     FString UidList;
                     for (int32 j = 0; j < FMath::Min(Uids.Num(), 5); ++j)
@@ -284,11 +269,11 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
             }
             OutSnapshot.AddInfo(Cat, TEXT("TotalPlayers"), FString::FromInt(TotalPlayers));
 
-            // === WorldState 스냅샷 push (WorldState 패널용) ===
+            // WorldState 스냅샷 push
             for (int32 i = 0; i < NumGroups; ++i)
             {
                 const IHktRelevancyGroup& Group = Graph->GetRelevancyGroup(i);
-                const FHktWorldState& WS = Group.GetSimulator().GetWorldState();
+                const FHktWorldState& WS = Group.GetWorldState();
 
                 const FString SourceName = (NumGroups == 1)
                     ? TEXT("Server")
@@ -307,8 +292,7 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
     // === ServerRule 정보 ===
     {
         const FString Cat = TEXT("Rule");
-        IHktServerRule* Rule = GetServerRule();
-        OutSnapshot.AddInfo(Cat, TEXT("ServerRule"), Rule ? TEXT("Active") : TEXT("None"));
+        OutSnapshot.AddInfo(Cat, TEXT("ServerRule"), CachedServerRule ? TEXT("Active") : TEXT("None"));
     }
 
     // === Component 상태 요약 ===
@@ -325,4 +309,3 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
     }
 }
 #endif
-

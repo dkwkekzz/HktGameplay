@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "HktFlowBuilder.h"
-#include "HktPropertyIds.h"
+#include "HktCoreProperties.h"
 #include "HktFlowRegistry.h"
 #include "NativeGameplayTags.h"
 

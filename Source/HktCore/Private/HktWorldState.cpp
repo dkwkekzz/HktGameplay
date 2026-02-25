@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktWorldState.h"
-#include "HktPropertyIds.h"
+#include "HktCoreProperties.h"
 #include "HktSimulationLimits.h"
 
 // ============================================================================
@@ -20,7 +20,7 @@ void FHktSchemaRegistry::Initialize()
             PropertyId::Health, PropertyId::MaxHealth,
             PropertyId::AttackPower, PropertyId::Defense,
             PropertyId::Team, PropertyId::Mana, PropertyId::MaxMana,
-            PropertyId::OwnerEntity, PropertyId::OwnerPlayerHash,
+            PropertyId::OwnerEntity, PropertyId::OwnedPlayerUid,
             PropertyId::AnimState, PropertyId::VisualState })
             S.AddProperty(P);
     }
@@ -39,7 +39,7 @@ void FHktSchemaRegistry::Initialize()
         S.TypeId = HktType::Equipment;
         for (uint16 P : {
             PropertyId::OwnerEntity, PropertyId::AttackPower,
-            PropertyId::Defense, PropertyId::OwnerPlayerHash })
+            PropertyId::Defense, PropertyId::OwnedPlayerUid })
             S.AddProperty(P);
     }
     {
@@ -48,7 +48,7 @@ void FHktSchemaRegistry::Initialize()
         for (uint16 P : {
             PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ,
             PropertyId::Health, PropertyId::MaxHealth,
-            PropertyId::Team, PropertyId::OwnerPlayerHash })
+            PropertyId::Team, PropertyId::OwnedPlayerUid })
             S.AddProperty(P);
     }
 }
@@ -66,6 +66,9 @@ void FHktEntityPool::Initialize(const FHktEntitySchema& InSchema, int32 ReserveC
     SlotToEntity.Reserve(ReserveCount);
     DirtyMask.Reserve(ReserveCount);
     DirtySlots.Reserve(256);
+    TagContainers.Reserve(ReserveCount);
+    TagsDirtyMask.Reserve(ReserveCount);
+    TagsDirtySlots.Reserve(256);
 }
 
 int32 FHktEntityPool::AllocateSlot(FHktEntityId EntityId)
@@ -75,6 +78,8 @@ int32 FHktEntityPool::AllocateSlot(FHktEntityId EntityId)
     {
         Slot = FreeSlots.Pop();
         SlotToEntity[Slot] = EntityId;
+        TagContainers[Slot].Reset();
+        TagsDirtyMask[Slot] = 0;
     }
     else
     {
@@ -82,6 +87,8 @@ int32 FHktEntityPool::AllocateSlot(FHktEntityId EntityId)
         SlotToEntity.Add(EntityId);
         Data.AddZeroed(Stride);
         DirtyMask.Add(0);
+        TagContainers.Add({});
+        TagsDirtyMask.Add(0);
     }
     FMemory::Memzero(Data.GetData() + Slot * Stride, Stride * sizeof(int32));
     DirtyMask[Slot] = 0;
@@ -92,6 +99,7 @@ int32 FHktEntityPool::AllocateSlot(FHktEntityId EntityId)
 void FHktEntityPool::FreeSlot(int32 Slot)
 {
     SlotToEntity[Slot] = InvalidEntityId;
+    TagContainers[Slot].Reset();
     FreeSlots.Add(Slot);
     ActiveCount--;
 }
@@ -132,6 +140,12 @@ void FHktWorldState::RemoveEntity(FHktEntityId Id)
 {
     if (!IsValidEntity(Id)) return;
     FEntityLocation& L = EntityLocations[Id];
+    int8 OwnerLP = Registry->Get(L.TypeId).GetLocalIndex(PropertyId::OwnedPlayerUid);
+    if (OwnerLP != -1)
+    {
+        int64 OwnerUid = static_cast<int64>(Pools[L.TypeId].Get(L.PoolSlot, OwnerLP));
+        Pools[L.TypeId].UntrackOwner(L.PoolSlot, OwnerUid);
+    }
     Pools[L.TypeId].FreeSlot(L.PoolSlot);
     L = { HktType::None, -1 };
 }
@@ -159,6 +173,7 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
     const FHktEntityPool& P = Pools[L.TypeId];
     S.Data.SetNumUninitialized(P.Stride);
     FMemory::Memcpy(S.Data.GetData(), P.EntityData(L.PoolSlot), P.Stride * sizeof(int32));
+    S.Tags = P.TagContainers[L.PoolSlot];
     return S;
 }
 
@@ -169,6 +184,13 @@ FHktEntityId FHktWorldState::ImportEntityState(const FHktEntityState& InState)
     FHktEntityPool& P = Pools[L.TypeId];
     int32 N = FMath::Min(P.Stride, InState.Data.Num());
     FMemory::Memcpy(P.EntityData(L.PoolSlot), InState.Data.GetData(), N * sizeof(int32));
+    P.TagContainers[L.PoolSlot] = InState.Tags;
+    int8 OwnerLP = P.Schema->GetLocalIndex(PropertyId::OwnedPlayerUid);
+    if (OwnerLP != -1)
+    {
+        int64 OwnerUid = static_cast<int64>(P.Get(L.PoolSlot, OwnerLP));
+        P.TrackOwner(L.PoolSlot, 0, OwnerUid);
+    }
     return Id;
 }
 
@@ -192,6 +214,8 @@ void FHktWorldState::CopyFrom(const FHktWorldState& Other)
         Dst.ActiveCount = Src.ActiveCount;
         Dst.DirtyMask = Src.DirtyMask;
         Dst.DirtySlots = Src.DirtySlots;
+        Dst.TagContainers = Src.TagContainers;
+        Dst.OwnerToSlots = Src.OwnerToSlots;
     }
     for (int32 T = 0; T < HktType::MaxTypes; ++T)
         Pools[T].Schema = &Registry->Get(T);
@@ -220,9 +244,42 @@ FArchive& operator<<(FArchive& Ar, FHktWorldState& State)
     for (int32 T = 1; T < HktType::MaxTypes; ++T)
     {
         FHktEntityPool& P = State.Pools[T];
-        Ar << P.Data << P.SlotToEntity << P.FreeSlots << P.ActiveCount;
+        Ar << P.Data << P.SlotToEntity << P.FreeSlots << P.ActiveCount << P.TagContainers;
     }
 
     Ar << State.ActiveEvents;
     return Ar;
+}
+
+// ============================================================================
+// FHktWorldState — Tag Access
+// ============================================================================
+
+const FGameplayTagContainer& FHktWorldState::GetTags(FHktEntityId Entity) const
+{
+    static FGameplayTagContainer Empty;
+    if (!IsValidEntity(Entity)) return Empty;
+    const FEntityLocation& L = EntityLocations[Entity];
+    return Pools[L.TypeId].GetTags(L.PoolSlot);
+}
+
+void FHktWorldState::AddTag(FHktEntityId Entity, const FGameplayTag& Tag)
+{
+    if (!IsValidEntity(Entity)) return;
+    const FEntityLocation& L = EntityLocations[Entity];
+    Pools[L.TypeId].AddTag(L.PoolSlot, Tag);
+}
+
+void FHktWorldState::RemoveTag(FHktEntityId Entity, const FGameplayTag& Tag)
+{
+    if (!IsValidEntity(Entity)) return;
+    const FEntityLocation& L = EntityLocations[Entity];
+    Pools[L.TypeId].RemoveTag(L.PoolSlot, Tag);
+}
+
+bool FHktWorldState::HasTag(FHktEntityId Entity, const FGameplayTag& Tag) const
+{
+    if (!IsValidEntity(Entity)) return false;
+    const FEntityLocation& L = EntityLocations[Entity];
+    return Pools[L.TypeId].HasTag(L.PoolSlot, Tag);
 }
