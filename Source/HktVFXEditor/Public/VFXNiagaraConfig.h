@@ -7,14 +7,17 @@
 
 class UNiagaraSystem;
 class UTexture2D;
+struct FVFXNiagaraConfig;
 
 // ============================================================================
 // 델리게이트
 // ============================================================================
 
-DECLARE_DELEGATE_TwoParams(FOnLLMResponse, bool bSuccess, const struct FVFXNiagaraConfig& Config);
-DECLARE_DELEGATE_TwoParams(FOnAllTexturesGenerated, bool bSuccess, const TMap<FString, UTexture2D*>& Textures);
-DECLARE_DELEGATE_TwoParams(FOnTextureGenerated, bool bSuccess, UTexture2D* Texture);
+using FTextureMap = TMap<FString, UTexture2D*>;
+
+DECLARE_DELEGATE_TwoParams(FOnLLMResponse, bool /*bSuccess*/, const FVFXNiagaraConfig& /*Config*/);
+DECLARE_DELEGATE_TwoParams(FOnAllTexturesGenerated, bool /*bSuccess*/, const FTextureMap& /*Textures*/);
+DECLARE_DELEGATE_TwoParams(FOnTextureGenerated, bool /*bSuccess*/, UTexture2D* /*Texture*/);
 
 // ============================================================================
 // 커브 포인트

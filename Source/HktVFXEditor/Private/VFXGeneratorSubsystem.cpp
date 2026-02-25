@@ -2,8 +2,12 @@
 
 #include "VFXGeneratorSubsystem.h"
 #include "VFXGeneratorConfig.h"
+#include "VFXLLMClient.h"
+#include "VFXTextureGenerator.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonSerializer.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 void UVFXGeneratorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
