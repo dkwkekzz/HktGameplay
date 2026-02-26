@@ -1,6 +1,19 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktPresentationState.h"
+#include "GameplayTagsManager.h"
+
+// --------------------------------------------------------------------------- FHktVM_Visualization
+void FHktVM_Visualization::Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
+{
+	VisualElement = FGameplayTag();
+	const int32 TagNetIndex = WS.GetProperty(Id, PropertyId::EntitySpawnTag);
+	if (TagNetIndex != 0)
+	{
+		VisualElement = UGameplayTagsManager::Get().GetTagFromNetIndex(static_cast<FGameplayTagNetIndex>(TagNetIndex));
+	}
+	(void)Frame;
+}
 
 // --------------------------------------------------------------------------- FHktEntityPresentation
 void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
@@ -16,6 +29,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	Combat.Apply(WS, Id, Frame);
 	Ownership.Apply(WS, Id, Frame);
 	Animation.Apply(WS, Id, Frame);
+	Visualization.Apply(WS, Id, Frame);
 }
 
 void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)

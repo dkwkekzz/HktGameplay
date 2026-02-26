@@ -20,7 +20,7 @@ void FHktSchemaRegistry::Initialize()
             PropertyId::Health, PropertyId::MaxHealth,
             PropertyId::AttackPower, PropertyId::Defense,
             PropertyId::Team, PropertyId::Mana, PropertyId::MaxMana,
-            PropertyId::OwnerEntity, PropertyId::OwnedPlayerUid,
+            PropertyId::OwnerEntity, PropertyId::EntitySpawnTag, PropertyId::OwnedPlayerUid,
             PropertyId::AnimState, PropertyId::VisualState })
             S.AddProperty(P);
     }
@@ -48,7 +48,7 @@ void FHktSchemaRegistry::Initialize()
         for (uint16 P : {
             PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ,
             PropertyId::Health, PropertyId::MaxHealth,
-            PropertyId::Team, PropertyId::OwnedPlayerUid })
+            PropertyId::Team, PropertyId::EntitySpawnTag, PropertyId::OwnedPlayerUid })
             S.AddProperty(P);
     }
 }
@@ -69,6 +69,8 @@ void FHktEntityPool::Initialize(const FHktEntitySchema& InSchema, int32 ReserveC
     TagContainers.Reserve(ReserveCount);
     TagsDirtyMask.Reserve(ReserveCount);
     TagsDirtySlots.Reserve(256);
+    OldValueEntries.Reserve(256);
+    OldTagEntries.Reserve(32);
 }
 
 int32 FHktEntityPool::AllocateSlot(FHktEntityId EntityId)
@@ -192,6 +194,60 @@ FHktEntityId FHktWorldState::ImportEntityState(const FHktEntityState& InState)
         P.TrackOwner(L.PoolSlot, 0, OwnerUid);
     }
     return Id;
+}
+
+void FHktWorldState::ImportEntityStateWithId(const FHktEntityState& InState)
+{
+    FHktEntityId Id = InState.EntityId;
+    if (Id >= EntityLocations.Num())
+    {
+        int32 OldNum = EntityLocations.Num();
+        EntityLocations.SetNum(Id + 1);
+        for (int32 i = OldNum; i < EntityLocations.Num(); ++i)
+            EntityLocations[i] = { HktType::None, -1 };
+    }
+    int32 Slot = Pools[InState.TypeId].AllocateSlot(Id);
+    EntityLocations[Id] = { InState.TypeId, Slot };
+    FHktEntityPool& P = Pools[InState.TypeId];
+    int32 N = FMath::Min(P.Stride, InState.Data.Num());
+    FMemory::Memcpy(P.EntityData(Slot), InState.Data.GetData(), N * sizeof(int32));
+    P.TagContainers[Slot] = InState.Tags;
+    int8 OwnerLP = P.Schema->GetLocalIndex(PropertyId::OwnedPlayerUid);
+    if (OwnerLP != -1)
+    {
+        int64 OwnerUid = static_cast<int64>(P.Get(Slot, OwnerLP));
+        P.TrackOwner(Slot, 0, OwnerUid);
+    }
+}
+
+void FHktWorldState::UndoDiff(const FHktSimulationDiff& Diff)
+{
+    // 1. 스폰된 엔티티 제거 (스폰 취소)
+    for (const FHktEntityState& S : Diff.SpawnedEntities)
+        RemoveEntity(S.EntityId);
+
+    // 2. NextEntityId 복원
+    if (Diff.PrevNextEntityId != InvalidEntityId)
+        NextEntityId = Diff.PrevNextEntityId;
+
+    // 3. 제거된 엔티티 복원
+    for (const FHktEntityState& S : Diff.RemovedEntityStates)
+        ImportEntityStateWithId(S);
+
+    // 4. 프로퍼티 변경 되돌리기 (OldValue 복원, Dirty 추적 없이)
+    for (const FHktPropertyDelta& D : Diff.PropertyDeltas)
+        SetPropertyRaw(D.EntityId, D.PropertyId, D.OldValue);
+
+    // 5. 태그 변경 되돌리기 (OldTags 복원)
+    for (const FHktTagDelta& D : Diff.TagDeltas)
+    {
+        if (!IsValidEntity(D.EntityId)) continue;
+        const FEntityLocation& L = EntityLocations[D.EntityId];
+        Pools[L.TypeId].TagContainers[L.PoolSlot] = D.OldTags;
+    }
+
+    // 6. FrameNumber 복원
+    FrameNumber = Diff.FrameNumber - 1;
 }
 
 void FHktWorldState::CopyFrom(const FHktWorldState& Other)

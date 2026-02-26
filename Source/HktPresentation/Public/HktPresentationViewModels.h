@@ -71,3 +71,11 @@ struct FHktVM_Animation
 	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
 	bool TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);
 };
+
+/** 시각용 대표 태그 (액터/캐릭터 스폰 시 TagDataAsset 로딩 키) */
+struct FHktVM_Visualization
+{
+	FGameplayTag VisualElement;
+
+	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
+};

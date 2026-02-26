@@ -26,6 +26,7 @@ public:
     virtual FHktPlayerState ExportPlayerState(int64 OwnerUid) const override;
     virtual const FHktWorldState& GetWorldState() const override { return WorldState; }
     virtual void RestoreWorldState(const FHktWorldState& InState) override;
+    virtual void UndoDiff(const FHktSimulationDiff& Diff) override;
 
 private:
     void ProcessBatch(const FHktSimulationEvent& Event);

@@ -62,8 +62,7 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
         CachedServerRule->BindContext(
             CachedFrameManager,
             CachedRelevancyGraph,
-            CachedWorldDatabase,
-            CachedSimulationEventBuilder);
+            CachedWorldDatabase);
     }
 
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
@@ -73,14 +72,13 @@ void AHktGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     if (CachedServerRule)
     {
-        CachedServerRule->BindContext(nullptr, nullptr, nullptr, nullptr);
+        CachedServerRule->BindContext(nullptr, nullptr, nullptr);
     }
 
     CachedServerRule             = nullptr;
     CachedFrameManager           = nullptr;
     CachedRelevancyGraph         = nullptr;
     CachedWorldDatabase          = nullptr;
-    CachedSimulationEventBuilder = nullptr;
 
     HKT_INSIGHTS_UNREGISTER_PROVIDER(this);
     Super::EndPlay(EndPlayReason);

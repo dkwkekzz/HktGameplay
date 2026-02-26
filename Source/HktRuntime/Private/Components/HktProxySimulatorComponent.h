@@ -21,12 +21,13 @@ class HKTRUNTIME_API UHktProxySimulatorComponent : public UActorComponent, publi
 public:
 	UHktProxySimulatorComponent();
 
-    // === IHktClientSimulator ===
+    // === IHktProxySimulator ===
     virtual void RestoreState(const FHktWorldState& InState) override;
     virtual const FHktWorldState& GetWorldState() const override;
     virtual bool IsInitialized() const override;
     virtual void AdvanceLocalFrame(float DeltaSeconds) override;
-    virtual FHktSimulationDiff ReconcileWithServerBatch(const FHktSimulationEvent& InBatch) override;
+    virtual void EnqueueServerBatch(const FHktSimulationEvent& InBatch) override;
+    virtual bool ConsumePendingDiff(FHktSimulationDiff& OutDiff) override;
 
 protected:
     virtual void BeginPlay() override;
@@ -40,30 +41,33 @@ public:
 #endif
 
 private:
-    /** ?? Batch ???? (???? ???) */
+    /** 로컬 Batch 생성 (결정론적 시드) */
     FHktSimulationEvent BuildLocalBatch(int64 Frame, float DeltaSeconds) const;
 
-    /** ??? ?? ?????? ????? */
-    void ReplayFromSnapshot();
+    /** 서버 Batch 큐 처리 — Diff 역적용으로 롤백(클라 빠름) / 빨리감기(클라 느림) */
+    void ProcessPendingServerBatches();
 
-    // --- ??????? ---
+    // --- 코어 시뮬레이터 ---
     TUniquePtr<IHktDeterminismSimulator> Simulator;
     FHktSchemaRegistry SchemaRegistry;
     bool bInitialized = false;
 
-    // --- ?????? (?????? ???? ??? ????) ---
-    FHktWorldState SnapshotState;
-    int64 SnapshotFrame = 0;
+    // --- Diff 히스토리 (로컬 예측 프레임별 Diff, 역적용으로 롤백) ---
+    TArray<FHktSimulationDiff> DiffHistory;
 
-    // --- ???? ?????? (?????? ???? ?????? Batch??) ---
-    TArray<FHktSimulationEvent> LocalHistory;
+    // --- 서버로부터 수신된 미처리 Batch 큐 ---
+    TArray<FHktSimulationEvent> PendingServerBatches;
 
-    // --- ???? ?????? ---
+    // --- 조정 후 생성된 Diff (PlayerController가 Tick에서 소비) ---
+    FHktSimulationDiff PendingDiff;
+    bool bHasPendingDiff = false;
+
+    // --- 틱 카운터 ---
     float FrameAccumulator = 0.0f;
     int64 LocalFrame = 0;
 
     static constexpr float FixedDeltaTime = 1.0f / 30.0f;
 
-    // --- ?????? ???? (??? ???) ---
-    static constexpr int32 MaxHistoryFrames = 300; // 10?? @ 30Hz
+    // --- 히스토리 보호: 서버 미확인 최대 프레임 수 ---
+    static constexpr int32 MaxHistoryFrames = 300; // 10초 @ 30Hz
 };

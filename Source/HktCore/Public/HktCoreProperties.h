@@ -37,6 +37,7 @@ namespace PropertyId
     // === 소유/타입 ===
     constexpr uint16 OwnerEntity = 20;
     constexpr uint16 EntityType = 21;
+    constexpr uint16 EntitySpawnTag = 22;
 
     // === 이벤트 파라미터 (Event에서 전달) ===
     constexpr uint16 TargetPosX = 30;

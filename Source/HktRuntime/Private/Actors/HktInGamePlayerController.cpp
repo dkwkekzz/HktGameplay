@@ -87,6 +87,13 @@ void AHktIngamePlayerController::BeginPlay()
             CachedCommandContainer);
     }
 
+    // ProxySimulatorComponent가 먼저 틱한 후 PlayerController Tick이 실행되도록 보장
+    // (AdvanceLocalFrame + ProcessPendingServerBatches → Diff 생성 → Tick에서 소비)
+    if (UActorComponent* ProxyComp = Cast<UActorComponent>(CachedProxySimulator))
+    {
+        AddTickPrerequisiteComponent(ProxyComp);
+    }
+
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
 }
 
@@ -261,14 +268,26 @@ void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
 
-    // Rule이 내부 캐싱된 Simulator에 전달, Diff 반환
-    FHktSimulationDiff Diff = Rule->OnReceived_FrameBatch(static_cast<const FHktSimulationEvent&>(Batch));
+    // 서버 Batch를 큐에 적재만 함 — Diff 처리는 Tick에서 ConsumePendingDiff로
+    Rule->OnReceived_FrameBatch(static_cast<const FHktSimulationEvent&>(Batch));
+}
 
-    if (CachedProxySimulator)
+// ============================================================================
+// Tick — ProxySimulator가 생성한 Diff를 소비하여 Presentation에 전달
+// ============================================================================
+
+void AHktIngamePlayerController::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (!CachedProxySimulator || !CachedProxySimulator->IsInitialized()) return;
+
+    FHktSimulationDiff Diff;
+    if (CachedProxySimulator->ConsumePendingDiff(Diff))
     {
         FHktWorldView View;
         View.WorldState      = &CachedProxySimulator->GetWorldState();
-        View.FrameNumber     = Batch.CoreEvent.FrameNumber;
+        View.FrameNumber     = Diff.FrameNumber;
         View.bIsInitialSync  = false;
         View.SpawnedEntities = &Diff.SpawnedEntities;
         View.RemovedEntities = &Diff.RemovedEntities;

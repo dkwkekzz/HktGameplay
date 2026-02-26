@@ -92,6 +92,13 @@ struct HKTCORE_API FHktEntityPool
     /** OwnedPlayerUid → Slot 역인덱스. 플레이어 소유 엔티티 O(1) 조회. */
     TMap<int64, TArray<int32>> OwnerToSlots;
 
+    // --- Old Value Tracking (프레임 내 첫 쓰기 시 기존 값 저장, UndoDiff용) ---
+    struct FOldValueEntry { int32 Slot; int8 LocalProp; int32 OldValue; };
+    TArray<FOldValueEntry> OldValueEntries;
+
+    struct FOldTagEntry { int32 Slot; FGameplayTagContainer OldTags; };
+    TArray<FOldTagEntry> OldTagEntries;
+
     void Initialize(const FHktEntitySchema& InSchema, int32 ReserveCount);
     int32 AllocateSlot(FHktEntityId EntityId);
     void FreeSlot(int32 Slot);
@@ -134,6 +141,10 @@ struct HKTCORE_API FHktEntityPool
 
     FORCEINLINE void SetDirty(int32 Slot, int8 LP, int32 V)
     {
+        if ((DirtyMask[Slot] & (1u << LP)) == 0)
+        {
+            OldValueEntries.Add({ Slot, LP, Data[Slot * Stride + LP] });
+        }
         Data[Slot * Stride + LP] = V;
         if (DirtyMask[Slot] == 0) DirtySlots.Add(Slot);
         DirtyMask[Slot] |= (1u << LP);
@@ -144,8 +155,18 @@ struct HKTCORE_API FHktEntityPool
         if (!TagsDirtyMask[Slot]) { TagsDirtySlots.Add(Slot); TagsDirtyMask[Slot] = 1; }
     }
 
-    FORCEINLINE void AddTag(int32 Slot, const FGameplayTag& Tag)    { TagContainers[Slot].AddTag(Tag);    SetTagsDirty(Slot); }
-    FORCEINLINE void RemoveTag(int32 Slot, const FGameplayTag& Tag) { TagContainers[Slot].RemoveTag(Tag); SetTagsDirty(Slot); }
+    FORCEINLINE void AddTag(int32 Slot, const FGameplayTag& Tag)
+    {
+        if (!TagsDirtyMask[Slot]) OldTagEntries.Add({ Slot, TagContainers[Slot] });
+        TagContainers[Slot].AddTag(Tag);
+        SetTagsDirty(Slot);
+    }
+    FORCEINLINE void RemoveTag(int32 Slot, const FGameplayTag& Tag)
+    {
+        if (!TagsDirtyMask[Slot]) OldTagEntries.Add({ Slot, TagContainers[Slot] });
+        TagContainers[Slot].RemoveTag(Tag);
+        SetTagsDirty(Slot);
+    }
     FORCEINLINE bool HasTag(int32 Slot, const FGameplayTag& Tag) const     { return TagContainers[Slot].HasTag(Tag); }
     FORCEINLINE bool HasTagExact(int32 Slot, const FGameplayTag& Tag) const { return TagContainers[Slot].HasTagExact(Tag); }
     FORCEINLINE const FGameplayTagContainer& GetTags(int32 Slot) const     { return TagContainers[Slot]; }
@@ -155,6 +176,7 @@ struct HKTCORE_API FHktEntityPool
         for (int32 S : DirtySlots)     DirtyMask[S] = 0;
         for (int32 S : TagsDirtySlots) TagsDirtyMask[S] = 0;
         DirtySlots.Reset(); TagsDirtySlots.Reset();
+        OldValueEntries.Reset(); OldTagEntries.Reset();
     }
 
     template<typename F> void ForEachTagDirtyEntity(F&& Cb) const
@@ -177,6 +199,24 @@ struct HKTCORE_API FHktEntityPool
             FHktEntityId Id = SlotToEntity[S];
             if (Id != InvalidEntityId) Cb(Id, S, DirtyMask[S]);
         }
+    }
+
+    /** OldValueEntries에서 해당 (Slot,LP)의 기존 값 검색 */
+    FORCEINLINE int32 FindOldValue(int32 Slot, int8 LP) const
+    {
+        for (const FOldValueEntry& E : OldValueEntries)
+            if (E.Slot == Slot && E.LocalProp == LP)
+                return E.OldValue;
+        return Get(Slot, LP);
+    }
+
+    /** OldTagEntries에서 해당 Slot의 기존 태그 검색 */
+    FORCEINLINE const FGameplayTagContainer* FindOldTags(int32 Slot) const
+    {
+        for (const FOldTagEntry& E : OldTagEntries)
+            if (E.Slot == Slot)
+                return &E.OldTags;
+        return nullptr;
     }
 };
 
@@ -281,9 +321,30 @@ struct HKTCORE_API FHktWorldState
     void ResetDirtyIndices();
     int32 GetEntityCount() const;
 
+    // --- Property Raw Set (Dirty 추적 없이 값만 설정, UndoDiff용) ---
+    FORCEINLINE void SetPropertyRaw(FHktEntityId Entity, uint16 PropId, int32 Value)
+    {
+        if (!IsValidEntity(Entity)) return;
+        const FEntityLocation& L = EntityLocations[Entity];
+        int8 LP = Registry->Get(L.TypeId).GetLocalIndex(PropId);
+        if (LP == -1) return;
+        if (PropId == PropertyId::OwnedPlayerUid)
+        {
+            int64 OldUid = static_cast<int64>(Pools[L.TypeId].Get(L.PoolSlot, LP));
+            Pools[L.TypeId].TrackOwner(L.PoolSlot, OldUid, static_cast<int64>(Value));
+        }
+        Pools[L.TypeId].Set(L.PoolSlot, LP, Value);
+    }
+
     // --- DTO ---
     FHktEntityState ExtractEntityState(FHktEntityId Id) const;
     FHktEntityId ImportEntityState(const FHktEntityState& InState);
+
+    /** 지정된 EntityId로 엔티티 복원 (UndoDiff에서 제거된 엔티티 복원용) */
+    void ImportEntityStateWithId(const FHktEntityState& InState);
+
+    /** Diff 역적용 — 프레임 변경 되돌리기 (클라이언트 예측 롤백용) */
+    void UndoDiff(const FHktSimulationDiff& Diff);
 
     /** 전체 상태 복사 (클라이언트 동기화 등) */
     void CopyFrom(const FHktWorldState& Other);

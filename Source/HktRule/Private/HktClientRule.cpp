@@ -78,11 +78,12 @@ void FHktDefaultClientRule::OnReceived_InitialState(const FHktWorldState& InStat
 
 	CachedSimulator->RestoreState(InState);
 
+	// 초기화 전 도착한 서버 Batch를 큐에 적재 (틱에서 처리)
 	for (const FHktSimulationEvent& B : PendingBatches)
 	{
 		if (B.FrameNumber > InState.FrameNumber)
 		{
-			CachedSimulator->ReconcileWithServerBatch(B);
+			CachedSimulator->EnqueueServerBatch(B);
 		}
 	}
 	PendingBatches.Empty();
@@ -90,15 +91,12 @@ void FHktDefaultClientRule::OnReceived_InitialState(const FHktWorldState& InStat
 
 FHktSimulationDiff FHktDefaultClientRule::OnReceived_FrameBatch(const FHktSimulationEvent& InBatch)
 {
-	if (!CachedSimulator)
+	if (!CachedSimulator || !CachedSimulator->IsInitialized())
 	{
 		PendingBatches.Add(InBatch);
 		return FHktSimulationDiff();
 	}
-	if (!CachedSimulator->IsInitialized())
-	{
-		PendingBatches.Add(InBatch);
-		return FHktSimulationDiff();
-	}
-	return CachedSimulator->ReconcileWithServerBatch(InBatch);
+	// 즉시 처리하지 않고 큐에 적재 — 다음 틱에서 롤백/빨리감기 처리
+	CachedSimulator->EnqueueServerBatch(InBatch);
+	return FHktSimulationDiff();
 }

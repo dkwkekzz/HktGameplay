@@ -28,7 +28,7 @@ void UHktProxySimulatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReas
 }
 
 // ============================================================================
-// 매 틱: 고정 타임스텝으로 로컬 시뮬레이션
+// 매 틱: 고정 타임스텝 로컬 시뮬레이션 → 서버 Batch 조정
 // ============================================================================
 
 void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -37,11 +37,22 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
 
     if (!bInitialized) return;
 
-    FrameAccumulator += DeltaTime;
-    while (FrameAccumulator >= FixedDeltaTime)
+    // 서버 Batch가 있으면 로컬 예측 건너뛰고 바로 조정 처리
+    // (어차피 Diff 역적용으로 롤백되므로 로컬 예측은 낭비)
+    if (PendingServerBatches.Num() > 0)
     {
-        FrameAccumulator -= FixedDeltaTime;
-        AdvanceLocalFrame(FixedDeltaTime);
+        ProcessPendingServerBatches();
+        FrameAccumulator = 0.0f;
+    }
+    else
+    {
+        // 서버 Batch 없을 때만 고정 타임스텝 로컬 예측 실행
+        FrameAccumulator += DeltaTime;
+        while (FrameAccumulator >= FixedDeltaTime)
+        {
+            FrameAccumulator -= FixedDeltaTime;
+            AdvanceLocalFrame(FixedDeltaTime);
+        }
     }
 }
 
@@ -50,19 +61,15 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     LocalFrame++;
 
     FHktSimulationEvent LocalBatch = BuildLocalBatch(LocalFrame, DeltaSeconds);
-    Simulator->AdvanceFrame(LocalBatch);
+    FHktSimulationDiff Diff = Simulator->AdvanceFrame(LocalBatch);
 
-    // 히스토리에 기록 (롤백용)
-    LocalHistory.Add(MoveTemp(LocalBatch));
+    // Diff 히스토리에 기록 (역적용 롤백용)
+    DiffHistory.Add(MoveTemp(Diff));
 
     // 메모리 보호: 오래된 히스토리 제거
-    if (LocalHistory.Num() > MaxHistoryFrames)
+    if (DiffHistory.Num() > MaxHistoryFrames)
     {
-        // 스냅샷을 현재 상태로 갱신하고 히스토리 비움
-        // (서버 확정 없이 너무 오래 지나면 스냅샷 갱신)
-        SnapshotState.CopyFrom(Simulator->GetWorldState());
-        SnapshotFrame = LocalFrame;
-        LocalHistory.Empty();
+        DiffHistory.Empty();
     }
 }
 
@@ -72,60 +79,81 @@ FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
     FHktSimulationEvent Batch;
     Batch.FrameNumber = Frame;
     Batch.DeltaSeconds = DeltaSeconds;
-    // 서버와 동일한 시드 생성 규칙 사용
     Batch.RandomSeed = HktRuntimeCommon::HashCombineHelper(Frame, 0);
     return Batch;
 }
 
 // ============================================================================
-// 서버 Batch 수신 → 롤백 & 재시뮬레이션
+// 서버 Batch 큐 적재 (수신 즉시 처리하지 않음)
 // ============================================================================
 
-FHktSimulationDiff UHktProxySimulatorComponent::ReconcileWithServerBatch(const FHktSimulationEvent& InBatch)
+void UHktProxySimulatorComponent::EnqueueServerBatch(const FHktSimulationEvent& InBatch)
 {
-    if (!bInitialized) return FHktSimulationDiff();
+    PendingServerBatches.Add(InBatch);
+}
 
-    const int64 ServerFrame = InBatch.FrameNumber;
+bool UHktProxySimulatorComponent::ConsumePendingDiff(FHktSimulationDiff& OutDiff)
+{
+    if (!bHasPendingDiff) return false;
+    OutDiff = MoveTemp(PendingDiff);
+    bHasPendingDiff = false;
+    return true;
+}
 
-    // 1. 스냅샷으로 롤백
-    Simulator->RestoreWorldState(SnapshotState);
+// ============================================================================
+// 서버 Batch 조정 — Diff 역적용으로 롤백(클라 빠름) / 빨리감기(클라 느림)
+// ============================================================================
 
-    // 2. 스냅샷 ~ 서버 프레임 사이의 로컬 히스토리 재실행
-    for (const FHktSimulationEvent& H : LocalHistory)
+void UHktProxySimulatorComponent::ProcessPendingServerBatches()
+{
+    // 프레임 번호 기준 오름차순 정렬
+    PendingServerBatches.Sort([](const FHktSimulationEvent& A, const FHktSimulationEvent& B)
     {
-        if (H.FrameNumber >= ServerFrame) break;
-        Simulator->AdvanceFrame(H);
-    }
+        return A.FrameNumber < B.FrameNumber;
+    });
 
-    // 3. 서버 Batch로 해당 프레임 실행 — 이 프레임의 Diff가 프레젠테이션에 전달됨
-    FHktSimulationDiff ServerDiff = Simulator->AdvanceFrame(InBatch);
+    FHktSimulationDiff LastDiff;
+    bool bProducedDiff = false;
 
-    // 4. 새로운 스냅샷 저장 (서버 확정 프레임)
-    SnapshotState.CopyFrom(Simulator->GetWorldState());
-    SnapshotFrame = ServerFrame;
-
-    // 5. 서버 프레임 이후의 로컬 히스토리 재실행
-    TArray<FHktSimulationEvent> RemainingHistory;
-    for (const FHktSimulationEvent& H : LocalHistory)
+    for (const FHktSimulationEvent& ServerBatch : PendingServerBatches)
     {
-        if (H.FrameNumber > ServerFrame)
+        const int64 ServerFrame = ServerBatch.FrameNumber;
+
+        // --- 1. Diff 역적용으로 ServerFrame 직전까지 롤백 ---
+        //   DiffHistory는 시간순 정렬 (오래된 것이 앞), 역순으로 Undo
+        while (DiffHistory.Num() > 0)
         {
-            Simulator->AdvanceFrame(H);
-            RemainingHistory.Add(H);
+            const FHktSimulationDiff& TopDiff = DiffHistory.Last();
+            if (TopDiff.FrameNumber < ServerFrame) break;  // 서버 프레임보다 이전이면 중단
+            Simulator->UndoDiff(TopDiff);
+            DiffHistory.Pop();
         }
-    }
-    LocalHistory = MoveTemp(RemainingHistory);
 
-    // 6. 로컬 프레임이 서버보다 뒤처져 있으면 따라잡기
-    if (LocalFrame < ServerFrame)
+        // --- 2. 클라가 느린 경우: 빈 Batch로 빨리감기 ---
+        int64 CurrentFrame = Simulator->GetWorldState().FrameNumber;
+        for (int64 F = CurrentFrame + 1; F < ServerFrame; ++F)
+        {
+            FHktSimulationEvent GapBatch = BuildLocalBatch(F, FixedDeltaTime);
+            Simulator->AdvanceFrame(GapBatch);
+            // 갭 프레임 Diff는 저장하지 않음 (서버 확정 후 바로 덮어쓰기)
+        }
+
+        // --- 3. 서버 권위 Batch로 해당 프레임 실행 → Diff 획득 ---
+        LastDiff = Simulator->AdvanceFrame(ServerBatch);
+        bProducedDiff = true;
+
+        // --- 4. 기록 초기화 & LocalFrame 보정 ---
+        DiffHistory.Empty();
+        LocalFrame = FMath::Max(LocalFrame, ServerFrame);
+    }
+
+    PendingServerBatches.Reset();
+
+    if (bProducedDiff)
     {
-        LocalFrame = ServerFrame;
+        PendingDiff = MoveTemp(LastDiff);
+        bHasPendingDiff = true;
     }
-
-    // 7. Accum 초기화 — 서버 Batch 수신 시 누적 시간 리셋
-    FrameAccumulator = 0.0f;
-
-    return ServerDiff;
 }
 
 // ============================================================================
@@ -136,10 +164,10 @@ void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState)
 {
     Simulator->RestoreWorldState(InState);
 
-    SnapshotState.CopyFrom(InState);
-    SnapshotFrame = InState.FrameNumber;
     LocalFrame = InState.FrameNumber;
-    LocalHistory.Empty();
+    DiffHistory.Empty();
+    PendingServerBatches.Empty();
+    bHasPendingDiff = false;
     FrameAccumulator = 0.0f;
 
     bInitialized = true;
@@ -169,10 +197,10 @@ void UHktProxySimulatorComponent::CollectInsightData(FHktInsightSnapshot& OutSna
         bInitialized ? TEXT("Yes") : TEXT("No"));
     OutSnapshot.AddInfo(Cat, TEXT("LocalFrame"),
         FString::Printf(TEXT("%lld"), LocalFrame));
-    OutSnapshot.AddInfo(Cat, TEXT("SnapshotFrame"),
-        FString::Printf(TEXT("%lld"), SnapshotFrame));
-    OutSnapshot.AddInfo(Cat, TEXT("HistorySize"),
-        FString::FromInt(LocalHistory.Num()));
+    OutSnapshot.AddInfo(Cat, TEXT("DiffHistorySize"),
+        FString::FromInt(DiffHistory.Num()));
+    OutSnapshot.AddInfo(Cat, TEXT("PendingServerBatches"),
+        FString::FromInt(PendingServerBatches.Num()));
 
     if (bInitialized)
     {

@@ -24,7 +24,12 @@ public:
 	virtual const FHktWorldState& GetWorldState() const = 0;
 	virtual bool IsInitialized() const = 0;
 	virtual void AdvanceLocalFrame(float DeltaSeconds) = 0;
-	virtual FHktSimulationDiff ReconcileWithServerBatch(const FHktSimulationEvent& InBatch) = 0;
+
+	/** 서버 Batch를 큐에 적재 — 다음 틱에서 롤백/빨리감기 처리 */
+	virtual void EnqueueServerBatch(const FHktSimulationEvent& InBatch) = 0;
+
+	/** 마지막 조정으로 생성된 Diff를 소비 (없으면 false) */
+	virtual bool ConsumePendingDiff(FHktSimulationDiff& OutDiff) = 0;
 };
 
 // ============================================================================

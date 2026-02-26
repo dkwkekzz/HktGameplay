@@ -18,8 +18,7 @@ public:
     virtual void BindContext(
         IHktFrameManager* InFrame,
         IHktRelevancyGraph* InGraph,
-        IHktWorldDatabase* InDB,
-        IHktSimulationEventBuilder* InBuilder) override;
+        IHktWorldDatabase* InDB) override;
 
     virtual void OnReceived_Authentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal, TFunction<void(bool bSuccess, const FString& Token)> InResultCallback) override;
     virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) override {}
@@ -35,7 +34,6 @@ private:
     IHktFrameManager*             CachedFrame   = nullptr;
     IHktRelevancyGraph*           CachedGraph   = nullptr;
     IHktWorldDatabase*            CachedDB      = nullptr;
-    IHktSimulationEventBuilder*   CachedBuilder = nullptr;
 
     struct FPendingLoginResult
     {
@@ -45,4 +43,5 @@ private:
 
     TQueue<FPendingLoginResult, EQueueMode::Mpsc> PendingLoginResults;
     TQueue<int64, EQueueMode::Mpsc>               PendingLogoutRequests;
+	TArray<TArray<FHktEvent>>                     PendingGroupIntents;
 };

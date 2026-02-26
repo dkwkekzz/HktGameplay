@@ -18,6 +18,9 @@ public:
     virtual const FHktWorldState& GetWorldState() const = 0;
     virtual FHktPlayerState ExportPlayerState(int64 OwnerUid) const = 0;
     virtual void RestoreWorldState(const FHktWorldState& InState) = 0;
+
+    /** Diff 역적용 — 프레임 변경 되돌리기 (클라이언트 예측 롤백용) */
+    virtual void UndoDiff(const FHktSimulationDiff& Diff) = 0;
 };
 
 // ============================================================================

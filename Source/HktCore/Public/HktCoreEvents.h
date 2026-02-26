@@ -153,10 +153,11 @@ struct HKTCORE_API FHktPropertyDelta
     FHktEntityId EntityId = InvalidEntityId;
     uint16 PropertyId = 0;
     int32 NewValue = 0;
+    int32 OldValue = 0;
 
     friend FArchive& operator<<(FArchive& Ar, FHktPropertyDelta& D)
     {
-        Ar << D.EntityId << D.PropertyId << D.NewValue;
+        Ar << D.EntityId << D.PropertyId << D.NewValue << D.OldValue;
         return Ar;
     }
 };
@@ -169,10 +170,11 @@ struct HKTCORE_API FHktTagDelta
 {
     FHktEntityId EntityId = InvalidEntityId;
     FGameplayTagContainer Tags;
+    FGameplayTagContainer OldTags;
 
     friend FArchive& operator<<(FArchive& Ar, FHktTagDelta& D)
     {
-        Ar << D.EntityId << D.Tags;
+        Ar << D.EntityId << D.Tags << D.OldTags;
         return Ar;
     }
 };
@@ -186,12 +188,15 @@ struct HKTCORE_API FHktSimulationDiff
     int64 FrameNumber = 0;
     TArray<FHktEntityState> SpawnedEntities;
     TArray<FHktEntityId> RemovedEntities;
+    TArray<FHktEntityState> RemovedEntityStates;  // 제거된 엔티티 전체 상태 (UndoDiff 복원용)
     TArray<FHktPropertyDelta> PropertyDeltas;
     TArray<FHktTagDelta> TagDeltas;
+    FHktEntityId PrevNextEntityId = InvalidEntityId;  // 이 프레임 실행 전 NextEntityId (Undo 시 복원)
 
     friend FArchive& operator<<(FArchive& Ar, FHktSimulationDiff& D)
     {
-        Ar << D.FrameNumber << D.SpawnedEntities << D.RemovedEntities << D.PropertyDeltas << D.TagDeltas;
+        Ar << D.FrameNumber << D.SpawnedEntities << D.RemovedEntities
+           << D.RemovedEntityStates << D.PropertyDeltas << D.TagDeltas << D.PrevNextEntityId;
         return Ar;
     }
 };

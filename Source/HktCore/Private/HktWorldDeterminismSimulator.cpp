@@ -70,11 +70,28 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
     }
 
     FHktEntityId PrevNext = WorldState.NextEntityId;
+
+    // 제거 대상 엔티티 상태를 ProcessBatch 전에 캡처 (UndoDiff 복원용)
+    TArray<FHktEntityState> PreRemoveStates;
+    for (int64 OwnerId : InEvent.RemovedOwnerIds)
+    {
+        for (int32 T = 1; T < HktType::MaxTypes; ++T)
+        {
+            WorldState.GetPool(static_cast<FHktTypeId>(T)).ForEachEntityByOwner(
+                OwnerId, [&](FHktEntityId Id, int32)
+            {
+                PreRemoveStates.Add(WorldState.ExtractEntityState(Id));
+            });
+        }
+    }
+
     ProcessBatch(InEvent);
 
     FHktSimulationDiff Diff;
     Diff.FrameNumber = InEvent.FrameNumber;
+    Diff.PrevNextEntityId = PrevNext;
     Diff.RemovedEntities = MoveTemp(FrameRemovedEntities);
+    Diff.RemovedEntityStates = MoveTemp(PreRemoveStates);
 
     for (FHktEntityId Id = PrevNext; Id < WorldState.NextEntityId; ++Id)
         if (WorldState.IsValidEntity(Id))
@@ -92,14 +109,20 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             while (M)
             {
                 int32 LP = FMath::CountTrailingZeros(M);
-                Diff.PropertyDeltas.Add({ Id, Pool.Schema->PropertyIds[LP], ED[LP] });
+                int32 OldVal = Pool.FindOldValue(Slot, LP);
+                Diff.PropertyDeltas.Add({ Id, Pool.Schema->PropertyIds[LP], ED[LP], OldVal });
                 M &= M - 1;
             }
         });
         Pool.ForEachTagDirtyEntity([&](FHktEntityId Id, int32 Slot)
         {
             if (Id >= PrevNext) return;
-            Diff.TagDeltas.Add({ Id, Pool.GetTags(Slot) });
+            const FGameplayTagContainer* OldTags = Pool.FindOldTags(Slot);
+            FHktTagDelta Delta;
+            Delta.EntityId = Id;
+            Delta.Tags = Pool.GetTags(Slot);
+            Delta.OldTags = OldTags ? *OldTags : Pool.GetTags(Slot);
+            Diff.TagDeltas.Add(MoveTemp(Delta));
         });
     }
     return Diff;
@@ -130,6 +153,11 @@ FHktPlayerState FHktWorldDeterminismSimulator::ExportPlayerState(int64 OwnerUid)
 void FHktWorldDeterminismSimulator::RestoreWorldState(const FHktWorldState& InState)
 {
     WorldState.CopyFrom(InState);
+}
+
+void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)
+{
+    WorldState.UndoDiff(Diff);
 }
 
 // ============================================================================

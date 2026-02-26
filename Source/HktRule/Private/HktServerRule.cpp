@@ -27,13 +27,11 @@ FHktDefaultServerRule::~FHktDefaultServerRule()
 void FHktDefaultServerRule::BindContext(
 	IHktFrameManager* InFrame,
 	IHktRelevancyGraph* InGraph,
-	IHktWorldDatabase* InDB,
-	IHktSimulationEventBuilder* InBuilder)
+	IHktWorldDatabase* InDB)
 {
 	CachedFrame   = InFrame;
 	CachedGraph   = InGraph;
 	CachedDB      = InDB;
-	CachedBuilder = InBuilder;
 }
 
 // ============================================================================
@@ -55,10 +53,13 @@ void FHktDefaultServerRule::OnReceived_Authentication(
 void FHktDefaultServerRule::OnReceived_FireIntentEvent(
 	const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer)
 {
-	if (!CachedGraph || !CachedBuilder) return;
+	if (!CachedGraph) return;
 
 	const int32 GroupIndex = CachedGraph->GetRelevancyGroupIndex(InPlayer.GetPlayerUid());
-	CachedBuilder->PushIntent(GroupIndex, InEvent);
+	if (PendingGroupIntents.IsValidIndex(GroupIndex))
+	{
+		PendingGroupIntents[GroupIndex].Add(InEvent);
+	}
 }
 
 // ============================================================================
@@ -95,14 +96,13 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 {
 	FHktEventGameModeTickResult Result;
 
-	if (!CachedFrame || !CachedGraph || !CachedBuilder || !CachedDB)
+	if (!CachedFrame || !CachedGraph || !CachedDB)
 	{
 		return Result;
 	}
 
 	IHktFrameManager&           Frame   = *CachedFrame;
 	IHktRelevancyGraph&         Graph   = *CachedGraph;
-	IHktSimulationEventBuilder& Builder = *CachedBuilder;
 	IHktWorldDatabase&          DB      = *CachedDB;
 
 	// --- ProcessReady ---
@@ -114,7 +114,7 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 	const int32 NumGroups = Graph.NumRelevancyGroup();
 	const int64 CurrentFrameNumber = Frame.GetFrameNumber();
 
-	Builder.Resize(NumGroups);
+	PendingGroupIntents.SetNum(NumGroups);
 	Result.EventSends.SetNum(NumGroups);
 
 	// 로그아웃 처리 (item 9: ExitWorldPlayer 호출)
@@ -130,7 +130,6 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 			FGroupEventSend& GroupEventSend = Result.EventSends[GroupIdx];
 			GroupEventSend.Batch.RemovedOwnerIds.Add(LogoutUid);
 		}
-
 	}
 
 	// 로그인 처리 — Graph 등록은 EndFrame에서 처리 (item 5)
@@ -155,9 +154,8 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 
 		GroupBatch.FrameNumber = CurrentFrameNumber;
 		GroupBatch.DeltaSeconds = InDeltaTime;
-		GroupBatch.RandomSeed  = HashCombineHelper(CurrentFrameNumber, GroupIndex);
-
-		Builder.GetIntents(GroupIndex, GroupBatch.NewEvents);
+		GroupBatch.RandomSeed = HashCombineHelper(CurrentFrameNumber, GroupIndex);
+		GroupBatch.NewEvents.Append(MoveTemp(PendingGroupIntents[GroupIndex]));
 
 		// 신입 엔티티/이벤트 주입
 		for (IHktWorldPlayer* NewPlayer : GroupEventSend.Entered)

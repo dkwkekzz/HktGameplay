@@ -1,6 +1,8 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktActorRenderer.h"
+#include "HktActorVisualDataAsset.h"
+#include "HktAssetSubsystem.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
@@ -47,8 +49,31 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 {
 	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
 	if (!World) return;
-	// TODO: 스폰 클래스/프리팹 결정 후 SpawnActor, ActorMap.Add(Entity.EntityId, Actor)
-	(void)Entity;
+	if (!Entity.Visualization.VisualElement.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: Entity %d has no VisualElement tag"), Entity.EntityId);
+		return;
+	}
+
+	UHktAssetSubsystem* AssetSubsystem = UHktAssetSubsystem::Get(World);
+	if (!AssetSubsystem) return;
+
+	UHktTagDataAsset* LoadedAsset = AssetSubsystem->LoadAssetSync(Entity.Visualization.VisualElement);
+	UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset);
+	if (!VisualAsset || !VisualAsset->ActorClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: No UHktActorVisualDataAsset or ActorClass for tag %s"), *Entity.Visualization.VisualElement.ToString());
+		return;
+	}
+
+	FVector Location = Entity.Transform.Location.Get();
+	FRotator Rotation = Entity.Transform.Rotation.Get();
+	FActorSpawnParameters SpawnParams;
+	AActor* SpawnedActor = World->SpawnActor<AActor>(VisualAsset->ActorClass, Location, Rotation, SpawnParams);
+	if (SpawnedActor)
+	{
+		ActorMap.Add(Entity.EntityId, SpawnedActor);
+	}
 }
 
 void FHktActorRenderer::DestroyActor(FHktEntityId Id)

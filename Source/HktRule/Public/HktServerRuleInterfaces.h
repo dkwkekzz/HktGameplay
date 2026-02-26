@@ -219,8 +219,7 @@ public:
 	virtual void BindContext(
 		IHktFrameManager* InFrame,
 		IHktRelevancyGraph* InGraph,
-		IHktWorldDatabase* InDB,
-		IHktSimulationEventBuilder* InBuilder) {}
+		IHktWorldDatabase* InDB) {}
 
 	virtual void OnReceived_Authentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal, TFunction<void(bool bSuccess, const FString& Token)> InResultCallback) {}
 	virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) {}

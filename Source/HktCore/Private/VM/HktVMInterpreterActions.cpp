@@ -3,6 +3,7 @@
 #include "HktVMInterpreter.h"
 #include "HktVMProgram.h"
 #include "HktVMContext.h"
+#include "GameplayTagsManager.h"
 
 // ============================================================================
 // Helper
@@ -22,9 +23,6 @@ const FString& FHktVMInterpreter::GetString(FHktVMRuntime& Runtime, int32 Index)
 
 void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, FHktTypeId TypeId, int32 StringIndex)
 {
-    const FString& ClassPath = GetString(Runtime, StringIndex);
-    UE_LOG(LogTemp, Log, TEXT("[VM] SpawnEntity: Type=%d, Class=%s"), TypeId, *ClassPath);
-
     if (WorldState)
     {
         FHktEntityId NewEntity = WorldState->AllocateEntity(TypeId);
@@ -34,6 +32,7 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, FHktTypeId TypeId
         {
             Runtime.Context->WriteEntity(NewEntity, PropertyId::OwnerEntity, Runtime.GetRegEntity(Reg::Self));
             Runtime.Context->WriteEntity(NewEntity, PropertyId::EntityType, TypeId);
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::EntitySpawnTag, StringIndex);
         }
     }
 }

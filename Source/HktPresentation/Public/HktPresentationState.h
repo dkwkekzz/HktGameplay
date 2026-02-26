@@ -30,6 +30,7 @@ struct FHktEntityPresentation
 	FHktVM_Combat Combat;
 	FHktVM_Ownership Ownership;
 	FHktVM_Animation Animation;
+	FHktVM_Visualization Visualization;
 
 	void InitFromWorldState(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
 	void ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);
