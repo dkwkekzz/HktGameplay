@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/SaveGame.h"
-#include "HktDatabaseTypes.h"
 #include "HktServerRuleInterfaces.h"
 #include "HktFileDatabaseComponent.generated.h"
 

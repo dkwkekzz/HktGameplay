@@ -10,7 +10,7 @@
 #include "HktSingleRelevancyComponent.generated.h"
 
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
-class HKTRUNTIME_API UHktSingleRelevancyComponent : public UActorComponent, public IHktRelevancyGraph, public IHktRelevancyGroup
+class HKTRUNTIME_API UHktSingleRelevancyComponent : public UActorComponent, public IHktRelevancyGraph, public IHktRelevancyGroup, public IHktAuthoritySimulator
 {
     GENERATED_BODY()
 
@@ -26,8 +26,6 @@ public:
     virtual int32 NumRelevancyGroup() const override;
     virtual IHktRelevancyGroup& GetRelevancyGroup(int32 Index) override;
     virtual const IHktRelevancyGroup& GetRelevancyGroup(int32 Index) const override;
-    virtual IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) override;
-    virtual const IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) const override;
     virtual int32 GetRelevancyGroupIndex(int64 PlayerUid) const override;
     virtual int32 CalculateRelevancyGroupIndex(FVector PlayerPos) const override { return 0; }
 
@@ -39,6 +37,8 @@ public:
     // IHktRelevancyGroup
     virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }
     virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const override { return CachedPlayers; }
+    virtual const IHktAuthoritySimulator& GetSimulator() const override { return *this; }
+    virtual IHktAuthoritySimulator& GetSimulator() { return *this; }
 
 protected:
     virtual void BeginPlay() override;

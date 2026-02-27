@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "VFXTextureGenerator.h"
+#include "HktVFXTextureGenerator.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Serialization/JsonReader.h"
@@ -17,10 +17,15 @@
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFileManager.h"
 
+void FHktVFXTextureGenerator::SetSettings(const FHktImageGenSettings& InSettings)
+{
+    Settings = InSettings;
+}
+
 // ============================================================================
 // VFX 텍스처 전용 프롬프트 빌드
 // ============================================================================
-FString FVFXTextureGenerator::BuildFinalPrompt(const FVFXTextureRequest& Request) const
+FString FHktVFXTextureGenerator::BuildFinalPrompt(const FHktVFXTextureRequest& Request) const
 {
     FString Prompt = Request.Prompt;
 
@@ -46,7 +51,7 @@ FString FVFXTextureGenerator::BuildFinalPrompt(const FVFXTextureRequest& Request
     return Prompt;
 }
 
-FString FVFXTextureGenerator::BuildFinalNegativePrompt(const FVFXTextureRequest& Request) const
+FString FHktVFXTextureGenerator::BuildFinalNegativePrompt(const FHktVFXTextureRequest& Request) const
 {
     FString Negative = Request.NegativePrompt;
     if (!Negative.IsEmpty()) Negative += TEXT(", ");
@@ -57,7 +62,7 @@ FString FVFXTextureGenerator::BuildFinalNegativePrompt(const FVFXTextureRequest&
 // ============================================================================
 // AUTOMATIC1111 Stable Diffusion WebUI API 호출
 // ============================================================================
-void FVFXTextureGenerator::CallSD_WebUI(
+void FHktVFXTextureGenerator::CallSD_WebUI(
     const FString& Prompt, const FString& NegativePrompt,
     int32 Width, int32 Height,
     TFunction<void(bool, const TArray<uint8>&)> OnComplete)
@@ -121,107 +126,39 @@ void FVFXTextureGenerator::CallSD_WebUI(
     Request->ProcessRequest();
 }
 
+#include "HAL/PlatformFileManager.h"
+
 // ============================================================================
-// ComfyUI API 호출 (기본 txt2img 워크플로우)
+// ComfyUI — 미지원 (에러 로그 + early return, 링커 에러 방지용 stub)
 // ============================================================================
-void FVFXTextureGenerator::CallComfyUI(
+void FHktVFXTextureGenerator::CallComfyUI(
     const FString& Prompt, const FString& NegativePrompt,
     int32 Width, int32 Height,
     TFunction<void(bool, const TArray<uint8>&)> OnComplete)
 {
-    // ComfyUI는 워크플로우 기반이므로 JSON 워크플로우를 구성
-    // 여기서는 기본 txt2img 워크플로우를 하드코딩
+    UE_LOG(LogTemp, Error, TEXT("[VFXTexGen] ComfyUI is not supported yet. "
+        "Please use Stable Diffusion WebUI (AUTOMATIC1111) instead. "
+        "Change the provider in Project Settings > Plugins > Hkt VFX > Image Generation."));
 
-    FString WorkflowJSON = FString::Printf(TEXT(R"({
-        "prompt": {
-            "3": {
-                "class_type": "KSampler",
-                "inputs": {
-                    "seed": %d,
-                    "steps": %d,
-                    "cfg": %.1f,
-                    "sampler_name": "dpmpp_2m",
-                    "scheduler": "karras",
-                    "denoise": 1.0,
-                    "model": ["4", 0],
-                    "positive": ["6", 0],
-                    "negative": ["7", 0],
-                    "latent_image": ["5", 0]
-                }
-            },
-            "4": {
-                "class_type": "CheckpointLoaderSimple",
-                "inputs": { "ckpt_name": "%s" }
-            },
-            "5": {
-                "class_type": "EmptyLatentImage",
-                "inputs": { "width": %d, "height": %d, "batch_size": 1 }
-            },
-            "6": {
-                "class_type": "CLIPTextEncode",
-                "inputs": { "text": "%s", "clip": ["4", 1] }
-            },
-            "7": {
-                "class_type": "CLIPTextEncode",
-                "inputs": { "text": "%s", "clip": ["4", 1] }
-            },
-            "8": {
-                "class_type": "VAEDecode",
-                "inputs": { "samples": ["3", 0], "vae": ["4", 2] }
-            },
-            "9": {
-                "class_type": "SaveImage",
-                "inputs": { "filename_prefix": "vfx_gen", "images": ["8", 0] }
-            }
-        }
-    })"),
-        FMath::RandRange(0, 999999999),
-        Settings.Steps,
-        Settings.CFGScale,
-        *Settings.Model,
-        Width, Height,
-        *Prompt.ReplaceCharWithEscapedChar(),
-        *NegativePrompt.ReplaceCharWithEscapedChar()
-    );
-
-    auto Request = FHttpModule::Get().CreateRequest();
-    Request->SetURL(FString::Printf(TEXT("%s/api/prompt"), *Settings.ServerURL));
-    Request->SetVerb(TEXT("POST"));
-    Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-    Request->SetContentAsString(WorkflowJSON);
-
-    // ComfyUI는 비동기적이므로 prompt_id를 받고 폴링해야 함
-    // 간소화를 위해 동기적 패턴으로 구현 (실제 프로덕션에서는 폴링 필요)
-    Request->OnProcessRequestComplete().BindLambda(
-        [this, OnComplete](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bConnected)
-        {
-            TArray<uint8> EmptyData;
-            if (!bConnected || !Resp.IsValid() || Resp->GetResponseCode() != 200)
-            {
-                OnComplete(false, EmptyData);
-                return;
-            }
-
-            TSharedPtr<FJsonObject> ResponseObj;
-            auto Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
-            FJsonSerializer::Deserialize(Reader, ResponseObj);
-
-            FString PromptId = ResponseObj->GetStringField(TEXT("prompt_id"));
-
-            // 결과 폴링 (간소화 - 실제로는 WebSocket 또는 타이머 사용)
-            PollComfyUIResult(PromptId, OnComplete);
-        });
-
-    Request->ProcessRequest();
+    TArray<uint8> EmptyData;
+    OnComplete(false, EmptyData);
 }
 
-// ComfyUI 결과 폴링은 FTimerManager나 FTSTicker를 사용해 구현
-// 여기서는 헤더만 선언 (구현 생략 - SD WebUI가 더 간단하므로 추천)
+void FHktVFXTextureGenerator::PollComfyUIResult(
+    const FString& PromptId,
+    TFunction<void(bool, const TArray<uint8>&)> OnComplete)
+{
+    // ComfyUI 미지원 — 호출되지 않아야 하지만 링커 에러 방지용 stub
+    UE_LOG(LogTemp, Error, TEXT("[VFXTexGen] PollComfyUIResult called but ComfyUI is not supported."));
+
+    TArray<uint8> EmptyData;
+    OnComplete(false, EmptyData);
+}
 
 // ============================================================================
 // PNG 데이터 → UTexture2D 에셋 임포트
 // ============================================================================
-UTexture2D* FVFXTextureGenerator::ImportTextureFromPNG(
+UTexture2D* FHktVFXTextureGenerator::ImportTextureFromPNG(
     const TArray<uint8>& PNGData,
     const FString& AssetPath,
     const FString& TextureName)
@@ -274,7 +211,7 @@ UTexture2D* FVFXTextureGenerator::ImportTextureFromPNG(
 // ============================================================================
 // VFX 용도에 맞게 텍스처 설정
 // ============================================================================
-void FVFXTextureGenerator::ConfigureTextureForVFX(UTexture2D* Texture, const FString& BlendMode)
+void FHktVFXTextureGenerator::ConfigureTextureForVFX(UTexture2D* Texture, const FString& BlendMode)
 {
     if (!Texture) return;
 
@@ -304,11 +241,11 @@ void FVFXTextureGenerator::ConfigureTextureForVFX(UTexture2D* Texture, const FSt
 // ============================================================================
 // 단일 텍스처 생성
 // ============================================================================
-void FVFXTextureGenerator::GenerateTexture(
-    const FVFXTextureRequest& Request,
+void FHktVFXTextureGenerator::GenerateTexture(
+    const FHktVFXTextureRequest& Request,
     const FString& OutputPath,
     int32 Resolution,
-    FOnTextureGenerated OnComplete)
+    FOnHktTextureGenerated OnComplete)
 {
     FString FinalPrompt = BuildFinalPrompt(Request);
     FString FinalNegative = BuildFinalNegativePrompt(Request);
@@ -347,10 +284,10 @@ void FVFXTextureGenerator::GenerateTexture(
 
     switch (Settings.Provider)
     {
-    case EImageGenProvider::StableDiffusionWebUI:
+    case EHktImageGenProvider::StableDiffusionWebUI:
         CallSD_WebUI(FinalPrompt, FinalNegative, Width, Height, OnImageGenerated);
         break;
-    case EImageGenProvider::ComfyUI:
+    case EHktImageGenProvider::ComfyUI:
         CallComfyUI(FinalPrompt, FinalNegative, Width, Height, OnImageGenerated);
         break;
     }
@@ -359,11 +296,11 @@ void FVFXTextureGenerator::GenerateTexture(
 // ============================================================================
 // 배치 텍스처 생성 (순차 처리)
 // ============================================================================
-void FVFXTextureGenerator::GenerateAllTextures(
-    const TArray<FVFXTextureRequest>& Requests,
+void FHktVFXTextureGenerator::GenerateAllTextures(
+    const TArray<FHktVFXTextureRequest>& Requests,
     const FString& OutputDirectory,
     int32 Resolution,
-    FOnAllTexturesGenerated OnComplete)
+    FOnHktAllTexturesGenerated OnComplete)
 {
     if (Requests.Num() == 0)
     {
@@ -372,7 +309,7 @@ void FVFXTextureGenerator::GenerateAllTextures(
         return;
     }
 
-    auto Batch = MakeShared<FPendingBatch>();
+    auto Batch = MakeShared<FHktVFXPendingBatch>();
     Batch->Requests = Requests;
     Batch->OutputDirectory = OutputDirectory;
     Batch->Resolution = Resolution;
@@ -381,7 +318,7 @@ void FVFXTextureGenerator::GenerateAllTextures(
     ProcessNextInBatch(Batch);
 }
 
-void FVFXTextureGenerator::ProcessNextInBatch(TSharedPtr<FPendingBatch> Batch)
+void FHktVFXTextureGenerator::ProcessNextInBatch(TSharedPtr<FHktVFXPendingBatch> Batch)
 {
     if (Batch->CurrentIndex >= Batch->Requests.Num())
     {
@@ -391,10 +328,10 @@ void FVFXTextureGenerator::ProcessNextInBatch(TSharedPtr<FPendingBatch> Batch)
         return;
     }
 
-    const FVFXTextureRequest& CurrentReq = Batch->Requests[Batch->CurrentIndex];
+    const FHktVFXTextureRequest& CurrentReq = Batch->Requests[Batch->CurrentIndex];
     FString TexOutputDir = Batch->OutputDirectory / TEXT("Textures");
 
-    FOnTextureGenerated OnSingleDone;
+    FOnHktTextureGenerated OnSingleDone;
     OnSingleDone.BindLambda([this, Batch, CurrentReq](bool bSuccess, UTexture2D* Texture)
     {
         if (bSuccess && Texture)

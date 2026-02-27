@@ -35,6 +35,7 @@ struct HKTRULE_API FHktPlayerRecord
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
 	FVector LastPosition;
 
+	// TODO: ...
 	TArray<FHktEvent> ActiveEvents;
 	TArray<FHktEntityState> EntityStates;
 
@@ -64,24 +65,6 @@ public:
 	virtual void InvalidatePlayerUidCache() = 0;
 };
 
-//=============================================================================
-// IHktSimulationEventBuilder
-//=============================================================================
-
-UINTERFACE(MinimalAPI, BlueprintType)
-class UHktSimulationEventBuilder : public UInterface { GENERATED_BODY() };
-
-class HKTRULE_API IHktSimulationEventBuilder
-{
-	GENERATED_BODY()
-public:
-	virtual void Resize(int32 NumGroups) = 0;
-
-	/** Intent 등록 */
-	virtual void PushIntent(int32 GroupIndex, const FHktEvent& InEvent) = 0;
-	virtual bool GetIntents(int32 GroupIndex, TArray<FHktEvent>& OutIntents) = 0;
-};
-
 // ============================================================================
 // IHktAuthoritySimulator — 서버 전용 시뮬레이터 (Determinism + ExportPlayerState 등)
 // ============================================================================
@@ -89,8 +72,9 @@ public:
 UINTERFACE(MinimalAPI, BlueprintType)
 class UHktAuthoritySimulator : public UInterface { GENERATED_BODY() };
 
-class HKTCORE_API IHktAuthoritySimulator
+class HKTRULE_API IHktAuthoritySimulator
 {
+	GENERATED_BODY()
 public:
 	/** 서버 전용: 플레이어 상태 내보내기 (저장/전송용) */
 	virtual void AdvanceFrame(const FHktSimulationEvent& InEvent) = 0;
@@ -104,12 +88,14 @@ public:
 UINTERFACE(MinimalAPI, BlueprintType)
 class UHktRelevancyGroup : public UInterface { GENERATED_BODY() };
 
-class HKTRULE_API IHktRelevancyGroup : public IHktAuthoritySimulator
+class HKTRULE_API IHktRelevancyGroup
 {
 	GENERATED_BODY()
 public:
 	virtual const TArray<int64>& GetPlayerUids() const = 0;
 	virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const = 0;
+	virtual const IHktAuthoritySimulator& GetSimulator() const = 0;
+	virtual IHktAuthoritySimulator& GetSimulator() = 0;
 };
 
 //=============================================================================
@@ -130,8 +116,6 @@ public:
 	virtual int32 NumRelevancyGroup() const = 0;
 	virtual IHktRelevancyGroup& GetRelevancyGroup(int32 Index) = 0;
 	virtual const IHktRelevancyGroup& GetRelevancyGroup(int32 Index) const = 0;
-	virtual IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) = 0;
-	virtual const IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) const = 0;
 	virtual int32 GetRelevancyGroupIndex(int64 PlayerUid) const = 0;
 	virtual int32 CalculateRelevancyGroupIndex(FVector PlayerPos) const = 0;
 };

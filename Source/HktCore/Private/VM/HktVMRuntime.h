@@ -81,6 +81,9 @@ struct HKTCORE_API FHktVMRuntime
     /** 현재 상태 */
     EVMStatus Status = EVMStatus::Ready;
 
+    /** 이 VM을 트리거한 플레이어 UID (SpawnEntity에서 OwnedPlayerUid 자동 설정용) */
+    int64 PlayerUid = 0;
+
     /** 생성 프레임 */
     int32 CreationFrame = 0;
 

@@ -3,17 +3,19 @@
 #pragma once
 
 #include "HktWorldState.h"
+#include "HktVMWorldStateProxy.h"
 
 /**
  * FHktVMContext — VM 실행 컨텍스트 (구 FHktVMStore 대체)
  *
- * WorldState에 직접 읽기/쓰기. LocalCache, PendingWrites 없음.
+ * WorldState에 직접 읽기/쓰기. 쓰기는 VMProxy 경유하여 Dirty 추적.
  */
 struct FHktVMContext
 {
     FHktEntityId SourceEntity = InvalidEntityId;
     FHktEntityId TargetEntity = InvalidEntityId;
     FHktWorldState* WorldState = nullptr;
+    FHktVMWorldStateProxy* VMProxy = nullptr;
 
     FORCEINLINE int32 Read(uint16 PropId) const
     {
@@ -27,12 +29,12 @@ struct FHktVMContext
 
     FORCEINLINE void Write(uint16 PropId, int32 Value)
     {
-        if (WorldState) WorldState->SetPropertyDirty(SourceEntity, PropId, Value);
+        if (VMProxy) VMProxy->SetPropertyDirty(*WorldState, SourceEntity, PropId, Value);
     }
 
     FORCEINLINE void WriteEntity(FHktEntityId Entity, uint16 PropId, int32 Value)
     {
-        if (WorldState) WorldState->SetPropertyDirty(Entity, PropId, Value);
+        if (VMProxy) VMProxy->SetPropertyDirty(*WorldState, Entity, PropId, Value);
     }
 
     void Reset()

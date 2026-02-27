@@ -134,13 +134,13 @@ void AHktIngamePlayerController::SetupInputComponent()
     UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent);
     if (!EnhancedInput) return;
 
-    if (SubjectAction) EnhancedInput->BindAction(SubjectAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnSubjectAction);
-    if (TargetAction)  EnhancedInput->BindAction(TargetAction,  ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnTargetAction);
+    if (SubjectAction) EnhancedInput->BindAction(SubjectAction, ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSubjectAction);
+    if (TargetAction)  EnhancedInput->BindAction(TargetAction,  ETriggerEvent::Started, this, &AHktIngamePlayerController::OnTargetAction);
     if (ZoomAction)    EnhancedInput->BindAction(ZoomAction,    ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnZoom);
 
     for (int32 i = 0; i < SlotActions.Num(); ++i)
     {
-        if (SlotActions[i]) EnhancedInput->BindAction(SlotActions[i], ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnSlotAction, i);
+        if (SlotActions[i]) EnhancedInput->BindAction(SlotActions[i], ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSlotAction, i);
     }
 }
 
@@ -157,6 +157,12 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 
     if (CachedIntentBuilder)
     {
+        // 빈 공간 클릭 시 (Subject 미선택) → 기본 Subject로 복원
+        if (CachedIntentBuilder->GetSubjectEntityId() == InvalidEntityId && DefaultSubjectEntityId != InvalidEntityId)
+        {
+            CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
+        }
+
         SubjectChangedDelegate.Broadcast(CachedIntentBuilder->GetSubjectEntityId());
         UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId());
     }
@@ -171,6 +177,12 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 
     if (CachedIntentBuilder)
     {
+        if (CachedIntentBuilder->IsReadyToSubmit() == false)
+        {
+            CachedIntentBuilder->SetCommand(FGameplayTag::RequestGameplayTag(TEXT("Action.Move.ToLocation")), true);
+        }
+        CachedIntentBuilder->Submit();
+
         TargetChangedDelegate.Broadcast(CachedIntentBuilder->GetTargetEntityId());
 
         if (CachedIntentBuilder->HasPendingSubmit())
@@ -178,7 +190,7 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
             FHktRuntimeEvent Event(CachedIntentBuilder->ConsumePendingSubmit());
             Server_ReceiveIntent(Event);
             IntentSubmittedDelegate.Broadcast(Event);
-            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnTargetAction Submit %s"), *Event.CoreEvent.ToString());
+            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnTargetAction Submit %s"), *Event.Value.ToString());
         }
         else
         {
@@ -203,7 +215,7 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
             FHktRuntimeEvent Event(CachedIntentBuilder->ConsumePendingSubmit());
             Server_ReceiveIntent(Event);
             IntentSubmittedDelegate.Broadcast(Event);
-            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSlotAction Submit %s"), *Event.CoreEvent.ToString());
+            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSlotAction Submit %s"), *Event.Value.ToString());
         }
         else
         {
@@ -246,20 +258,13 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
     );
 #endif
 
+    bIsInitialSync = false;
+
     IHktClientRule* Rule = GetClientRule();
     if (Rule)
     {
         // Rule이 내부 캐싱된 Simulator에 전달
         Rule->OnReceived_InitialState(HktRuntimeConverter::ConvertToWorldState(State));
-    }
-
-    if (CachedProxySimulator)
-    {
-        FHktWorldView View;
-        View.WorldState    = &CachedProxySimulator->GetWorldState();
-        View.FrameNumber   = CachedProxySimulator->GetWorldState().FrameNumber;
-        View.bIsInitialSync = true;
-        WorldViewUpdatedDelegate.Broadcast(View);
     }
 }
 
@@ -282,23 +287,42 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
 
     if (!CachedProxySimulator || !CachedProxySimulator->IsInitialized()) return;
 
+    if (!bIsInitialSync)
+    {
+        bIsInitialSync = true;
+
+        // InitialState 수신 후 나의 엔티티를 기본 Subject로 설정
+        ResolveDefaultSubject();
+
+        if (CachedProxySimulator)
+        {
+            FHktWorldView View;
+            View.WorldState = &CachedProxySimulator->GetWorldState();
+            View.FrameNumber = CachedProxySimulator->GetWorldState().FrameNumber;
+            View.bIsInitialSync = true;
+            WorldViewUpdatedDelegate.Broadcast(View);
+        }
+    }
+
     FHktSimulationDiff Diff;
     if (CachedProxySimulator->ConsumePendingDiff(Diff))
     {
         FHktWorldView View;
-        View.WorldState      = &CachedProxySimulator->GetWorldState();
-        View.FrameNumber     = Diff.FrameNumber;
-        View.bIsInitialSync  = false;
+        View.WorldState = &CachedProxySimulator->GetWorldState();
+        View.FrameNumber = Diff.FrameNumber;
+        View.bIsInitialSync = false;
         View.SpawnedEntities = &Diff.SpawnedEntities;
         View.RemovedEntities = &Diff.RemovedEntities;
-        View.PropertyDeltas  = &Diff.PropertyDeltas;
+        View.PropertyDeltas = &Diff.PropertyDeltas;
+        View.TagDeltas = &Diff.TagDeltas;
+        View.OwnerDeltas = &Diff.OwnerDeltas;
         WorldViewUpdatedDelegate.Broadcast(View);
     }
 }
 
 bool AHktIngamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)
 {
-    return Event.IsValid();
+    return true;
 }
 
 void AHktIngamePlayerController::Server_ReceiveIntent_Implementation(const FHktRuntimeEvent& Event)
@@ -322,6 +346,32 @@ void AHktIngamePlayerController::Server_ReceiveIntent_Implementation(const FHktR
     if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
     {
         GM->PushIntent(GetPlayerUid(), Event);
+    }
+}
+
+void AHktIngamePlayerController::ResolveDefaultSubject()
+{
+    if (!CachedProxySimulator || !CachedProxySimulator->IsInitialized()) return;
+
+    const int64 PlayerUid = GetPlayerUid();
+    if (PlayerUid == 0) return;
+
+    const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
+    DefaultSubjectEntityId = InvalidEntityId;
+
+    WS.ForEachEntityByOwner(PlayerUid, [this](FHktEntityId Id, int32 /*Slot*/)
+    {
+        if (DefaultSubjectEntityId == InvalidEntityId)
+        {
+            DefaultSubjectEntityId = Id;
+        }
+    });
+
+    if (DefaultSubjectEntityId != InvalidEntityId && CachedIntentBuilder)
+    {
+        CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
+        SubjectChangedDelegate.Broadcast(DefaultSubjectEntityId);
+        UE_LOG(LogHktIngamePlayerController, Log, TEXT("ResolveDefaultSubject: DefaultSubjectEntityId=%d PlayerUid=%lld"), DefaultSubjectEntityId, PlayerUid);
     }
 }
 

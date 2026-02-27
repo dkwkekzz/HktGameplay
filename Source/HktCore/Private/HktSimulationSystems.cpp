@@ -5,6 +5,7 @@
 #include "VM/HktVMProgram.h"
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
+#include "VM/HktVMWorldStateProxy.h"
 
 #if WITH_HKT_INSIGHTS
 #include "HktInsightsDataCollector.h"
@@ -35,16 +36,12 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
 
     ScratchRemoveList.Reset();
 
-    for (int32 T = 1; T < HktType::MaxTypes; ++T)
+    for (int64 RemovedId : RemovedOwnerIds)
     {
-        const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
-        for (int64 RemovedId : RemovedOwnerIds)
+        WorldState.ForEachEntityByOwner(RemovedId, [&](FHktEntityId Id, int32 /*Slot*/)
         {
-            Pool.ForEachEntityByOwner(RemovedId, [&](FHktEntityId Id, int32 /*Slot*/)
-            {
-                ScratchRemoveList.Add(Id);
-            });
-        }
+            ScratchRemoveList.Add(Id);
+        });
     }
 
     for (FHktEntityId Id : ScratchRemoveList)
@@ -60,7 +57,8 @@ void FHktVMBuildSystem::Process(
     int32 CurrentFrame,
     FHktVMRuntimePool& Pool,
     TArray<FHktVMHandle>& OutActiveVMs,
-    FHktWorldState& WorldState)
+    FHktWorldState& WorldState,
+    FHktVMWorldStateProxy& VMProxy)
 {
     for (const FHktEvent& Event : Events)
     {
@@ -69,6 +67,23 @@ void FHktVMBuildSystem::Process(
         {
             UE_LOG(LogTemp, Warning, TEXT("VM Build: No program for %s"), *Event.EventTag.ToString());
             continue;
+        }
+
+        // CancelOnDuplicate: 같은 EventTag + SourceEntity의 기존 VM 취소
+        if (Program->bCancelOnDuplicate)
+        {
+            for (int32 i = OutActiveVMs.Num() - 1; i >= 0; --i)
+            {
+                FHktVMRuntime* Existing = Pool.Get(OutActiveVMs[i]);
+                if (Existing && Existing->Program && Existing->Context
+                    && Existing->Program->Tag == Event.EventTag
+                    && Existing->Context->SourceEntity == Event.SourceEntity)
+                {
+                    Existing->Status = EVMStatus::Completed;
+                    UE_LOG(LogTemp, Log, TEXT("VM cancelled (duplicate): %s for Entity %d"),
+                        *Event.EventTag.ToString(), Event.SourceEntity);
+                }
+            }
         }
 
         FHktVMHandle Handle = Pool.Allocate();
@@ -83,6 +98,7 @@ void FHktVMBuildSystem::Process(
         check(Runtime && Context);
 
         Context->WorldState = &WorldState;
+        Context->VMProxy = &VMProxy;
         Context->SourceEntity = Event.SourceEntity;
         Context->TargetEntity = Event.TargetEntity;
 
@@ -96,6 +112,7 @@ void FHktVMBuildSystem::Process(
         Runtime->SpatialQuery.Reset();
         FMemory::Memzero(Runtime->Registers, sizeof(Runtime->Registers));
 
+        Runtime->PlayerUid = Event.PlayerUid;
         Runtime->SetRegEntity(Reg::Self, Event.SourceEntity);
         Runtime->SetRegEntity(Reg::Target, Event.TargetEntity);
 
@@ -193,7 +210,15 @@ void FHktVMProcessSystem::Process(
         }
 
         if (!Runtime->IsRunnable())
+        {
+            // 외부에서 취소된 VM (VMBuildSystem 중복 이벤트 취소 등) 정리
+            if (Runtime->IsTerminated())
+            {
+                OutCompletedVMs.Add(Handle);
+                ActiveVMs.RemoveAtSwap(i);
+            }
             continue;
+        }
 
         Runtime->Status = EVMStatus::Running;
         EVMStatus Result = Interpreter->Execute(*Runtime);
@@ -225,6 +250,68 @@ void FHktVMProcessSystem::Process(
             ActiveVMs.RemoveAtSwap(i);
         }
     }
+}
+
+// ============================================================================
+// 3.5 Movement System
+// ============================================================================
+
+void FHktMovementSystem::Process(
+    FHktWorldState& WorldState,
+    FHktVMWorldStateProxy& VMProxy,
+    float DeltaSeconds,
+    TArray<FHktPendingEvent>& OutMoveEndEvents)
+{
+    OutMoveEndEvents.Reset();
+
+    static constexpr float ArrivalThresholdSq = 4.0f;  // 2cm
+
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
+    {
+        if (WorldState.GetProperty(Id, PropertyId::IsMoving) == 0)
+            return;
+
+        const int32 CurX = WorldState.GetProperty(Id, PropertyId::PosX);
+        const int32 CurY = WorldState.GetProperty(Id, PropertyId::PosY);
+        const int32 CurZ = WorldState.GetProperty(Id, PropertyId::PosZ);
+
+        const int32 TgtX = WorldState.GetProperty(Id, PropertyId::MoveTargetX);
+        const int32 TgtY = WorldState.GetProperty(Id, PropertyId::MoveTargetY);
+        const int32 TgtZ = WorldState.GetProperty(Id, PropertyId::MoveTargetZ);
+
+        const int32 Speed = WorldState.GetProperty(Id, PropertyId::MoveSpeed);
+
+        const float DX = static_cast<float>(TgtX - CurX);
+        const float DY = static_cast<float>(TgtY - CurY);
+        const float DZ = static_cast<float>(TgtZ - CurZ);
+
+        const float DistSq = DX * DX + DY * DY + DZ * DZ;
+        const float StepSize = static_cast<float>(Speed) * DeltaSeconds;
+
+        if (DistSq <= FMath::Max(StepSize * StepSize, ArrivalThresholdSq))
+        {
+            VMProxy.SetPosition(WorldState, Id, TgtX, TgtY, TgtZ);
+            VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::IsMoving, 0);
+
+            FHktPendingEvent Evt;
+            Evt.Type = EWaitEventType::MoveEnd;
+            Evt.WatchedEntity = Id;
+            OutMoveEndEvents.Add(Evt);
+        }
+        else
+        {
+            const float Dist = FMath::Sqrt(DistSq);
+            const float InvDist = 1.0f / Dist;
+            const int32 NewX = CurX + FMath::RoundToInt(DX * InvDist * StepSize);
+            const int32 NewY = CurY + FMath::RoundToInt(DY * InvDist * StepSize);
+            const int32 NewZ = CurZ + FMath::RoundToInt(DZ * InvDist * StepSize);
+
+            VMProxy.SetPosition(WorldState, Id, NewX, NewY, NewZ);
+
+            const int32 YawDeg = FMath::RoundToInt(FMath::Atan2(DY, DX) * (180.0f / PI));
+            VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::RotYaw, YawDeg);
+        }
+    });
 }
 
 // ============================================================================

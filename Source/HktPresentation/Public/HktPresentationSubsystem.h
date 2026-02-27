@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Subsystems/LocalPlayerSubsystem.h"
+#include "GameplayTagContainer.h"
 #include "HktCoreDefs.h"
 #include "HktWorldView.h"
 #include "HktPresentationState.h"
@@ -10,12 +11,16 @@
 #include "Renderers/HktActorRenderer.h"
 #include "Renderers/HktMassEntityRenderer.h"
 #include "Renderers/HktUIRenderer.h"
+#include "Renderers/HktVFXRenderer.h"
 #include "HktPresentationSubsystem.generated.h"
 
 class IHktPlayerInteractionInterface;
 class FHktActorRenderer;
 class FHktMassEntityRenderer;
 class FHktUIRenderer;
+class FHktVFXRenderer;
+struct FHktRuntimeEvent;
+struct FHktVFXIntent;
 
 /** WorldState → PresentationState → Renderer 파이프라인. LocalPlayer당 1개. */
 UCLASS()
@@ -24,18 +29,30 @@ class HKTPRESENTATION_API UHktPresentationSubsystem : public ULocalPlayerSubsyst
 	GENERATED_BODY()
 
 public:
+	static UHktPresentationSubsystem* Get(APlayerController* PC);
+	
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+	// === ULocalPlayerSubsystem ===
+	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
+
+	const FHktPresentationState& GetState() const { return State; }
+
+	/** 월드 위치에 VFX 재생 (클라이언트 즉시, 서버 무관) */
+	void PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location);
+
+	/** Intent 기반 VFX 재생 (AssetBank 퍼지 매칭 + RuntimeOverrides) */
+	void PlayVFXWithIntent(const FHktVFXIntent& Intent);
+
+private:
 	/** PlayerController 바인딩 (BeginPlay 등에서 호출) */
 	void BindInteraction(IHktPlayerInteractionInterface* InInteraction);
 	void UnbindInteraction();
 
-	const FHktPresentationState& GetState() const { return State; }
-
-private:
 	void OnWorldViewUpdated(const FHktWorldView& View);
+	void OnIntentSubmitted(const FHktRuntimeEvent& Event);
 	void ProcessInitialSync(const FHktWorldView& View);
 	void ProcessDiff(const FHktWorldView& View);
 	void SyncRenderers();
@@ -44,8 +61,10 @@ private:
 	TUniquePtr<FHktActorRenderer> ActorRenderer;
 	TUniquePtr<FHktMassEntityRenderer> MassEntityRenderer;
 	TUniquePtr<FHktUIRenderer> UIRenderer;
+	TUniquePtr<FHktVFXRenderer> VFXRenderer;
 
 	IHktPlayerInteractionInterface* BoundInteraction = nullptr;
 	FDelegateHandle WorldViewHandle;
+	FDelegateHandle IntentSubmittedHandle;
 	bool bInitialSyncDone = false;
 };

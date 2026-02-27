@@ -50,10 +50,6 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
         {
             CachedWorldDatabase = WD;
         }
-        else if (IHktSimulationEventBuilder* SEB = Cast<IHktSimulationEventBuilder>(Comp))
-        {
-            CachedSimulationEventBuilder = SEB;
-        }
     }
 
     // Rule에 컨텍스트 바인딩 (item 2)
@@ -109,12 +105,20 @@ void AHktGameMode::Tick(float DeltaSeconds)
 
     for (const FGroupEventSend& GroupSend : TickResult.EventSends)
     {
-        const TArray<IHktWorldPlayer*>& Existing = *GroupSend.Existing;
-        for (IHktWorldPlayer* Player : Existing)
+        const FHktSimulationEvent& Batch = GroupSend.Batch;
+        const bool bHasContent = Batch.NewEvents.Num() > 0
+            || Batch.NewEntityStates.Num() > 0
+            || Batch.RemovedOwnerIds.Num() > 0;
+
+        if (bHasContent)
         {
-            if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Player->GetOwnerActor()))
+            const TArray<IHktWorldPlayer*>& Existing = *GroupSend.Existing;
+            for (IHktWorldPlayer* Player : Existing)
             {
-                PC->Client_ReceiveFrameBatch(HktRuntimeConverter::ConvertToBatch(GroupSend.Batch));
+                if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Player->GetOwnerActor()))
+                {
+                    PC->Client_ReceiveFrameBatch(HktRuntimeConverter::ConvertToBatch(Batch));
+                }
             }
         }
 
@@ -271,7 +275,9 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
             for (int32 i = 0; i < NumGroups; ++i)
             {
                 const IHktRelevancyGroup& Group = Graph->GetRelevancyGroup(i);
-                const FHktWorldState& WS = Group.GetWorldState();
+                const IHktAuthoritySimulator& Simulator = Group.GetSimulator();
+
+                const FHktWorldState& WS = Simulator.GetWorldState();
 
                 const FString SourceName = (NumGroups == 1)
                     ? TEXT("Server")
@@ -302,8 +308,6 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
             CachedRelevancyGraph ? TEXT("OK") : TEXT("NULL"));
         OutSnapshot.AddInfo(Cat, TEXT("PlayerDatabase"),
             CachedWorldDatabase ? TEXT("OK") : TEXT("NULL"));
-        OutSnapshot.AddInfo(Cat, TEXT("SimulationEventBuilder"),
-            CachedSimulationEventBuilder ? TEXT("OK") : TEXT("NULL"));
     }
 }
 #endif

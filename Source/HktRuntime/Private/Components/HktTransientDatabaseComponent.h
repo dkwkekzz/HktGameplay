@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Misc/Optional.h"
 #include "Components/ActorComponent.h"
-#include "HktDatabaseTypes.h"
 #include "HktServerRuleInterfaces.h"
 #include "HktTransientDatabaseComponent.generated.h"
 

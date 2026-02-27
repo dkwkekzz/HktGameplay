@@ -13,6 +13,9 @@
  */
 struct HKTCORE_API FHktWorldView
 {
+	FHktWorldView();
+	~FHktWorldView();
+
 	// === 원본 데이터 (Zero Copy) ===
 	const FHktWorldState* WorldState = nullptr;
 
@@ -20,6 +23,8 @@ struct HKTCORE_API FHktWorldView
 	const TArray<FHktEntityState>* SpawnedEntities = nullptr;
 	const TArray<FHktEntityId>* RemovedEntities = nullptr;
 	const TArray<FHktPropertyDelta>* PropertyDeltas = nullptr;
+	const TArray<FHktTagDelta>* TagDeltas = nullptr;
+	const TArray<FHktOwnerDelta>* OwnerDeltas = nullptr;
 
 	// === 메타 ===
 	int64 FrameNumber = 0;
@@ -70,5 +75,21 @@ struct HKTCORE_API FHktWorldView
 		if (RemovedEntities)
 			for (FHktEntityId Id : *RemovedEntities)
 				Cb(Id);
+	}
+
+	template<typename F>
+	void ForEachTagDelta(F&& Cb) const
+	{
+		if (TagDeltas)
+			for (const FHktTagDelta& TD : *TagDeltas)
+				Cb(TD.EntityId, TD.Tags, TD.OldTags);
+	}
+
+	template<typename F>
+	void ForEachOwnerDelta(F&& Cb) const
+	{
+		if (OwnerDeltas)
+			for (const FHktOwnerDelta& OD : *OwnerDeltas)
+				Cb(OD.EntityId, OD.NewOwnerUid);
 	}
 };

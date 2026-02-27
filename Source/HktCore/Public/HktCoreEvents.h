@@ -4,13 +4,7 @@
 
 #include "HktCoreDefs.h"
 #include "GameplayTagContainer.h"
-
-static FArchive& operator<<(FArchive& Ar, FGameplayTagContainer& Tags)
-{
-    bool bSuccess = false;
-    Tags.NetSerialize(Ar, nullptr, bSuccess);
-    return Ar;
-}
+#include "UObject/NoExportTypes.h"
 
 // ============================================================================
 // Inline Payload — 이벤트 내 가변 데이터 컨테이너
@@ -59,6 +53,20 @@ struct FHktInlinePayload
         if (P.Size > 0) Ar.Serialize(P.Data, P.Size);
         return Ar;
     }
+
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+    {
+        Ar << Size;
+        if (Size > 0) Ar.Serialize(Data, Size);
+        bOutSuccess = true;
+        return true;
+    }
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktInlinePayload> : public TStructOpsTypeTraitsBase2<FHktInlinePayload>
+{
+    enum { WithNetSerializer = true };
 };
 
 // ============================================================================
@@ -72,19 +80,20 @@ struct HKTCORE_API FHktEvent
     FHktEntityId SourceEntity = InvalidEntityId;
     FHktEntityId TargetEntity = InvalidEntityId;
     FVector Location = FVector::ZeroVector;
+    int64 PlayerUid = 0;
     int32 Param0 = 0;
     int32 Param1 = 0;
 
     FString ToString() const
     {
-        return FString::Printf(TEXT("EventId=%d Tag=%s Src=%d Tgt=%d"),
-            EventId, *EventTag.ToString(), SourceEntity, TargetEntity);
+        return FString::Printf(TEXT("EventId=%d Tag=%s Src=%d Tgt=%d PlayerUid=%lld"),
+            EventId, *EventTag.ToString(), SourceEntity, TargetEntity, PlayerUid);
     }
 
     friend FArchive& operator<<(FArchive& Ar, FHktEvent& E)
     {
         Ar << E.EventId << E.SourceEntity << E.EventTag;
-        Ar << E.TargetEntity << E.Location << E.Param0 << E.Param1;
+        Ar << E.TargetEntity << E.Location << E.PlayerUid << E.Param0 << E.Param1;
         return Ar;
     }
 };
@@ -101,12 +110,21 @@ struct HKTCORE_API FHktEntityState
     FHktTypeId TypeId = HktType::None;
     TArray<int32> Data;
     FGameplayTagContainer Tags;
+    int64 OwnerUid = 0;
 
-    friend FArchive& operator<<(FArchive& Ar, FHktEntityState& S)
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
-        Ar << S.EntityId << S.TypeId << S.Data << S.Tags;
-        return Ar;
+        Ar << EntityId << TypeId << Data;
+        Tags.NetSerialize(Ar, Map, bOutSuccess);
+        Ar << OwnerUid;
+        return true;
     }
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktEntityState> : public TStructOpsTypeTraitsBase2<FHktEntityState>
+{
+    enum { WithNetSerializer = true };
 };
 
 // ============================================================================
@@ -135,13 +153,18 @@ struct HKTCORE_API FHktSimulationEvent
         NewEntityStates.Reset();  // ← 추가
     }
 
-    friend FArchive& operator<<(FArchive& Ar, FHktSimulationEvent& E)
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
-        Ar << E.FrameNumber << E.RandomSeed << E.DeltaSeconds;
-        Ar << E.RemovedOwnerIds << E.NewEvents;
-        Ar << E.NewEntityStates;  // ← 추가
-        return Ar;
+        Ar << FrameNumber << RandomSeed << DeltaSeconds << RemovedOwnerIds << NewEvents;
+        bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, NewEntityStates, Map);
+        return bOutSuccess;
     }
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktSimulationEvent> : public TStructOpsTypeTraitsBase2<FHktSimulationEvent>
+{
+    enum { WithNetSerializer = true };
 };
 
 // ============================================================================
@@ -172,9 +195,34 @@ struct HKTCORE_API FHktTagDelta
     FGameplayTagContainer Tags;
     FGameplayTagContainer OldTags;
 
-    friend FArchive& operator<<(FArchive& Ar, FHktTagDelta& D)
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
-        Ar << D.EntityId << D.Tags << D.OldTags;
+        Ar << EntityId;
+        Tags.NetSerialize(Ar, Map, bOutSuccess);
+        OldTags.NetSerialize(Ar, Map, bOutSuccess);
+        return bOutSuccess;
+    }
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktTagDelta> : public TStructOpsTypeTraitsBase2<FHktTagDelta>
+{
+    enum { WithNetSerializer = true };
+};
+
+// ============================================================================
+// FHktOwnerDelta — 엔티티 소유권 변경
+// ============================================================================
+
+struct HKTCORE_API FHktOwnerDelta
+{
+    FHktEntityId EntityId = InvalidEntityId;
+    int64 NewOwnerUid = 0;
+    int64 OldOwnerUid = 0;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktOwnerDelta& D)
+    {
+        Ar << D.EntityId << D.NewOwnerUid << D.OldOwnerUid;
         return Ar;
     }
 };
@@ -186,19 +234,29 @@ struct HKTCORE_API FHktTagDelta
 struct HKTCORE_API FHktSimulationDiff
 {
     int64 FrameNumber = 0;
-    TArray<FHktEntityState> SpawnedEntities;
     TArray<FHktEntityId> RemovedEntities;
-    TArray<FHktEntityState> RemovedEntityStates;  // 제거된 엔티티 전체 상태 (UndoDiff 복원용)
     TArray<FHktPropertyDelta> PropertyDeltas;
-    TArray<FHktTagDelta> TagDeltas;
     FHktEntityId PrevNextEntityId = InvalidEntityId;  // 이 프레임 실행 전 NextEntityId (Undo 시 복원)
+    TArray<FHktEntityState> SpawnedEntities;
+    TArray<FHktEntityState> RemovedEntityStates;  // 제거된 엔티티 전체 상태 (UndoDiff 복원용)
+    TArray<FHktTagDelta> TagDeltas;
+    TArray<FHktOwnerDelta> OwnerDeltas;
 
-    friend FArchive& operator<<(FArchive& Ar, FHktSimulationDiff& D)
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
-        Ar << D.FrameNumber << D.SpawnedEntities << D.RemovedEntities
-           << D.RemovedEntityStates << D.PropertyDeltas << D.TagDeltas << D.PrevNextEntityId;
-        return Ar;
+        Ar << FrameNumber << RemovedEntities << PropertyDeltas << PrevNextEntityId;
+        bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, SpawnedEntities, Map);
+        bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, RemovedEntityStates, Map);
+        bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, TagDeltas, Map);
+        Ar << OwnerDeltas;
+        return true;
     }
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktSimulationDiff> : public TStructOpsTypeTraitsBase2<FHktSimulationDiff>
+{
+    enum { WithNetSerializer = true };
 };
 
 // ============================================================================
@@ -208,12 +266,19 @@ struct HKTCORE_API FHktSimulationDiff
 struct HKTCORE_API FHktPlayerState
 {
     int64 PlayerUid = 0;
-    TArray<FHktEntityState> OwnedEntities;
     TArray<FHktEvent> ActiveEvents;
+    TArray<FHktEntityState> OwnedEntities;
 
-    friend FArchive& operator<<(FArchive& Ar, FHktPlayerState& S)
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
-        Ar << S.PlayerUid << S.OwnedEntities << S.ActiveEvents;
-        return Ar;
+        Ar << PlayerUid << ActiveEvents;
+        bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, OwnedEntities, Map);
+        return true;
     }
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktPlayerState> : public TStructOpsTypeTraitsBase2<FHktPlayerState>
+{
+    enum { WithNetSerializer = true };
 };

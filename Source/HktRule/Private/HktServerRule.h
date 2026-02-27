@@ -44,4 +44,6 @@ private:
     TQueue<FPendingLoginResult, EQueueMode::Mpsc> PendingLoginResults;
     TQueue<int64, EQueueMode::Mpsc>               PendingLogoutRequests;
 	TArray<TArray<FHktEvent>>                     PendingGroupIntents;
+
+	int32 ServerEventSequence = 0;
 };

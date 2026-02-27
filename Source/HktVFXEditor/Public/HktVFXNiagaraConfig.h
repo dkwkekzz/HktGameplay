@@ -7,29 +7,29 @@
 
 class UNiagaraSystem;
 class UTexture2D;
-struct FVFXNiagaraConfig;
+struct FHktVFXNiagaraConfig;
 
 // ============================================================================
 // 델리게이트
 // ============================================================================
 
-using FTextureMap = TMap<FString, UTexture2D*>;
+using FHktTextureMap = TMap<FString, UTexture2D*>;
 
-DECLARE_DELEGATE_TwoParams(FOnLLMResponse, bool /*bSuccess*/, const FVFXNiagaraConfig& /*Config*/);
-DECLARE_DELEGATE_TwoParams(FOnAllTexturesGenerated, bool /*bSuccess*/, const FTextureMap& /*Textures*/);
-DECLARE_DELEGATE_TwoParams(FOnTextureGenerated, bool /*bSuccess*/, UTexture2D* /*Texture*/);
+DECLARE_DELEGATE_TwoParams(FOnHktLLMResponse, bool /*bSuccess*/, const FHktVFXNiagaraConfig& /*Config*/);
+DECLARE_DELEGATE_TwoParams(FOnHktAllTexturesGenerated, bool /*bSuccess*/, const FHktTextureMap& /*Textures*/);
+DECLARE_DELEGATE_TwoParams(FOnHktTextureGenerated, bool /*bSuccess*/, UTexture2D* /*Texture*/);
 
 // ============================================================================
 // 커브 포인트
 // ============================================================================
 
-struct HKTVFXEDITOR_API FVFXCurvePoint
+struct HKTVFXEDITOR_API FHktVFXCurvePoint
 {
 	float Time = 0.f;
 	float Value = 0.f;
 };
 
-struct HKTVFXEDITOR_API FVFXColorCurvePoint
+struct HKTVFXEDITOR_API FHktVFXColorCurvePoint
 {
 	float Time = 0.f;
 	FLinearColor Color = FLinearColor::White;
@@ -39,7 +39,7 @@ struct HKTVFXEDITOR_API FVFXColorCurvePoint
 // 에미터 Spawn / Init / Update / Render
 // ============================================================================
 
-struct HKTVFXEDITOR_API FVFXEmitterSpawnConfig
+struct HKTVFXEDITOR_API FHktVFXEmitterSpawnConfig
 {
 	FString Mode = TEXT("burst");
 	float Rate = 0.f;
@@ -47,7 +47,7 @@ struct HKTVFXEDITOR_API FVFXEmitterSpawnConfig
 	float BurstDelay = 0.f;
 };
 
-struct HKTVFXEDITOR_API FVFXEmitterInitConfig
+struct HKTVFXEDITOR_API FHktVFXEmitterInitConfig
 {
 	float LifetimeMin = 0.5f;
 	float LifetimeMax = 1.0f;
@@ -59,13 +59,13 @@ struct HKTVFXEDITOR_API FVFXEmitterInitConfig
 	FLinearColor ColorVariation = FLinearColor::Black;
 };
 
-struct HKTVFXEDITOR_API FVFXEmitterUpdateConfig
+struct HKTVFXEDITOR_API FHktVFXEmitterUpdateConfig
 {
 	FVector Gravity = FVector(0.f, 0.f, -980.f);
 	float Drag = 0.f;
-	TArray<FVFXCurvePoint> SizeCurve;
-	TArray<FVFXColorCurvePoint> ColorCurve;
-	TArray<FVFXCurvePoint> OpacityCurve;
+	TArray<FHktVFXCurvePoint> SizeCurve;
+	TArray<FHktVFXColorCurvePoint> ColorCurve;
+	TArray<FHktVFXCurvePoint> OpacityCurve;
 	float RotationRateMin = 0.f;
 	float RotationRateMax = 0.f;
 	bool bOrbitCenter = false;
@@ -77,7 +77,7 @@ struct HKTVFXEDITOR_API FVFXEmitterUpdateConfig
 	float NoiseFrequency = 1.f;
 };
 
-struct HKTVFXEDITOR_API FVFXEmitterRenderConfig
+struct HKTVFXEDITOR_API FHktVFXEmitterRenderConfig
 {
 	FString RendererType = TEXT("sprite");
 	FString BlendMode = TEXT("additive");
@@ -94,21 +94,21 @@ struct HKTVFXEDITOR_API FVFXEmitterRenderConfig
 // 단일 에미터 설정
 // ============================================================================
 
-struct HKTVFXEDITOR_API FVFXEmitterConfig
+struct HKTVFXEDITOR_API FHktVFXEmitterConfig
 {
 	FString Name;
 	FString Purpose;
-	FVFXEmitterSpawnConfig Spawn;
-	FVFXEmitterInitConfig Init;
-	FVFXEmitterUpdateConfig Update;
-	FVFXEmitterRenderConfig Render;
+	FHktVFXEmitterSpawnConfig Spawn;
+	FHktVFXEmitterInitConfig Init;
+	FHktVFXEmitterUpdateConfig Update;
+	FHktVFXEmitterRenderConfig Render;
 };
 
 // ============================================================================
 // 텍스처 생성 요청 (LLM이 지정)
 // ============================================================================
 
-struct HKTVFXEDITOR_API FVFXTextureRequest
+struct HKTVFXEDITOR_API FHktVFXTextureRequest
 {
 	FString EmitterName;
 	FString Prompt;
@@ -121,12 +121,12 @@ struct HKTVFXEDITOR_API FVFXTextureRequest
 // Niagara 시스템 전체 설정 (LLM JSON → 파싱 결과)
 // ============================================================================
 
-struct HKTVFXEDITOR_API FVFXNiagaraConfig
+struct HKTVFXEDITOR_API FHktVFXNiagaraConfig
 {
 	FString SystemName;
 	FString DesignNotes;
-	TArray<FVFXEmitterConfig> Emitters;
-	TArray<FVFXTextureRequest> TextureRequests;
+	TArray<FHktVFXEmitterConfig> Emitters;
+	TArray<FHktVFXTextureRequest> TextureRequests;
 	TArray<FString> ExposedParameters;
 
 	bool IsValid() const { return Emitters.Num() > 0; }

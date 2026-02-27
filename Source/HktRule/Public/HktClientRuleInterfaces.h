@@ -110,7 +110,7 @@ public:
 
 	/** 내부 캐싱된 Simulator 사용 */
 	virtual void OnReceived_InitialState(const FHktWorldState& InState) {}
-	virtual FHktSimulationDiff OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) { return {}; }
+	virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) {}
 };
 
 namespace HktRule

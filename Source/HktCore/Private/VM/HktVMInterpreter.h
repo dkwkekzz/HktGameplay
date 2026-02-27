@@ -9,6 +9,7 @@
 
 // Forward declarations
 struct FHktWorldState;
+struct FHktVMWorldStateProxy;
 
 /**
  * FHktVMInterpreter - 바이트코드 인터프리터 (Pure C++)
@@ -19,8 +20,8 @@ struct FHktWorldState;
 class HKTCORE_API FHktVMInterpreter
 {
 public:
-    /** WorldState를 직접 참조 (Stash 대체) */
-    void Initialize(FHktWorldState* InWorldState);
+    /** WorldState 및 VMProxy 참조 초기화 */
+    void Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy);
 
     /** VM을 yield/완료/실패까지 실행 */
     EVMStatus Execute(FHktVMRuntime& Runtime);
@@ -39,6 +40,7 @@ private:
 
     // ===== Event Wait =====
     EVMStatus Op_WaitCollision(FHktVMRuntime& Runtime, RegisterIndex WatchEntity);
+    EVMStatus Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity);
 
     // ===== Data Operations =====
     void Op_LoadConst(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 Value);
@@ -115,4 +117,5 @@ private:
     static constexpr int32 MaxInstructionsPerTick = 10000;
 
     FHktWorldState* WorldState = nullptr;
+    FHktVMWorldStateProxy* VMProxy = nullptr;
 };

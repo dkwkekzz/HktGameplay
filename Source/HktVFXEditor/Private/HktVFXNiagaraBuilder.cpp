@@ -1,16 +1,12 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 // Config → 실제 UNiagaraSystem 에셋 빌드
 
-#include "VFXNiagaraBuilder.h"
+#include "HktVFXNiagaraBuilder.h"
 
 #include "NiagaraSystem.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
-#include "NiagaraScriptSourceBase.h"
-#include "NiagaraEditorModule.h"
-#include "NiagaraNodeFunctionCall.h"
 #include "NiagaraParameterStore.h"
-#include "NiagaraComponent.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraSpriteRendererProperties.h"
 #include "NiagaraRibbonRendererProperties.h"
@@ -26,14 +22,12 @@
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/SavePackage.h"
-#include "Factories/MaterialFactoryNew.h"
-#include "PackageTools.h"
 
 // ============================================================================
 // 메인 빌드 엔트리
 // ============================================================================
-UNiagaraSystem* FVFXNiagaraBuilder::BuildNiagaraSystem(
-    const FVFXNiagaraConfig& Config,
+UNiagaraSystem* FHktVFXNiagaraBuilder::BuildNiagaraSystem(
+    const FHktVFXNiagaraConfig& Config,
     const TMap<FString, UTexture2D*>& Textures,
     const FString& OutputDirectory)
 {
@@ -64,13 +58,10 @@ UNiagaraSystem* FVFXNiagaraBuilder::BuildNiagaraSystem(
         return nullptr;
     }
 
-    // 시스템 초기 설정
-    System->SetAutoDestroy(true);
-
     // 2. 각 에미터 구성
     for (int32 i = 0; i < Config.Emitters.Num(); ++i)
     {
-        const FVFXEmitterConfig& EmitterConfig = Config.Emitters[i];
+        const FHktVFXEmitterConfig& EmitterConfig = Config.Emitters[i];
         UTexture2D* Texture = Textures.FindRef(EmitterConfig.Name);
 
         UE_LOG(LogTemp, Log, TEXT("[NiagaraBuilder] Building emitter %d: %s (purpose: %s)"),
@@ -104,78 +95,81 @@ UNiagaraSystem* FVFXNiagaraBuilder::BuildNiagaraSystem(
 // ============================================================================
 // 에미터 전체 구성
 // ============================================================================
-void FVFXNiagaraBuilder::ConfigureEmitter(
+void FHktVFXNiagaraBuilder::ConfigureEmitter(
     UNiagaraSystem* System,
     int32 EmitterIndex,
-    const FVFXEmitterConfig& Config,
+    const FHktVFXEmitterConfig& Config,
     UTexture2D* Texture)
 {
     /*
      * UE5 Niagara 에디터 API를 통한 에미터 구성
      *
      * 핵심 패턴:
-     * 1. 템플릿 에미터를 기반으로 새 에미터 추가
+     * 1. 템플릿 에미터를 기반으로 새 에미터 추가 (또는 기존 에미터 수정)
      * 2. 모듈별 파라미터 오버라이드
      * 3. 렌더러 프로퍼티 설정
      *
      * NOTE: UE5 버전에 따라 Niagara 에디터 API가 다를 수 있음.
-     * 아래는 UE 5.3+ 기준이며, 5.6에서 동작 확인 필요.
-     * FNiagaraEditorModule의 CreateEmitter 또는 직접 UNiagaraEmitter 생성을 사용.
      */
 
-    // --- 방법 A: 기본 템플릿 기반 (권장) ---
-    // Niagara의 내장 Simple Sprite Burst / Simple Sprite Rate 템플릿 활용
-
+    // --- 렌더러 타입에 따라 적절한 템플릿 에미터 선택 ---
     FString TemplatePath;
     if (Config.Render.RendererType == TEXT("ribbon"))
     {
-        TemplatePath = TEXT("/Niagara/Templates/SimpleRibbon");
+        TemplatePath = TEXT("/Niagara/DefaultAssets/Templates/Systems/SimpleRibbon.SimpleRibbon");
+    }
+    else if (Config.Render.RendererType == TEXT("mesh"))
+    {
+        TemplatePath = TEXT("/Niagara/DefaultAssets/Templates/Systems/SimpleMeshEmitter.SimpleMeshEmitter");
     }
     else if (Config.Render.RendererType == TEXT("light"))
     {
-        TemplatePath = TEXT("/Niagara/Templates/SimpleLight");
+        TemplatePath = TEXT("/Niagara/DefaultAssets/Templates/Systems/SimpleLights.SimpleLights");
     }
-    else
+    else // "sprite" (기본)
     {
-        // Sprite 기본
-        if (Config.Spawn.Mode == TEXT("burst"))
-            TemplatePath = TEXT("/Niagara/Templates/SimpleSpriteBurst");
-        else
-            TemplatePath = TEXT("/Niagara/Templates/SimpleSpriteRate");
+        TemplatePath = TEXT("/Niagara/DefaultAssets/Templates/Systems/SimpleSpriteEmitter.SimpleSpriteEmitter");
     }
 
-    // 템플릿 로드
+    // 템플릿 에미터 로드
     UNiagaraEmitter* TemplateEmitter = LoadObject<UNiagaraEmitter>(nullptr, *TemplatePath);
     if (!TemplateEmitter)
     {
-        // 폴백: 기본 빈 에미터
-        UE_LOG(LogTemp, Warning, TEXT("[NiagaraBuilder] Template not found: %s, using default"),
-            *TemplatePath);
-        TemplatePath = TEXT("/Niagara/Templates/SimpleSpriteBurst");
+        // 폴백: 기본 스프라이트 템플릿
+        TemplatePath = TEXT("/Niagara/DefaultAssets/Templates/Systems/SimpleSpriteEmitter.SimpleSpriteEmitter");
         TemplateEmitter = LoadObject<UNiagaraEmitter>(nullptr, *TemplatePath);
     }
 
     if (!TemplateEmitter)
     {
-        UE_LOG(LogTemp, Error, TEXT("[NiagaraBuilder] Cannot load any emitter template"));
+        UE_LOG(LogTemp, Error, TEXT("[NiagaraBuilder] Failed to load template emitter: %s"), *TemplatePath);
         return;
     }
 
-    // 시스템에 에미터 추가
-    FNiagaraEmitterHandle EmitterHandle = System->AddEmitterHandle(*TemplateEmitter, FName(*Config.Name));
+    // --- 시스템에 에미터 핸들 추가 ---
+    // UNiagaraSystem에 에미터를 복사해서 추가
+    FName EmitterName = FName(*Config.Name);
+    FNiagaraEmitterHandle EmitterHandle = System->AddEmitterHandle(
+        *TemplateEmitter, EmitterName, FGuid());
 
-    // 각 모듈 설정
-    SetupSpawnModule(System, EmitterIndex, Config.Spawn);
-    SetupInitializeModule(System, EmitterIndex, Config.Init);
-    SetupUpdateModules(System, EmitterIndex, Config.Update);
-    SetupRenderer(System, EmitterIndex, Config.Render, Texture);
+    UE_LOG(LogTemp, Log, TEXT("[NiagaraBuilder] Added emitter '%s' from template '%s'"),
+        *Config.Name, *TemplatePath);
+
+    // --- 실제 EmitterIndex는 방금 추가한 핸들의 인덱스 ---
+    int32 ActualIndex = System->GetEmitterHandles().Num() - 1;
+
+    // --- 모듈별 파라미터 오버라이드 ---
+    SetupSpawnModule(System, ActualIndex, Config.Spawn);
+    SetupInitializeModule(System, ActualIndex, Config.Init);
+    SetupUpdateModules(System, ActualIndex, Config.Update);
+    SetupRenderer(System, ActualIndex, Config.Render, Texture);
 }
 
 // ============================================================================
 // 스폰 설정
 // ============================================================================
-void FVFXNiagaraBuilder::SetupSpawnModule(UNiagaraSystem* System, int32 EmitterIndex,
-    const FVFXEmitterSpawnConfig& Config)
+void FHktVFXNiagaraBuilder::SetupSpawnModule(UNiagaraSystem* System, int32 EmitterIndex,
+    const FHktVFXEmitterSpawnConfig& Config)
 {
     if (Config.Mode == TEXT("rate"))
     {
@@ -199,8 +193,8 @@ void FVFXNiagaraBuilder::SetupSpawnModule(UNiagaraSystem* System, int32 EmitterI
 // ============================================================================
 // 초기화 설정
 // ============================================================================
-void FVFXNiagaraBuilder::SetupInitializeModule(UNiagaraSystem* System, int32 EmitterIndex,
-    const FVFXEmitterInitConfig& Config)
+void FHktVFXNiagaraBuilder::SetupInitializeModule(UNiagaraSystem* System, int32 EmitterIndex,
+    const FHktVFXEmitterInitConfig& Config)
 {
     const FString Module = TEXT("InitializeParticle");
 
@@ -225,8 +219,8 @@ void FVFXNiagaraBuilder::SetupInitializeModule(UNiagaraSystem* System, int32 Emi
 // ============================================================================
 // 업데이트 모듈 설정
 // ============================================================================
-void FVFXNiagaraBuilder::SetupUpdateModules(UNiagaraSystem* System, int32 EmitterIndex,
-    const FVFXEmitterUpdateConfig& Config)
+void FHktVFXNiagaraBuilder::SetupUpdateModules(UNiagaraSystem* System, int32 EmitterIndex,
+    const FHktVFXEmitterUpdateConfig& Config)
 {
     // Gravity
     if (!Config.Gravity.IsNearlyZero())
@@ -324,8 +318,8 @@ void FVFXNiagaraBuilder::SetupUpdateModules(UNiagaraSystem* System, int32 Emitte
 // ============================================================================
 // 렌더러 설정
 // ============================================================================
-void FVFXNiagaraBuilder::SetupRenderer(UNiagaraSystem* System, int32 EmitterIndex,
-    const FVFXEmitterRenderConfig& Config, UTexture2D* Texture)
+void FHktVFXNiagaraBuilder::SetupRenderer(UNiagaraSystem* System, int32 EmitterIndex,
+    const FHktVFXEmitterRenderConfig& Config, UTexture2D* Texture)
 {
     /*
      * 렌더러 타입에 따라 적절한 Properties 클래스를 설정
@@ -337,11 +331,11 @@ void FVFXNiagaraBuilder::SetupRenderer(UNiagaraSystem* System, int32 EmitterInde
     const auto& EmitterHandles = System->GetEmitterHandles();
     if (!EmitterHandles.IsValidIndex(EmitterIndex)) return;
 
-    UNiagaraEmitter* Emitter = EmitterHandles[EmitterIndex].GetInstance().Emitter;
-    if (!Emitter) return;
+    FVersionedNiagaraEmitterData* EmitterData = EmitterHandles[EmitterIndex].GetEmitterData();
+    if (!EmitterData) return;
 
     // 렌더러 프로퍼티 가져오기
-    auto& RendererProperties = Emitter->GetRenderers();
+    const auto& RendererProperties = EmitterData->GetRenderers();
     if (RendererProperties.Num() == 0) return;
 
     UNiagaraRendererProperties* Renderer = RendererProperties[0];
@@ -416,7 +410,7 @@ void FVFXNiagaraBuilder::SetupRenderer(UNiagaraSystem* System, int32 EmitterInde
 // ============================================================================
 // VFX 머티리얼 생성
 // ============================================================================
-UMaterialInterface* FVFXNiagaraBuilder::GetOrCreateVFXMaterial(
+UMaterialInterface* FHktVFXNiagaraBuilder::GetOrCreateVFXMaterial(
     const FString& BlendMode, const FString& TextureStyle,
     UTexture2D* Texture, const FString& OutputDir)
 {
@@ -466,7 +460,7 @@ UMaterialInterface* FVFXNiagaraBuilder::GetOrCreateVFXMaterial(
 // ============================================================================
 // Exposed Parameters 설정
 // ============================================================================
-void FVFXNiagaraBuilder::SetupExposedParameters(UNiagaraSystem* System,
+void FHktVFXNiagaraBuilder::SetupExposedParameters(UNiagaraSystem* System,
     const TArray<FString>& ParameterNames)
 {
     /*
@@ -506,7 +500,7 @@ void FVFXNiagaraBuilder::SetupExposedParameters(UNiagaraSystem* System,
 // ============================================================================
 // 파라미터 설정 유틸리티
 // ============================================================================
-void FVFXNiagaraBuilder::SetNiagaraVariableFloat(
+void FHktVFXNiagaraBuilder::SetNiagaraVariableFloat(
     UNiagaraSystem* System, int32 EmitterIndex,
     const FString& ModuleName, const FString& ParamName, float Value)
 {
@@ -526,7 +520,7 @@ void FVFXNiagaraBuilder::SetNiagaraVariableFloat(
     if (!EmitterHandles.IsValidIndex(EmitterIndex)) return;
 
     FVersionedNiagaraEmitterData* EmitterData =
-        EmitterHandles[EmitterIndex].GetInstance().GetLatestEmitterData();
+        EmitterHandles[EmitterIndex].GetEmitterData();
     if (!EmitterData) return;
 
     // RapidIterationParameters에서 매칭되는 변수 찾기
@@ -550,7 +544,7 @@ void FVFXNiagaraBuilder::SetNiagaraVariableFloat(
     }
 }
 
-void FVFXNiagaraBuilder::SetNiagaraVariableVec3(
+void FHktVFXNiagaraBuilder::SetNiagaraVariableVec3(
     UNiagaraSystem* System, int32 EmitterIndex,
     const FString& ModuleName, const FString& ParamName, FVector Value)
 {
@@ -558,7 +552,7 @@ void FVFXNiagaraBuilder::SetNiagaraVariableVec3(
     if (!EmitterHandles.IsValidIndex(EmitterIndex)) return;
 
     FVersionedNiagaraEmitterData* EmitterData =
-        EmitterHandles[EmitterIndex].GetInstance().GetLatestEmitterData();
+        EmitterHandles[EmitterIndex].GetEmitterData();
     if (!EmitterData) return;
 
     FString FullParamName = FString::Printf(TEXT("%s.%s.%s"),
@@ -581,7 +575,7 @@ void FVFXNiagaraBuilder::SetNiagaraVariableVec3(
     }
 }
 
-void FVFXNiagaraBuilder::SetNiagaraVariableColor(
+void FHktVFXNiagaraBuilder::SetNiagaraVariableColor(
     UNiagaraSystem* System, int32 EmitterIndex,
     const FString& ModuleName, const FString& ParamName, FLinearColor Value)
 {
@@ -589,7 +583,7 @@ void FVFXNiagaraBuilder::SetNiagaraVariableColor(
     if (!EmitterHandles.IsValidIndex(EmitterIndex)) return;
 
     FVersionedNiagaraEmitterData* EmitterData =
-        EmitterHandles[EmitterIndex].GetInstance().GetLatestEmitterData();
+        EmitterHandles[EmitterIndex].GetEmitterData();
     if (!EmitterData) return;
 
     FString FullParamName = FString::Printf(TEXT("%s.%s.%s"),

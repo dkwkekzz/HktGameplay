@@ -37,20 +37,20 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
 
     if (!bInitialized) return;
 
-    // 서버 Batch가 있으면 로컬 예측 건너뛰고 바로 조정 처리
-    // (어차피 Diff 역적용으로 롤백되므로 로컬 예측은 낭비)
-    if (PendingServerBatches.Num() > 0)
+    // 서버 Batch 없을 때만 고정 타임스텝 로컬 예측 실행
+    FrameAccumulator += DeltaTime;
+    while (FrameAccumulator >= FixedDeltaTime)
     {
-        ProcessPendingServerBatches();
-        FrameAccumulator = 0.0f;
-    }
-    else
-    {
-        // 서버 Batch 없을 때만 고정 타임스텝 로컬 예측 실행
-        FrameAccumulator += DeltaTime;
-        while (FrameAccumulator >= FixedDeltaTime)
+        FrameAccumulator -= FixedDeltaTime;
+
+        // 서버 Batch가 있으면 로컬 예측 건너뛰고 바로 조정 처리
+        // (어차피 Diff 역적용으로 롤백되므로 로컬 예측은 낭비)
+        if (PendingServerBatches.Num() > 0)
         {
-            FrameAccumulator -= FixedDeltaTime;
+            ProcessPendingServerBatches();
+        }
+        else
+        {
             AdvanceLocalFrame(FixedDeltaTime);
         }
     }
@@ -63,8 +63,18 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     FHktSimulationEvent LocalBatch = BuildLocalBatch(LocalFrame, DeltaSeconds);
     FHktSimulationDiff Diff = Simulator->AdvanceFrame(LocalBatch);
 
-    // Diff 히스토리에 기록 (역적용 롤백용)
-    DiffHistory.Add(MoveTemp(Diff));
+    // Diff 히스토리에 기록 (역적용 롤백용) — 복사 후 원본에서 PendingDiff로 이동
+    DiffHistory.Add(Diff);
+
+    // PendingDiff에 누적 (PlayerController Tick에서 소비 → WorldViewUpdated 전달)
+    PendingDiff.FrameNumber = Diff.FrameNumber;
+    PendingDiff.SpawnedEntities.Append(MoveTemp(Diff.SpawnedEntities));
+    PendingDiff.RemovedEntities.Append(MoveTemp(Diff.RemovedEntities));
+    PendingDiff.RemovedEntityStates.Append(MoveTemp(Diff.RemovedEntityStates));
+    PendingDiff.PropertyDeltas.Append(MoveTemp(Diff.PropertyDeltas));
+    PendingDiff.TagDeltas.Append(MoveTemp(Diff.TagDeltas));
+    PendingDiff.OwnerDeltas.Append(MoveTemp(Diff.OwnerDeltas));
+    bHasPendingDiff = true;
 
     // 메모리 보호: 오래된 히스토리 제거
     if (DiffHistory.Num() > MaxHistoryFrames)

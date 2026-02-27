@@ -1,10 +1,11 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktActorRenderer.h"
-#include "HktActorVisualDataAsset.h"
 #include "HktAssetSubsystem.h"
+#include "DataAssets/HktActorVisualDataAsset.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "Components/CapsuleComponent.h"
 
 FHktActorRenderer::FHktActorRenderer(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
@@ -15,27 +16,39 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 {
 	const int64 Frame = State.GetCurrentFrame();
 
+	// --- 스폰 ---
 	for (FHktEntityId Id : State.SpawnedThisFrame)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (E && E->RenderCategory == EHktRenderCategory::Actor)
 			SpawnActor(*E);
 	}
+
+	// --- 제거 ---
 	for (FHktEntityId Id : State.RemovedThisFrame)
+	{
 		DestroyActor(Id);
+	}
+
+	// --- Dirty 엔티티 타겟 갱신 ---
 	for (FHktEntityId Id : State.DirtyThisFrame)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
-		if (TWeakObjectPtr<AActor>* Found = ActorMap.Find(Id))
-			if (Found->IsValid())
-				UpdateActor(Found->Get(), *E, Frame);
+		if (!ActorMap.Contains(Id)) continue;
+		UpdateMotionTarget(Id, *E, Frame);
 	}
+
+	// --- 모든 활성 엔티티 보간 ---
+	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
+	float DeltaSeconds = World ? World->GetDeltaSeconds() : 0.016f;
+	InterpolateActors(DeltaSeconds);
 }
 
 void FHktActorRenderer::Teardown()
 {
 	ActorMap.Empty();
+	MotionStates.Empty();
 }
 
 AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
@@ -49,31 +62,60 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 {
 	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
 	if (!World) return;
-	if (!Entity.Visualization.VisualElement.IsValid())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: Entity %d has no VisualElement tag"), Entity.EntityId);
-		return;
-	}
 
 	UHktAssetSubsystem* AssetSubsystem = UHktAssetSubsystem::Get(World);
 	if (!AssetSubsystem) return;
 
-	UHktTagDataAsset* LoadedAsset = AssetSubsystem->LoadAssetSync(Entity.Visualization.VisualElement);
-	UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset);
-	if (!VisualAsset || !VisualAsset->ActorClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: No UHktActorVisualDataAsset or ActorClass for tag %s"), *Entity.Visualization.VisualElement.ToString());
-		return;
-	}
+	FGameplayTag VisualTag = Entity.Visualization.VisualElement.Get();
+	if (!VisualTag.IsValid()) return;
 
 	FVector Location = Entity.Transform.Location.Get();
 	FRotator Rotation = Entity.Transform.Rotation.Get();
-	FActorSpawnParameters SpawnParams;
-	AActor* SpawnedActor = World->SpawnActor<AActor>(VisualAsset->ActorClass, Location, Rotation, SpawnParams);
-	if (SpawnedActor)
+	FHktEntityId EntityId = Entity.EntityId;
+	bool bIsMoving = Entity.Movement.bIsMoving.Get();
+
+	// 스폰 시 지면 높이 적용
+	float GroundZ;
+	if (TraceGroundZ(World, Location, GroundZ))
 	{
-		ActorMap.Add(Entity.EntityId, SpawnedActor);
+		Location.Z = GroundZ;
 	}
+
+	AssetSubsystem->LoadAssetAsync(VisualTag, [this, VisualTag, EntityId, Location, Rotation, bIsMoving, World](UHktTagDataAsset* LoadedAsset)
+	{
+		UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset);
+		if (!VisualAsset || !VisualAsset->ActorClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: No UHktActorVisualDataAsset or ActorClass for tag %s"), *VisualTag.ToString());
+			return;
+		}
+
+		// 캡슐 반높이 오프셋 계산
+		float HalfHeight = 0.0f;
+		if (AActor* CDO = VisualAsset->ActorClass->GetDefaultObject<AActor>())
+		{
+			if (UCapsuleComponent* Capsule = CDO->FindComponentByClass<UCapsuleComponent>())
+			{
+				HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+			}
+		}
+
+		FVector SpawnLocation = Location;
+		SpawnLocation.Z += HalfHeight;
+
+		FActorSpawnParameters SpawnParams;
+		AActor* SpawnedActor = World->SpawnActor<AActor>(VisualAsset->ActorClass, SpawnLocation, Rotation, SpawnParams);
+		if (SpawnedActor)
+		{
+			ActorMap.Add(EntityId, SpawnedActor);
+
+			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
+			Motion.TargetLocation = SpawnLocation;
+			Motion.TargetRotation = Rotation;
+			Motion.bIsMoving = bIsMoving;
+			Motion.bNeedsGroundSnap = false;
+		}
+	});
 }
 
 void FHktActorRenderer::DestroyActor(FHktEntityId Id)
@@ -84,13 +126,91 @@ void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 			A->Destroy();
 		ActorMap.Remove(Id);
 	}
+	MotionStates.Remove(Id);
 }
 
-void FHktActorRenderer::UpdateActor(AActor* Actor, const FHktEntityPresentation& Entity, int64 Frame)
+void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame)
 {
-	if (Entity.Transform.Location.IsDirty(Frame) || Entity.Transform.Rotation.IsDirty(Frame))
-		Actor->SetActorLocationAndRotation(Entity.Transform.Location.Get(), Entity.Transform.Rotation.Get());
-	// TODO: IHktAnimInterface 연동 (AnimState, VisualState)
-	(void)Entity;
-	(void)Frame;
+	FHktActorMotionState& Motion = MotionStates.FindOrAdd(Id);
+
+	if (Entity.Transform.Location.IsDirty(Frame))
+	{
+		FVector SimLocation = Entity.Transform.Location.Get();
+
+		UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
+		float GroundZ = SimLocation.Z;
+		if (World && TraceGroundZ(World, SimLocation, GroundZ))
+		{
+			SimLocation.Z = GroundZ;
+		}
+
+		// 캡슐 반높이 오프셋
+		if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
+		{
+			if (AActor* Actor = P->Get())
+			{
+				if (UCapsuleComponent* Capsule = Actor->FindComponentByClass<UCapsuleComponent>())
+				{
+					SimLocation.Z += Capsule->GetScaledCapsuleHalfHeight();
+				}
+			}
+		}
+
+		Motion.TargetLocation = SimLocation;
+	}
+
+	if (Entity.Transform.Rotation.IsDirty(Frame))
+	{
+		Motion.TargetRotation = Entity.Transform.Rotation.Get();
+	}
+
+	if (Entity.Movement.bIsMoving.IsDirty(Frame))
+	{
+		Motion.bIsMoving = Entity.Movement.bIsMoving.Get();
+	}
+}
+
+void FHktActorRenderer::InterpolateActors(float DeltaSeconds)
+{
+	for (auto It = MotionStates.CreateIterator(); It; ++It)
+	{
+		FHktEntityId Id = It.Key();
+		FHktActorMotionState& Motion = It.Value();
+
+		TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
+		if (!WeakPtr || !WeakPtr->IsValid())
+			continue;
+
+		AActor* Actor = WeakPtr->Get();
+		const FVector CurrentLocation = Actor->GetActorLocation();
+		const FRotator CurrentRotation = Actor->GetActorRotation();
+
+		// 위치 보간
+		FVector NewLocation = FMath::VInterpTo(CurrentLocation, Motion.TargetLocation, DeltaSeconds, InterpSpeed);
+
+		// 회전 보간
+		FRotator NewRotation = FMath::RInterpTo(CurrentRotation, Motion.TargetRotation, DeltaSeconds, InterpSpeed);
+
+		Actor->SetActorLocationAndRotation(NewLocation, NewRotation);
+	}
+}
+
+bool FHktActorRenderer::TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const
+{
+	if (!World) return false;
+
+	const FVector Start(Pos.X, Pos.Y, Pos.Z + TraceHalfHeight);
+	const FVector End(Pos.X, Pos.Y, Pos.Z - TraceHalfHeight);
+
+	FHitResult Hit;
+	FCollisionQueryParams Params;
+	Params.bTraceComplex = false;
+
+	if (World->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic, Params))
+	{
+		OutZ = Hit.ImpactPoint.Z;
+		return true;
+	}
+
+	return false;
 }

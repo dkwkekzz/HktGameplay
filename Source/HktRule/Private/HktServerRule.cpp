@@ -58,7 +58,10 @@ void FHktDefaultServerRule::OnReceived_FireIntentEvent(
 	const int32 GroupIndex = CachedGraph->GetRelevancyGroupIndex(InPlayer.GetPlayerUid());
 	if (PendingGroupIntents.IsValidIndex(GroupIndex))
 	{
-		PendingGroupIntents[GroupIndex].Add(InEvent);
+		FHktEvent Copy = InEvent;
+		Copy.EventId = ++ServerEventSequence;
+		Copy.PlayerUid = InPlayer.GetPlayerUid();
+		PendingGroupIntents[GroupIndex].Add(Copy);
 	}
 }
 
@@ -121,10 +124,12 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 	int64 LogoutUid;
 	while (PendingLogoutRequests.Dequeue(LogoutUid))
 	{
-		IHktRelevancyGroup* Group = Graph.GetRelevancyGroupByPlayer(LogoutUid);
-		if (Group)
+		const int32 GroupIndex = Graph.GetRelevancyGroupIndex(LogoutUid);
+		if (GroupIndex != INDEX_NONE)
 		{
-			DB.SavePlayerRecordAsync(LogoutUid, Group->ExportPlayerState(LogoutUid));
+			IHktRelevancyGroup& Group = Graph.GetRelevancyGroup(GroupIndex);
+			IHktAuthoritySimulator& Simulator = Group.GetSimulator();
+			DB.SavePlayerRecordAsync(LogoutUid, Simulator.ExportPlayerState(LogoutUid));
 
 			const int32 GroupIdx = Graph.GetRelevancyGroupIndex(LogoutUid);
 			FGroupEventSend& GroupEventSend = Result.EventSends[GroupIdx];
@@ -169,10 +174,11 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 
 		// item 8: diff 버림 (서버는 Diff 불필요)
 		IHktRelevancyGroup& Group = Graph.GetRelevancyGroup(GroupIndex);
-		Group.AdvanceFrame(GroupBatch);
+		IHktAuthoritySimulator& Simulator = Group.GetSimulator();
+		Simulator.AdvanceFrame(GroupBatch);
 
 		GroupEventSend.Existing = &Group.GetCachedWorldPlayers();
-		GroupEventSend.NewState = &Group.GetWorldState();
+		GroupEventSend.NewState = &Simulator.GetWorldState();
 
 		for (int64 PlayerUid : GroupEventSend.Batch.RemovedOwnerIds)
 		{

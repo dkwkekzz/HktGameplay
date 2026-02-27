@@ -3,6 +3,7 @@
 #include "HktVMInterpreter.h"
 #include "HktVMProgram.h"
 #include "HktVMContext.h"
+#include "HktVMWorldStateProxy.h"
 #include "GameplayTagsManager.h"
 
 // ============================================================================
@@ -33,6 +34,11 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, FHktTypeId TypeId
             Runtime.Context->WriteEntity(NewEntity, PropertyId::OwnerEntity, Runtime.GetRegEntity(Reg::Self));
             Runtime.Context->WriteEntity(NewEntity, PropertyId::EntityType, TypeId);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::EntitySpawnTag, StringIndex);
+
+            if (Runtime.PlayerUid != 0 && VMProxy)
+            {
+                VMProxy->SetOwnerUid(*WorldState, NewEntity, Runtime.PlayerUid);
+            }
         }
     }
 }
@@ -258,8 +264,14 @@ void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase
 
 void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
 {
-    UE_LOG(LogTemp, Log, TEXT("[VM] PlayVFXAttached: Entity %d, VFX %s"),
-        Runtime.GetRegEntity(Entity), *GetString(Runtime, StringIndex));
+    if (!WorldState || !VMProxy) return;
+    const FString& VFXName = GetString(Runtime, StringIndex);
+    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*VFXName), false);
+    if (Tag.IsValid())
+    {
+        VMProxy->AddTag(*WorldState, Runtime.GetRegEntity(Entity), Tag);
+    }
+    UE_LOG(LogTemp, Log, TEXT("[VM] PlayVFXAttached: Entity %d, VFX %s"), Runtime.GetRegEntity(Entity), *VFXName);
 }
 
 // ============================================================================
@@ -303,20 +315,20 @@ void FHktVMInterpreter::Op_SpawnEquipment(FHktVMRuntime& Runtime, RegisterIndex 
 
 void FHktVMInterpreter::Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
 {
-    if (!WorldState) return;
+    if (!WorldState || !VMProxy) return;
     const FString& TagName = GetString(Runtime, StringIndex);
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
     if (Tag.IsValid())
-        WorldState->AddTag(Runtime.GetRegEntity(Entity), Tag);
+        VMProxy->AddTag(*WorldState, Runtime.GetRegEntity(Entity), Tag);
 }
 
 void FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
 {
-    if (!WorldState) return;
+    if (!WorldState || !VMProxy) return;
     const FString& TagName = GetString(Runtime, StringIndex);
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
     if (Tag.IsValid())
-        WorldState->RemoveTag(Runtime.GetRegEntity(Entity), Tag);
+        VMProxy->RemoveTag(*WorldState, Runtime.GetRegEntity(Entity), Tag);
 }
 
 void FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 StringIndex)

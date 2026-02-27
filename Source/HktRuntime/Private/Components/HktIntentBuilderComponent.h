@@ -67,7 +67,4 @@ private:
     // Submit 결과 (Actor가 소비)
     bool bHasPendingSubmit = false;
     FHktRuntimeEvent PendingSubmitEvent;
-
-    // Intent 시퀀스 번호
-    static uint32 StaticIntentSequence;
 };

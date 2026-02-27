@@ -28,11 +28,11 @@ public class HktRuntime : ModuleRules
                 "NetCore",
                 "EnhancedInput",
                 "InputCore",
+				"Json",
+				"JsonUtilities",
 				"HktCore",
 				"HktRule",
-				"HktAsset",
-				"Json",
-				"JsonUtilities"
+				"HktAsset"
 			}
 		);
 			

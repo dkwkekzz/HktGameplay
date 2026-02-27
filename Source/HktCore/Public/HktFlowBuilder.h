@@ -37,6 +37,11 @@ public:
     static FHktFlowBuilder Create(const FGameplayTag& Tag);
     static FHktFlowBuilder Create(const FName& TagName);
 
+    // ========== Flow Policy ==========
+
+    /** 같은 엔티티에 동일 이벤트가 중복 발생 시 기존 VM을 취소 (예: MoveTo) */
+    FHktFlowBuilder& CancelOnDuplicate();
+
     // ========== Control Flow ==========
 
     /** 라벨 정의 (점프 대상) */

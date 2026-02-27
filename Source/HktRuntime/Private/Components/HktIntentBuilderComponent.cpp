@@ -2,8 +2,6 @@
 
 #include "HktIntentBuilderComponent.h"
 
-uint32 UHktIntentBuilderComponent::StaticIntentSequence = 0;
-
 UHktIntentBuilderComponent::UHktIntentBuilderComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
@@ -67,7 +65,7 @@ bool UHktIntentBuilderComponent::Submit()
 
     // Core 구조체로 생성
     FHktEvent CoreEvent;
-    CoreEvent.EventId = ++StaticIntentSequence;
+    CoreEvent.EventId = 0;  // 서버가 할당
     CoreEvent.SourceEntity = SubjectEntityId;
     CoreEvent.EventTag = EventTag;
     CoreEvent.TargetEntity = TargetEntityId;
@@ -112,5 +110,5 @@ bool UHktIntentBuilderComponent::HasPendingSubmit() const
 FHktEvent UHktIntentBuilderComponent::ConsumePendingSubmit()
 {
     bHasPendingSubmit = false;
-    return PendingSubmitEvent.CoreEvent;
+    return PendingSubmitEvent.Value;
 }

@@ -15,12 +15,13 @@ void FHktSchemaRegistry::Initialize()
         S.TypeId = HktType::Unit;
         for (uint16 P : {
             PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ, PropertyId::RotYaw,
+            PropertyId::TargetPosX, PropertyId::TargetPosY, PropertyId::TargetPosZ, PropertyId::Param0, PropertyId::Param1,
             PropertyId::MoveTargetX, PropertyId::MoveTargetY, PropertyId::MoveTargetZ,
             PropertyId::MoveSpeed, PropertyId::IsMoving,
             PropertyId::Health, PropertyId::MaxHealth,
             PropertyId::AttackPower, PropertyId::Defense,
             PropertyId::Team, PropertyId::Mana, PropertyId::MaxMana,
-            PropertyId::OwnerEntity, PropertyId::EntitySpawnTag, PropertyId::OwnedPlayerUid,
+            PropertyId::OwnerEntity, PropertyId::EntityType, PropertyId::EntitySpawnTag,
             PropertyId::AnimState, PropertyId::VisualState })
             S.AddProperty(P);
     }
@@ -29,9 +30,11 @@ void FHktSchemaRegistry::Initialize()
         S.TypeId = HktType::Projectile;
         for (uint16 P : {
             PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ,
+            PropertyId::TargetPosX, PropertyId::TargetPosY, PropertyId::TargetPosZ, PropertyId::Param0, PropertyId::Param1,
             PropertyId::MoveTargetX, PropertyId::MoveTargetY, PropertyId::MoveTargetZ,
             PropertyId::MoveSpeed, PropertyId::IsMoving,
-            PropertyId::OwnerEntity, PropertyId::Team })
+            PropertyId::OwnerEntity, PropertyId::EntityType, PropertyId::EntitySpawnTag,
+            PropertyId::Team })
             S.AddProperty(P);
     }
     {
@@ -39,7 +42,9 @@ void FHktSchemaRegistry::Initialize()
         S.TypeId = HktType::Equipment;
         for (uint16 P : {
             PropertyId::OwnerEntity, PropertyId::AttackPower,
-            PropertyId::Defense, PropertyId::OwnedPlayerUid })
+            PropertyId::TargetPosX, PropertyId::TargetPosY, PropertyId::TargetPosZ, PropertyId::Param0, PropertyId::Param1,
+            PropertyId::OwnerEntity, PropertyId::EntityType, PropertyId::EntitySpawnTag,
+            PropertyId::Defense })
             S.AddProperty(P);
     }
     {
@@ -47,10 +52,23 @@ void FHktSchemaRegistry::Initialize()
         S.TypeId = HktType::Building;
         for (uint16 P : {
             PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ,
+            PropertyId::TargetPosX, PropertyId::TargetPosY, PropertyId::TargetPosZ, PropertyId::Param0, PropertyId::Param1,
+            PropertyId::OwnerEntity, PropertyId::EntityType, PropertyId::EntitySpawnTag,
             PropertyId::Health, PropertyId::MaxHealth,
-            PropertyId::Team, PropertyId::EntitySpawnTag, PropertyId::OwnedPlayerUid })
+            PropertyId::Team })
             S.AddProperty(P);
     }
+}
+
+FHktSchemaRegistry& FHktSchemaRegistry::Get()
+{
+    struct FInitHelper
+    {
+        FHktSchemaRegistry Registry;
+        FInitHelper() { Registry.Initialize(); }
+    };
+    static FInitHelper Helper;
+    return Helper.Registry;
 }
 
 // ============================================================================
@@ -59,18 +77,12 @@ void FHktSchemaRegistry::Initialize()
 
 void FHktEntityPool::Initialize(const FHktEntitySchema& InSchema, int32 ReserveCount)
 {
-    Schema = &InSchema;
     TypeId = InSchema.TypeId;
     Stride = InSchema.GetStride();
     Data.Reserve(ReserveCount * Stride);
     SlotToEntity.Reserve(ReserveCount);
-    DirtyMask.Reserve(ReserveCount);
-    DirtySlots.Reserve(256);
     TagContainers.Reserve(ReserveCount);
-    TagsDirtyMask.Reserve(ReserveCount);
-    TagsDirtySlots.Reserve(256);
-    OldValueEntries.Reserve(256);
-    OldTagEntries.Reserve(32);
+    OwnerUids.Reserve(ReserveCount);
 }
 
 int32 FHktEntityPool::AllocateSlot(FHktEntityId EntityId)
@@ -81,19 +93,17 @@ int32 FHktEntityPool::AllocateSlot(FHktEntityId EntityId)
         Slot = FreeSlots.Pop();
         SlotToEntity[Slot] = EntityId;
         TagContainers[Slot].Reset();
-        TagsDirtyMask[Slot] = 0;
+        OwnerUids[Slot] = 0;
     }
     else
     {
         Slot = SlotToEntity.Num();
         SlotToEntity.Add(EntityId);
         Data.AddZeroed(Stride);
-        DirtyMask.Add(0);
         TagContainers.Add({});
-        TagsDirtyMask.Add(0);
+        OwnerUids.Add(0);
     }
     FMemory::Memzero(Data.GetData() + Slot * Stride, Stride * sizeof(int32));
-    DirtyMask[Slot] = 0;
     ActiveCount++;
     return Slot;
 }
@@ -102,6 +112,7 @@ void FHktEntityPool::FreeSlot(int32 Slot)
 {
     SlotToEntity[Slot] = InvalidEntityId;
     TagContainers[Slot].Reset();
+    OwnerUids[Slot] = 0;
     FreeSlots.Add(Slot);
     ActiveCount--;
 }
@@ -110,16 +121,16 @@ void FHktEntityPool::FreeSlot(int32 Slot)
 // FHktWorldState
 // ============================================================================
 
-void FHktWorldState::Initialize(const FHktSchemaRegistry& InRegistry)
+void FHktWorldState::Initialize()
 {
-    Registry = &InRegistry;
+    const FHktSchemaRegistry& Reg = FHktSchemaRegistry::Get();
     EntityLocations.Reserve(HktLimits::MaxEntities);
     ActiveEvents.Reserve(HktLimits::MaxActiveEvents);
 
-    Pools[HktType::Unit].Initialize(InRegistry.Get(HktType::Unit), 512);
-    Pools[HktType::Projectile].Initialize(InRegistry.Get(HktType::Projectile), 1024);
-    Pools[HktType::Equipment].Initialize(InRegistry.Get(HktType::Equipment), 512);
-    Pools[HktType::Building].Initialize(InRegistry.Get(HktType::Building), 128);
+    Pools[HktType::Unit].Initialize(Reg.Get(HktType::Unit), 512);
+    Pools[HktType::Projectile].Initialize(Reg.Get(HktType::Projectile), 1024);
+    Pools[HktType::Equipment].Initialize(Reg.Get(HktType::Equipment), 512);
+    Pools[HktType::Building].Initialize(Reg.Get(HktType::Building), 128);
 }
 
 FHktEntityId FHktWorldState::AllocateEntity(FHktTypeId TypeId)
@@ -142,20 +153,8 @@ void FHktWorldState::RemoveEntity(FHktEntityId Id)
 {
     if (!IsValidEntity(Id)) return;
     FEntityLocation& L = EntityLocations[Id];
-    int8 OwnerLP = Registry->Get(L.TypeId).GetLocalIndex(PropertyId::OwnedPlayerUid);
-    if (OwnerLP != -1)
-    {
-        int64 OwnerUid = static_cast<int64>(Pools[L.TypeId].Get(L.PoolSlot, OwnerLP));
-        Pools[L.TypeId].UntrackOwner(L.PoolSlot, OwnerUid);
-    }
     Pools[L.TypeId].FreeSlot(L.PoolSlot);
     L = { HktType::None, -1 };
-}
-
-void FHktWorldState::ResetDirtyIndices()
-{
-    for (int32 T = 1; T < HktType::MaxTypes; ++T)
-        Pools[T].ResetDirty();
 }
 
 int32 FHktWorldState::GetEntityCount() const
@@ -176,6 +175,7 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
     S.Data.SetNumUninitialized(P.Stride);
     FMemory::Memcpy(S.Data.GetData(), P.EntityData(L.PoolSlot), P.Stride * sizeof(int32));
     S.Tags = P.TagContainers[L.PoolSlot];
+    S.OwnerUid = P.OwnerUids[L.PoolSlot];
     return S;
 }
 
@@ -187,12 +187,7 @@ FHktEntityId FHktWorldState::ImportEntityState(const FHktEntityState& InState)
     int32 N = FMath::Min(P.Stride, InState.Data.Num());
     FMemory::Memcpy(P.EntityData(L.PoolSlot), InState.Data.GetData(), N * sizeof(int32));
     P.TagContainers[L.PoolSlot] = InState.Tags;
-    int8 OwnerLP = P.Schema->GetLocalIndex(PropertyId::OwnedPlayerUid);
-    if (OwnerLP != -1)
-    {
-        int64 OwnerUid = static_cast<int64>(P.Get(L.PoolSlot, OwnerLP));
-        P.TrackOwner(L.PoolSlot, 0, OwnerUid);
-    }
+    P.OwnerUids[L.PoolSlot] = InState.OwnerUid;
     return Id;
 }
 
@@ -212,12 +207,7 @@ void FHktWorldState::ImportEntityStateWithId(const FHktEntityState& InState)
     int32 N = FMath::Min(P.Stride, InState.Data.Num());
     FMemory::Memcpy(P.EntityData(Slot), InState.Data.GetData(), N * sizeof(int32));
     P.TagContainers[Slot] = InState.Tags;
-    int8 OwnerLP = P.Schema->GetLocalIndex(PropertyId::OwnedPlayerUid);
-    if (OwnerLP != -1)
-    {
-        int64 OwnerUid = static_cast<int64>(P.Get(Slot, OwnerLP));
-        P.TrackOwner(Slot, 0, OwnerUid);
-    }
+    P.OwnerUids[Slot] = InState.OwnerUid;
 }
 
 void FHktWorldState::UndoDiff(const FHktSimulationDiff& Diff)
@@ -234,11 +224,15 @@ void FHktWorldState::UndoDiff(const FHktSimulationDiff& Diff)
     for (const FHktEntityState& S : Diff.RemovedEntityStates)
         ImportEntityStateWithId(S);
 
-    // 4. 프로퍼티 변경 되돌리기 (OldValue 복원, Dirty 추적 없이)
+    // 4. 프로퍼티 변경 되돌리기 (OldValue 복원)
     for (const FHktPropertyDelta& D : Diff.PropertyDeltas)
-        SetPropertyRaw(D.EntityId, D.PropertyId, D.OldValue);
+        SetProperty(D.EntityId, D.PropertyId, D.OldValue);
 
-    // 5. 태그 변경 되돌리기 (OldTags 복원)
+    // 5. 소유권 변경 되돌리기
+    for (const FHktOwnerDelta& D : Diff.OwnerDeltas)
+        SetOwnerUid(D.EntityId, D.OldOwnerUid);
+
+    // 6. 태그 변경 되돌리기 (OldTags 복원)
     for (const FHktTagDelta& D : Diff.TagDeltas)
     {
         if (!IsValidEntity(D.EntityId)) continue;
@@ -246,7 +240,7 @@ void FHktWorldState::UndoDiff(const FHktSimulationDiff& Diff)
         Pools[L.TypeId].TagContainers[L.PoolSlot] = D.OldTags;
     }
 
-    // 6. FrameNumber 복원
+    // 7. FrameNumber 복원
     FrameNumber = Diff.FrameNumber - 1;
 }
 
@@ -259,52 +253,104 @@ void FHktWorldState::CopyFrom(const FHktWorldState& Other)
     ActiveEvents = Other.ActiveEvents;
     for (int32 T = 0; T < HktType::MaxTypes; ++T)
     {
-        const FHktEntityPool& Src = Other.Pools[T];
         FHktEntityPool& Dst = Pools[T];
-        Dst.Schema = Src.Schema;
+        const FHktEntityPool& Src = Other.Pools[T];
         Dst.TypeId = Src.TypeId;
         Dst.Stride = Src.Stride;
         Dst.Data = Src.Data;
         Dst.SlotToEntity = Src.SlotToEntity;
         Dst.FreeSlots = Src.FreeSlots;
         Dst.ActiveCount = Src.ActiveCount;
-        Dst.DirtyMask = Src.DirtyMask;
-        Dst.DirtySlots = Src.DirtySlots;
         Dst.TagContainers = Src.TagContainers;
-        Dst.OwnerToSlots = Src.OwnerToSlots;
+        Dst.OwnerUids = Src.OwnerUids;
     }
-    for (int32 T = 0; T < HktType::MaxTypes; ++T)
-        Pools[T].Schema = &Registry->Get(T);
 }
 
-FArchive& operator<<(FArchive& Ar, FHktWorldState& State)
-{
-    Ar << State.FrameNumber << State.RandomSeed << State.NextEntityId;
+// ============================================================================
+// Serialization
+// ============================================================================
 
-    if (Ar.IsLoading())
+bool FHktWorldState::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+{
+    Ar << FrameNumber << RandomSeed << NextEntityId;
+
+    if (Ar.IsSaving())
     {
-        int32 N; Ar << N;
-        State.EntityLocations.SetNum(N);
-        for (int32 i = 0; i < N; ++i)
+        // 활성 엔티티만 전송: (EntityId, TypeByte, PropertyData[], Tags)
+        int32 TotalEntities = GetEntityCount();
+        Ar << TotalEntities;
+
+        for (int32 T = 1; T < HktType::MaxTypes; ++T)
         {
-            Ar << State.EntityLocations[i].TypeId;
-            Ar << State.EntityLocations[i].PoolSlot;
+            FHktEntityPool& Pool = Pools[T];
+            for (int32 Slot = 0; Slot < Pool.SlotToEntity.Num(); ++Slot)
+            {
+                FHktEntityId Id = Pool.SlotToEntity[Slot];
+                if (Id == InvalidEntityId) continue;
+
+                Ar << Id;
+                uint8 TypeByte = static_cast<uint8>(T);
+                Ar << TypeByte;
+
+                for (int32 P = 0; P < Pool.Stride; ++P)
+                {
+                    int32 Val = Pool.EntityData(Slot)[P];
+                    Ar << Val;
+                }
+
+                Pool.TagContainers[Slot].NetSerialize(Ar, Map, bOutSuccess);
+                Ar << Pool.OwnerUids[Slot];
+            }
         }
     }
-    else
+    else // IsLoading
     {
-        int32 N = State.EntityLocations.Num(); Ar << N;
-        for (auto& L : State.EntityLocations) { Ar << L.TypeId; Ar << L.PoolSlot; }
+        // 풀 초기화: TypeId/Stride만 싱글톤에서 복원
+        EntityLocations.Reset();
+        for (int32 T = 0; T < HktType::MaxTypes; ++T)
+        {
+            FHktEntityPool& Pool = Pools[T];
+            Pool.Data.Reset();
+            Pool.SlotToEntity.Reset();
+            Pool.FreeSlots.Reset();
+            Pool.TagContainers.Reset();
+            Pool.OwnerUids.Reset();
+            Pool.ActiveCount = 0;
+            Pool.TypeId = static_cast<FHktTypeId>(T);
+            Pool.Stride = (T > HktType::None)
+                ? FHktSchemaRegistry::Get().Get(static_cast<FHktTypeId>(T)).GetStride()
+                : 0;
+        }
+
+        int32 TotalEntities; Ar << TotalEntities;
+        for (int32 i = 0; i < TotalEntities; ++i)
+        {
+            FHktEntityId Id; Ar << Id;
+            uint8 TypeByte;  Ar << TypeByte;
+            FHktTypeId TypeId = static_cast<FHktTypeId>(TypeByte);
+
+            if (Id >= EntityLocations.Num())
+            {
+                int32 OldNum = EntityLocations.Num();
+                EntityLocations.SetNum(Id + 1);
+                for (int32 j = OldNum; j < EntityLocations.Num(); ++j)
+                    EntityLocations[j] = { HktType::None, -1 };
+            }
+
+            FHktEntityPool& Pool = Pools[TypeId];
+            int32 Slot = Pool.AllocateSlot(Id);
+            EntityLocations[Id] = { TypeId, Slot };
+
+            for (int32 P = 0; P < Pool.Stride; ++P)
+                Ar << Pool.EntityData(Slot)[P];
+
+            Pool.TagContainers[Slot].NetSerialize(Ar, Map, bOutSuccess);
+            Ar << Pool.OwnerUids[Slot];
+        }
     }
 
-    for (int32 T = 1; T < HktType::MaxTypes; ++T)
-    {
-        FHktEntityPool& P = State.Pools[T];
-        Ar << P.Data << P.SlotToEntity << P.FreeSlots << P.ActiveCount << P.TagContainers;
-    }
-
-    Ar << State.ActiveEvents;
-    return Ar;
+    Ar << ActiveEvents;
+    return true;
 }
 
 // ============================================================================

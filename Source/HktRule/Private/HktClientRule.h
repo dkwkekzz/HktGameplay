@@ -22,7 +22,7 @@ public:
 	virtual void OnUserEvent_CommandInputAction(int32 InSlotIndex) override;
 	virtual void OnUserEvent_ZoomInputAction(float InDelta) override;
 	virtual void OnReceived_InitialState(const FHktWorldState& InState) override;
-	virtual FHktSimulationDiff OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) override;
+	virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) override;
 
 private:
 	// 바인딩된 컨텍스트

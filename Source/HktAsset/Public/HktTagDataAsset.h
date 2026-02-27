@@ -16,7 +16,7 @@ class HKTASSET_API UHktTagDataAsset : public UPrimaryDataAsset
 
 public:
     // 이 에셋을 식별할 고유 태그입니다.
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Identity", meta = (Categories = "Hkt.Asset"))
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Identity")
     FGameplayTag IdentifierTag;
 
 #if WITH_EDITORONLY_DATA

@@ -4,13 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "HktCoreDefs.h"
-#include "HktEvents.h"
+#include "HktCoreEvents.h"
 #include "HktWorldState.h"
 #include "VM/HktVMTypes.h"
 
 // Forward Declarations
 class FHktVMInterpreter;
 class FHktVMRuntimePool;
+struct FHktVMWorldStateProxy;
 
 /** Private: Physics 이벤트 (시스템 내부용) */
 struct FHktPhysicsEvent
@@ -35,7 +36,8 @@ struct HKTCORE_API FHktVMBuildSystem
         int32 CurrentFrame,
         FHktVMRuntimePool& Pool,
         TArray<FHktVMHandle>& OutActiveVMs,
-        FHktWorldState& WorldState
+        FHktWorldState& WorldState,
+        FHktVMWorldStateProxy& VMProxy
     );
 };
 
@@ -51,6 +53,17 @@ struct HKTCORE_API FHktVMProcessSystem
         FHktVMRuntimePool& Pool,
         float DeltaSeconds,
         TArray<FHktPendingEvent>& PendingExternalEvents
+    );
+};
+
+/** 3.5 Movement System: IsMoving 엔티티의 위치 갱신 */
+struct HKTCORE_API FHktMovementSystem
+{
+    void Process(
+        FHktWorldState& WorldState,
+        FHktVMWorldStateProxy& VMProxy,
+        float DeltaSeconds,
+        TArray<FHktPendingEvent>& OutMoveEndEvents
     );
 };
 

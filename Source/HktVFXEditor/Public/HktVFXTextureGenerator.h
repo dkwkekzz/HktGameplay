@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "VFXNiagaraConfig.h"
-#include "VFXGeneratorConfig.h"
+#include "HktVFXNiagaraConfig.h"
+#include "HktVFXGeneratorConfig.h"
 
 class UTexture2D;
 
@@ -12,29 +12,29 @@ class UTexture2D;
  * Stable Diffusion WebUI / ComfyUI API 호출 → 파티클용 텍스처 에셋 생성.
  * 에디터 전용.
  */
-class HKTVFXEDITOR_API FVFXTextureGenerator
+class HKTVFXEDITOR_API FHktVFXTextureGenerator
 {
 public:
 	/** 설정 적용 (Config에서 ToImageGenSettings()로 전달) */
-	void SetSettings(const FImageGenSettings& InSettings);
+	void SetSettings(const FHktImageGenSettings& InSettings);
 
 	/** 단일 텍스처 생성 (비동기 콜백) */
 	void GenerateTexture(
-		const FVFXTextureRequest& Request,
+		const FHktVFXTextureRequest& Request,
 		const FString& OutputPath,
 		int32 Resolution,
-		FOnTextureGenerated OnComplete);
+		FOnHktTextureGenerated OnComplete);
 
 	/** 배치 텍스처 생성 (EmitterName → UTexture2D* 맵으로 콜백) */
 	void GenerateAllTextures(
-		const TArray<FVFXTextureRequest>& Requests,
+		const TArray<FHktVFXTextureRequest>& Requests,
 		const FString& OutputDirectory,
 		int32 Resolution,
-		FOnAllTexturesGenerated OnComplete);
+		FOnHktAllTexturesGenerated OnComplete);
 
 private:
-	FString BuildFinalPrompt(const FVFXTextureRequest& Request) const;
-	FString BuildFinalNegativePrompt(const FVFXTextureRequest& Request) const;
+	FString BuildFinalPrompt(const FHktVFXTextureRequest& Request) const;
+	FString BuildFinalNegativePrompt(const FHktVFXTextureRequest& Request) const;
 	void CallSD_WebUI(const FString& Prompt, const FString& NegativePrompt,
 		int32 Width, int32 Height,
 		TFunction<void(bool, const TArray<uint8>&)> OnComplete);
@@ -45,16 +45,16 @@ private:
 	UTexture2D* ImportTextureFromPNG(const TArray<uint8>& PNGData, const FString& AssetPath, const FString& TextureName);
 	void ConfigureTextureForVFX(UTexture2D* Texture, const FString& BlendMode);
 
-	struct FPendingBatch
+	struct FHktVFXPendingBatch
 	{
-		TArray<FVFXTextureRequest> Requests;
+		TArray<FHktVFXTextureRequest> Requests;
 		FString OutputDirectory;
 		int32 Resolution = 512;
 		int32 CurrentIndex = 0;
 		TMap<FString, UTexture2D*> Results;
-		FOnAllTexturesGenerated OnComplete;
+		FOnHktAllTexturesGenerated OnComplete;
 	};
-	void ProcessNextInBatch(TSharedPtr<FPendingBatch> Batch);
+	void ProcessNextInBatch(TSharedPtr<FHktVFXPendingBatch> Batch);
 
-	FImageGenSettings Settings;
+	FHktImageGenSettings Settings;
 };

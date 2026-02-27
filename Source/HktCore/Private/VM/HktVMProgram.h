@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "HktFlowTypes.h"
 
 /**
@@ -15,6 +16,9 @@ struct HKTCORE_API FHktVMProgram
     TArray<int32> Constants;
     TArray<FString> Strings;
     TArray<int32> LineNumbers;
+
+    /** 같은 SourceEntity에 동일 EventTag VM이 이미 있으면 기존 것을 취소 */
+    bool bCancelOnDuplicate = false;
 
     bool IsValid() const { return Code.Num() > 0; }
     int32 CodeSize() const { return Code.Num(); }

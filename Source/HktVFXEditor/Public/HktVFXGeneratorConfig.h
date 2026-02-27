@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
-// VFXGeneratorConfig.h
+// HktVFXGeneratorConfig.h
 // API 키 및 서비스 설정 관리
-// 
+//
 // API 키 저장 우선순위:
 //   1. 환경변수 (CI/CD, 팀 공유 시 권장)
 //   2. 로컬 .ini 파일 (개인 개발 시)
@@ -12,21 +12,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "VFXGeneratorConfig.generated.h"
+#include "HktVFXGeneratorConfig.generated.h"
 
 // ============================================================================
 // LLM / 이미지 생성 Provider 열거형
 // ============================================================================
 
 UENUM(BlueprintType)
-enum class ELLMProvider : uint8
+enum class EHktLLMProvider : uint8
 {
 	Anthropic UMETA(DisplayName = "Anthropic (Claude)"),
 	OpenAI    UMETA(DisplayName = "OpenAI (GPT)"),
 };
 
 UENUM(BlueprintType)
-enum class EImageGenProvider : uint8
+enum class EHktImageGenProvider : uint8
 {
 	StableDiffusionWebUI UMETA(DisplayName = "Stable Diffusion WebUI (AUTOMATIC1111)"),
 	ComfyUI              UMETA(DisplayName = "ComfyUI"),
@@ -36,18 +36,18 @@ enum class EImageGenProvider : uint8
 // API 클라이언트용 설정 구조체 (Config → 클라이언트 전달)
 // ============================================================================
 
-struct HKTVFXEDITOR_API FLLMSettings
+struct HKTVFXEDITOR_API FHktLLMSettings
 {
-	ELLMProvider Provider = ELLMProvider::Anthropic;
+	EHktLLMProvider Provider = EHktLLMProvider::Anthropic;
 	FString APIKey;
 	FString Model;
 	float Temperature = 0.7f;
 	int32 MaxTokens = 4096;
 };
 
-struct HKTVFXEDITOR_API FImageGenSettings
+struct HKTVFXEDITOR_API FHktImageGenSettings
 {
-	EImageGenProvider Provider = EImageGenProvider::StableDiffusionWebUI;
+	EHktImageGenProvider Provider = EHktImageGenProvider::StableDiffusionWebUI;
 	FString ServerURL;
 	FString Model;
 	int32 Width = 512;
@@ -61,7 +61,7 @@ struct HKTVFXEDITOR_API FImageGenSettings
 // ============================================================================
 
 UCLASS(config=HKTVFX)
-class HKTVFXEDITOR_API UVFXGeneratorSettings : public UObject
+class HKTVFXEDITOR_API UHktVFXGeneratorSettings : public UObject
 {
 	GENERATED_BODY()
 
@@ -83,12 +83,12 @@ public:
 // API 키 관리를 포함한 전체 설정 (Project Settings)
 // ============================================================================
 UCLASS(config=HKTVFX, defaultconfig)
-class HKTVFXEDITOR_API UVFXGeneratorConfig : public UDeveloperSettings
+class HKTVFXEDITOR_API UHktVFXGeneratorConfig : public UDeveloperSettings
 {
     GENERATED_BODY()
 
 public:
-    UVFXGeneratorConfig();
+    UHktVFXGeneratorConfig() = default;
 
     // UDeveloperSettings - 에디터 Project Settings에 자동 등록
     virtual FName GetContainerName() const override { return TEXT("Project"); }
@@ -102,10 +102,8 @@ public:
 
     UPROPERTY(Config, EditAnywhere, Category="LLM Provider",
         meta=(DisplayName="Provider"))
-    ELLMProvider LLMProvider = ELLMProvider::Anthropic;
+    EHktLLMProvider LLMProvider = EHktLLMProvider::Anthropic;
 
-    // API Key - .ini에 저장됨 (Config 지정자)
-    // 빈 문자열이면 환경변수에서 읽음
     UPROPERTY(Config, EditAnywhere, Category="LLM Provider",
         meta=(DisplayName="API Key (leave empty to use env variable)",
               PasswordField=true))
@@ -128,15 +126,12 @@ public:
 
     UPROPERTY(Config, EditAnywhere, Category="Image Generation",
         meta=(DisplayName="Provider"))
-    EImageGenProvider ImageGenProvider = EImageGenProvider::StableDiffusionWebUI;
+    EHktImageGenProvider ImageGenProvider = EHktImageGenProvider::StableDiffusionWebUI;
 
-    // 로컬 SD 서버: API 키 불필요
-    // 외부 서비스(Stability AI 등) 사용 시 키 필요
     UPROPERTY(Config, EditAnywhere, Category="Image Generation",
         meta=(DisplayName="Server URL (local SD WebUI or ComfyUI)"))
     FString ImageGenServerURL = TEXT("http://127.0.0.1:7860");
 
-    // Stability AI API 사용 시
     UPROPERTY(Config, EditAnywhere, Category="Image Generation",
         meta=(DisplayName="API Key (only for cloud services, not local SD)",
               PasswordField=true))
@@ -181,7 +176,6 @@ public:
     // Resolved 값 가져오기 (환경변수 폴백 포함)
     // =======================================================================
 
-    // LLM API Key: .ini 값 → 환경변수 폴백
     FString GetLLMApiKey() const
     {
         if (!LLMApiKey.IsEmpty())
@@ -189,14 +183,13 @@ public:
             return LLMApiKey;
         }
 
-        // 환경변수 폴백
         FString EnvKey;
         switch (LLMProvider)
         {
-        case ELLMProvider::Anthropic:
+        case EHktLLMProvider::Anthropic:
             EnvKey = FPlatformMisc::GetEnvironmentVariable(TEXT("ANTHROPIC_API_KEY"));
             break;
-        case ELLMProvider::OpenAI:
+        case EHktLLMProvider::OpenAI:
             EnvKey = FPlatformMisc::GetEnvironmentVariable(TEXT("OPENAI_API_KEY"));
             break;
         }
@@ -210,7 +203,6 @@ public:
         return EnvKey;
     }
 
-    // Image Gen API Key (클라우드 서비스용)
     FString GetImageGenApiKey() const
     {
         if (!ImageGenApiKey.IsEmpty())
@@ -220,10 +212,9 @@ public:
         return FPlatformMisc::GetEnvironmentVariable(TEXT("STABILITY_API_KEY"));
     }
 
-    // 설정을 FLLMSettings로 변환
-    FLLMSettings ToLLMSettings() const
+    FHktLLMSettings ToLLMSettings() const
     {
-        FLLMSettings S;
+        FHktLLMSettings S;
         S.Provider = LLMProvider;
         S.APIKey = GetLLMApiKey();
         S.Model = LLMModel;
@@ -232,10 +223,9 @@ public:
         return S;
     }
 
-    // 설정을 FImageGenSettings로 변환
-    FImageGenSettings ToImageGenSettings() const
+    FHktImageGenSettings ToImageGenSettings() const
     {
-        FImageGenSettings S;
+        FHktImageGenSettings S;
         S.Provider = ImageGenProvider;
         S.ServerURL = ImageGenServerURL;
         S.Model = ImageGenModel;
@@ -246,7 +236,6 @@ public:
         return S;
     }
 
-    // 설정 유효성 검증
     bool Validate(FString& OutError) const
     {
         if (GetLLMApiKey().IsEmpty())
@@ -256,7 +245,6 @@ public:
             return false;
         }
 
-        // 로컬 SD 서버는 키 불필요, URL만 확인
         if (ImageGenServerURL.IsEmpty() && !bSkipTextureGeneration)
         {
             OutError = TEXT("Image generation server URL is empty. "

@@ -40,12 +40,19 @@ public class HktVFXEditor : ModuleRules
 			new string[]
 			{
 				"UnrealEd",
-				"EditorStyle",
+				"EditorSubsystem",
 				"InputCore",
 				"Niagara",
+				"NiagaraEditor",
 				"DeveloperSettings",
 				"GameplayTags",
-				"AssetRegistry"
+				"AssetRegistry",
+				"AssetTools",
+				"HTTP",
+				"Json",
+				"JsonUtilities",
+				"ImageWrapper",
+				"RenderCore",
 			}
 		);
 

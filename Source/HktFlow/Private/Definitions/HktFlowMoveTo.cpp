@@ -15,6 +15,9 @@ namespace HktFlowMoveTo
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Run, "Anim.Run", "Run locomotion animation.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Idle, "Anim.Idle", "Idle animation.");
 
+	// VFX (클라이언트 즉시 재생 — PresentationSubsystem::OnIntentSubmitted에서 처리)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_MoveIndicator, "VFX.MoveIndicator", "Move destination indicator VFX.");
+
 	/**
 	 * ================================================================
 	 * 위치 이동 Flow
@@ -28,6 +31,7 @@ namespace HktFlowMoveTo
 		using namespace Reg;
 
 		Flow(Flow_MoveTo)
+			.CancelOnDuplicate()
 			.Log(TEXT("MoveTo: 이동 시작"))
 
 			// 목표 위치 로드 (IntentEvent에서 설정됨)

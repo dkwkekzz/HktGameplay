@@ -89,14 +89,13 @@ void FHktDefaultClientRule::OnReceived_InitialState(const FHktWorldState& InStat
 	PendingBatches.Empty();
 }
 
-FHktSimulationDiff FHktDefaultClientRule::OnReceived_FrameBatch(const FHktSimulationEvent& InBatch)
+void FHktDefaultClientRule::OnReceived_FrameBatch(const FHktSimulationEvent& InBatch)
 {
 	if (!CachedSimulator || !CachedSimulator->IsInitialized())
 	{
 		PendingBatches.Add(InBatch);
-		return FHktSimulationDiff();
+		return;
 	}
 	// 즉시 처리하지 않고 큐에 적재 — 다음 틱에서 롤백/빨리감기 처리
 	CachedSimulator->EnqueueServerBatch(InBatch);
-	return FHktSimulationDiff();
 }

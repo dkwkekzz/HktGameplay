@@ -6,13 +6,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "VFXIntent.generated.h"
+#include "HktVFXIntent.generated.h"
 
 // ============================================================================
 // 이벤트 타입 - 시뮬레이션에서 어떤 일이 일어났는가
 // ============================================================================
 UENUM(BlueprintType)
-enum class EVFXEventType : uint8
+enum class EHktVFXEventType : uint8
 {
     Explosion,        // 폭발
     ProjectileHit,    // 투사체 적중
@@ -34,7 +34,7 @@ enum class EVFXEventType : uint8
 // 속성 - 시각적 테마를 결정하는 핵심 요소
 // ============================================================================
 UENUM(BlueprintType)
-enum class EVFXElement : uint8
+enum class EHktVFXElement : uint8
 {
     Fire,
     Ice,
@@ -55,7 +55,7 @@ enum class EVFXElement : uint8
 // 표면 타입 - 충돌 시 어떤 바닥인가
 // ============================================================================
 UENUM(BlueprintType)
-enum class EVFXSurfaceType : uint8
+enum class EHktVFXSurfaceType : uint8
 {
     None,
     Stone,
@@ -69,20 +69,20 @@ enum class EVFXSurfaceType : uint8
 };
 
 // ============================================================================
-// FVFXIntent - 프로그래머가 채우는 메인 구조체
+// FHktVFXIntent - 프로그래머가 채우는 메인 구조체
 // ============================================================================
 USTRUCT(BlueprintType)
-struct HKTVFX_API FVFXIntent
+struct HKTVFX_API FHktVFXIntent
 {
     GENERATED_BODY()
 
     // --- 핵심 파라미터 (필수) ---
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Intent|Core")
-    EVFXEventType EventType = EVFXEventType::Explosion;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Intent|Core")
-    EVFXElement Element = EVFXElement::Fire;
+    EHktVFXEventType EventType = EHktVFXEventType::Explosion;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Intent|Core")
+    EHktVFXElement Element = EHktVFXElement::Fire;
 
     // 0.0 ~ 1.0, 시뮬레이션의 데미지/힐량 등을 정규화한 값
     // 0.1 = 약한 이펙트, 1.0 = 최대 강도
@@ -100,9 +100,9 @@ struct HKTVFX_API FVFXIntent
     float Duration = 1.0f;
 
     // --- 맥락 파라미터 (선택) ---
-    
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Intent|Context")
-    EVFXSurfaceType SurfaceType = EVFXSurfaceType::None;
+    EHktVFXSurfaceType SurfaceType = EHktVFXSurfaceType::None;
 
     // 시전자의 파워 레벨 (0~1). 같은 스킬이라도 캐릭터 성장에 따라 이펙트 화려해짐
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Intent|Context", meta=(ClampMin="0.0", ClampMax="1.0"))
@@ -135,14 +135,14 @@ struct HKTVFX_API FVFXIntent
     FString GetAssetKey() const
     {
         FString Key = FString::Printf(TEXT("VFX_%s_%s_I%d"),
-            *UEnum::GetValueAsString(EventType).RightChop(16),  // "EVFXEventType::" 제거
-            *UEnum::GetValueAsString(Element).RightChop(14),
+            *UEnum::GetValueAsString(EventType).RightChop(20),  // "EHktVFXEventType::" 제거
+            *UEnum::GetValueAsString(Element).RightChop(18),     // "EHktVFXElement::" 제거
             FMath::RoundToInt(Intensity * 10));
 
-        if (SurfaceType != EVFXSurfaceType::None)
+        if (SurfaceType != EHktVFXSurfaceType::None)
         {
             Key += FString::Printf(TEXT("_%s"),
-                *UEnum::GetValueAsString(SurfaceType).RightChop(17));
+                *UEnum::GetValueAsString(SurfaceType).RightChop(21));  // "EHktVFXSurfaceType::" 제거
         }
         return Key;
     }
@@ -152,15 +152,15 @@ struct HKTVFX_API FVFXIntent
 };
 
 // ============================================================================
-// FVFXGenerationRequest - 에디터 생성 요청
+// FHktVFXGenerationRequest - 에디터 생성 요청
 // ============================================================================
 USTRUCT(BlueprintType)
-struct HKTVFX_API FVFXGenerationRequest
+struct HKTVFX_API FHktVFXGenerationRequest
 {
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFXGeneration")
-    FVFXIntent Intent;
+    FHktVFXIntent Intent;
 
     // 생성된 에셋을 저장할 경로 (Content 기준)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFXGeneration")

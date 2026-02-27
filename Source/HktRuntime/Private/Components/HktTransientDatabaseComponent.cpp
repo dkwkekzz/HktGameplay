@@ -34,9 +34,8 @@ void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TF
     EnterWorldEvent.EventTag = FGameplayTag::RequestGameplayTag(TEXT("State.Player.InWorld"), false);
     EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid); // 임시, 플로우에서 실제 엔티티 생성
     EnterWorldEvent.TargetEntity = InvalidEntityId;
-    EnterWorldEvent.Location = FVector::ZeroVector; // 기본 스폰 위치
-    EnterWorldEvent.Param0 = static_cast<int32>(InPlayerUid & 0xFFFFFFFF); // 플레이어 UID 하위 32비트
-    EnterWorldEvent.Param1 = static_cast<int32>((InPlayerUid >> 32) & 0xFFFFFFFF); // 플레이어 UID 상위 32비트
+    EnterWorldEvent.Location = FVector::ZeroVector; // 기본 스폰 위치는 여기서 정하는게 아님
+    EnterWorldEvent.PlayerUid = InPlayerUid;
     NewRecord.ActiveEvents.Add(EnterWorldEvent);
 
     InCallback(NewRecord);

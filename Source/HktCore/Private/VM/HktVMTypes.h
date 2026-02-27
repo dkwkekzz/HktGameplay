@@ -46,6 +46,7 @@ enum class EWaitEventType : uint8
     None,
     Timer,
     Collision,
+    MoveEnd,
 };
 
 /**

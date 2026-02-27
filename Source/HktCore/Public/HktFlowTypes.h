@@ -60,6 +60,7 @@ enum class EOpCode : uint8
 
     // Event Wait
     WaitCollision,          // 충돌 이벤트 대기
+    WaitMoveEnd,            // 이동 완료 대기
 
     // Data Operations
     LoadConst,              // 상수 → 레지스터

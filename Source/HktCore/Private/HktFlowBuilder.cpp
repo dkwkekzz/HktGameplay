@@ -62,6 +62,16 @@ int32 FHktFlowBuilder::TagToInt(const FGameplayTag& Tag)
 }
 
 // ============================================================================
+// Flow Policy
+// ============================================================================
+
+FHktFlowBuilder& FHktFlowBuilder::CancelOnDuplicate()
+{
+    Program->bCancelOnDuplicate = true;
+    return *this;
+}
+
+// ============================================================================
 // Control Flow
 // ============================================================================
 
@@ -130,8 +140,7 @@ FHktFlowBuilder& FHktFlowBuilder::WaitAnimEnd(RegisterIndex Entity)
 
 FHktFlowBuilder& FHktFlowBuilder::WaitMoveEnd(RegisterIndex Entity)
 {
-    // 구현: 프레임 대기로 대체 (향후 MoveEnd 이벤트 도입 가능)
-    Yield(1);
+    Emit(FInstruction::Make(EOpCode::WaitMoveEnd, 0, Entity, 0, 0));
     return *this;
 }
 

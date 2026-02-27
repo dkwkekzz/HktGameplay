@@ -26,11 +26,7 @@ public class HktVFX : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"InputCore",
 				"GameplayTags",
-				"UMG",
-				"Slate",
-				"SlateCore",
 				"Niagara",
 				"HktCore",
 				"HktRuntime",
@@ -41,7 +37,6 @@ public class HktVFX : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"DeveloperSettings"
 			}
 		);
 		

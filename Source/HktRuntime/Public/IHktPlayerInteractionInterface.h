@@ -35,4 +35,13 @@ public:
 
 	/** 시뮬레이션 상태가 갱신되었을 때 (FrameBatch/InitialState 수신 후) 브로드캐스트됩니다. */
 	virtual FOnHktWorldViewUpdated& OnWorldViewUpdated() = 0;
+
+	/** 마우스 휠 등 줌 입력 (RTS 카메라 등에서 구독). 미지원 시 빈 델리게이트 반환. */
+	virtual FOnHktWheelInput& OnWheelInput() = 0;
+
+	/** 선택 주체(Subject) 엔터티 변경 시 브로드캐스트. InvalidEntityId면 선택 해제. */
+	virtual FOnHktSubjectChanged& OnSubjectChanged() = 0;
+
+	/** Intent 제출 시 브로드캐스트 (클라이언트 즉시 VFX 등에 사용). */
+	virtual FOnHktIntentSubmitted& OnIntentSubmitted() = 0;
 };

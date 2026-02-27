@@ -57,3 +57,18 @@ FOnHktWorldViewUpdated& AHktLoginPlayerController::OnWorldViewUpdated()
 {
 	return WorldViewUpdatedDelegate;
 }
+
+FOnHktWheelInput& AHktLoginPlayerController::OnWheelInput()
+{
+	return WheelInputDelegate;
+}
+
+FOnHktSubjectChanged& AHktLoginPlayerController::OnSubjectChanged()
+{
+	return SubjectChangedDelegate;
+}
+
+FOnHktIntentSubmitted& AHktLoginPlayerController::OnIntentSubmitted()
+{
+	return IntentSubmittedDelegate;
+}

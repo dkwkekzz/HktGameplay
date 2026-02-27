@@ -34,7 +34,8 @@ public class HktPresentation : ModuleRules
 				"Niagara",
 				"HktCore",
 				"HktRuntime",
-				"HktAsset"
+				"HktAsset",
+				"HktVFX"
 			}
 		);
 			

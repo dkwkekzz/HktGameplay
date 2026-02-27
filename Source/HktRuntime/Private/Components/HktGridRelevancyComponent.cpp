@@ -65,22 +65,6 @@ IHktRelevancyGroup& UHktGridRelevancyComponent::GetRelevancyGroup(int32 Index) {
 
 const IHktRelevancyGroup& UHktGridRelevancyComponent::GetRelevancyGroup(int32 Index) const { return Groups[Index]; }
 
-IHktRelevancyGroup* UHktGridRelevancyComponent::GetRelevancyGroupByPlayer(int64 PlayerUid)
-{
-    return const_cast<IHktRelevancyGroup*>(static_cast<const UHktGridRelevancyComponent*>(this)->GetRelevancyGroupByPlayer(PlayerUid));
-}
-
-const IHktRelevancyGroup* UHktGridRelevancyComponent::GetRelevancyGroupByPlayer(int64 PlayerUid) const
-{
-    for (const FHktRelevancyGroupImpl& Group : Groups)
-    {
-        if (Group.HasPlayer(PlayerUid))
-            return &Group;
-    }
-
-    return nullptr;
-}
-
 FIntPoint UHktGridRelevancyComponent::LocationToCell(const FVector& Location) const
 {
     return FIntPoint(FMath::FloorToInt(Location.X / CellSize), FMath::FloorToInt(Location.Y / CellSize));

@@ -125,11 +125,11 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId)
 
 	int32 Health = CachedWorldState->GetProperty(EntityId, PropertyId::Health);
 	int32 MaxHealth = CachedWorldState->GetProperty(EntityId, PropertyId::MaxHealth);
-	int32 OwnerUid = CachedWorldState->GetProperty(EntityId, PropertyId::OwnedPlayerUid);
+	int64 OwnerUid = CachedWorldState->GetOwnerUid(EntityId);
 	int32 Team = CachedWorldState->GetProperty(EntityId, PropertyId::Team);
 
 	EntityWidget->SetEntityId(EntityId);
-	EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%d"), OwnerUid) : TEXT("-"));
+	EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%lld"), OwnerUid) : TEXT("-"));
 	EntityWidget->SetHealthPercent(MaxHealth > 0 ? static_cast<float>(Health) / MaxHealth : 1.f);
 
 	static const FLinearColor TeamColors[] = {
@@ -167,11 +167,11 @@ void AHktIngameHUD::UpdateEntityProperties()
 
 		int32 Health = CachedWorldState->GetProperty(EntityId, PropertyId::Health);
 		int32 MaxHealth = CachedWorldState->GetProperty(EntityId, PropertyId::MaxHealth);
-		int32 OwnerUid = CachedWorldState->GetProperty(EntityId, PropertyId::OwnedPlayerUid);
+		int64 OwnerUid = CachedWorldState->GetOwnerUid(EntityId);
 		int32 Team = CachedWorldState->GetProperty(EntityId, PropertyId::Team);
 
 		EntityWidget->SetHealthPercent(MaxHealth > 0 ? static_cast<float>(Health) / MaxHealth : 0.f);
-		EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%d"), OwnerUid) : TEXT("-"));
+		EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%lld"), OwnerUid) : TEXT("-"));
 
 		static const FLinearColor TeamColors[] = {
 			FLinearColor::White,

@@ -24,10 +24,16 @@ public:
 	virtual void ExecuteCommand(UObject* CommandData) override;
 	virtual bool GetWorldState(const FHktWorldState*& OutState) const override;
 	virtual FOnHktWorldViewUpdated& OnWorldViewUpdated() override;
+	virtual FOnHktWheelInput& OnWheelInput() override;
+	virtual FOnHktSubjectChanged& OnSubjectChanged() override;
+	virtual FOnHktIntentSubmitted& OnIntentSubmitted() override;
 
 protected:
 	virtual void BeginPlay() override;
 
 private:
 	FOnHktWorldViewUpdated WorldViewUpdatedDelegate;
+	FOnHktWheelInput WheelInputDelegate;
+	FOnHktSubjectChanged SubjectChangedDelegate;
+	FOnHktIntentSubmitted IntentSubmittedDelegate;
 };

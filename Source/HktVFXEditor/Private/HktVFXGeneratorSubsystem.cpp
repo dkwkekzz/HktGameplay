@@ -1,38 +1,39 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "VFXGeneratorSubsystem.h"
-#include "VFXGeneratorConfig.h"
-#include "VFXLLMClient.h"
-#include "VFXTextureGenerator.h"
+#include "HktVFXGeneratorSubsystem.h"
+#include "HktVFXGeneratorConfig.h"
+#include "HktVFXLLMClient.h"
+#include "HktVFXTextureGenerator.h"
+#include "HktVFXNiagaraBuilder.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonSerializer.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "NiagaraSystem.h"
 
-void UVFXGeneratorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void UHktVFXGeneratorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
-    Settings = NewObject<UVFXGeneratorSettings>(this);
+    Settings = NewObject<UHktVFXGeneratorSettings>(this);
     Settings->LoadConfig();
 
-    LLMClient = MakeUnique<FVFXLLMClient>();
-    TextureGen = MakeUnique<FVFXTextureGenerator>();
-    NiagaraBuilder = MakeUnique<FVFXNiagaraBuilder>();
+    LLMClient = MakeShared<FHktVFXLLMClient>();
+    TextureGen = MakeShared<FHktVFXTextureGenerator>();
+    NiagaraBuilder = MakeShared<FHktVFXNiagaraBuilder>();
 
     UE_LOG(LogTemp, Log, TEXT("[VFXGenerator] Subsystem initialized"));
 }
 
 // Config에서 설정 로드 + 유효성 검증
-static bool LoadAndValidateConfig(FVFXLLMClient* LLM, FVFXTextureGenerator* TexGen)
+static bool LoadAndValidateConfig(FHktVFXLLMClient* LLM, FHktVFXTextureGenerator* TexGen)
 {
-    const UVFXGeneratorConfig* Config = GetDefault<UVFXGeneratorConfig>();
+    const UHktVFXGeneratorConfig* Config = GetDefault<UHktVFXGeneratorConfig>();
 
     FString Error;
     if (!Config->Validate(Error))
     {
         UE_LOG(LogTemp, Error, TEXT("[VFXGenerator] %s"), *Error);
-        // 에디터 알림
         FNotificationInfo Info(FText::FromString(Error));
         Info.ExpireDuration = 5.f;
         FSlateNotificationManager::Get().AddNotification(Info);
@@ -44,7 +45,7 @@ static bool LoadAndValidateConfig(FVFXLLMClient* LLM, FVFXTextureGenerator* TexG
     return true;
 }
 
-void UVFXGeneratorSubsystem::Deinitialize()
+void UHktVFXGeneratorSubsystem::Deinitialize()
 {
     LLMClient.Reset();
     TextureGen.Reset();
@@ -52,10 +53,7 @@ void UVFXGeneratorSubsystem::Deinitialize()
     Super::Deinitialize();
 }
 
-// ============================================================================
-// 단일 VFX 생성 - 메인 엔트리 포인트
-// ============================================================================
-void UVFXGeneratorSubsystem::GenerateVFX(const FVFXGenerationRequest& Request)
+void UHktVFXGeneratorSubsystem::GenerateVFX(const FHktVFXGenerationRequest& Request)
 {
     UE_LOG(LogTemp, Log, TEXT("[VFXGenerator] === Starting generation: %s ==="),
         *Request.Intent.GetAssetKey());
@@ -63,22 +61,20 @@ void UVFXGeneratorSubsystem::GenerateVFX(const FVFXGenerationRequest& Request)
     ProcessSingleRequest(Request);
 }
 
-void UVFXGeneratorSubsystem::ProcessSingleRequest(const FVFXGenerationRequest& Request)
+void UHktVFXGeneratorSubsystem::ProcessSingleRequest(const FHktVFXGenerationRequest& Request)
 {
-    // Config에서 API 키 로드 + 검증
     if (!LoadAndValidateConfig(LLMClient.Get(), TextureGen.Get()))
     {
         OnComplete.Broadcast(false, nullptr);
         return;
     }
 
-    // Phase 1: LLM에 Niagara 설정 요청
     OnProgress.Broadcast(TEXT("LLM"), 0.0f,
         FString::Printf(TEXT("Requesting AI design for: %s"),
             *Request.Intent.GetAssetKey()));
 
-    FOnLLMResponse OnLLMDone;
-    OnLLMDone.BindLambda([this, Request](bool bSuccess, const FVFXNiagaraConfig& Config)
+    FOnHktLLMResponse OnLLMDone;
+    OnLLMDone.BindLambda([this, Request](bool bSuccess, const FHktVFXNiagaraConfig& Config)
     {
         OnLLMResponseReceived(bSuccess, Config, Request);
     });
@@ -86,13 +82,10 @@ void UVFXGeneratorSubsystem::ProcessSingleRequest(const FVFXGenerationRequest& R
     LLMClient->RequestNiagaraConfig(Request.Intent, OnLLMDone);
 }
 
-// ============================================================================
-// Phase 1 완료 → Phase 2: 텍스처 생성
-// ============================================================================
-void UVFXGeneratorSubsystem::OnLLMResponseReceived(
+void UHktVFXGeneratorSubsystem::OnLLMResponseReceived(
     bool bSuccess,
-    const FVFXNiagaraConfig& Config,
-    FVFXGenerationRequest OriginalRequest)
+    const FHktVFXNiagaraConfig& Config,
+    FHktVFXGenerationRequest OriginalRequest)
 {
     if (!bSuccess || !Config.IsValid())
     {
@@ -108,18 +101,14 @@ void UVFXGeneratorSubsystem::OnLLMResponseReceived(
 
     UE_LOG(LogTemp, Log, TEXT("[VFXGenerator] Design notes: %s"), *Config.DesignNotes);
 
-    // 디버그: JSON 저장
     if (Settings->bSaveLLMResponseJSON)
     {
         FString SavePath = FPaths::ProjectSavedDir() / TEXT("AIVFXGenerator") /
             (OriginalRequest.Intent.GetAssetKey() + TEXT("_config.json"));
-        // Config를 다시 JSON으로 직렬화하여 저장 (생략 - FJsonObjectConverter 사용)
     }
 
-    // Phase 2: 텍스처 생성
     if (Settings->bSkipTextureGeneration || Config.TextureRequests.Num() == 0)
     {
-        // 텍스처 없이 바로 빌드
         TMap<FString, UTexture2D*> EmptyTextures;
         OnTexturesGenerated(true, EmptyTextures, Config, OriginalRequest);
         return;
@@ -135,7 +124,7 @@ void UVFXGeneratorSubsystem::OnLLMResponseReceived(
     int32 TexRes = OriginalRequest.TextureResolution > 0
         ? OriginalRequest.TextureResolution : Settings->DefaultTextureResolution;
 
-    FOnAllTexturesGenerated OnTexDone;
+    FOnHktAllTexturesGenerated OnTexDone;
     OnTexDone.BindLambda([this, Config, OriginalRequest](
         bool bSuccess, const TMap<FString, UTexture2D*>& Textures)
     {
@@ -145,14 +134,11 @@ void UVFXGeneratorSubsystem::OnLLMResponseReceived(
     TextureGen->GenerateAllTextures(Config.TextureRequests, TexOutputDir, TexRes, OnTexDone);
 }
 
-// ============================================================================
-// Phase 2 완료 → Phase 3: Niagara 시스템 빌드
-// ============================================================================
-void UVFXGeneratorSubsystem::OnTexturesGenerated(
+void UHktVFXGeneratorSubsystem::OnTexturesGenerated(
     bool bSuccess,
     const TMap<FString, UTexture2D*>& Textures,
-    FVFXNiagaraConfig Config,
-    FVFXGenerationRequest OriginalRequest)
+    FHktVFXNiagaraConfig Config,
+    FHktVFXGenerationRequest OriginalRequest)
 {
     if (!bSuccess)
     {
@@ -163,7 +149,6 @@ void UVFXGeneratorSubsystem::OnTexturesGenerated(
         FString::Printf(TEXT("Generated %d/%d textures"),
             Textures.Num(), Config.TextureRequests.Num()));
 
-    // Phase 3: Niagara 시스템 빌드
     OnProgress.Broadcast(TEXT("Build"), 0.0f, TEXT("Building Niagara System..."));
 
     FString OutputDir = OriginalRequest.OutputDirectory.IsEmpty()
@@ -174,19 +159,18 @@ void UVFXGeneratorSubsystem::OnTexturesGenerated(
     if (System)
     {
         OnProgress.Broadcast(TEXT("Build"), 1.0f,
-            FString::Printf(TEXT("✓ Created: %s"), *System->GetPathName()));
+            FString::Printf(TEXT("Created: %s"), *System->GetPathName()));
 
         UE_LOG(LogTemp, Log, TEXT("[VFXGenerator] === Generation complete: %s ==="),
             *System->GetPathName());
     }
     else
     {
-        OnProgress.Broadcast(TEXT("Build"), 1.0f, TEXT("✗ Failed to build Niagara System"));
+        OnProgress.Broadcast(TEXT("Build"), 1.0f, TEXT("Failed to build Niagara System"));
     }
 
     OnComplete.Broadcast(System != nullptr, System);
 
-    // 배치 처리 중이면 다음 아이템
     if (ActiveBatch.IsValid())
     {
         if (System) ActiveBatch->Results.Add(System);
@@ -194,23 +178,20 @@ void UVFXGeneratorSubsystem::OnTexturesGenerated(
     }
 }
 
-// ============================================================================
-// 배치 생성
-// ============================================================================
-void UVFXGeneratorSubsystem::GenerateBatch(const TArray<FVFXGenerationRequest>& Requests)
+void UHktVFXGeneratorSubsystem::GenerateBatch(const TArray<FHktVFXGenerationRequest>& Requests)
 {
     if (Requests.Num() == 0) return;
 
     UE_LOG(LogTemp, Log, TEXT("[VFXGenerator] Starting batch generation: %d items"), Requests.Num());
 
-    ActiveBatch = MakeShared<FBatchState>();
+    ActiveBatch = MakeShared<FHktVFXBatchState>();
     ActiveBatch->Requests = Requests;
     ActiveBatch->CurrentIndex = 0;
 
     ProcessNextBatchItem();
 }
 
-void UVFXGeneratorSubsystem::ProcessNextBatchItem()
+void UHktVFXGeneratorSubsystem::ProcessNextBatchItem()
 {
     if (!ActiveBatch.IsValid()) return;
 
@@ -222,7 +203,7 @@ void UVFXGeneratorSubsystem::ProcessNextBatchItem()
         return;
     }
 
-    const FVFXGenerationRequest& Request = ActiveBatch->Requests[ActiveBatch->CurrentIndex];
+    const FHktVFXGenerationRequest& Request = ActiveBatch->Requests[ActiveBatch->CurrentIndex];
     ActiveBatch->CurrentIndex++;
 
     UE_LOG(LogTemp, Log, TEXT("[VFXGenerator] Batch item %d/%d: %s"),
@@ -232,14 +213,11 @@ void UVFXGeneratorSubsystem::ProcessNextBatchItem()
     ProcessSingleRequest(Request);
 }
 
-// ============================================================================
-// 퀵 생성 - 자연어 → Intent 변환
-// ============================================================================
-void UVFXGeneratorSubsystem::QuickGenerate(const FString& Description)
+void UHktVFXGeneratorSubsystem::QuickGenerate(const FString& Description)
 {
-    FVFXIntent Intent = ParseQuickDescription(Description);
+    FHktVFXIntent Intent = ParseQuickDescription(Description);
 
-    FVFXGenerationRequest Request;
+    FHktVFXGenerationRequest Request;
     Request.Intent = Intent;
     Request.OutputDirectory = Settings->DefaultOutputDirectory;
     Request.TextureResolution = Settings->DefaultTextureResolution;
@@ -247,48 +225,45 @@ void UVFXGeneratorSubsystem::QuickGenerate(const FString& Description)
     GenerateVFX(Request);
 }
 
-FVFXIntent UVFXGeneratorSubsystem::ParseQuickDescription(const FString& Description) const
+FHktVFXIntent UHktVFXGeneratorSubsystem::ParseQuickDescription(const FString& Description) const
 {
-    FVFXIntent Intent;
+    FHktVFXIntent Intent;
     FString Desc = Description.ToLower();
 
-    // 이벤트 타입 추론
-    if (Desc.Contains(TEXT("explo")))        Intent.EventType = EVFXEventType::Explosion;
-    else if (Desc.Contains(TEXT("hit")))     Intent.EventType = EVFXEventType::ProjectileHit;
-    else if (Desc.Contains(TEXT("trail")))   Intent.EventType = EVFXEventType::ProjectileTrail;
-    else if (Desc.Contains(TEXT("area")))    Intent.EventType = EVFXEventType::AreaEffect;
-    else if (Desc.Contains(TEXT("buff")))    Intent.EventType = EVFXEventType::Buff;
-    else if (Desc.Contains(TEXT("heal")))    Intent.EventType = EVFXEventType::Heal;
-    else if (Desc.Contains(TEXT("shield")))  Intent.EventType = EVFXEventType::Shield;
-    else if (Desc.Contains(TEXT("summon")))  Intent.EventType = EVFXEventType::Summon;
-    else if (Desc.Contains(TEXT("death")))   Intent.EventType = EVFXEventType::Death;
-    else                                     Intent.EventType = EVFXEventType::Custom;
+    if (Desc.Contains(TEXT("explo")))        Intent.EventType = EHktVFXEventType::Explosion;
+    else if (Desc.Contains(TEXT("hit")))     Intent.EventType = EHktVFXEventType::ProjectileHit;
+    else if (Desc.Contains(TEXT("trail")))   Intent.EventType = EHktVFXEventType::ProjectileTrail;
+    else if (Desc.Contains(TEXT("area")))    Intent.EventType = EHktVFXEventType::AreaEffect;
+    else if (Desc.Contains(TEXT("buff")))    Intent.EventType = EHktVFXEventType::Buff;
+    else if (Desc.Contains(TEXT("heal")))    Intent.EventType = EHktVFXEventType::Heal;
+    else if (Desc.Contains(TEXT("shield")))  Intent.EventType = EHktVFXEventType::Shield;
+    else if (Desc.Contains(TEXT("summon")))  Intent.EventType = EHktVFXEventType::Summon;
+    else if (Desc.Contains(TEXT("death")))   Intent.EventType = EHktVFXEventType::Death;
+    else                                     Intent.EventType = EHktVFXEventType::Custom;
 
-    // 속성 추론
     if (Desc.Contains(TEXT("fire")) || Desc.Contains(TEXT("flame")))
-        Intent.Element = EVFXElement::Fire;
+        Intent.Element = EHktVFXElement::Fire;
     else if (Desc.Contains(TEXT("ice")) || Desc.Contains(TEXT("frost")))
-        Intent.Element = EVFXElement::Ice;
+        Intent.Element = EHktVFXElement::Ice;
     else if (Desc.Contains(TEXT("lightning")) || Desc.Contains(TEXT("electric")))
-        Intent.Element = EVFXElement::Lightning;
+        Intent.Element = EHktVFXElement::Lightning;
     else if (Desc.Contains(TEXT("dark")) || Desc.Contains(TEXT("shadow")))
-        Intent.Element = EVFXElement::Dark;
+        Intent.Element = EHktVFXElement::Dark;
     else if (Desc.Contains(TEXT("holy")) || Desc.Contains(TEXT("light")) || Desc.Contains(TEXT("divine")))
-        Intent.Element = EVFXElement::Holy;
+        Intent.Element = EHktVFXElement::Holy;
     else if (Desc.Contains(TEXT("poison")) || Desc.Contains(TEXT("toxic")))
-        Intent.Element = EVFXElement::Poison;
+        Intent.Element = EHktVFXElement::Poison;
     else if (Desc.Contains(TEXT("water")))
-        Intent.Element = EVFXElement::Water;
+        Intent.Element = EHktVFXElement::Water;
     else if (Desc.Contains(TEXT("earth")) || Desc.Contains(TEXT("rock")))
-        Intent.Element = EVFXElement::Earth;
+        Intent.Element = EHktVFXElement::Earth;
     else if (Desc.Contains(TEXT("wind")))
-        Intent.Element = EVFXElement::Wind;
+        Intent.Element = EHktVFXElement::Wind;
     else if (Desc.Contains(TEXT("arcane")) || Desc.Contains(TEXT("magic")))
-        Intent.Element = EVFXElement::Arcane;
+        Intent.Element = EHktVFXElement::Arcane;
     else if (Desc.Contains(TEXT("nature")) || Desc.Contains(TEXT("leaf")))
-        Intent.Element = EVFXElement::Nature;
+        Intent.Element = EHktVFXElement::Nature;
 
-    // 강도 추론
     if (Desc.Contains(TEXT("weak")) || Desc.Contains(TEXT("small")) || Desc.Contains(TEXT("subtle")))
         Intent.Intensity = 0.3f;
     else if (Desc.Contains(TEXT("strong")) || Desc.Contains(TEXT("powerful")) || Desc.Contains(TEXT("big")))
@@ -296,40 +271,35 @@ FVFXIntent UVFXGeneratorSubsystem::ParseQuickDescription(const FString& Descript
     else if (Desc.Contains(TEXT("massive")) || Desc.Contains(TEXT("epic")) || Desc.Contains(TEXT("huge")))
         Intent.Intensity = 1.0f;
 
-    // 표면 추론
-    if (Desc.Contains(TEXT("stone")))      Intent.SurfaceType = EVFXSurfaceType::Stone;
-    else if (Desc.Contains(TEXT("metal"))) Intent.SurfaceType = EVFXSurfaceType::Metal;
-    else if (Desc.Contains(TEXT("water"))) Intent.SurfaceType = EVFXSurfaceType::Water;
-    else if (Desc.Contains(TEXT("snow")))  Intent.SurfaceType = EVFXSurfaceType::Snow;
+    if (Desc.Contains(TEXT("stone")))      Intent.SurfaceType = EHktVFXSurfaceType::Stone;
+    else if (Desc.Contains(TEXT("metal"))) Intent.SurfaceType = EHktVFXSurfaceType::Metal;
+    else if (Desc.Contains(TEXT("water"))) Intent.SurfaceType = EHktVFXSurfaceType::Water;
+    else if (Desc.Contains(TEXT("snow")))  Intent.SurfaceType = EHktVFXSurfaceType::Snow;
 
-    // 원본 설명도 보존 (Custom 타입이면 LLM이 그대로 활용)
     Intent.CustomDescription = Description;
 
     return Intent;
 }
 
-// ============================================================================
-// 프리셋 뱅크 자동 생성
-// ============================================================================
-void UVFXGeneratorSubsystem::GeneratePresetBank(
-    const TArray<EVFXEventType>& EventTypes,
-    const TArray<EVFXElement>& Elements,
+void UHktVFXGeneratorSubsystem::GeneratePresetBank(
+    const TArray<EHktVFXEventType>& EventTypes,
+    const TArray<EHktVFXElement>& Elements,
     const TArray<float>& Intensities)
 {
-    TArray<FVFXGenerationRequest> Requests;
+    TArray<FHktVFXGenerationRequest> Requests;
 
-    for (EVFXEventType Event : EventTypes)
+    for (EHktVFXEventType Event : EventTypes)
     {
-        for (EVFXElement Element : Elements)
+        for (EHktVFXElement Element : Elements)
         {
             for (float Intensity : Intensities)
             {
-                FVFXGenerationRequest Req;
+                FHktVFXGenerationRequest Req;
                 Req.Intent.EventType = Event;
                 Req.Intent.Element = Element;
                 Req.Intent.Intensity = Intensity;
                 Req.OutputDirectory = Settings->DefaultOutputDirectory /
-                    UEnum::GetValueAsString(Event).RightChop(16);
+                    UEnum::GetValueAsString(Event).RightChop(20);  // "EHktVFXEventType::" 제거
                 Req.TextureResolution = Settings->DefaultTextureResolution;
                 Requests.Add(Req);
             }

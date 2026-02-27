@@ -1,6 +1,16 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktPresentationViewModels.h"
+#include "GameplayTagsManager.h"
+
+namespace
+{
+	static FGameplayTag IndexToTag(int32 InTagNetIndex)
+	{
+		FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(InTagNetIndex));
+		return FGameplayTag::RequestGameplayTag(TagName);
+	}
+}
 
 // --------------------------------------------------------------------------- FHktVM_Transform
 void FHktVM_Transform::Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
@@ -106,15 +116,14 @@ bool FHktVM_Combat::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
 void FHktVM_Ownership::Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
 {
 	Team.Set(WS.GetProperty(Id, PropertyId::Team), Frame);
-	OwnedPlayerUid.Set(static_cast<int64>(WS.GetProperty(Id, PropertyId::OwnedPlayerUid)), Frame);
+	OwnedPlayerUid.Set(WS.GetOwnerUid(Id), Frame);
 }
 
 bool FHktVM_Ownership::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
 {
 	switch (PropId)
 	{
-	case PropertyId::Team:           Team.Set(NewValue, Frame); return true;
-	case PropertyId::OwnedPlayerUid: OwnedPlayerUid.Set(static_cast<int64>(NewValue), Frame); return true;
+	case PropertyId::Team: Team.Set(NewValue, Frame); return true;
 	default: return false;
 	}
 }
@@ -132,6 +141,22 @@ bool FHktVM_Animation::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
 	{
 	case PropertyId::AnimState:   AnimState.Set(NewValue, Frame); return true;
 	case PropertyId::VisualState: VisualState.Set(NewValue, Frame); return true;
+	default: return false;
+	}
+}
+
+// --------------------------------------------------------------------------- FHktVM_Visualization
+void FHktVM_Visualization::Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
+{
+	int32 TagNetIndex = WS.GetProperty(Id, PropertyId::EntitySpawnTag);
+	VisualElement.Set(IndexToTag(TagNetIndex), Frame);
+}
+
+bool FHktVM_Visualization::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
+{
+	switch (PropId)
+	{
+	case PropertyId::EntitySpawnTag: VisualElement.Set(IndexToTag(NewValue), Frame); return true;
 	default: return false;
 	}
 }

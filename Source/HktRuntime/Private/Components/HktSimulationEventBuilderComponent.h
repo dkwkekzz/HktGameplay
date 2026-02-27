@@ -17,17 +17,12 @@
  *     FGroupEventSend 등으로 처리.
  */
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
-class HKTRUNTIME_API UHktSimulationEventBuilderComponent : public UActorComponent, public IHktSimulationEventBuilder
+class HKTRUNTIME_API UHktSimulationEventBuilderComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 	UHktSimulationEventBuilderComponent();
-
-	// === IHktSimulationEventBuilder 구현 ===
-	virtual void Resize(int32 NumGroups) override;
-	virtual void PushIntent(int32 GroupIndex, const FHktEvent& InEvent) override;
-	virtual bool GetIntents(int32 GroupIndex, TArray<FHktEvent>& OutIntents) override;
 
 private:
 	TArray<TArray<FHktEvent>> GroupIntents;

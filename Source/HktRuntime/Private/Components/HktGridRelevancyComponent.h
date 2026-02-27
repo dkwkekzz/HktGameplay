@@ -9,7 +9,7 @@
 #include "HktRuntimeTypes.h"
 #include "HktGridRelevancyComponent.generated.h"
 
-class FHktRelevancyGroupImpl : public IHktRelevancyGroup
+class FHktRelevancyGroupImpl : public IHktRelevancyGroup, public IHktAuthoritySimulator
 {
 public:
     FHktRelevancyGroupImpl();
@@ -22,6 +22,8 @@ public:
     // IHktRelevancyGroup
     virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }
     virtual const TArray<IHktWorldPlayer*>& GetCachedWorldPlayers() const override { return CachedPlayers; }
+    virtual const IHktAuthoritySimulator& GetSimulator() const override { return *this; }
+    virtual IHktAuthoritySimulator& GetSimulator() override { return *this; }
 
     void AddPlayer(int64 Uid, IHktWorldPlayer* Player);
     void RemovePlayer(int64 Uid);
@@ -49,8 +51,6 @@ public:
     virtual int32 NumRelevancyGroup() const override;
     virtual IHktRelevancyGroup& GetRelevancyGroup(int32 Index) override;
     virtual const IHktRelevancyGroup& GetRelevancyGroup(int32 Index) const override;
-    virtual IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) override;
-    virtual const IHktRelevancyGroup* GetRelevancyGroupByPlayer(int64 PlayerUid) const override;
     virtual int32 GetRelevancyGroupIndex(int64 PlayerUid) const override;
     virtual int32 CalculateRelevancyGroupIndex(FVector PlayerPos) const override;
 

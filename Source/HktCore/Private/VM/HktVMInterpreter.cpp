@@ -3,10 +3,12 @@
 #include "HktVMInterpreter.h"
 #include "HktVMProgram.h"
 #include "HktVMContext.h"
+#include "HktVMWorldStateProxy.h"
 
-void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState)
+void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy)
 {
     WorldState = InWorldState;
+    VMProxy = InVMProxy;
 }
 
 EVMStatus FHktVMInterpreter::Execute(FHktVMRuntime& Runtime)
@@ -49,6 +51,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::JumpIf: Op_JumpIf(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::JumpIfNot: Op_JumpIfNot(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::WaitCollision: return Op_WaitCollision(Runtime, Inst.Src1);
+    case EOpCode::WaitMoveEnd: return Op_WaitMoveEnd(Runtime, Inst.Src1);
     case EOpCode::LoadConst: Op_LoadConst(Runtime, Inst._Dst, Inst.GetSignedImm20()); break;
     case EOpCode::LoadConstHigh: Op_LoadConstHigh(Runtime, Inst.Dst, Inst.Imm12); break;
     case EOpCode::LoadStore: Op_LoadStore(Runtime, Inst.Dst, Inst.Imm12); break;
@@ -138,6 +141,13 @@ void FHktVMInterpreter::Op_JumpIfNot(FHktVMRuntime& Runtime, RegisterIndex Cond,
 EVMStatus FHktVMInterpreter::Op_WaitCollision(FHktVMRuntime& Runtime, RegisterIndex WatchEntity)
 {
     Runtime.EventWait.Type = EWaitEventType::Collision;
+    Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity);
+    return EVMStatus::WaitingEvent;
+}
+
+EVMStatus FHktVMInterpreter::Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity)
+{
+    Runtime.EventWait.Type = EWaitEventType::MoveEnd;
     Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity);
     return EVMStatus::WaitingEvent;
 }

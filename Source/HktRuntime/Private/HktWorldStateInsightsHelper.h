@@ -44,7 +44,6 @@ namespace HktWorldStateInsights
         case PropertyId::Param3:          return TEXT("Param3");
         case PropertyId::AnimState:       return TEXT("AnimState");
         case PropertyId::VisualState:     return TEXT("VisState");
-        case PropertyId::OwnedPlayerUid:  return TEXT("OwnedUid");
         default:                          return FString::Printf(TEXT("P%d"), PropId);
         }
     }
@@ -82,12 +81,13 @@ namespace HktWorldStateInsights
         for (int32 T = 1; T < HktType::MaxTypes; ++T)
         {
             const FHktEntityPool& Pool = WS.GetPool(static_cast<FHktTypeId>(T));
-            if (Pool.ActiveCount == 0 || !Pool.Schema)
+            if (Pool.ActiveCount == 0 || Pool.Stride == 0)
             {
                 continue;
             }
 
             Snapshot.EntityCount += Pool.ActiveCount;
+            const FHktEntitySchema& Schema = FHktSchemaRegistry::Get().Get(static_cast<FHktTypeId>(T));
 
             Pool.ForEachEntity([&](FHktEntityId EntityId, int32 Slot)
             {
@@ -95,13 +95,12 @@ namespace HktWorldStateInsights
                 Row.EntityId = EntityId;
                 Row.TypeName = TypeIdToName(static_cast<FHktTypeId>(T));
 
-                const int32 Stride = Pool.Schema->GetStride();
-                Row.PropNames.Reserve(Stride);
-                Row.PropValues.Reserve(Stride);
+                Row.PropNames.Reserve(Pool.Stride);
+                Row.PropValues.Reserve(Pool.Stride);
 
-                for (int8 LocalIdx = 0; LocalIdx < Stride; ++LocalIdx)
+                for (int8 LocalIdx = 0; LocalIdx < Pool.Stride; ++LocalIdx)
                 {
-                    const uint16 PropId = Pool.Schema->PropertyIds[LocalIdx];
+                    const uint16 PropId = Schema.PropertyIds[LocalIdx];
                     const int32  Value  = Pool.Get(Slot, LocalIdx);
                     Row.PropNames.Add(PropIdToName(PropId));
                     Row.PropValues.Add(Value);

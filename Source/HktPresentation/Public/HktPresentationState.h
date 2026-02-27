@@ -34,6 +34,7 @@ struct FHktEntityPresentation
 
 	void InitFromWorldState(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
 	void ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);
+	void ApplyOwnerDelta(int64 NewOwnerUid, int64 Frame);
 
 	bool IsAlive() const;
 	bool IsSpawnedAt(int64 Frame) const;
@@ -58,6 +59,7 @@ struct FHktPresentationState
 	void AddEntity(const FHktWorldState& WS, FHktEntityId Id);
 	void RemoveEntity(FHktEntityId Id);
 	void ApplyDelta(FHktEntityId Id, uint16 PropId, int32 NewValue);
+	void ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid);
 
 	bool IsValid(FHktEntityId Id) const;
 	const FHktEntityPresentation* Get(FHktEntityId Id) const;

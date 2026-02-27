@@ -49,19 +49,12 @@ namespace HktFlowPlayerInWorld
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
 			// 위치 설정 (이벤트의 Location에서)
-			.LoadStore(R0, PropertyId::TargetPosX)
-			.LoadStore(R1, PropertyId::TargetPosY)
-			.LoadStore(R2, PropertyId::TargetPosZ)
+			.LoadConst(R0, 0.f)
+			.LoadConst(R1, 0.f)
+			.LoadConst(R2, 100.f)
 			.SetPosition(Self, R0)
 
-			// 플레이어 속성 초기화 (기본값 또는 저장된 값)
-			// OwnedPlayerUid 설정
-			// Param0와 Param1에서 플레이어 UID를 복원하여 OwnedPlayerUid에 설정
-			.LoadStore(R3, PropertyId::Param0)         // 플레이어 UID 하위 32비트
-			.LoadStore(R4, PropertyId::Param1)         // 플레이어 UID 상위 32비트
-			// R3와 R4를 조합 (간단한 해시)
-			.Mul(R5, R4, R3)                           // R5 = R4 * R3
-			.SaveEntityProperty(Self, PropertyId::OwnedPlayerUid, R5)
+			// OwnedPlayerUid는 SpawnEntity에서 Runtime.PlayerUid로 자동 설정됨
 
 			// 기본 체력 설정 (필요시)
 			// .LoadConst(R4, 100)

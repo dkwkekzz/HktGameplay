@@ -4,6 +4,7 @@
 
 #include "HktCoreSimulator.h"
 #include "HktSimulationSystems.h"
+#include "VM/HktVMWorldStateProxy.h"
 
 class FHktVMRuntimePool;
 class FHktVMInterpreter;
@@ -13,7 +14,7 @@ struct FHktPendingEvent;
 // ============================================================================
 // FHktWorldDeterminismSimulator
 //
-// 파이프라인: Arrange → Build → Process → Physics → Cleanup
+// 파이프라인: Arrange → Build → Process → Movement → Physics → Cleanup
 // ============================================================================
 
 class HKTCORE_API FHktWorldDeterminismSimulator : public IHktDeterminismSimulator
@@ -31,8 +32,8 @@ public:
 private:
     void ProcessBatch(const FHktSimulationEvent& Event);
 
-    FHktSchemaRegistry SchemaRegistry;
     FHktWorldState WorldState;
+    FHktVMWorldStateProxy VMProxy;
 
     TUniquePtr<FHktVMRuntimePool> VMPool;
     TUniquePtr<FHktVMInterpreter> Interpreter;
@@ -41,11 +42,13 @@ private:
     TArray<FHktVMHandle> CompletedVMs;
     TArray<FHktPhysicsEvent> GeneratedPhysicsEvents;
     TArray<FHktPendingEvent> PendingExternalEvents;
+    TArray<FHktPendingEvent> GeneratedMoveEndEvents;
     TArray<FHktEntityId> FrameRemovedEntities;
 
     FHktEntityArrangeSystem EntityArrangeSystem;
     FHktVMBuildSystem       VMBuildSystem;
     FHktVMProcessSystem     VMProcessSystem;
+    FHktMovementSystem      MovementSystem;
     FHktPhysicsSystem       PhysicsSystem;
     FHktVMCleanupSystem     VMCleanupSystem;
 };

@@ -64,16 +64,6 @@ const IHktRelevancyGroup& UHktSingleRelevancyComponent::GetRelevancyGroup(int32 
     return *this; 
 }
 
-IHktRelevancyGroup* UHktSingleRelevancyComponent::GetRelevancyGroupByPlayer(int64 PlayerUid)
-{
-    return const_cast<IHktRelevancyGroup*>(static_cast<const UHktSingleRelevancyComponent*>(this)->GetRelevancyGroupByPlayer(PlayerUid));
-}
-
-const IHktRelevancyGroup* UHktSingleRelevancyComponent::GetRelevancyGroupByPlayer(int64 PlayerUid) const
-{
-    return this;
-}
-
 int32 UHktSingleRelevancyComponent::GetRelevancyGroupIndex(int64 PlayerUid) const
 {
     return 0;

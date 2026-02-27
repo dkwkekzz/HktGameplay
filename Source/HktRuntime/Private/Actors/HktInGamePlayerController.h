@@ -45,16 +45,16 @@ public:
     void Server_ReceiveIntent(const FHktRuntimeEvent& Event);
 
     // === 델리게이트 ===
-    FOnHktSubjectChanged& OnSubjectChanged() { return SubjectChangedDelegate; }
     FOnHktTargetChanged& OnTargetChanged() { return TargetChangedDelegate; }
     FOnHktCommandChanged& OnCommandChanged() { return CommandChangedDelegate; }
-    FOnHktIntentSubmitted& OnIntentSubmitted() { return IntentSubmittedDelegate; }
-    FOnHktWheelInput& OnWheelInput() { return WheelInputDelegate; }
 
     // === IHktPlayerInteractionInterface ===
     virtual void ExecuteCommand(UObject* CommandData) override;
     virtual bool GetWorldState(const FHktWorldState*& OutState) const override;
     virtual FOnHktWorldViewUpdated& OnWorldViewUpdated() override { return WorldViewUpdatedDelegate; }
+    virtual FOnHktWheelInput& OnWheelInput() override { return WheelInputDelegate; }
+    virtual FOnHktSubjectChanged& OnSubjectChanged() override { return SubjectChangedDelegate; }
+    virtual FOnHktIntentSubmitted& OnIntentSubmitted() override { return IntentSubmittedDelegate; }
 
     // === Player UID ===
     /** 인터페이스를 통해 Player UID를 반환합니다. */
@@ -114,6 +114,13 @@ private:
     IHktProxySimulator* CachedProxySimulator = nullptr;
     IHktCommandContainer* CachedCommandContainer = nullptr;
     IHktWorldPlayer* CachedWorldPlayer = nullptr;
+
+    /** OwnedPlayerUid가 일치하는 첫 번째 엔티티 — 기본 Subject */
+    FHktEntityId DefaultSubjectEntityId = InvalidEntityId;
+    bool bIsInitialSync = false;
+
+    /** WorldState에서 나의 엔티티를 찾아 DefaultSubjectEntityId로 설정 */
+    void ResolveDefaultSubject();
 
 #if WITH_HKT_INSIGHTS
     /** Insight 통계: 보낸 Intent 수, 받은 배치 수 */

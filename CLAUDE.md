@@ -12,3 +12,6 @@
 
 1. **No UE5 runtime in HktCore** — keep the VM pure C++ (no UObject, UWorld, etc.)
 2. **Server-authoritative** — clients cannot manipulate what they see; server filters all data
+
+## Coding Convention
+1. Prefix FHkt 

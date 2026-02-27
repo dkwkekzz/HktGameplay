@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "VFXLLMClient.h"
+#include "HktVFXLLMClient.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Serialization/JsonReader.h"
@@ -8,14 +8,19 @@
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 
-FVFXLLMClient::FVFXLLMClient()
+FHktVFXLLMClient::FHktVFXLLMClient()
 {
+}
+
+void FHktVFXLLMClient::SetSettings(const FHktLLMSettings& InSettings)
+{
+    Settings = InSettings;
 }
 
 // ============================================================================
 // 시스템 프롬프트 - LLM에게 Niagara 전문가 역할 부여
 // ============================================================================
-FString FVFXLLMClient::BuildSystemPrompt() const
+FString FHktVFXLLMClient::BuildSystemPrompt() const
 {
     return TEXT(R"(
 You are an expert VFX artist specializing in Unreal Engine 5 Niagara particle systems.
@@ -121,7 +126,7 @@ IMPORTANT:
 // ============================================================================
 // 유저 프롬프트 - Intent를 자연어로 변환
 // ============================================================================
-FString FVFXLLMClient::BuildUserPrompt(const FVFXIntent& Intent) const
+FString FHktVFXLLMClient::BuildUserPrompt(const FHktVFXIntent& Intent) const
 {
     return FString::Printf(TEXT("Design a Niagara particle system for:\n\n%s"),
         *Intent.ToNaturalLanguage());
@@ -130,7 +135,7 @@ FString FVFXLLMClient::BuildUserPrompt(const FVFXIntent& Intent) const
 // ============================================================================
 // 메인 요청 함수
 // ============================================================================
-void FVFXLLMClient::RequestNiagaraConfig(const FVFXIntent& Intent, FOnLLMResponse OnComplete)
+void FHktVFXLLMClient::RequestNiagaraConfig(const FHktVFXIntent& Intent, FOnHktLLMResponse OnComplete)
 {
     FString SystemPrompt = BuildSystemPrompt();
     FString UserPrompt = BuildUserPrompt(Intent);
@@ -143,12 +148,12 @@ void FVFXLLMClient::RequestNiagaraConfig(const FVFXIntent& Intent, FOnLLMRespons
         if (!bSuccess)
         {
             UE_LOG(LogTemp, Error, TEXT("[VFXLLMClient] API call failed"));
-            FVFXNiagaraConfig EmptyConfig;
+            FHktVFXNiagaraConfig EmptyConfig;
             OnComplete.ExecuteIfBound(false, EmptyConfig);
             return;
         }
 
-        FVFXNiagaraConfig Config;
+        FHktVFXNiagaraConfig Config;
         if (ParseLLMResponse(Response, Config))
         {
             UE_LOG(LogTemp, Log, TEXT("[VFXLLMClient] Successfully parsed config: %s with %d emitters"),
@@ -164,10 +169,10 @@ void FVFXLLMClient::RequestNiagaraConfig(const FVFXIntent& Intent, FOnLLMRespons
 
     switch (Settings.Provider)
     {
-    case ELLMProvider::Anthropic:
+    case EHktLLMProvider::Anthropic:
         CallAnthropicAPI(SystemPrompt, UserPrompt, OnResponse);
         break;
-    case ELLMProvider::OpenAI:
+    case EHktLLMProvider::OpenAI:
         CallOpenAIAPI(SystemPrompt, UserPrompt, OnResponse);
         break;
     }
@@ -176,7 +181,7 @@ void FVFXLLMClient::RequestNiagaraConfig(const FVFXIntent& Intent, FOnLLMRespons
 // ============================================================================
 // Anthropic (Claude) API 호출
 // ============================================================================
-void FVFXLLMClient::CallAnthropicAPI(const FString& SystemPrompt, const FString& UserPrompt,
+void FHktVFXLLMClient::CallAnthropicAPI(const FString& SystemPrompt, const FString& UserPrompt,
     TFunction<void(bool, const FString&)> OnResponse)
 {
     auto Request = FHttpModule::Get().CreateRequest();
@@ -250,7 +255,7 @@ void FVFXLLMClient::CallAnthropicAPI(const FString& SystemPrompt, const FString&
 // ============================================================================
 // OpenAI (GPT) API 호출
 // ============================================================================
-void FVFXLLMClient::CallOpenAIAPI(const FString& SystemPrompt, const FString& UserPrompt,
+void FHktVFXLLMClient::CallOpenAIAPI(const FString& SystemPrompt, const FString& UserPrompt,
     TFunction<void(bool, const FString&)> OnResponse)
 {
     auto Request = FHttpModule::Get().CreateRequest();
@@ -332,7 +337,7 @@ void FVFXLLMClient::CallOpenAIAPI(const FString& SystemPrompt, const FString& Us
 // ============================================================================
 // JSON 추출 - LLM 응답에서 순수 JSON 부분만 추출
 // ============================================================================
-bool FVFXLLMClient::ExtractJSONFromResponse(const FString& RawResponse, FString& OutJSON)
+bool FHktVFXLLMClient::ExtractJSONFromResponse(const FString& RawResponse, FString& OutJSON)
 {
     OutJSON = RawResponse.TrimStartAndEnd();
 
@@ -380,9 +385,9 @@ bool FVFXLLMClient::ExtractJSONFromResponse(const FString& RawResponse, FString&
 
 
 // ============================================================================
-// LLM JSON 응답 → FVFXNiagaraConfig 파싱
+// LLM JSON 응답 → FHktVFXNiagaraConfig 파싱
 // ============================================================================
-bool FVFXLLMClient::ParseLLMResponse(const FString& ResponseText, FVFXNiagaraConfig& OutConfig)
+bool FHktVFXLLMClient::ParseLLMResponse(const FString& ResponseText, FHktVFXNiagaraConfig& OutConfig)
 {
     FString CleanJSON;
     if (!ExtractJSONFromResponse(ResponseText, CleanJSON))
@@ -418,7 +423,7 @@ bool FVFXLLMClient::ParseLLMResponse(const FString& ResponseText, FVFXNiagaraCon
     for (auto& EmitterVal : EmittersArr)
     {
         auto E = EmitterVal->AsObject();
-        FVFXEmitterConfig EmitterConfig;
+        FHktVFXEmitterConfig EmitterConfig;
 
         EmitterConfig.Name = E->GetStringField(TEXT("name"));
         EmitterConfig.Purpose = E->GetStringField(TEXT("purpose"));
@@ -498,7 +503,7 @@ bool FVFXLLMClient::ParseLLMResponse(const FString& ResponseText, FVFXNiagaraCon
                     auto Arr = Point->AsArray();
                     if (Arr.Num() >= 2)
                     {
-                        FVFXCurvePoint CP;
+                        FHktVFXCurvePoint CP;
                         CP.Time = Arr[0]->AsNumber();
                         CP.Value = Arr[1]->AsNumber();
                         Upd.SizeCurve.Add(CP);
@@ -514,7 +519,7 @@ bool FVFXLLMClient::ParseLLMResponse(const FString& ResponseText, FVFXNiagaraCon
                     auto Arr = Point->AsArray();
                     if (Arr.Num() >= 2)
                     {
-                        FVFXColorCurvePoint CP;
+                        FHktVFXColorCurvePoint CP;
                         CP.Time = Arr[0]->AsNumber();
                         auto C = Arr[1]->AsArray();
                         if (C.Num() >= 4)
@@ -533,7 +538,7 @@ bool FVFXLLMClient::ParseLLMResponse(const FString& ResponseText, FVFXNiagaraCon
                     auto Arr = Point->AsArray();
                     if (Arr.Num() >= 2)
                     {
-                        FVFXCurvePoint CP;
+                        FHktVFXCurvePoint CP;
                         CP.Time = Arr[0]->AsNumber();
                         CP.Value = Arr[1]->AsNumber();
                         Upd.OpacityCurve.Add(CP);
@@ -576,7 +581,7 @@ bool FVFXLLMClient::ParseLLMResponse(const FString& ResponseText, FVFXNiagaraCon
         for (auto& TexVal : Root->GetArrayField(TEXT("texture_requests")))
         {
             auto T = TexVal->AsObject();
-            FVFXTextureRequest TexReq;
+            FHktVFXTextureRequest TexReq;
             TexReq.EmitterName = T->GetStringField(TEXT("emitter_name"));
             TexReq.Prompt = T->GetStringField(TEXT("prompt"));
             TexReq.NegativePrompt = T->HasField(TEXT("negative_prompt")) ? T->GetStringField(TEXT("negative_prompt")) : TEXT("");

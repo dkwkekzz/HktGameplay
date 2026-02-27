@@ -3,18 +3,6 @@
 #include "HktPresentationState.h"
 #include "GameplayTagsManager.h"
 
-// --------------------------------------------------------------------------- FHktVM_Visualization
-void FHktVM_Visualization::Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
-{
-	VisualElement = FGameplayTag();
-	const int32 TagNetIndex = WS.GetProperty(Id, PropertyId::EntitySpawnTag);
-	if (TagNetIndex != 0)
-	{
-		VisualElement = UGameplayTagsManager::Get().GetTagFromNetIndex(static_cast<FGameplayTagNetIndex>(TagNetIndex));
-	}
-	(void)Frame;
-}
-
 // --------------------------------------------------------------------------- FHktEntityPresentation
 void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
 {
@@ -40,6 +28,12 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	if (Combat.TryApplyDelta(PropId, NewValue, Frame)) return;
 	if (Ownership.TryApplyDelta(PropId, NewValue, Frame)) return;
 	if (Animation.TryApplyDelta(PropId, NewValue, Frame)) return;
+	if (Visualization.TryApplyDelta(PropId, NewValue, Frame)) return;
+}
+
+void FHktEntityPresentation::ApplyOwnerDelta(int64 NewOwnerUid, int64 Frame)
+{
+	Ownership.OwnedPlayerUid.Set(NewOwnerUid, Frame);
 }
 
 bool FHktEntityPresentation::IsAlive() const
@@ -113,6 +107,16 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 	FHktEntityPresentation& E = Entities[Id];
 	bool bWasCleanThisFrame = !IsEntityDirtyThisFrame(E);
 	E.ApplyDelta(PropId, NewValue, CurrentFrame);
+	if (bWasCleanThisFrame)
+		DirtyThisFrame.Add(Id);
+}
+
+void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
+{
+	if (Id >= Entities.Num() || !ValidMask[Id]) return;
+	FHktEntityPresentation& E = Entities[Id];
+	bool bWasCleanThisFrame = !IsEntityDirtyThisFrame(E);
+	E.ApplyOwnerDelta(NewOwnerUid, CurrentFrame);
 	if (bWasCleanThisFrame)
 		DirtyThisFrame.Add(Id);
 }

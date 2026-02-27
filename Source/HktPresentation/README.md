@@ -1,347 +1,141 @@
-# HktPresentation 모듈
+# HktPresentation
 
-## 개요
-
-HktPresentation은 순수 View 레이어 모듈입니다.
-- 게임 로직 없음 (읽기 전용)
-- HktRuntime의 `IHktModelProvider`를 통해 데이터 수신
-- 클라이언트 전용 (서버에서 생성되지 않음)
-
-## 파일 구조
-
-```
-HktPresentation/
-├── HktPresentation.Build.cs
-├── Public/
-│   ├── IHktPresentationModule.h       # 모듈 인터페이스
-│   ├── HktPresentationTypes.h         # 타입 정의
-│   ├── HktPresentationSubsystem.h     # 메인 WorldSubsystem
-│   ├── HktCameraPawn.h                # RTS 카메라
-│   └── HktEntityHUDWidget.h           # 엔티티 HUD 위젯
-├── Private/
-│   ├── HktPresentationModule.cpp
-│   ├── HktPresentationTypes.cpp
-│   ├── HktPresentationSubsystem.cpp
-│   ├── HktCameraPawn.cpp
-│   ├── HktEntityHUDWidget.cpp
-│   └── Managers/                      # 분리된 Manager 클래스들
-│       ├── HktEntityVisualManager.h/cpp    # 엔티티 Spawn/Destroy
-│       ├── HktSelectionVisualManager.h/cpp # 선택 데칼 표시
-│       ├── HktInteractionFXManager.h/cpp   # 인터랙션 이펙트
-│       └── HktEntityHUDManager.h/cpp       # 체력바/ID HUD
-└── RuntimeAdditions/                  # HktRuntime에 추가할 파일들
-    ├── HktModelProvider.h
-    └── HktModelProvider.cpp
-```
-
-## 아키텍처
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      HktRuntime (Model Layer)                    │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ AHktPlayerController : IHktModelProvider                     ││
-│  │  ├─ UHktIntentBuilderComponent (입력 상태)                   ││
-│  │  ├─ UHktVisibleStashComponent (엔티티 데이터)                ││
-│  │  └─ Delegates (입력 이벤트)                                  ││
-│  └─────────────────────────────────────────────────────────────┘│
-└──────────────────────────────┬──────────────────────────────────┘
-                               │ IHktModelProvider
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                   HktPresentation (View Layer)                   │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ UHktPresentationSubsystem (WorldSubsystem)                   ││
-│  │  ├─ FHktEntityVisualManager   (Spawn/Destroy)               ││
-│  │  ├─ FHktSelectionVisualManager (선택 표시)                  ││
-│  │  ├─ FHktInteractionFXManager  (인터랙션 이펙트)             ││
-│  │  └─ FHktEntityHUDManager      (체력바, ID 등)               ││
-│  └─────────────────────────────────────────────────────────────┘│
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ AHktCameraPawn                                               ││
-│  │  └─ 휠 줌, 이동 등 카메라 제어                               ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Manager 클래스 설계
-
-### FHktEntityVisualManager
-- **책임**: Stash의 엔티티 생성/파괴에 따라 AHktCharacter Spawn/Destroy
-- **주요 메서드**:
-  - `OnEntityCreated()`: Character 스폰
-  - `OnEntityDestroyed()`: Character 파괴
-  - `Tick()`: 위치/상태 동기화
-  - `GetCharacter()`: EntityId → Character 조회
-
-### FHktSelectionVisualManager
-- **책임**: Subject/Target 선택 시 데칼 표시
-- **주요 메서드**:
-  - `SetSelectedSubject()`: Subject 선택 데칼
-  - `SetSelectedTarget()`: Target 선택 데칼
-  - `ClearAll()`: 선택 해제
-
-### FHktInteractionFXManager
-- **책임**: 클릭 위치 이펙트, 타겟 범위 표시
-- **주요 메서드**:
-  - `PlayIntentFX()`: Intent 제출 시 이펙트
-  - `ShowTargetIndicator()`: 타겟 위치 표시
-  - `HideTargetIndicator()`: 타겟 인디케이터 숨기기
-
-### FHktEntityHUDManager
-- **책임**: 엔티티별 HUD 관리 (체력바, 마나바, ID)
-- **주요 메서드**:
-  - `AddEntityHUD()`: HUD 추가
-  - `RemoveEntityHUD()`: HUD 제거
-  - `Tick()`: HUD 데이터 업데이트
-
----
-
-## HktRuntime 통합 가이드
-
-### 1. HktModelProvider 인터페이스 추가
-
-`RuntimeAdditions/` 폴더의 파일들을 HktRuntime에 복사:
-- `HktModelProvider.h` → `HktRuntime/Public/`
-- `HktModelProvider.cpp` → `HktRuntime/Private/`
-
-### 2. AHktPlayerController 수정
-
-```cpp
-// HktPlayerController.h
-#include "HktModelProvider.h"
-
-UCLASS()
-class HKTRUNTIME_API AHktPlayerController : public APlayerController, public IHktModelProvider
-{
-    GENERATED_BODY()
-
-public:
-    // === IHktModelProvider 구현 ===
-    virtual IHktStashInterface* GetStashInterface() const override
-    {
-        return VisibleStashComponent ? VisibleStashComponent->GetStashInterface() : nullptr;
-    }
-
-    virtual FHktEntityId GetSelectedSubject() const override
-    {
-        return IntentBuilderComponent ? IntentBuilderComponent->GetSubjectEntityId() : InvalidEntityId;
-    }
-
-    virtual FHktEntityId GetSelectedTarget() const override
-    {
-        return IntentBuilderComponent ? IntentBuilderComponent->GetTargetEntityId() : InvalidEntityId;
-    }
-
-    virtual FVector GetTargetLocation() const override
-    {
-        return IntentBuilderComponent ? IntentBuilderComponent->GetTargetLocation() : FVector::ZeroVector;
-    }
-
-    virtual FGameplayTag GetSelectedCommand() const override
-    {
-        return IntentBuilderComponent ? IntentBuilderComponent->GetEventTag() : FGameplayTag();
-    }
-
-    virtual bool IsIntentValid() const override
-    {
-        return IntentBuilderComponent && IntentBuilderComponent->IsValid();
-    }
-
-    virtual FOnHktSubjectChanged& OnSubjectChanged() override { return SubjectChangedDelegate; }
-    virtual FOnHktTargetChanged& OnTargetChanged() override { return TargetChangedDelegate; }
-    virtual FOnHktCommandChanged& OnCommandChanged() override { return CommandChangedDelegate; }
-    virtual FOnHktIntentSubmitted& OnIntentSubmitted() override { return IntentSubmittedDelegate; }
-    virtual FOnHktWheelInput& OnWheelInput() override { return WheelInputDelegate; }
-    virtual FOnHktEntityCreated& OnEntityCreated() override { return EntityCreatedDelegate; }
-    virtual FOnHktEntityDestroyed& OnEntityDestroyed() override { return EntityDestroyedDelegate; }
-
-protected:
-    // 델리게이트 인스턴스
-    FOnHktSubjectChanged SubjectChangedDelegate;
-    FOnHktTargetChanged TargetChangedDelegate;
-    FOnHktCommandChanged CommandChangedDelegate;
-    FOnHktIntentSubmitted IntentSubmittedDelegate;
-    FOnHktWheelInput WheelInputDelegate;
-    FOnHktEntityCreated EntityCreatedDelegate;
-    FOnHktEntityDestroyed EntityDestroyedDelegate;
-};
-```
-
-### 3. IntentBuilderComponent Getter 추가
-
-```cpp
-// HktIntentBuilderComponent.h
-UFUNCTION(BlueprintPure, Category = "Hkt|IntentBuilder")
-FHktEntityId GetSubjectEntityId() const { return SubjectEntityId; }
-
-UFUNCTION(BlueprintPure, Category = "Hkt|IntentBuilder")
-FHktEntityId GetTargetEntityId() const { return TargetEntityId; }
-
-UFUNCTION(BlueprintPure, Category = "Hkt|IntentBuilder")
-FVector GetTargetLocation() const { return TargetLocation; }
-
-UFUNCTION(BlueprintPure, Category = "Hkt|IntentBuilder")
-FGameplayTag GetEventTag() const { return EventTag; }
-```
-
-### 4. 델리게이트 브로드캐스트 추가
-
-```cpp
-// AHktPlayerController 입력 핸들러에서
-
-void AHktPlayerController::OnSubjectAction(const FInputActionValue& Value)
-{
-    if (IntentBuilderComponent)
-    {
-        IntentBuilderComponent->CreateSubjectAction();
-        SubjectChangedDelegate.Broadcast(IntentBuilderComponent->GetSubjectEntityId());
-    }
-}
-
-void AHktPlayerController::OnTargetAction(const FInputActionValue& Value)
-{
-    if (IntentBuilderComponent)
-    {
-        IntentBuilderComponent->CreateTargetAction();
-        TargetChangedDelegate.Broadcast(IntentBuilderComponent->GetTargetEntityId());
-    }
-}
-
-void AHktPlayerController::OnZoom(const FInputActionValue& Value)
-{
-    float Delta = Value.Get<float>();
-    WheelInputDelegate.Broadcast(Delta);
-}
-
-// Client_ReceiveBatch_Implementation()에서
-void AHktPlayerController::Client_ReceiveBatch_Implementation(const FHktRuntimeBatch& Batch)
-{
-    // ... 기존 코드 ...
-    
-    // 제거된 엔티티
-    for (FHktEntityId EntityId : Batch.RemovedEntities)
-    {
-        VisibleStashComponent->FreeEntity(EntityId);
-        EntityDestroyedDelegate.Broadcast(EntityId);
-    }
-
-    // 새 스냅샷 적용
-    for (const FHktEntitySnapshot& Snapshot : Batch.Snapshots)
-    {
-        VisibleStashComponent->ApplyEntitySnapshot(Snapshot);
-        EntityCreatedDelegate.Broadcast(Snapshot.EntityId);
-    }
-    
-    // ... 나머지 코드 ...
-}
-```
-
-### 5. Presentation 바인딩
-
-```cpp
-void AHktPlayerController::BeginPlay()
-{
-    Super::BeginPlay();
-    
-    // ... 기존 코드 ...
-    
-    // Presentation 바인딩 (클라이언트에서만)
-    if (!HasAuthority())
-    {
-        if (UHktPresentationSubsystem* Presentation = GetWorld()->GetSubsystem<UHktPresentationSubsystem>())
-        {
-            Presentation->BindModelProvider(this);
-        }
-    }
-}
-```
-
----
-
-## 사용법
-
-### 기본 설정
-
-캐릭터 클래스, 선택 머티리얼, 인터랙션 FX, HUD 위젯 등은 **Project Settings → Game → Hkt Presentation Settings**에서 설정합니다.
-
-```cpp
-UHktPresentationSubsystem* Presentation = GetWorld()->GetSubsystem<UHktPresentationSubsystem>();
-if (Presentation)
-{
-    // 카메라 설정 (런타임)
-    Presentation->SetCameraPawn(CameraPawn);
-}
-```
-
-### Manager 직접 접근
-
-```cpp
-// EntityVisualManager
-if (FHktEntityVisualManager* Manager = Presentation->GetEntityVisualManager())
-{
-    AHktCharacter* Character = Manager->GetCharacter(EntityId);
-    Manager->ForEachCharacter([](FHktEntityId Id, AHktCharacter* Char) {
-        // ...
-    });
-}
-
-// SelectionVisualManager (Subject/Target 색상은 Project Settings → Hkt Presentation Settings에서 설정)
-
-// EntityHUDManager
-if (FHktEntityHUDManager* Manager = Presentation->GetEntityHUDManager())
-{
-    Manager->SetShowEntityId(true);  // 디버그용
-    Manager->SetShowManaBar(true);
-}
-```
+ISP(Intent-Simulation-Presentation) 아키텍처의 **Presentation** 레이어.
+HktCore의 시뮬레이션 결과를 UE5 시각화로 변환하는 읽기 전용 뷰 모듈이다.
 
 ---
 
 ## 데이터 흐름
 
 ```
-1. 엔티티 생성
-   Server Batch → VisibleStash.ApplySnapshot() 
-                → EntityCreatedDelegate.Broadcast()
-                → PresentationSubsystem.HandleEntityCreated()
-                → EntityVisualManager.OnEntityCreated()
-                → EntityHUDManager.AddEntityHUD()
-
-2. 위치 동기화
-   매 Tick → EntityVisualManager.Tick()
-           → Stash.GetProperty(PosX/Y/Z) 
-           → Character.SetActorLocation()
-
-3. 선택 시각화
-   Input → IntentBuilder.CreateSubjectAction() 
-         → SubjectChangedDelegate.Broadcast()
-         → PresentationSubsystem.HandleSubjectChanged()
-         → SelectionVisualManager.SetSelectedSubject()
-
-4. 카메라 줌
-   Input → WheelInputDelegate.Broadcast()
-         → PresentationSubsystem.HandleWheelInput()
-         → CameraPawn.HandleWheelInput()
-
-5. 엔티티 파괴
-   Server Batch → VisibleStash.FreeEntity()
-                → EntityDestroyedDelegate.Broadcast()
-                → PresentationSubsystem.HandleEntityDestroyed()
-                → SelectionVisualManager.Clear (if selected)
-                → EntityHUDManager.RemoveEntityHUD()
-                → EntityVisualManager.OnEntityDestroyed()
+IHktPlayerInteractionInterface::OnWorldViewUpdated(FHktWorldView)
+    │
+    ▼
+UHktPresentationSubsystem
+    ├─ ProcessInitialSync / ProcessDiff
+    │   ├─ State.BeginFrame(FrameNumber)
+    │   ├─ ForEachRemoved  → State.RemoveEntity()
+    │   ├─ ForEachSpawned  → State.AddEntity()
+    │   └─ ForEachDelta    → State.ApplyDelta()
+    │
+    └─ SyncRenderers()
+        ├─ FHktActorRenderer      (Unit, Building)
+        ├─ FHktMassEntityRenderer (Projectile — TODO)
+        └─ FHktUIRenderer         (UI — TODO)
 ```
 
+## 핵심 구조
+
+### 1. UHktPresentationSubsystem (LocalPlayerSubsystem)
+
+진입점. `BindInteraction()`으로 `IHktPlayerInteractionInterface`에 바인딩하여 `OnWorldViewUpdated` 델리게이트를 수신한다.
+
+- **InitialSync** — 첫 동기화. `View.ForEachEntity()`로 전체 엔티티를 `State`에 추가.
+- **ProcessDiff** — 이후 프레임. Removed → Spawned → Delta 순으로 증분 적용.
+- **SyncRenderers** — 변경점 적용 후 세 Renderer에 `Sync(State)` 호출.
+
+### 2. FHktWorldView (입력)
+
+HktCore에서 오는 읽기 전용 뷰. WorldState 포인터 + Diff 배열을 참조만 하며 복사 없음.
+
+| 이터레이터 | 내용 |
+|---|---|
+| `ForEachEntity()` | WorldState 전체 엔티티 순회 |
+| `ForEachSpawned()` | 새로 생성된 엔티티 |
+| `ForEachRemoved()` | 제거된 엔티티 ID |
+| `ForEachDelta()` | 프로퍼티 변경 (EntityId, PropId, NewValue) |
+
+### 3. THktVisualField\<T\> (변경 감지)
+
+Generation counter 기반 dirty 추적 템플릿.
+
+```cpp
+THktVisualField<FVector> Location;
+
+Location.Set(NewPos, Frame);              // 값 설정 + 프레임 기록
+Location.IsDirty(CurrentFrame);           // LastModifiedFrame == CurrentFrame
+Location.Get();                           // 현재 값
+```
+
+프레임이 넘어가면 자동으로 clean 상태가 되므로 별도 리셋이 필요 없다.
+
+### 4. FHktPresentationState (뷰모델 컨테이너)
+
+엔티티별 `FHktEntityPresentation`을 EntityId 인덱스 배열로 관리한다.
+`ValidMask`(TBitArray)로 유효성 추적.
+
+프레임별 변경 목록:
+- `SpawnedThisFrame` — 이번 프레임에 생성된 엔티티
+- `RemovedThisFrame` — 이번 프레임에 제거된 엔티티
+- `DirtyThisFrame` — 프로퍼티가 변경된 엔티티
+
+### 5. FHktEntityPresentation (엔티티 뷰모델)
+
+7개 ViewModel 그룹으로 구성:
+
+| 그룹 | 필드 | PropertyId 매핑 |
+|---|---|---|
+| **Transform** | Location, Rotation | PosX/Y/Z(0-2), RotYaw(3) |
+| **Movement** | MoveTarget, MoveSpeed, bIsMoving | MoveTargetX/Y/Z(4-6), MoveSpeed(7), IsMoving(8) |
+| **Vitals** | Health, MaxHealth, HealthRatio, Mana, MaxMana, ManaRatio | Health(10), MaxHealth(11), Mana(15), MaxMana(16) |
+| **Combat** | AttackPower, Defense | AttackPower(12), Defense(13) |
+| **Ownership** | Team, OwnedPlayerUid | Team(14), OwnedPlayerUid(52) |
+| **Animation** | AnimState, VisualState | AnimState(40), VisualState(41) |
+| **Visualization** | VisualElement (FGameplayTag) | EntitySpawnTag(22) |
+
+각 그룹은 `Apply()`(초기화)와 `TryApplyDelta()`(증분 적용) 인터페이스를 제공한다.
+
+### 6. Renderer
+
+`IHktPresentationRenderer::Sync(State)` 인터페이스를 구현한다.
+
+**FHktActorRenderer** (구현 완료):
+- `SpawnedThisFrame` → 비동기 에셋 로드 후 AActor 스폰
+- `RemovedThisFrame` → Actor 제거
+- `DirtyThisFrame` → `THktVisualField::IsDirty()` 체크 후 Transform 업데이트
+- `ActorMap<EntityId, TWeakObjectPtr<AActor>>`로 관리
+
+**RenderCategory 분류:**
+
+| TypeId | Category | Renderer |
+|---|---|---|
+| Unit, Building | Actor | FHktActorRenderer |
+| Projectile | MassEntity | FHktMassEntityRenderer (TODO) |
+| 기타 | None | — |
+
 ---
+
+## 파일 구조
+
+```
+Source/HktPresentation/
+├── Public/
+│   ├── IHktPresentationModule.h        # 모듈 인터페이스
+│   ├── HktPresentationSubsystem.h      # 메인 서브시스템
+│   ├── HktPresentationState.h          # State + EntityPresentation
+│   ├── HktPresentationViewModels.h     # 7개 ViewModel 그룹
+│   ├── HktVisualField.h               # 변경 감지 템플릿
+│   └── HktPresentationRenderer.h       # Renderer 인터페이스
+├── Private/
+│   ├── HktPresentationSubsystem.cpp
+│   ├── HktPresentationState.cpp
+│   ├── HktPresentationViewModels.cpp
+│   ├── HktPresentationModule.cpp
+│   ├── Renderers/
+│   │   ├── HktActorRenderer.h/cpp      # Actor 렌더러 (구현됨)
+│   │   ├── HktMassEntityRenderer.h/cpp # Mass 렌더러 (TODO)
+│   │   └── HktUIRenderer.h/cpp         # UI 렌더러 (TODO)
+│   └── DataAssets/
+│       └── HktActorVisualDataAsset.h   # 비주얼 에셋 정의
+```
 
 ## 설계 원칙
 
 | 원칙 | 적용 |
-|------|------|
-| **단일 책임** | 각 Manager가 하나의 시각화 책임만 담당 |
-| **View만** | 데이터 변경 없음, 읽기 전용 |
-| **HktRuntime 의존성** | HktCore 직접 참조 최소화 (인터페이스 통해) |
-| **델리게이트 기반** | Provider → Presentation 단방향 통신 |
+|---|---|
+| **읽기 전용** | 시뮬레이션 로직 없음. HktCore 결과를 시각화만 담당 |
+| **제로 카피 뷰** | FHktWorldView는 포인터 참조만 사용 |
+| **Generation Counter** | THktVisualField로 별도 리셋 없는 dirty 추적 |
+| **Render Category 분리** | 엔티티 타입별로 적합한 Renderer 디스패치 |
+| **비동기 스폰** | 에셋 로드 완료 콜백으로 블로킹 없이 Actor 생성 |
 | **클라이언트 전용** | 서버 코드 없음 |
-| **Manager 분리** | 테스트 용이, 확장 가능 |

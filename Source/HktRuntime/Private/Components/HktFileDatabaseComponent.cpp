@@ -10,16 +10,10 @@
 
 void UHktPlayerSaveGame::Serialize(FArchive& Ar)
 {
-	// 1. 부모의 Serialize를 호출하여 UPROPERTY 매크로가 붙은 멤버들을 먼저 자동 직렬화합니다.
 	Super::Serialize(Ar);
 
-	// 2. UPROPERTY가 아니어서 직렬화되지 않은 순수 C++ 구조체 배열들을 수동으로 직렬화합니다.
-	// 작성해주신 friend FArchive& operator<< 가 있기 때문에, 
-	// TArray 전체를 아래처럼 한 줄로 직렬화(저장 및 로드)할 수 있습니다.
-	Ar << PlayerRecord.ActiveEvents;
-
-	// 추가로 USTRUCT가 아닌 다른 배열(예: EntityStates)이 있다면 같은 방식으로 직렬화하면 됩니다.
-	Ar << PlayerRecord.EntityStates; 
+	//Ar << PlayerRecord.ActiveEvents;
+	//Ar << PlayerRecord.EntityStates; 
 }
 
 UHktFileDatabaseComponent::UHktFileDatabaseComponent()
@@ -143,8 +137,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 				EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid);
 				EnterWorldEvent.TargetEntity = InvalidEntityId;
 				EnterWorldEvent.Location = Record.LastPosition;
-				EnterWorldEvent.Param0 = static_cast<int32>(InPlayerUid & 0xFFFFFFFF);
-				EnterWorldEvent.Param1 = static_cast<int32>((InPlayerUid >> 32) & 0xFFFFFFFF);
+				EnterWorldEvent.PlayerUid = InPlayerUid;
 				Record.ActiveEvents.Add(EnterWorldEvent);
 			}
 
@@ -165,8 +158,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 			EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid);
 			EnterWorldEvent.TargetEntity = InvalidEntityId;
 			EnterWorldEvent.Location = FVector::ZeroVector;
-			EnterWorldEvent.Param0 = static_cast<int32>(InPlayerUid & 0xFFFFFFFF);
-			EnterWorldEvent.Param1 = static_cast<int32>((InPlayerUid >> 32) & 0xFFFFFFFF);
+			EnterWorldEvent.PlayerUid = InPlayerUid;
 			NewRecord.ActiveEvents.Add(EnterWorldEvent);
 
 			InCallback(NewRecord);

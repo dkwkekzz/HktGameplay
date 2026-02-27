@@ -13,7 +13,7 @@ class AActor;
  * IdentifierTag(예: Entity.Character.Player)로 로드되며, 스폰할 액터/블루프린트 클래스를 지정합니다.
  */
 UCLASS(BlueprintType)
-class HKTASSET_API UHktActorVisualDataAsset : public UHktTagDataAsset
+class HKTPRESENTATION_API UHktActorVisualDataAsset : public UHktTagDataAsset
 {
 	GENERATED_BODY()
 
