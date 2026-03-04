@@ -56,13 +56,16 @@ struct HKTCORE_API FHktVMProcessSystem
     );
 };
 
-/** 3.5 Movement System: IsMoving 엔티티의 위치 갱신 */
+/** 3.5 Movement System: 힘→가속도 물리 기반 이동 (고정 프레임 1/30초) */
 struct HKTCORE_API FHktMovementSystem
 {
+    static constexpr float FixedDeltaSeconds = 1.0f / 30.0f;
+    static constexpr float MaxSpeed = 600.0f;       // cm/s 최대속도 제한
+    static constexpr float Damping = 0.95f;          // 매 프레임 속도 감쇠
+
     void Process(
         FHktWorldState& WorldState,
         FHktVMWorldStateProxy& VMProxy,
-        float DeltaSeconds,
         TArray<FHktPendingEvent>& OutMoveEndEvents
     );
 };
@@ -86,6 +89,7 @@ struct HKTCORE_API FHktPhysicsSystem
 
     void Process(
         FHktWorldState& WorldState,
+        FHktVMWorldStateProxy& VMProxy,
         TArray<FHktPhysicsEvent>& OutPhysicsEvents
     );
 };

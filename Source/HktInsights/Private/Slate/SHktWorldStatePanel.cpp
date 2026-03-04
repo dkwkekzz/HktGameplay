@@ -218,7 +218,7 @@ void SHktWorldStatePanel::Construct(const FArguments& InArgs)
         ]
     ];
 
-    RefreshData();
+    RefreshData(/*bForceRebuild=*/ true);
 }
 
 void SHktWorldStatePanel::Tick(const FGeometry& AllottedGeometry, double InCurrentTime, float InDeltaTime)
@@ -405,14 +405,49 @@ TSharedRef<ITableRow> SHktWorldStatePanel::GenerateDetailRow(
 // 데이터 갱신
 // ============================================================================
 
-void SHktWorldStatePanel::RefreshData()
+void SHktWorldStatePanel::RefreshData(bool bForceRebuild)
 {
     FHktRuntimeInsightsCollector& Collector = FHktRuntimeInsightsCollector::Get();
-
-    // CollectAll()을 호출해 Provider들이 WorldState를 push하도록 트리거
     Collector.CollectAll();
 
     CachedSnapshots = Collector.GetWorldStateSnapshots();
+
+    // 변경 감지: 소스별 프레임 번호 비교
+    if (!bForceRebuild)
+    {
+        bool bChanged = (CachedSnapshots.Num() != LastFrameBySource.Num());
+
+        if (!bChanged)
+        {
+            for (const FHktWorldStateSnapshot& Snapshot : CachedSnapshots)
+            {
+                const int64* Prev = LastFrameBySource.Find(Snapshot.SourceName);
+                if (!Prev || *Prev != Snapshot.FrameNumber)
+                {
+                    bChanged = true;
+                    break;
+                }
+            }
+        }
+
+        if (!bChanged)
+        {
+            return;
+        }
+    }
+
+    // 프레임 번호 캐시 갱신
+    LastFrameBySource.Reset();
+    for (const FHktWorldStateSnapshot& Snapshot : CachedSnapshots)
+    {
+        LastFrameBySource.Add(Snapshot.SourceName, Snapshot.FrameNumber);
+    }
+
+    RebuildEntityList();
+}
+
+void SHktWorldStatePanel::RebuildEntityList()
+{
     CachedNumSources = CachedSnapshots.Num();
     CachedTotalEntities = 0;
 
@@ -440,12 +475,11 @@ void SHktWorldStatePanel::RefreshData()
             }
 
             TSharedPtr<FHktEntityDisplayRow> DisplayRow = MakeShared<FHktEntityDisplayRow>();
-            DisplayRow->Source     = Snapshot.SourceName;
-            DisplayRow->EntityId   = EntityRow.EntityId;
-            DisplayRow->TypeName   = EntityRow.TypeName;
+            DisplayRow->Source      = Snapshot.SourceName;
+            DisplayRow->EntityId    = EntityRow.EntityId;
+            DisplayRow->TypeName    = EntityRow.TypeName;
             DisplayRow->PropSummary = EntityRow.GetPropSummary(5);
 
-            // 상세 패널용 Properties 채우기
             const int32 NumProps = EntityRow.PropNames.Num();
             DisplayRow->Properties.Reserve(NumProps);
             for (int32 i = 0; i < NumProps; ++i)
@@ -459,9 +493,39 @@ void SHktWorldStatePanel::RefreshData()
         }
     }
 
+    // 선택 상태 복원
+    TSharedPtr<FHktEntityDisplayRow> NewSelection;
+    if (SelectedEntityId >= 0)
+    {
+        for (const TSharedPtr<FHktEntityDisplayRow>& Row : EntityListItems)
+        {
+            if (Row->EntityId == SelectedEntityId && Row->Source == SelectedSource)
+            {
+                NewSelection = Row;
+                break;
+            }
+        }
+    }
+
     if (EntityListView.IsValid())
     {
         EntityListView->RequestListRefresh();
+
+        if (NewSelection.IsValid())
+        {
+            EntityListView->SetSelection(NewSelection, ESelectInfo::Direct);
+            UpdateDetailPanel(*NewSelection);
+        }
+        else if (SelectedEntityId >= 0)
+        {
+            SelectedSource.Reset();
+            SelectedEntityId = -1;
+            DetailListItems.Reset();
+            if (DetailListView.IsValid())
+            {
+                DetailListView->RequestListRefresh();
+            }
+        }
     }
 }
 
@@ -484,18 +548,36 @@ void SHktWorldStatePanel::UpdateDetailPanel(const FHktEntityDisplayRow& Row)
 // 콜백
 // ============================================================================
 
-void SHktWorldStatePanel::OnEntitySelected(TSharedPtr<FHktEntityDisplayRow> Item, ESelectInfo::Type /*SelectType*/)
+void SHktWorldStatePanel::OnEntitySelected(TSharedPtr<FHktEntityDisplayRow> Item, ESelectInfo::Type SelectType)
 {
+    if (SelectType == ESelectInfo::Direct)
+    {
+        // RefreshData 내부에서 복원한 선택 — 중복 처리 방지
+        return;
+    }
+
     if (Item.IsValid())
     {
+        SelectedSource   = Item->Source;
+        SelectedEntityId = Item->EntityId;
         UpdateDetailPanel(*Item);
+    }
+    else
+    {
+        SelectedSource.Reset();
+        SelectedEntityId = -1;
+        DetailListItems.Reset();
+        if (DetailListView.IsValid())
+        {
+            DetailListView->RequestListRefresh();
+        }
     }
 }
 
 void SHktWorldStatePanel::OnSearchTextChanged(const FText& NewText)
 {
     SearchText = NewText.ToString();
-    RefreshData();
+    RefreshData(/*bForceRebuild=*/ true);
 }
 
 FReply SHktWorldStatePanel::OnPauseResumeClicked()
@@ -507,7 +589,8 @@ FReply SHktWorldStatePanel::OnPauseResumeClicked()
 FReply SHktWorldStatePanel::OnClearClicked()
 {
     FHktRuntimeInsightsCollector::Get().Clear();
-    RefreshData();
+    LastFrameBySource.Reset();
+    RefreshData(/*bForceRebuild=*/ true);
     return FReply::Handled();
 }
 

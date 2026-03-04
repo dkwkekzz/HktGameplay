@@ -21,7 +21,7 @@ namespace PropertyId
     constexpr uint16 MoveTargetX = 4;
     constexpr uint16 MoveTargetY = 5;
     constexpr uint16 MoveTargetZ = 6;
-    constexpr uint16 MoveSpeed = 7;
+    constexpr uint16 MoveForce = 7;  // was MoveSpeed — now force unit (F=ma)
     constexpr uint16 IsMoving = 8;
 
     // === 전투/상태 ===
@@ -51,4 +51,11 @@ namespace PropertyId
     // === 애니메이션/비주얼 ===
     constexpr uint16 AnimState = 40;
     constexpr uint16 VisualState = 41;
+
+    // === 물리 ===
+    constexpr uint16 VelX = 50;
+    constexpr uint16 VelY = 51;
+    constexpr uint16 VelZ = 52;
+    constexpr uint16 Mass = 53;             // F=ma, 기본값 100
+    constexpr uint16 CollisionRadius = 54;  // cm, 기본값 50
 }

@@ -107,6 +107,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		AActor* SpawnedActor = World->SpawnActor<AActor>(VisualAsset->ActorClass, SpawnLocation, Rotation, SpawnParams);
 		if (SpawnedActor)
 		{
+			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
 
 			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
@@ -172,6 +173,8 @@ void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPres
 
 void FHktActorRenderer::InterpolateActors(float DeltaSeconds)
 {
+	if (DeltaSeconds <= 0.0f) return;
+
 	for (auto It = MotionStates.CreateIterator(); It; ++It)
 	{
 		FHktEntityId Id = It.Key();
@@ -183,15 +186,23 @@ void FHktActorRenderer::InterpolateActors(float DeltaSeconds)
 
 		AActor* Actor = WeakPtr->Get();
 		const FVector CurrentLocation = Actor->GetActorLocation();
-		const FRotator CurrentRotation = Actor->GetActorRotation();
 
-		// 위치 보간
-		FVector NewLocation = FMath::VInterpTo(CurrentLocation, Motion.TargetLocation, DeltaSeconds, InterpSpeed);
-
-		// 회전 보간
-		FRotator NewRotation = FMath::RInterpTo(CurrentRotation, Motion.TargetRotation, DeltaSeconds, InterpSpeed);
-
-		Actor->SetActorLocationAndRotation(NewLocation, NewRotation);
+		//// --- 위치: 단순 Lerp (매 프레임 50% → ~2틱에 도달) ---
+		//FVector NewLocation;
+		//if (FVector::DistSquared(CurrentLocation, Motion.TargetLocation) <= SnapDistance * SnapDistance)
+		//{
+		//	NewLocation = Motion.TargetLocation;
+		//}
+		//else
+		//{
+		//	NewLocation = FMath::Lerp(CurrentLocation, Motion.TargetLocation, LerpAlpha);
+		//}
+		//
+		//// --- 회전: 이동 방향에서 직접 계산 ---
+		//FRotator NewRotation = Motion.TargetRotation;
+		//
+		//Actor->SetActorLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
+		Actor->SetActorLocationAndRotation(Motion.TargetLocation, Motion.TargetRotation, false, nullptr, ETeleportType::TeleportPhysics);
 	}
 }
 

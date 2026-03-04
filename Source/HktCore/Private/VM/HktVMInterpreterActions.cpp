@@ -34,6 +34,8 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, FHktTypeId TypeId
             Runtime.Context->WriteEntity(NewEntity, PropertyId::OwnerEntity, Runtime.GetRegEntity(Reg::Self));
             Runtime.Context->WriteEntity(NewEntity, PropertyId::EntityType, TypeId);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::EntitySpawnTag, StringIndex);
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::Mass, 1);
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::CollisionRadius, 50);
 
             if (Runtime.PlayerUid != 0 && VMProxy)
             {
@@ -113,10 +115,13 @@ void FHktVMInterpreter::Op_MoveToward(FHktVMRuntime& Runtime, RegisterIndex Enti
         Runtime.Context->WriteEntity(E, PropertyId::MoveTargetX, Runtime.GetReg(TargetBase));
         Runtime.Context->WriteEntity(E, PropertyId::MoveTargetY, Runtime.GetReg(TargetBase + 1));
         Runtime.Context->WriteEntity(E, PropertyId::MoveTargetZ, Runtime.GetReg(TargetBase + 2));
-        Runtime.Context->WriteEntity(E, PropertyId::MoveSpeed, Speed);
+        Runtime.Context->WriteEntity(E, PropertyId::MoveForce, Speed);
+        Runtime.Context->WriteEntity(E, PropertyId::VelX, 0);
+        Runtime.Context->WriteEntity(E, PropertyId::VelY, 0);
+        Runtime.Context->WriteEntity(E, PropertyId::VelZ, 0);
         Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 1);
     }
-    UE_LOG(LogTemp, Log, TEXT("[VM] MoveToward: Entity %d, Speed %d"), Runtime.GetRegEntity(Entity), Speed);
+    UE_LOG(LogTemp, Log, TEXT("[VM] MoveToward: Entity %d, Force %d"), Runtime.GetRegEntity(Entity), Speed);
 }
 
 void FHktVMInterpreter::Op_MoveForward(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 Speed)
@@ -124,10 +129,13 @@ void FHktVMInterpreter::Op_MoveForward(FHktVMRuntime& Runtime, RegisterIndex Ent
     if (Runtime.Context)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.Context->WriteEntity(E, PropertyId::MoveSpeed, Speed);
+        Runtime.Context->WriteEntity(E, PropertyId::MoveForce, Speed);
+        Runtime.Context->WriteEntity(E, PropertyId::VelX, 0);
+        Runtime.Context->WriteEntity(E, PropertyId::VelY, 0);
+        Runtime.Context->WriteEntity(E, PropertyId::VelZ, 0);
         Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 1);
     }
-    UE_LOG(LogTemp, Log, TEXT("[VM] MoveForward: Entity %d, Speed %d"), Runtime.GetRegEntity(Entity), Speed);
+    UE_LOG(LogTemp, Log, TEXT("[VM] MoveForward: Entity %d, Force %d"), Runtime.GetRegEntity(Entity), Speed);
 }
 
 void FHktVMInterpreter::Op_StopMovement(FHktVMRuntime& Runtime, RegisterIndex Entity)
@@ -136,6 +144,9 @@ void FHktVMInterpreter::Op_StopMovement(FHktVMRuntime& Runtime, RegisterIndex En
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
         Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 0);
+        Runtime.Context->WriteEntity(E, PropertyId::VelX, 0);
+        Runtime.Context->WriteEntity(E, PropertyId::VelY, 0);
+        Runtime.Context->WriteEntity(E, PropertyId::VelZ, 0);
     }
     UE_LOG(LogTemp, Log, TEXT("[VM] StopMovement: Entity %d"), Runtime.GetRegEntity(Entity));
 }

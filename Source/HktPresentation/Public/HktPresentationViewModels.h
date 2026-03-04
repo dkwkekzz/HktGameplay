@@ -21,7 +21,7 @@ struct FHktVM_Transform
 struct FHktVM_Movement
 {
 	THktVisualField<FVector> MoveTarget;
-	THktVisualField<float> MoveSpeed;
+	THktVisualField<float> MoveForce;
 	THktVisualField<bool> bIsMoving;
 
 	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);

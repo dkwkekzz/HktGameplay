@@ -84,6 +84,23 @@ void AHktGameMode::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
+    if (!CachedFrameManager || !CachedFrameManager->IsInitialized())
+    {
+        UE_LOG(LogHktGameMode, Verbose, TEXT("Tick: Frame not initialized yet"));
+        return;
+    }
+
+    // 고정 간격 시뮬레이션 (결정론적: 서버도 1/30초 고정 틱)
+    FrameAccumulator += DeltaSeconds;
+    while (FrameAccumulator >= FixedDeltaTime)
+    {
+        FrameAccumulator -= FixedDeltaTime;
+        SimulationTick();
+    }
+}
+
+void AHktGameMode::SimulationTick()
+{
 #if WITH_HKT_INSIGHTS
     double TickStart = FPlatformTime::Seconds();
 #endif
@@ -95,13 +112,7 @@ void AHktGameMode::Tick(float DeltaSeconds)
         return;
     }
 
-    if (!CachedFrameManager || !CachedFrameManager->IsInitialized())
-    {
-        UE_LOG(LogHktGameMode, Verbose, TEXT("Tick: Frame not initialized yet"));
-        return;
-    }
-
-    const FHktEventGameModeTickResult TickResult = Rule->OnEvent_GameModeTick(DeltaSeconds);
+    const FHktEventGameModeTickResult TickResult = Rule->OnEvent_GameModeTick(FixedDeltaTime);
 
     for (const FGroupEventSend& GroupSend : TickResult.EventSends)
     {

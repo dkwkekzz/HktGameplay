@@ -94,17 +94,26 @@ private:
 
     // ========== 데이터 갱신 ==========
 
-    void RefreshData();
+    void RefreshData(bool bForceRebuild = false);
+    void RebuildEntityList();
 
     TArray<FHktWorldStateSnapshot> CachedSnapshots;
     int32 CachedTotalEntities = 0;
     int32 CachedNumSources    = 0;
+
+    /** 소스별 마지막 프레임 번호 — 변경 감지용 */
+    TMap<FString, int64> LastFrameBySource;
 
     // ========== 자동 새로고침 ==========
 
     bool  bAutoRefresh        = true;
     float AutoRefreshInterval = 0.1f;
     double LastRefreshTime    = 0.0;
+
+    // ========== 선택 상태 보존 ==========
+
+    FString SelectedSource;
+    int32   SelectedEntityId = -1;
 
     // ========== 검색 ==========
 

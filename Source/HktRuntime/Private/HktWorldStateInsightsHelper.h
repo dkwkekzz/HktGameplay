@@ -24,7 +24,7 @@ namespace HktWorldStateInsights
         case PropertyId::MoveTargetX:     return TEXT("MoveTargX");
         case PropertyId::MoveTargetY:     return TEXT("MoveTargY");
         case PropertyId::MoveTargetZ:     return TEXT("MoveTargZ");
-        case PropertyId::MoveSpeed:       return TEXT("MoveSpeed");
+        case PropertyId::MoveForce:       return TEXT("MoveForce");
         case PropertyId::IsMoving:        return TEXT("IsMoving");
         case PropertyId::Health:          return TEXT("Health");
         case PropertyId::MaxHealth:       return TEXT("MaxHealth");

@@ -44,13 +44,13 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool,
                             Event.DeltaSeconds, PendingExternalEvents);
 
-    MovementSystem.Process(WorldState, VMProxy, Event.DeltaSeconds, GeneratedMoveEndEvents);
+    MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents);
     for (const FHktPendingEvent& ME : GeneratedMoveEndEvents)
     {
         PendingExternalEvents.Add(ME);
     }
 
-    PhysicsSystem.Process(WorldState, GeneratedPhysicsEvents);
+    PhysicsSystem.Process(WorldState, VMProxy, GeneratedPhysicsEvents);
     for (const FHktPhysicsEvent& PE : GeneratedPhysicsEvents)
     {
         FHktPendingEvent PA;

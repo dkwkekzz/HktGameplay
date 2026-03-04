@@ -42,8 +42,8 @@ namespace HktFlowMoveTo
 			// 이동 애니메이션 시작
 			.PlayAnim(Self, Anim_Run)
 
-			// 목표 위치로 이동 시작 (속도 300 cm/s)
-			.MoveToward(Self, R0, 300)
+			// 목표 위치로 이동 시작 (힘 1500, Mass=100일 때 가속도 15cm/s²)
+			.MoveToward(Self, R0, 5000)
 
 			// 이동 완료 대기
 			.WaitMoveEnd(Self)

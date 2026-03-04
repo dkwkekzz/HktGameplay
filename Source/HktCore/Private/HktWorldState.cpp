@@ -17,7 +17,9 @@ void FHktSchemaRegistry::Initialize()
             PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ, PropertyId::RotYaw,
             PropertyId::TargetPosX, PropertyId::TargetPosY, PropertyId::TargetPosZ, PropertyId::Param0, PropertyId::Param1,
             PropertyId::MoveTargetX, PropertyId::MoveTargetY, PropertyId::MoveTargetZ,
-            PropertyId::MoveSpeed, PropertyId::IsMoving,
+            PropertyId::MoveForce, PropertyId::IsMoving,
+            PropertyId::VelX, PropertyId::VelY, PropertyId::VelZ,
+            PropertyId::Mass, PropertyId::CollisionRadius,
             PropertyId::Health, PropertyId::MaxHealth,
             PropertyId::AttackPower, PropertyId::Defense,
             PropertyId::Team, PropertyId::Mana, PropertyId::MaxMana,
@@ -32,7 +34,9 @@ void FHktSchemaRegistry::Initialize()
             PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ,
             PropertyId::TargetPosX, PropertyId::TargetPosY, PropertyId::TargetPosZ, PropertyId::Param0, PropertyId::Param1,
             PropertyId::MoveTargetX, PropertyId::MoveTargetY, PropertyId::MoveTargetZ,
-            PropertyId::MoveSpeed, PropertyId::IsMoving,
+            PropertyId::MoveForce, PropertyId::IsMoving,
+            PropertyId::VelX, PropertyId::VelY, PropertyId::VelZ,
+            PropertyId::Mass, PropertyId::CollisionRadius,
             PropertyId::OwnerEntity, PropertyId::EntityType, PropertyId::EntitySpawnTag,
             PropertyId::Team })
             S.AddProperty(P);

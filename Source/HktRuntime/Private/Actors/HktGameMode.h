@@ -57,6 +57,13 @@ public:
 #endif
 
 private:
+    /** 고정 시뮬레이션 틱 (결정론적 시뮬레이션) */
+    void SimulationTick();
+
+    /** 고정 타임스텝 어큐뮬레이터 (서버도 30Hz 고정 간격 시뮬레이션) */
+    float FrameAccumulator = 0.0f;
+    static constexpr float FixedDeltaTime = 1.0f / 30.0f;
+
     /** Insight 통계: 틱 당 처리 시간 추적 */
     float LastTickDurationMs = 0.0f;
 

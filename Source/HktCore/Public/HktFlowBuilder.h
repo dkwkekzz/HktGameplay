@@ -116,11 +116,11 @@ public:
     /** 위치 설정: Position = (SrcBase, SrcBase+1, SrcBase+2) */
     FHktFlowBuilder& SetPosition(RegisterIndex Entity, RegisterIndex SrcBase);
 
-    /** 목표 위치로 이동 시작 */
-    FHktFlowBuilder& MoveToward(RegisterIndex Entity, RegisterIndex TargetPosBase, int32 Speed);
+    /** 목표 위치로 이동 시작 (Force 단위, F=ma) */
+    FHktFlowBuilder& MoveToward(RegisterIndex Entity, RegisterIndex TargetPosBase, int32 Force);
 
-    /** 전방으로 이동 (투사체용) */
-    FHktFlowBuilder& MoveForward(RegisterIndex Entity, int32 Speed);
+    /** 전방으로 이동 (투사체용, Force 단위) */
+    FHktFlowBuilder& MoveForward(RegisterIndex Entity, int32 Force);
 
     /** 이동 중지 */
     FHktFlowBuilder& StopMovement(RegisterIndex Entity);
