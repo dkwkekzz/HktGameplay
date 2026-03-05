@@ -16,19 +16,19 @@
 
 static TAutoConsoleVariable<float> CVarMoveAccelMultiplier(
     TEXT("hkt.Move.AccelMultiplier"),
-    5.0f, // 기본적으로 기존 대비 3배 기민하게 가속/감속
+    7.0f, // 기본적으로 기존 대비 3배 기민하게 가속/감속
     TEXT("Multiplier for movement acceleration/deceleration. Higher means snappier movement."),
     ECVF_Default);
 
 static TAutoConsoleVariable<float> CVarMoveSlowingRadius(
     TEXT("hkt.Move.SlowingRadius"),
-    250.0f, // 감속을 시작하는 반경 (기존 250 -> 150으로 줄여 더 늦게 감속 시작 = 더 빠른 도착)
+    150.0f, // 감속을 시작하는 반경 (기존 250 -> 150으로 줄여 더 늦게 감속 시작 = 더 빠른 도착)
     TEXT("Radius at which entities start to slow down when reaching target."),
     ECVF_Default);
 
 static TAutoConsoleVariable<float> CVarMoveMinSpeed(
     TEXT("hkt.Move.MinSpeed"),
-    30.0f, // 도착지 근처 멈칫거림을 방지하는 최소 보장 속도 (기존 30 -> 50)
+    50.0f, // 도착지 근처 멈칫거림을 방지하는 최소 보장 속도 (기존 30 -> 50)
     TEXT("Minimum speed enforced to prevent infinite arrival time (Zeno's paradox)."),
     ECVF_Default);
 
