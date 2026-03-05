@@ -7,6 +7,31 @@
 #include "VM/HktVMInterpreter.h"
 #include "VM/HktVMWorldStateProxy.h"
 #include "Math/UnrealMathUtility.h"
+#include "HAL/IConsoleManager.h"
+
+// ============================================================================
+// 콘솔 변수 (CVar) - 런타임 이동 조작감 튜닝용
+// 사용법: 에디터 콘솔 창에서 "hkt.Move.AccelMultiplier 5.0" 등 입력
+// ============================================================================
+
+static TAutoConsoleVariable<float> CVarMoveAccelMultiplier(
+    TEXT("hkt.Move.AccelMultiplier"),
+    5.0f, // 기본적으로 기존 대비 3배 기민하게 가속/감속
+    TEXT("Multiplier for movement acceleration/deceleration. Higher means snappier movement."),
+    ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarMoveSlowingRadius(
+    TEXT("hkt.Move.SlowingRadius"),
+    250.0f, // 감속을 시작하는 반경 (기존 250 -> 150으로 줄여 더 늦게 감속 시작 = 더 빠른 도착)
+    TEXT("Radius at which entities start to slow down when reaching target."),
+    ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarMoveMinSpeed(
+    TEXT("hkt.Move.MinSpeed"),
+    30.0f, // 도착지 근처 멈칫거림을 방지하는 최소 보장 속도 (기존 30 -> 50)
+    TEXT("Minimum speed enforced to prevent infinite arrival time (Zeno's paradox)."),
+    ECVF_Default);
+
 
 #if WITH_HKT_INSIGHTS
 #include "HktInsightsDataCollector.h"
@@ -267,7 +292,11 @@ void FHktMovementSystem::Process(
     OutMoveEndEvents.Reset();
 
     static constexpr float ArrivalThresholdSq = 16.0f;  // 4cm (도착 판정)
-    static constexpr float SlowingRadius = 250.0f;      // 감속 시작 거리 (2.5m)
+
+    // 콘솔 변수 조회 (엔티티를 순회하는 루프 진입 전 1회만 캐싱하여 퍼포먼스 확보)
+    const float AccelMultiplier = CVarMoveAccelMultiplier.GetValueOnAnyThread();
+    const float SlowingRadius = CVarMoveSlowingRadius.GetValueOnAnyThread();
+    const float MinSpeed = CVarMoveMinSpeed.GetValueOnAnyThread();
 
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
@@ -296,14 +325,14 @@ void FHktMovementSystem::Process(
         const float DZ = TgtZ - CurZ;
         const float DistSq = DX * DX + DY * DY + DZ * DZ;
 
-        // [수정점] 회전(Yaw) 연산을 최상단으로 이동 및 미세 거리 각도 튐 방지
+        // 회전(Yaw) 연산 및 미세 거리 각도 튐 방지
         if (DistSq > 1.0f) // 거리가 1cm 이상일 때만 방향을 갱신 (부동소수점 오차로 인한 떨림 방지)
         {
             const int32 YawDeg = FMath::RoundToInt(FMath::Atan2(DY, DX) * (180.0f / PI));
             VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::RotYaw, YawDeg);
         }
 
-        // 도착 판정 (기존 로직 유지)
+        // 도착 판정
         if (DistSq <= ArrivalThresholdSq)
         {
             VMProxy.SetPosition(WorldState, Id,
@@ -329,15 +358,16 @@ void FHktMovementSystem::Process(
         // 1. 현재 속력(Speed) 계산 (방향과 속력을 분리)
         float CurSpeed = FMath::Sqrt(VX * VX + VY * VY + VZ * VZ);
 
-        // 2. 목표 속력(Desired Speed) 계산: 반경 내에 들어오면 속도를 선형으로 줄임
+        // 2. 목표 속력(Desired Speed) 계산: 반경 내에 들어오면 CVar 기반으로 감속
         float DesiredSpeed = MaxSpeed;
         if (Dist < SlowingRadius)
         {
-            DesiredSpeed = MaxSpeed * (Dist / SlowingRadius);
+            // 정수 반올림 함정에 빠지지 않도록 CVar 기반의 최소 보정 속도 강제
+            DesiredSpeed = FMath::Max(MaxSpeed * (Dist / SlowingRadius), MinSpeed);
         }
 
-        // 3. 속력 가감속 적용 (가속도로 속력 크기만 변경하여 관성은 유지하되 방향은 즉시 전환)
-        const float Accel = Force / Mass;
+        // 3. 속력 가감속 적용 (가속도에 CVar 배율 보정치 적용하여 더욱 기민한 움직임 보장)
+        const float Accel = (Force / Mass) * AccelMultiplier;
         const float MaxSpeedChange = Accel * FixedDeltaSeconds;
 
         if (CurSpeed < DesiredSpeed)
@@ -385,6 +415,7 @@ void FHktMovementSystem::Process(
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelZ, FMath::RoundToInt(VZ));
     });
 }
+
 
 // ============================================================================
 // 4. Physics System
