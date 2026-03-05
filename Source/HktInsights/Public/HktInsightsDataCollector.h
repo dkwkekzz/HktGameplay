@@ -65,7 +65,8 @@ public:
         int32 SourceEventId,
         const FGameplayTag& SourceEventTag,
         int32 BytecodeSize,
-        int32 SubjectId);
+        int32 SubjectId,
+        const FString& Source = FString());
 
     /**
      * VM Tick 업데이트
@@ -238,8 +239,8 @@ private:
         FHktInsightsDataCollector::Get().UpdateIntentEventState(EventId, NewState)
 
     // VM 생성 기록
-    #define HKT_INSIGHTS_RECORD_VM_CREATED(VMId, EventId, EventTag, BytecodeSize, SubjectId) \
-        FHktInsightsDataCollector::Get().RecordVMCreated(VMId, EventId, EventTag, BytecodeSize, SubjectId)
+    #define HKT_INSIGHTS_RECORD_VM_CREATED(VMId, EventId, EventTag, BytecodeSize, SubjectId, Source) \
+        FHktInsightsDataCollector::Get().RecordVMCreated(VMId, EventId, EventTag, BytecodeSize, SubjectId, Source)
 
     // VM Tick 기록
     #define HKT_INSIGHTS_RECORD_VM_TICK(VMId, PC, State, OpName) \
@@ -252,7 +253,7 @@ private:
     #define HKT_INSIGHTS_RECORD_INTENT(EventId, EventTag, SubjectId, TargetId, Location)
     #define HKT_INSIGHTS_RECORD_INTENT_WITH_STATE(EventId, EventTag, SubjectId, TargetId, Location, State)
     #define HKT_INSIGHTS_UPDATE_INTENT_STATE(EventId, NewState)
-    #define HKT_INSIGHTS_RECORD_VM_CREATED(VMId, EventId, EventTag, BytecodeSize, SubjectId)
+    #define HKT_INSIGHTS_RECORD_VM_CREATED(VMId, EventId, EventTag, BytecodeSize, SubjectId, Source)
     #define HKT_INSIGHTS_RECORD_VM_TICK(VMId, PC, State, OpName)
     #define HKT_INSIGHTS_RECORD_VM_COMPLETED(VMId, bSuccess)
 #endif

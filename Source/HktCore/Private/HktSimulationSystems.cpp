@@ -6,9 +6,11 @@
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
 #include "VM/HktVMWorldStateProxy.h"
+#include "Math/UnrealMathUtility.h"
 
 #if WITH_HKT_INSIGHTS
 #include "HktInsightsDataCollector.h"
+#include "HktFlowTypes.h"
 
 static EHktInsightsVMState ToInsightsVMState(EVMStatus Status)
 {
@@ -16,7 +18,7 @@ static EHktInsightsVMState ToInsightsVMState(EVMStatus Status)
     {
     case EVMStatus::Running:
     case EVMStatus::Ready:        return EHktInsightsVMState::Running;
-    case EVMStatus::Yielded:
+    case EVMStatus::Yielded:      return EHktInsightsVMState::Yielded;
     case EVMStatus::WaitingEvent: return EHktInsightsVMState::Blocked;
     case EVMStatus::Completed:    return EHktInsightsVMState::Completed;
     case EVMStatus::Failed:       return EHktInsightsVMState::Error;
@@ -58,7 +60,8 @@ void FHktVMBuildSystem::Process(
     FHktVMRuntimePool& Pool,
     TArray<FHktVMHandle>& OutActiveVMs,
     FHktWorldState& WorldState,
-    FHktVMWorldStateProxy& VMProxy)
+    FHktVMWorldStateProxy& VMProxy,
+    const FString& InsightsSource)
 {
     for (const FHktEvent& Event : Events)
     {
@@ -132,7 +135,7 @@ void FHktVMBuildSystem::Process(
             Event.Location, EHktInsightsEventState::Processing);
         FHktInsightsDataCollector::Get().RecordVMCreated(
             static_cast<int32>(Handle.Index), Event.EventId, Event.EventTag,
-            Program->CodeSize(), Event.SourceEntity);
+            Program->CodeSize(), Event.SourceEntity, InsightsSource);
 #endif
 
         UE_LOG(LogTemp, Log, TEXT("VM created: %s for Entity %d"), *Event.EventTag.ToString(), Event.SourceEntity);
@@ -230,7 +233,7 @@ void FHktVMProcessSystem::Process(
             if (Runtime->Program && Runtime->PC > 0 && Runtime->Program->Code.Num() > 0)
             {
                 int32 Idx = FMath::Min(Runtime->PC - 1, Runtime->Program->Code.Num() - 1);
-                OpName = FString::Printf(TEXT("Op%d"), static_cast<uint8>(Runtime->Program->Code[Idx].GetOpCode()));
+                OpName = GetOpCodeName(Runtime->Program->Code[Idx].GetOpCode());
             }
             FHktInsightsDataCollector::Get().RecordVMTick(
                 static_cast<int32>(Handle.Index), Runtime->PC, ToInsightsVMState(Result), OpName);

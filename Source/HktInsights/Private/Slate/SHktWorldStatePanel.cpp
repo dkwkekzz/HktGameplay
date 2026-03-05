@@ -4,11 +4,13 @@
 #include "HktRuntimeInsightsCollector.h"
 
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SHeaderRow.h"
 
@@ -23,24 +25,17 @@ namespace WorldStateEntityColumns
     static const FName Source    ("Source");
     static const FName EntityId  ("EntityId");
     static const FName TypeName  ("Type");
-    static const FName Properties("Properties");
-}
-
-namespace WorldStateDetailColumns
-{
-    static const FName PropName("PropName");
-    static const FName Value   ("Value");
 }
 
 // ============================================================================
 // SHktWorldEntityListRow - 엔티티 목록 한 행
 // ============================================================================
 
-class SHktWorldEntityListRow : public SMultiColumnTableRow<TSharedPtr<FHktEntityDisplayRow>>
+class SHktWorldEntityListRow : public SMultiColumnTableRow<TSharedPtr<FHktEntityListEntry>>
 {
 public:
     SLATE_BEGIN_ARGS(SHktWorldEntityListRow) {}
-        SLATE_ARGUMENT(TSharedPtr<FHktEntityDisplayRow>, Item)
+        SLATE_ARGUMENT(TSharedPtr<FHktEntityListEntry>, Item)
     SLATE_END_ARGS()
 
     void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable)
@@ -67,7 +62,6 @@ public:
 
         if (ColumnName == WorldStateEntityColumns::Source)
         {
-            // Server → 오렌지, Client → 시안
             const FLinearColor Color = Item->Source.StartsWith(TEXT("Server"))
                 ? FLinearColor(1.0f, 0.6f, 0.0f)
                 : FLinearColor(0.0f, 0.8f, 0.8f);
@@ -81,65 +75,12 @@ public:
         {
             return MakeCell(Item->TypeName, FLinearColor(0.5f, 0.8f, 1.0f));
         }
-        if (ColumnName == WorldStateEntityColumns::Properties)
-        {
-            return MakeCell(Item->PropSummary, FLinearColor(0.75f, 0.75f, 0.75f));
-        }
 
         return SNullWidget::NullWidget;
     }
 
 private:
-    TSharedPtr<FHktEntityDisplayRow> Item;
-};
-
-// ============================================================================
-// SHktWorldDetailRow - 프로퍼티 상세 한 행
-// ============================================================================
-
-class SHktWorldDetailRow : public SMultiColumnTableRow<TSharedPtr<FHktPropPair>>
-{
-public:
-    SLATE_BEGIN_ARGS(SHktWorldDetailRow) {}
-        SLATE_ARGUMENT(TSharedPtr<FHktPropPair>, Item)
-    SLATE_END_ARGS()
-
-    void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable)
-    {
-        Item = InArgs._Item;
-        SMultiColumnTableRow::Construct(FSuperRowType::FArguments(), InOwnerTable);
-    }
-
-    virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
-    {
-        if (!Item.IsValid()) return SNullWidget::NullWidget;
-
-        auto MakeCell = [](const FString& Str, FLinearColor Color) -> TSharedRef<SWidget>
-        {
-            return SNew(SBox)
-                .Padding(FMargin(4.0f, 2.0f))
-                .VAlign(VAlign_Center)
-                [
-                    SNew(STextBlock)
-                    .Text(FText::FromString(Str))
-                    .ColorAndOpacity(Color)
-                ];
-        };
-
-        if (ColumnName == WorldStateDetailColumns::PropName)
-        {
-            return MakeCell(Item->Key, FLinearColor(0.5f, 0.8f, 1.0f));
-        }
-        if (ColumnName == WorldStateDetailColumns::Value)
-        {
-            return MakeCell(Item->Value, FLinearColor::White);
-        }
-
-        return SNullWidget::NullWidget;
-    }
-
-private:
-    TSharedPtr<FHktPropPair> Item;
+    TSharedPtr<FHktEntityListEntry> Item;
 };
 
 // ============================================================================
@@ -154,12 +95,12 @@ void SHktWorldStatePanel::Construct(const FArguments& InArgs)
     [
         SNew(SVerticalBox)
 
-        // 툴바
+        // 필터바
         + SVerticalBox::Slot()
         .AutoHeight()
         .Padding(4.0f)
         [
-            CreateToolbar()
+            CreateFilterBar()
         ]
 
         + SVerticalBox::Slot()
@@ -168,7 +109,7 @@ void SHktWorldStatePanel::Construct(const FArguments& InArgs)
             SNew(SSeparator)
         ]
 
-        // 메인 컨텐츠 (엔티티 목록 + 프로퍼티 상세)
+        // 메인 컨텐츠 (엔티티 목록 + 상세)
         + SVerticalBox::Slot()
         .FillHeight(1.0f)
         .Padding(4.0f)
@@ -189,12 +130,12 @@ void SHktWorldStatePanel::Construct(const FArguments& InArgs)
                 ]
             ]
 
-            // 프로퍼티 상세 (35%)
+            // 상세 패널 (35%)
             + SSplitter::Slot()
             .Value(0.35f)
             [
                 SNew(SExpandableArea)
-                .AreaTitle(LOCTEXT("DetailTitle", "Properties  (엔티티를 클릭하여 상세 확인)"))
+                .AreaTitle(LOCTEXT("DetailTitle", "Detail  (select entities)"))
                 .InitiallyCollapsed(false)
                 .BodyContent()
                 [
@@ -236,19 +177,78 @@ void SHktWorldStatePanel::Tick(const FGeometry& AllottedGeometry, double InCurre
 // UI 생성
 // ============================================================================
 
-TSharedRef<SWidget> SHktWorldStatePanel::CreateToolbar()
+TSharedRef<SWidget> SHktWorldStatePanel::CreateFilterBar()
 {
     return SNew(SHorizontalBox)
 
+        // Source 필터
+        + SHorizontalBox::Slot()
+        .AutoWidth()
+        .Padding(2.0f)
+        .VAlign(VAlign_Center)
+        [
+            SNew(STextBlock)
+            .Text(LOCTEXT("SourceLabel", "Source:"))
+        ]
+
+        + SHorizontalBox::Slot()
+        .MaxWidth(80.0f)
+        .Padding(2.0f)
+        [
+            SNew(SEditableTextBox)
+            .HintText(LOCTEXT("SourceHint", "All"))
+            .OnTextChanged(this, &SHktWorldStatePanel::OnSourceFilterChanged)
+        ]
+
+        // Type 필터
+        + SHorizontalBox::Slot()
+        .AutoWidth()
+        .Padding(2.0f)
+        .VAlign(VAlign_Center)
+        [
+            SNew(STextBlock)
+            .Text(LOCTEXT("TypeLabel", "Type:"))
+        ]
+
+        + SHorizontalBox::Slot()
+        .MaxWidth(80.0f)
+        .Padding(2.0f)
+        [
+            SNew(SEditableTextBox)
+            .HintText(LOCTEXT("TypeHint", "All"))
+            .OnTextChanged(this, &SHktWorldStatePanel::OnTypeFilterChanged)
+        ]
+
+        // ID 필터
+        + SHorizontalBox::Slot()
+        .AutoWidth()
+        .Padding(2.0f)
+        .VAlign(VAlign_Center)
+        [
+            SNew(STextBlock)
+            .Text(LOCTEXT("IdLabel", "ID:"))
+        ]
+
+        + SHorizontalBox::Slot()
+        .MaxWidth(60.0f)
+        .Padding(2.0f)
+        [
+            SNew(SEditableTextBox)
+            .HintText(LOCTEXT("IdHint", "All"))
+            .OnTextChanged(this, &SHktWorldStatePanel::OnEntityIdFilterChanged)
+        ]
+
+        // 일반 검색
         + SHorizontalBox::Slot()
         .FillWidth(1.0f)
         .Padding(2.0f)
         [
-            SAssignNew(SearchBox, SSearchBox)
-            .HintText(LOCTEXT("SearchHint", "소스, EntityId, 타입, 프로퍼티 필터링..."))
+            SNew(SSearchBox)
+            .HintText(LOCTEXT("SearchHint", "Search..."))
             .OnTextChanged(this, &SHktWorldStatePanel::OnSearchTextChanged)
         ]
 
+        // Pause/Resume
         + SHorizontalBox::Slot()
         .AutoWidth()
         .Padding(2.0f)
@@ -263,6 +263,7 @@ TSharedRef<SWidget> SHktWorldStatePanel::CreateToolbar()
             .OnClicked(this, &SHktWorldStatePanel::OnPauseResumeClicked)
         ]
 
+        // Clear
         + SHorizontalBox::Slot()
         .AutoWidth()
         .Padding(2.0f)
@@ -275,11 +276,11 @@ TSharedRef<SWidget> SHktWorldStatePanel::CreateToolbar()
 
 TSharedRef<SWidget> SHktWorldStatePanel::CreateEntitySection()
 {
-    return SAssignNew(EntityListView, SListView<TSharedPtr<FHktEntityDisplayRow>>)
+    return SAssignNew(EntityListView, SListView<TSharedPtr<FHktEntityListEntry>>)
         .ListItemsSource(&EntityListItems)
         .OnGenerateRow(this, &SHktWorldStatePanel::GenerateEntityRow)
-        .OnSelectionChanged(this, &SHktWorldStatePanel::OnEntitySelected)
-        .SelectionMode(ESelectionMode::Single)
+        .OnSelectionChanged(this, &SHktWorldStatePanel::OnEntitySelectionChanged)
+        .SelectionMode(ESelectionMode::Multi)
         .HeaderRow
         (
             SNew(SHeaderRow)
@@ -294,32 +295,13 @@ TSharedRef<SWidget> SHktWorldStatePanel::CreateEntitySection()
 
             + SHeaderRow::Column(WorldStateEntityColumns::TypeName)
             .DefaultLabel(LOCTEXT("TypeCol",     "Type"))
-            .FixedWidth(100.0f)
-
-            + SHeaderRow::Column(WorldStateEntityColumns::Properties)
-            .DefaultLabel(LOCTEXT("PropsCol",    "Properties"))
             .FillWidth(1.0f)
         );
 }
 
 TSharedRef<SWidget> SHktWorldStatePanel::CreateDetailSection()
 {
-    return SAssignNew(DetailListView, SListView<TSharedPtr<FHktPropPair>>)
-        .ListItemsSource(&DetailListItems)
-        .OnGenerateRow(this, &SHktWorldStatePanel::GenerateDetailRow)
-        .SelectionMode(ESelectionMode::None)
-        .HeaderRow
-        (
-            SNew(SHeaderRow)
-
-            + SHeaderRow::Column(WorldStateDetailColumns::PropName)
-            .DefaultLabel(LOCTEXT("PropNameCol", "Property"))
-            .FixedWidth(160.0f)
-
-            + SHeaderRow::Column(WorldStateDetailColumns::Value)
-            .DefaultLabel(LOCTEXT("ValueCol",    "Value"))
-            .FillWidth(1.0f)
-        );
+    return SAssignNew(DetailScrollBox, SScrollBox);
 }
 
 TSharedRef<SWidget> SHktWorldStatePanel::CreateStatsBar()
@@ -366,18 +348,14 @@ TSharedRef<SWidget> SHktWorldStatePanel::CreateStatsBar()
             SNew(STextBlock)
             .Text_Lambda([this]()
             {
-                if (CachedSnapshots.IsEmpty())
+                TArray<TSharedPtr<FHktEntityListEntry>> SelectedItems = EntityListView.IsValid()
+                    ? EntityListView->GetSelectedItems() : TArray<TSharedPtr<FHktEntityListEntry>>();
+                if (SelectedItems.Num() == 0)
                 {
-                    return FText::FromString(TEXT("No WorldState data"));
+                    return FText::FromString(TEXT("No entity selected"));
                 }
-                FString Info;
-                for (const FHktWorldStateSnapshot& S : CachedSnapshots)
-                {
-                    if (!Info.IsEmpty()) Info += TEXT("  |  ");
-                    Info += FString::Printf(TEXT("%s: F%lld (%d ents)"),
-                        *S.SourceName, S.FrameNumber, S.EntityCount);
-                }
-                return FText::FromString(Info);
+                return FText::FromString(FString::Printf(TEXT("Selected: %d entities"),
+                    SelectedItems.Num()));
             })
             .ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
         ];
@@ -388,17 +366,45 @@ TSharedRef<SWidget> SHktWorldStatePanel::CreateStatsBar()
 // ============================================================================
 
 TSharedRef<ITableRow> SHktWorldStatePanel::GenerateEntityRow(
-    TSharedPtr<FHktEntityDisplayRow> Item,
+    TSharedPtr<FHktEntityListEntry> Item,
     const TSharedRef<STableViewBase>& OwnerTable)
 {
     return SNew(SHktWorldEntityListRow, OwnerTable).Item(Item);
 }
 
-TSharedRef<ITableRow> SHktWorldStatePanel::GenerateDetailRow(
-    TSharedPtr<FHktPropPair> Item,
-    const TSharedRef<STableViewBase>& OwnerTable)
+// ============================================================================
+// 필터
+// ============================================================================
+
+bool SHktWorldStatePanel::PassesFilter(const FHktEntityListEntry& Entry) const
 {
-    return SNew(SHktWorldDetailRow, OwnerTable).Item(Item);
+    if (!SourceFilter.IsEmpty() &&
+        !Entry.Source.Contains(SourceFilter, ESearchCase::IgnoreCase))
+    {
+        return false;
+    }
+    if (!TypeFilter.IsEmpty() &&
+        !Entry.TypeName.Contains(TypeFilter, ESearchCase::IgnoreCase))
+    {
+        return false;
+    }
+    if (!EntityIdFilter.IsEmpty())
+    {
+        const FString IdStr = FString::FromInt(Entry.EntityId);
+        if (!IdStr.Contains(EntityIdFilter))
+        {
+            return false;
+        }
+    }
+    if (!SearchText.IsEmpty())
+    {
+        const FString IdStr = FString::FromInt(Entry.EntityId);
+        const bool bMatch = Entry.Source.Contains(SearchText, ESearchCase::IgnoreCase)
+            || IdStr.Contains(SearchText)
+            || Entry.TypeName.Contains(SearchText, ESearchCase::IgnoreCase);
+        if (!bMatch) return false;
+    }
+    return true;
 }
 
 // ============================================================================
@@ -408,101 +414,70 @@ TSharedRef<ITableRow> SHktWorldStatePanel::GenerateDetailRow(
 void SHktWorldStatePanel::RefreshData(bool bForceRebuild)
 {
     FHktRuntimeInsightsCollector& Collector = FHktRuntimeInsightsCollector::Get();
-    Collector.CollectAll();
+    // CollectAll 호출 제거 — 데이터는 AdvanceFrame에서 push됨
 
-    CachedSnapshots = Collector.GetWorldStateSnapshots();
-
-    // 변경 감지: 소스별 프레임 번호 비교
-    if (!bForceRebuild)
+    // 엔티티 리스트 변경 감지
+    const int32 CurrentVersion = Collector.GetEntityListVersion();
+    if (bForceRebuild || CurrentVersion != CachedEntityListVersion)
     {
-        bool bChanged = (CachedSnapshots.Num() != LastFrameBySource.Num());
-
-        if (!bChanged)
-        {
-            for (const FHktWorldStateSnapshot& Snapshot : CachedSnapshots)
-            {
-                const int64* Prev = LastFrameBySource.Find(Snapshot.SourceName);
-                if (!Prev || *Prev != Snapshot.FrameNumber)
-                {
-                    bChanged = true;
-                    break;
-                }
-            }
-        }
-
-        if (!bChanged)
-        {
-            return;
-        }
+        CachedEntityListVersion = CurrentVersion;
+        RebuildEntityList();
     }
 
-    // 프레임 번호 캐시 갱신
-    LastFrameBySource.Reset();
-    for (const FHktWorldStateSnapshot& Snapshot : CachedSnapshots)
+    // 다중 선택 엔티티 상세 갱신 (매 틱)
+    if (EntityListView.IsValid() && EntityListView->GetSelectedItems().Num() > 0)
     {
-        LastFrameBySource.Add(Snapshot.SourceName, Snapshot.FrameNumber);
+        RebuildDetailPanel();
     }
-
-    RebuildEntityList();
 }
 
 void SHktWorldStatePanel::RebuildEntityList()
 {
-    CachedNumSources = CachedSnapshots.Num();
-    CachedTotalEntities = 0;
+    FHktRuntimeInsightsCollector& Collector = FHktRuntimeInsightsCollector::Get();
+    TArray<FHktEntityListEntry> RawList = Collector.GetEntityList();
 
-    EntityListItems.Reset();
-
-    for (const FHktWorldStateSnapshot& Snapshot : CachedSnapshots)
+    // 소스 카운트
+    TSet<FString> Sources;
+    for (const FHktEntityListEntry& E : RawList)
     {
-        CachedTotalEntities += Snapshot.EntityCount;
+        Sources.Add(E.Source);
+    }
+    CachedNumSources = Sources.Num();
+    CachedTotalEntities = RawList.Num();
 
-        for (const FHktWorldEntityRow& EntityRow : Snapshot.Entities)
+    // 선택 상태 백업
+    TSet<int64> PrevSelectedKeys;
+    if (EntityListView.IsValid())
+    {
+        for (const TSharedPtr<FHktEntityListEntry>& Sel : EntityListView->GetSelectedItems())
         {
-            // 검색 필터 적용
-            if (!SearchText.IsEmpty())
+            if (Sel.IsValid())
             {
-                const FString IdStr = FString::FromInt(EntityRow.EntityId);
-                const bool bMatchSource = Snapshot.SourceName.Contains(SearchText, ESearchCase::IgnoreCase);
-                const bool bMatchId     = IdStr.Contains(SearchText);
-                const bool bMatchType   = EntityRow.TypeName.Contains(SearchText, ESearchCase::IgnoreCase);
-                const bool bMatchProps  = EntityRow.GetPropSummary(999).Contains(SearchText, ESearchCase::IgnoreCase);
-
-                if (!bMatchSource && !bMatchId && !bMatchType && !bMatchProps)
-                {
-                    continue;
-                }
+                // Source + EntityId를 키로 사용
+                int64 Key = GetTypeHash(Sel->Source) ^ (static_cast<int64>(Sel->EntityId) << 32);
+                PrevSelectedKeys.Add(Key);
             }
-
-            TSharedPtr<FHktEntityDisplayRow> DisplayRow = MakeShared<FHktEntityDisplayRow>();
-            DisplayRow->Source      = Snapshot.SourceName;
-            DisplayRow->EntityId    = EntityRow.EntityId;
-            DisplayRow->TypeName    = EntityRow.TypeName;
-            DisplayRow->PropSummary = EntityRow.GetPropSummary(5);
-
-            const int32 NumProps = EntityRow.PropNames.Num();
-            DisplayRow->Properties.Reserve(NumProps);
-            for (int32 i = 0; i < NumProps; ++i)
-            {
-                DisplayRow->Properties.Emplace(
-                    EntityRow.PropNames[i],
-                    FString::FromInt(EntityRow.PropValues[i]));
-            }
-
-            EntityListItems.Add(MoveTemp(DisplayRow));
         }
     }
 
-    // 선택 상태 복원
-    TSharedPtr<FHktEntityDisplayRow> NewSelection;
-    if (SelectedEntityId >= 0)
+    EntityListItems.Reset();
+
+    for (FHktEntityListEntry& Entry : RawList)
     {
-        for (const TSharedPtr<FHktEntityDisplayRow>& Row : EntityListItems)
+        if (!PassesFilter(Entry)) continue;
+        EntityListItems.Add(MakeShared<FHktEntityListEntry>(MoveTemp(Entry)));
+    }
+
+    // 선택 상태 복원
+    TArray<TSharedPtr<FHktEntityListEntry>> RestoredSelection;
+    if (PrevSelectedKeys.Num() > 0)
+    {
+        for (const TSharedPtr<FHktEntityListEntry>& Row : EntityListItems)
         {
-            if (Row->EntityId == SelectedEntityId && Row->Source == SelectedSource)
+            int64 Key = GetTypeHash(Row->Source) ^ (static_cast<int64>(Row->EntityId) << 32);
+            if (PrevSelectedKeys.Contains(Key))
             {
-                NewSelection = Row;
-                break;
+                RestoredSelection.Add(Row);
             }
         }
     }
@@ -511,36 +486,146 @@ void SHktWorldStatePanel::RebuildEntityList()
     {
         EntityListView->RequestListRefresh();
 
-        if (NewSelection.IsValid())
+        if (RestoredSelection.Num() > 0)
         {
-            EntityListView->SetSelection(NewSelection, ESelectInfo::Direct);
-            UpdateDetailPanel(*NewSelection);
-        }
-        else if (SelectedEntityId >= 0)
-        {
-            SelectedSource.Reset();
-            SelectedEntityId = -1;
-            DetailListItems.Reset();
-            if (DetailListView.IsValid())
+            EntityListView->ClearSelection();
+            for (const TSharedPtr<FHktEntityListEntry>& Sel : RestoredSelection)
             {
-                DetailListView->RequestListRefresh();
+                EntityListView->SetItemSelection(Sel, true, ESelectInfo::Direct);
             }
         }
     }
 }
 
-void SHktWorldStatePanel::UpdateDetailPanel(const FHktEntityDisplayRow& Row)
+void SHktWorldStatePanel::RebuildDetailPanel()
 {
-    DetailListItems.Reset();
+    if (!DetailScrollBox.IsValid() || !EntityListView.IsValid()) return;
 
-    for (const FHktPropPair& Pair : Row.Properties)
-    {
-        DetailListItems.Add(MakeShared<FHktPropPair>(Pair.Key, Pair.Value));
-    }
+    DetailScrollBox->ClearChildren();
 
-    if (DetailListView.IsValid())
+    FHktRuntimeInsightsCollector& Collector = FHktRuntimeInsightsCollector::Get();
+    TArray<TSharedPtr<FHktEntityListEntry>> SelectedItems = EntityListView->GetSelectedItems();
+
+    for (const TSharedPtr<FHktEntityListEntry>& SelEntry : SelectedItems)
     {
-        DetailListView->RequestListRefresh();
+        if (!SelEntry.IsValid()) continue;
+
+        // 소스별 상세 데이터에서 해당 엔티티 찾기
+        TArray<FHktSelectedEntityDetail> AllDetails = Collector.GetAllEntityDetails(SelEntry->Source);
+        const FHktSelectedEntityDetail* Found = nullptr;
+        for (const FHktSelectedEntityDetail& D : AllDetails)
+        {
+            if (D.EntityId == SelEntry->EntityId)
+            {
+                Found = &D;
+                break;
+            }
+        }
+
+        // 헤더 텍스트
+        const FString Header = FString::Printf(TEXT("[%s] Entity #%d (%s)"),
+            *SelEntry->Source, SelEntry->EntityId, *SelEntry->TypeName);
+
+        TSharedRef<SVerticalBox> PropList = SNew(SVerticalBox);
+
+        if (Found && Found->IsValid())
+        {
+            // OwnerUid
+            PropList->AddSlot()
+            .AutoHeight()
+            .Padding(8.0f, 1.0f)
+            [
+                SNew(SHorizontalBox)
+                + SHorizontalBox::Slot().AutoWidth()
+                [
+                    SNew(SBox).WidthOverride(160.0f)
+                    [
+                        SNew(STextBlock).Text(FText::FromString(TEXT("OwnerUid")))
+                        .ColorAndOpacity(FLinearColor(0.5f, 0.8f, 1.0f))
+                    ]
+                ]
+                + SHorizontalBox::Slot().FillWidth(1.0f)
+                [
+                    SNew(STextBlock).Text(FText::FromString(
+                        FString::Printf(TEXT("%lld"), Found->OwnerUid)))
+                ]
+            ];
+
+            // Frame
+            PropList->AddSlot()
+            .AutoHeight()
+            .Padding(8.0f, 1.0f)
+            [
+                SNew(SHorizontalBox)
+                + SHorizontalBox::Slot().AutoWidth()
+                [
+                    SNew(SBox).WidthOverride(160.0f)
+                    [
+                        SNew(STextBlock).Text(FText::FromString(TEXT("Frame")))
+                        .ColorAndOpacity(FLinearColor(0.5f, 0.8f, 1.0f))
+                    ]
+                ]
+                + SHorizontalBox::Slot().FillWidth(1.0f)
+                [
+                    SNew(STextBlock).Text(FText::FromString(
+                        FString::Printf(TEXT("%lld"), Found->FrameNumber)))
+                ]
+            ];
+
+            // Properties
+            for (int32 i = 0; i < Found->PropNames.Num(); ++i)
+            {
+                const FString& PropName = Found->PropNames[i];
+                const int32 PropVal = Found->PropValues[i];
+
+                PropList->AddSlot()
+                .AutoHeight()
+                .Padding(8.0f, 1.0f)
+                [
+                    SNew(SHorizontalBox)
+                    + SHorizontalBox::Slot().AutoWidth()
+                    [
+                        SNew(SBox).WidthOverride(160.0f)
+                        [
+                            SNew(STextBlock).Text(FText::FromString(PropName))
+                            .ColorAndOpacity(FLinearColor(0.5f, 0.8f, 1.0f))
+                        ]
+                    ]
+                    + SHorizontalBox::Slot().FillWidth(1.0f)
+                    [
+                        SNew(STextBlock).Text(FText::FromString(FString::FromInt(PropVal)))
+                    ]
+                ];
+            }
+        }
+        else
+        {
+            PropList->AddSlot()
+            .AutoHeight()
+            .Padding(8.0f, 2.0f)
+            [
+                SNew(STextBlock)
+                .Text(LOCTEXT("NoDetail", "No detail data available"))
+                .ColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
+            ];
+        }
+
+        const FLinearColor HeaderColor = SelEntry->Source.StartsWith(TEXT("Server"))
+            ? FLinearColor(1.0f, 0.6f, 0.0f)
+            : FLinearColor(0.0f, 0.8f, 0.8f);
+
+        DetailScrollBox->AddSlot()
+        [
+            SNew(SExpandableArea)
+            .AreaTitle(FText::FromString(Header))
+            .AreaTitleFont(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+            .InitiallyCollapsed(false)
+            .HeaderPadding(FMargin(4.0f, 2.0f))
+            .BodyContent()
+            [
+                PropList
+            ]
+        ];
     }
 }
 
@@ -548,30 +633,28 @@ void SHktWorldStatePanel::UpdateDetailPanel(const FHktEntityDisplayRow& Row)
 // 콜백
 // ============================================================================
 
-void SHktWorldStatePanel::OnEntitySelected(TSharedPtr<FHktEntityDisplayRow> Item, ESelectInfo::Type SelectType)
+void SHktWorldStatePanel::OnEntitySelectionChanged(TSharedPtr<FHktEntityListEntry> Item, ESelectInfo::Type SelectType)
 {
-    if (SelectType == ESelectInfo::Direct)
-    {
-        // RefreshData 내부에서 복원한 선택 — 중복 처리 방지
-        return;
-    }
+    if (SelectType == ESelectInfo::Direct) return;
+    RebuildDetailPanel();
+}
 
-    if (Item.IsValid())
-    {
-        SelectedSource   = Item->Source;
-        SelectedEntityId = Item->EntityId;
-        UpdateDetailPanel(*Item);
-    }
-    else
-    {
-        SelectedSource.Reset();
-        SelectedEntityId = -1;
-        DetailListItems.Reset();
-        if (DetailListView.IsValid())
-        {
-            DetailListView->RequestListRefresh();
-        }
-    }
+void SHktWorldStatePanel::OnSourceFilterChanged(const FText& NewText)
+{
+    SourceFilter = NewText.ToString();
+    RefreshData(/*bForceRebuild=*/ true);
+}
+
+void SHktWorldStatePanel::OnTypeFilterChanged(const FText& NewText)
+{
+    TypeFilter = NewText.ToString();
+    RefreshData(/*bForceRebuild=*/ true);
+}
+
+void SHktWorldStatePanel::OnEntityIdFilterChanged(const FText& NewText)
+{
+    EntityIdFilter = NewText.ToString();
+    RefreshData(/*bForceRebuild=*/ true);
 }
 
 void SHktWorldStatePanel::OnSearchTextChanged(const FText& NewText)
@@ -589,7 +672,7 @@ FReply SHktWorldStatePanel::OnPauseResumeClicked()
 FReply SHktWorldStatePanel::OnClearClicked()
 {
     FHktRuntimeInsightsCollector::Get().Clear();
-    LastFrameBySource.Reset();
+    CachedEntityListVersion = -1;
     RefreshData(/*bForceRebuild=*/ true);
     return FReply::Handled();
 }

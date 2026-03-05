@@ -29,6 +29,8 @@ private:
 		TFunction<void(bool, const FString&)> OnResponse);
 	void CallOpenAIAPI(const FString& SystemPrompt, const FString& UserPrompt,
 		TFunction<void(bool, const FString&)> OnResponse);
+	void CallGeminiAPI(const FString& SystemPrompt, const FString& UserPrompt,
+		TFunction<void(bool, const FString&)> OnResponse);
 	bool ExtractJSONFromResponse(const FString& RawResponse, FString& OutJSON);
 	bool ParseLLMResponse(const FString& ResponseText, FHktVFXNiagaraConfig& OutConfig);
 

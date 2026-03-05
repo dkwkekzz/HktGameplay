@@ -23,6 +23,7 @@ enum class EHktLLMProvider : uint8
 {
 	Anthropic UMETA(DisplayName = "Anthropic (Claude)"),
 	OpenAI    UMETA(DisplayName = "OpenAI (GPT)"),
+    Gemini    UMETA(DisplayName = "Google (Gemini)"),
 };
 
 UENUM(BlueprintType)

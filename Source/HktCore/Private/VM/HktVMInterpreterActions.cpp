@@ -35,6 +35,7 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, FHktTypeId TypeId
             Runtime.Context->WriteEntity(NewEntity, PropertyId::EntityType, TypeId);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::EntitySpawnTag, StringIndex);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::Mass, 1);
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::MaxSpeed, 100);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::CollisionRadius, 50);
 
             if (Runtime.PlayerUid != 0 && VMProxy)

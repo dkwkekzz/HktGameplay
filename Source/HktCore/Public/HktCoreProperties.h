@@ -23,6 +23,7 @@ namespace PropertyId
     constexpr uint16 MoveTargetZ = 6;
     constexpr uint16 MoveForce = 7;  // was MoveSpeed — now force unit (F=ma)
     constexpr uint16 IsMoving = 8;
+    constexpr uint16 MaxSpeed = 9;
 
     // === 전투/상태 ===
     constexpr uint16 Health = 10;

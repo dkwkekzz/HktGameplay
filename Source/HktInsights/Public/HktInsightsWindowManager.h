@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-class SHktInsightsPanel;
+class SHktVMStatePanel;
 class SWindow;
 
 /**
@@ -32,7 +32,7 @@ public:
     bool IsWindowOpen() const;
 
     /** 디버그 패널 포인터 반환 (UI 테스트용, CombinedPanel 전환 후 항상 nullptr) */
-    TSharedPtr<SHktInsightsPanel> GetDebugPanel() const { return DebugPanel; }
+    TSharedPtr<SHktVMStatePanel> GetDebugPanel() const { return DebugPanel; }
 
     /** 윈도우 크기 설정 */
     void SetWindowSize(FVector2D NewSize);
@@ -58,7 +58,7 @@ private:
     TSharedPtr<SWindow> DebugWindow;
 
     /** 디버그 패널 위젯 */
-    TSharedPtr<SHktInsightsPanel> DebugPanel;
+    TSharedPtr<SHktVMStatePanel> DebugPanel;
 
     /** 기본 윈도우 크기 */
     FVector2D DefaultWindowSize = FVector2D(900, 650);

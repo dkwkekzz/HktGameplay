@@ -44,7 +44,8 @@ UENUM(BlueprintType)
 enum class EHktInsightsVMState : uint8
 {
     Running     UMETA(DisplayName = "Running"),      // 실행 중
-    Blocked     UMETA(DisplayName = "Blocked"),      // 대기 중 (애니메이션, 타이머 등)
+    Blocked     UMETA(DisplayName = "Blocked"),      // 대기 중 (WaitingEvent)
+    Yielded     UMETA(DisplayName = "Yielded"),      // Yield 대기 (WaitFrames)
     Moving      UMETA(DisplayName = "Moving"),       // 이동 중
     Completed   UMETA(DisplayName = "Completed"),    // 완료
     Error       UMETA(DisplayName = "Error")         // 오류
@@ -201,6 +202,10 @@ struct HKTINSIGHTS_API FHktInsightsVMEntry
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
     int32 SubjectId = 0;
 
+    /** 소스 식별자 (Server[0], Client 등) */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+    FString Source;
+
     /** VM 생성 시간 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
     double CreationTimestamp = 0.0;
@@ -222,6 +227,7 @@ struct HKTINSIGHTS_API FHktInsightsVMEntry
         {
         case EHktInsightsVMState::Running:   return TEXT("Running");
         case EHktInsightsVMState::Blocked:   return TEXT("Blocked");
+        case EHktInsightsVMState::Yielded:   return TEXT("Yielded");
         case EHktInsightsVMState::Moving:    return TEXT("Moving");
         case EHktInsightsVMState::Completed: return TEXT("Completed");
         case EHktInsightsVMState::Error:     return TEXT("Error");
@@ -236,6 +242,7 @@ struct HKTINSIGHTS_API FHktInsightsVMEntry
         {
         case EHktInsightsVMState::Running:   return FLinearColor(0.0f, 0.8f, 0.2f);  // Green
         case EHktInsightsVMState::Blocked:   return FLinearColor(1.0f, 0.5f, 0.0f);  // Orange
+        case EHktInsightsVMState::Yielded:   return FLinearColor(1.0f, 1.0f, 0.0f);  // Yellow
         case EHktInsightsVMState::Moving:    return FLinearColor(0.0f, 0.6f, 1.0f);  // Blue
         case EHktInsightsVMState::Completed: return FLinearColor(0.5f, 0.5f, 0.5f);  // Gray
         case EHktInsightsVMState::Error:     return FLinearColor(1.0f, 0.2f, 0.2f);  // Red

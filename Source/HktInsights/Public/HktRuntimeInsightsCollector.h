@@ -70,22 +70,42 @@ public:
     /** 1초 윈도우 통계 조회 */
     FHktPacketStats GetPacketStats() const;
 
-    // ========== WorldState 스냅샷 ==========
+    // ========== 엔티티 리스트 ==========
 
     /**
-     * WorldState 스냅샷 업데이트 (소스별 최신 1개 유지)
-     *
-     * CollectInsightData() 내부에서 사이드이펙트로 호출합니다.
-     * 스레드 세이프 (PacketLock과 동일한 패턴).
+     * 소스별 엔티티 리스트 동기화.
+     * 기존 리스트와 EntityId 집합을 비교하여 실제 변경이 있을 때만 version 증가.
+     * Provider의 CollectInsightData에서 호출.
      */
-    void PushWorldStateSnapshot(FHktWorldStateSnapshot&& Snapshot);
+    void SyncEntityList(const FString& Source, TArray<FHktEntityListEntry>&& NewEntries);
 
-    /**
-     * 등록된 모든 소스의 최신 WorldState 스냅샷 목록을 반환
-     *
-     * SourceName 알파벳 순으로 정렬됩니다.
-     */
-    TArray<FHktWorldStateSnapshot> GetWorldStateSnapshots() const;
+    /** 현재 엔티티 목록 반환 (모든 소스 합산) */
+    TArray<FHktEntityListEntry> GetEntityList() const;
+
+    /** 엔티티 리스트 변경 카운트 (변경 감지용) */
+    int32 GetEntityListVersion() const;
+
+    // ========== 선택 엔티티 (Panel ↔ Provider 통신) ==========
+
+    /** Panel이 엔티티 선택 시 호출 */
+    void SetSelectedEntity(const FString& Source, int32 EntityId);
+
+    /** Provider가 선택 확인 */
+    FHktEntitySelection GetSelectedEntity() const;
+
+    /** Provider가 틱마다 선택 엔티티 상세 push */
+    void PushSelectedEntityDetail(FHktSelectedEntityDetail&& Detail);
+
+    /** Panel이 틱마다 조회 */
+    const FHktSelectedEntityDetail& GetSelectedEntityDetail() const;
+
+    // ========== 다중 엔티티 상세 ==========
+
+    /** 소스별 전체 엔티티 상세 Push */
+    void PushAllEntityDetails(const FString& Source, TArray<FHktSelectedEntityDetail>&& Details);
+
+    /** 소스별 엔티티 상세 조회 */
+    TArray<FHktSelectedEntityDetail> GetAllEntityDetails(const FString& Source) const;
 
     // ========== 설정 ==========
 
@@ -113,9 +133,19 @@ private:
     /** 최근 수집된 스냅샷 */
     TArray<FHktInsightSnapshot> CachedSnapshots;
 
-    /** WorldState 스냅샷 (소스명 → 최신 스냅샷) */
-    mutable FCriticalSection WorldStateLock;
-    TMap<FString, FHktWorldStateSnapshot> WorldStateBySource;
+    /** 엔티티 리스트 (소스명 → 엔티티 목록) */
+    mutable FCriticalSection EntityListLock;
+    TMap<FString, TArray<FHktEntityListEntry>> EntityListBySource;
+    int32 EntityListVersion = 0;
+
+    /** 선택 엔티티 상태 */
+    mutable FCriticalSection SelectionLock;
+    FHktEntitySelection SelectedEntity;
+    FHktSelectedEntityDetail CachedDetail;
+
+    /** 다중 엔티티 상세 (소스별) */
+    mutable FCriticalSection DetailLock;
+    TMap<FString, TArray<FHktSelectedEntityDetail>> EntityDetailsBySource;
 
     /** 패킷 기록 (Ring buffer) */
     mutable FCriticalSection PacketLock;

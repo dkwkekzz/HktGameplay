@@ -3,7 +3,7 @@
 
 #if WITH_HKT_INSIGHTS
 #include "HktRuntimeInsightsCollector.h"
-#include "HktWorldStateInsightsHelper.h"
+#include "HktCoreSimulator.h"
 #endif
 
 UHktProxySimulatorComponent::UHktProxySimulatorComponent()
@@ -17,6 +17,9 @@ void UHktProxySimulatorComponent::BeginPlay()
     Super::BeginPlay();
     SchemaRegistry.Initialize();
     Simulator = CreateDeterminismSimulator();
+#if WITH_HKT_INSIGHTS
+    Simulator->SetInsightsSourceName(TEXT("Client"));
+#endif
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
 }
 
@@ -217,14 +220,7 @@ void UHktProxySimulatorComponent::CollectInsightData(FHktInsightSnapshot& OutSna
         const FHktWorldState& WS = Simulator->GetWorldState();
         OutSnapshot.AddInfo(Cat, TEXT("Entities"),
             FString::FromInt(WS.GetEntityCount()));
-
-        if (WS.GetEntityCount() > 0)
-        {
-            FHktWorldStateSnapshot Snapshot =
-                HktWorldStateInsights::BuildSnapshot(WS, TEXT("Client"));
-            FHktRuntimeInsightsCollector::Get().PushWorldStateSnapshot(
-                MoveTemp(Snapshot));
-        }
+        // WorldState 엔티티 리스트/상세는 AdvanceFrame에서 자동 push됨
     }
 }
 #endif

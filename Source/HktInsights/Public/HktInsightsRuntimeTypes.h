@@ -85,74 +85,55 @@ struct HKTINSIGHTS_API FHktPacketRecord
 };
 
 /**
- * FHktWorldEntityRow - 단일 엔티티의 프로퍼티 스냅샷 (디버그용)
+ * FHktEntityListEntry - 엔티티 리스트 1행 (이벤트 기반 갱신)
  */
-USTRUCT()
-struct HKTINSIGHTS_API FHktWorldEntityRow
+struct HKTINSIGHTS_API FHktEntityListEntry
 {
-    GENERATED_BODY()
-
-    /** 엔티티 ID */
-    UPROPERTY()
+    FString Source;
     int32 EntityId = -1;
-
-    /** 타입 이름 (예: "Unit", "Projectile") */
-    UPROPERTY()
     FString TypeName;
-
-    /** LocalIndex 순서의 프로퍼티 이름 목록 */
-    UPROPERTY()
-    TArray<FString> PropNames;
-
-    /** LocalIndex 순서의 프로퍼티 값 목록 */
-    UPROPERTY()
-    TArray<int32> PropValues;
-
-    /** 앞 N개 프로퍼티를 "name=val name=val" 형태 요약 문자열로 반환 */
-    FString GetPropSummary(int32 MaxProps = 5) const
-    {
-        FString Out;
-        const int32 Count = FMath::Min(PropNames.Num(), MaxProps);
-        for (int32 i = 0; i < Count; ++i)
-        {
-            if (i > 0) Out += TEXT(" ");
-            Out += FString::Printf(TEXT("%s=%d"), *PropNames[i], PropValues[i]);
-        }
-        if (PropNames.Num() > MaxProps)
-            Out += FString::Printf(TEXT(" (+%d)"), PropNames.Num() - MaxProps);
-        return Out;
-    }
 };
 
 /**
- * FHktWorldStateSnapshot - 한 시점의 WorldState 전체 스냅샷
- *
- * 서버(Server[0], Server[1] ...) 또는 클라이언트(Client)를 SourceName으로 구분.
+ * FHktEntitySelection - 선택된 엔티티 식별자 (Panel ↔ Provider 통신용)
  */
-USTRUCT()
-struct HKTINSIGHTS_API FHktWorldStateSnapshot
+struct HKTINSIGHTS_API FHktEntitySelection
 {
-    GENERATED_BODY()
+    FString Source;
+    int32 EntityId = -1;
 
-    /** 소스 이름 (예: "Server[0]", "Client") */
-    UPROPERTY()
-    FString SourceName;
+    bool IsValid() const { return EntityId >= 0 && !Source.IsEmpty(); }
+    void Reset() { Source.Reset(); EntityId = -1; }
+};
 
-    /** 이 스냅샷의 시뮬레이션 프레임 번호 */
-    UPROPERTY()
+/**
+ * FHktVMStateInfo - 엔티티에 바인딩된 VM 실행 상태
+ */
+struct HKTINSIGHTS_API FHktVMStateInfo
+{
+    int32 PC = 0;
+    FString StatusName;
+    FString ProgramTag;
+    int64 PlayerUid = 0;
+    int32 CreationFrame = 0;
+    int32 SelfEntity = -1;
+    int32 TargetEntity = -1;
+    int32 SourceEventId = 0;
+};
+
+/**
+ * FHktSelectedEntityDetail - 선택된 엔티티의 전체 상세 정보
+ */
+struct HKTINSIGHTS_API FHktSelectedEntityDetail
+{
+    int32 EntityId = -1;
+    FString Source;
     int64 FrameNumber = 0;
+    TArray<FString> PropNames;
+    TArray<int32> PropValues;
+    int64 OwnerUid = 0;
 
-    /** 총 활성 엔티티 수 */
-    UPROPERTY()
-    int32 EntityCount = 0;
-
-    /** 수집 시각 (FPlatformTime::Seconds) */
-    UPROPERTY()
-    double CaptureTime = 0.0;
-
-    /** 모든 엔티티 행 */
-    UPROPERTY()
-    TArray<FHktWorldEntityRow> Entities;
+    bool IsValid() const { return EntityId >= 0; }
 };
 
 /**

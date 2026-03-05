@@ -175,6 +175,9 @@ void FHktVFXLLMClient::RequestNiagaraConfig(const FHktVFXIntent& Intent, FOnHktL
     case EHktLLMProvider::OpenAI:
         CallOpenAIAPI(SystemPrompt, UserPrompt, OnResponse);
         break;
+    case EHktLLMProvider::Gemini:
+        CallGeminiAPI(SystemPrompt, UserPrompt, OnResponse);
+        break;
     }
 }
 
@@ -330,6 +333,129 @@ void FHktVFXLLMClient::CallOpenAIAPI(const FString& SystemPrompt, const FString&
             }
             OnResponse(false, TEXT("Failed to parse OpenAI response"));
         });
+
+    Request->ProcessRequest();
+}
+
+// ============================================================================
+// Google Gemini 3.1 API 호출 (엔진 크래시 완벽 차단 및 최신 아키텍처 적용)
+// ============================================================================
+void FHktVFXLLMClient::CallGeminiAPI(const FString& SystemPrompt, const FString& UserPrompt,
+    TFunction<void(bool, const FString&)> OnResponse)
+{
+    auto Request = FHttpModule::Get().CreateRequest();
+
+    // Gemini 3.1 시리즈 엔드포인트 적용
+    // 권장 Settings.Model 값: 
+    // 1. 실시간 NPC 대화용: "gemini-3.1-flash-lite-preview"
+    // 2. 메인 디렉터/빌런용: "gemini-3.1-pro-preview"
+    FString EndpointURL = FString::Printf(TEXT("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent"), *Settings.Model);
+    Request->SetURL(EndpointURL);
+    Request->SetVerb(TEXT("POST"));
+    Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+
+    // x-goog-api-key 헤더에 API Key 삽입
+    Request->SetHeader(TEXT("x-goog-api-key"), Settings.APIKey);
+
+    // 최상위 JSON 바디 구성
+    TSharedPtr<FJsonObject> Body = MakeShareable(new FJsonObject);
+
+    // 1. 시스템 프롬프트 (systemInstruction) - NPC의 성격, 연기 톤, 세계관 세팅
+    TSharedPtr<FJsonObject> SystemInstruction = MakeShareable(new FJsonObject);
+    TArray<TSharedPtr<FJsonValue>> SysParts;
+    TSharedPtr<FJsonObject> SysTextObj = MakeShareable(new FJsonObject);
+    SysTextObj->SetStringField(TEXT("text"), SystemPrompt);
+    SysParts.Add(MakeShareable(new FJsonValueObject(SysTextObj)));
+    SystemInstruction->SetArrayField(TEXT("parts"), SysParts);
+    Body->SetObjectField(TEXT("systemInstruction"), SystemInstruction);
+
+    // 2. 유저 프롬프트 (contents) - 플레이어의 대사 및 행동 입력
+    TArray<TSharedPtr<FJsonValue>> Contents;
+    TSharedPtr<FJsonObject> UserContentObj = MakeShareable(new FJsonObject);
+    UserContentObj->SetStringField(TEXT("role"), TEXT("user"));
+
+    TArray<TSharedPtr<FJsonValue>> UserParts;
+    TSharedPtr<FJsonObject> UserTextObj = MakeShareable(new FJsonObject);
+    UserTextObj->SetStringField(TEXT("text"), UserPrompt);
+    UserParts.Add(MakeShareable(new FJsonValueObject(UserTextObj)));
+
+    UserContentObj->SetArrayField(TEXT("parts"), UserParts);
+    Contents.Add(MakeShareable(new FJsonValueObject(UserContentObj)));
+    Body->SetArrayField(TEXT("contents"), Contents);
+
+    // 3. 파라미터 설정 (generationConfig) - 3.1 버전에 맞춘 세팅
+    TSharedPtr<FJsonObject> GenerationConfig = MakeShareable(new FJsonObject);
+    GenerationConfig->SetNumberField(TEXT("temperature"), Settings.Temperature);
+    GenerationConfig->SetNumberField(TEXT("maxOutputTokens"), Settings.MaxTokens);
+
+    // NPC 응답을 JSON 형태로 강제하여 '대사'와 '애니메이션 태그'를 분리 추출하려는 경우 아래 주석 해제
+    // GenerationConfig->SetStringField(TEXT("responseMimeType"), TEXT("application/json"));
+
+    Body->SetObjectField(TEXT("generationConfig"), GenerationConfig);
+
+    // 직렬화 및 바디 전송
+    FString BodyString;
+    auto Writer = TJsonWriterFactory<>::Create(&BodyString);
+    FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
+    Request->SetContentAsString(BodyString);
+
+    // 비동기 콜백 바인딩 (크래시 방지를 위한 Safe Parsing 적용)
+    Request->OnProcessRequestComplete().BindLambda(
+        [OnResponse](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bConnected)
+    {
+        if (!bConnected || !Resp.IsValid())
+        {
+            OnResponse(false, TEXT("Connection failed"));
+            return;
+        }
+
+        int32 Code = Resp->GetResponseCode();
+        FString ResponseStr = Resp->GetContentAsString();
+
+        if (Code != 200)
+        {
+            UE_LOG(LogTemp, Error, TEXT("[VFXLLMClient] Gemini 3.1 API error %d: %s"), Code, *ResponseStr);
+            OnResponse(false, ResponseStr);
+            return;
+        }
+
+        // candidates[0].content.parts[0].text 안전하게 추출
+        TSharedPtr<FJsonObject> ResponseObj;
+        auto Reader = TJsonReaderFactory<>::Create(ResponseStr);
+        if (FJsonSerializer::Deserialize(Reader, ResponseObj) && ResponseObj.IsValid())
+        {
+            const TArray<TSharedPtr<FJsonValue>>* CandidatesArray;
+            if (ResponseObj->TryGetArrayField(TEXT("candidates"), CandidatesArray) && CandidatesArray->Num() > 0)
+            {
+                const TSharedPtr<FJsonObject>* FirstCandidate;
+                if ((*CandidatesArray)[0]->TryGetObject(FirstCandidate))
+                {
+                    const TSharedPtr<FJsonObject>* ContentObj;
+                    if ((*FirstCandidate)->TryGetObjectField(TEXT("content"), ContentObj))
+                    {
+                        const TArray<TSharedPtr<FJsonValue>>* PartsArray;
+                        if ((*ContentObj)->TryGetArrayField(TEXT("parts"), PartsArray) && PartsArray->Num() > 0)
+                        {
+                            const TSharedPtr<FJsonObject>* FirstPart;
+                            if ((*PartsArray)[0]->TryGetObject(FirstPart))
+                            {
+                                FString OutputText;
+                                if ((*FirstPart)->TryGetStringField(TEXT("text"), OutputText))
+                                {
+                                    OnResponse(true, OutputText);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 파싱 실패 시 언리얼 크래시를 막고 에러 로그 출력
+        UE_LOG(LogTemp, Error, TEXT("[VFXLLMClient] Malformed Gemini JSON response: %s"), *ResponseStr);
+        OnResponse(false, TEXT("Failed to parse Gemini response safely"));
+    });
 
     Request->ProcessRequest();
 }

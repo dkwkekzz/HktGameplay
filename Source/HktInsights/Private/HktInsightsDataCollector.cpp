@@ -83,7 +83,8 @@ void FHktInsightsDataCollector::RecordVMCreated(
     int32 SourceEventId,
     const FGameplayTag& SourceEventTag,
     int32 BytecodeSize,
-    int32 SubjectId)
+    int32 SubjectId,
+    const FString& Source)
 {
     if (!bEnabled)
     {
@@ -98,6 +99,7 @@ void FHktInsightsDataCollector::RecordVMCreated(
     Entry.SourceEventTag = SourceEventTag;
     Entry.BytecodeSize = BytecodeSize;
     Entry.SubjectId = SubjectId;
+    Entry.Source = Source;
     Entry.CreationTimestamp = GetCurrentTimestamp();
     Entry.State = EHktInsightsVMState::Running;
 

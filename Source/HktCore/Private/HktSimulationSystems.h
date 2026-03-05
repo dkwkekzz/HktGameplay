@@ -37,7 +37,8 @@ struct HKTCORE_API FHktVMBuildSystem
         FHktVMRuntimePool& Pool,
         TArray<FHktVMHandle>& OutActiveVMs,
         FHktWorldState& WorldState,
-        FHktVMWorldStateProxy& VMProxy
+        FHktVMWorldStateProxy& VMProxy,
+        const FString& InsightsSource = FString()
     );
 };
 

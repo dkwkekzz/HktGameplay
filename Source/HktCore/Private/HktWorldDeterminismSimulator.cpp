@@ -4,8 +4,64 @@
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
 #include "VM/HktVMContext.h"
+#include "VM/HktVMProgram.h"
 #include "HktCoreProperties.h"
 #include "HktSimulationLimits.h"
+
+#if WITH_HKT_INSIGHTS
+#include "HktRuntimeInsightsCollector.h"
+#include "HktInsightsRuntimeTypes.h"
+
+namespace HktInsightsInternal
+{
+    inline FString PropIdToName(uint16 PropId)
+    {
+        switch (PropId)
+        {
+        case PropertyId::PosX:            return TEXT("PosX");
+        case PropertyId::PosY:            return TEXT("PosY");
+        case PropertyId::PosZ:            return TEXT("PosZ");
+        case PropertyId::RotYaw:          return TEXT("RotYaw");
+        case PropertyId::MoveTargetX:     return TEXT("MoveTargX");
+        case PropertyId::MoveTargetY:     return TEXT("MoveTargY");
+        case PropertyId::MoveTargetZ:     return TEXT("MoveTargZ");
+        case PropertyId::MoveForce:       return TEXT("MoveForce");
+        case PropertyId::IsMoving:        return TEXT("IsMoving");
+        case PropertyId::Health:          return TEXT("Health");
+        case PropertyId::MaxHealth:       return TEXT("MaxHealth");
+        case PropertyId::AttackPower:     return TEXT("AtkPow");
+        case PropertyId::Defense:         return TEXT("Defense");
+        case PropertyId::Team:            return TEXT("Team");
+        case PropertyId::Mana:            return TEXT("Mana");
+        case PropertyId::MaxMana:         return TEXT("MaxMana");
+        case PropertyId::OwnerEntity:     return TEXT("OwnerEnt");
+        case PropertyId::EntityType:      return TEXT("EntType");
+        case PropertyId::TargetPosX:      return TEXT("TargPosX");
+        case PropertyId::TargetPosY:      return TEXT("TargPosY");
+        case PropertyId::TargetPosZ:      return TEXT("TargPosZ");
+        case PropertyId::Param0:          return TEXT("Param0");
+        case PropertyId::Param1:          return TEXT("Param1");
+        case PropertyId::Param2:          return TEXT("Param2");
+        case PropertyId::Param3:          return TEXT("Param3");
+        case PropertyId::AnimState:       return TEXT("AnimState");
+        case PropertyId::VisualState:     return TEXT("VisState");
+        default:                          return FString::Printf(TEXT("P%d"), PropId);
+        }
+    }
+
+    inline FString TypeIdToName(FHktTypeId TypeId)
+    {
+        switch (TypeId)
+        {
+        case HktType::Unit:       return TEXT("Unit");
+        case HktType::Projectile: return TEXT("Projectile");
+        case HktType::Equipment:  return TEXT("Equipment");
+        case HktType::Building:   return TEXT("Building");
+        default:                  return FString::Printf(TEXT("Type%d"), TypeId);
+        }
+    }
+}
+#endif
 
 FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator()
 {
@@ -39,7 +95,7 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     FrameRemovedEntities = EntityArrangeSystem.ScratchRemoveList;
 
     VMBuildSystem.Process(Event.NewEvents, static_cast<int32>(Event.FrameNumber),
-                          *VMPool, ActiveVMs, WorldState, VMProxy);
+                          *VMPool, ActiveVMs, WorldState, VMProxy, InsightsSourceName);
 
     VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool,
                             Event.DeltaSeconds, PendingExternalEvents);
@@ -138,6 +194,58 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             Diff.OwnerDeltas.Add(Delta);
         });
     }
+
+#if WITH_HKT_INSIGHTS
+    if (!InsightsSourceName.IsEmpty())
+    {
+        FHktRuntimeInsightsCollector& Collector = FHktRuntimeInsightsCollector::Get();
+
+        // 1. 엔티티 리스트 동기화
+        TArray<FHktEntityListEntry> Entries;
+        for (int32 T = 1; T < HktType::MaxTypes; ++T)
+        {
+            const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
+            if (Pool.ActiveCount == 0) continue;
+            const FString TypeName = HktInsightsInternal::TypeIdToName(static_cast<FHktTypeId>(T));
+            Pool.ForEachEntity([&](FHktEntityId Id, int32)
+            {
+                FHktEntityListEntry E;
+                E.Source = InsightsSourceName;
+                E.EntityId = Id;
+                E.TypeName = TypeName;
+                Entries.Add(MoveTemp(E));
+            });
+        }
+        Collector.SyncEntityList(InsightsSourceName, MoveTemp(Entries));
+
+        // 2. 전체 엔티티 상세 빌드 & Push
+        TArray<FHktSelectedEntityDetail> Details;
+        for (int32 T = 1; T < HktType::MaxTypes; ++T)
+        {
+            const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
+            if (Pool.ActiveCount == 0) continue;
+            const FHktEntitySchema& Schema = FHktSchemaRegistry::Get().Get(static_cast<FHktTypeId>(T));
+            Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
+            {
+                FHktSelectedEntityDetail Detail;
+                Detail.EntityId = Id;
+                Detail.Source = InsightsSourceName;
+                Detail.FrameNumber = WorldState.FrameNumber;
+                Detail.OwnerUid = WorldState.GetOwnerUid(Id);
+                Detail.PropNames.Reserve(Pool.Stride);
+                Detail.PropValues.Reserve(Pool.Stride);
+                for (int8 LocalIdx = 0; LocalIdx < Pool.Stride; ++LocalIdx)
+                {
+                    Detail.PropNames.Add(HktInsightsInternal::PropIdToName(Schema.PropertyIds[LocalIdx]));
+                    Detail.PropValues.Add(Pool.Get(Slot, LocalIdx));
+                }
+                Details.Add(MoveTemp(Detail));
+            });
+        }
+        Collector.PushAllEntityDetails(InsightsSourceName, MoveTemp(Details));
+    }
+#endif
+
     return Diff;
 }
 
@@ -167,6 +275,35 @@ void FHktWorldDeterminismSimulator::RestoreWorldState(const FHktWorldState& InSt
 void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)
 {
     WorldState.UndoDiff(Diff);
+}
+
+int32 FHktWorldDeterminismSimulator::GetActiveVMCount() const
+{
+    int32 Count = 0;
+    const_cast<FHktVMRuntimePool*>(VMPool.Get())->ForEachActive(
+        [&Count](FHktVMHandle, FHktVMRuntime&) { ++Count; });
+    return Count;
+}
+
+void FHktWorldDeterminismSimulator::ForEachActiveVM(
+    TFunctionRef<void(const FHktVMDebugInfo&)> Callback) const
+{
+    const_cast<FHktVMRuntimePool*>(VMPool.Get())->ForEachActive(
+        [&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
+    {
+        FHktVMDebugInfo Info;
+        Info.PC = Runtime.PC;
+        Info.Status = static_cast<int32>(Runtime.Status);
+        Info.ProgramTag = Runtime.Program ? Runtime.Program->Tag.ToString() : TEXT("");
+        Info.PlayerUid = Runtime.PlayerUid;
+        Info.CreationFrame = Runtime.CreationFrame;
+        Info.SelfEntity = Runtime.Context ? Runtime.Context->SourceEntity : -1;
+        Info.TargetEntity = Runtime.Context ? Runtime.Context->TargetEntity : -1;
+#if !UE_BUILD_SHIPPING
+        Info.SourceEventId = Runtime.SourceEventId;
+#endif
+        Callback(Info);
+    });
 }
 
 // ============================================================================

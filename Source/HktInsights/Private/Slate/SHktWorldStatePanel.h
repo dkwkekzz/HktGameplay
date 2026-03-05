@@ -9,44 +9,23 @@
 #include "HktInsightsRuntimeTypes.h"
 
 class SSearchBox;
+class SEditableTextBox;
 
 /** TPair<FString,FString>의 콤마가 SLATE_ARGUMENT 매크로를 오해하지 않도록 alias 사용 */
 using FHktPropPair = TPair<FString, FString>;
 
 /**
- * FHktEntityDisplayRow - 엔티티 리스트뷰 1행 데이터
- *
- * SHktWorldStatePanel 내부에서만 사용하며, SListView의 아이템 타입으로 쓰입니다.
- */
-struct FHktEntityDisplayRow
-{
-    /** 소스 이름 ("Server[0]", "Client" 등) */
-    FString Source;
-
-    /** 엔티티 ID */
-    int32 EntityId = -1;
-
-    /** 타입 이름 ("Unit", "Projectile" 등) */
-    FString TypeName;
-
-    /** 핵심 프로퍼티 요약 (UI 표시용) */
-    FString PropSummary;
-
-    /** 전체 프로퍼티 (이름/값 쌍) - 상세 패널 표시용 */
-    TArray<FHktPropPair> Properties;
-};
-
-/**
  * SHktWorldStatePanel - 서버/클라이언트 WorldState 시각화 패널
  *
  * 레이아웃:
- *   ┌─ 툴바 (검색 | Pause | Clear) ─────────────────────────┐
- *   │                                                         │
- *   ├─ 엔티티 목록 (Source | EntityId | Type | Properties) ──┤
- *   │                                                         │
- *   ├─ 선택된 엔티티 상세 (PropName | Value) ────────────────┤
- *   │                                                         │
- *   └─ 통계 바 (Sources: N | Entities: M | Frame 정보) ──────┘
+ *   ┌─ 필터바 (Source | Type | ID | Search | Pause | Clear) ───┐
+ *   ├─ 엔티티 목록 (Source | EntityId | Type) ─────────────────┤  65%
+ *   ├─ 상세 패널 ──────────────────────────────────────────────┤  35%
+ *   │   선택 엔티티별 SExpandableArea (프로퍼티 리스트)         │
+ *   └─ 통계 바 ────────────────────────────────────────────────┘
+ *
+ * 데이터: AdvanceFrame에서 자동 push (CollectAll 호출 불필요)
+ * 다중 선택: ESelectionMode::Multi
  */
 class HKTINSIGHTS_API SHktWorldStatePanel : public SCompoundWidget
 {
@@ -54,7 +33,6 @@ public:
     SLATE_BEGIN_ARGS(SHktWorldStatePanel)
         : _AutoRefreshInterval(0.1f)
     {}
-        /** 자동 새로고침 간격 (초) */
         SLATE_ARGUMENT(float, AutoRefreshInterval)
     SLATE_END_ARGS()
 
@@ -65,7 +43,7 @@ public:
 private:
     // ========== UI 생성 ==========
 
-    TSharedRef<SWidget> CreateToolbar();
+    TSharedRef<SWidget> CreateFilterBar();
     TSharedRef<SWidget> CreateEntitySection();
     TSharedRef<SWidget> CreateDetailSection();
     TSharedRef<SWidget> CreateStatsBar();
@@ -73,36 +51,27 @@ private:
     // ========== 엔티티 리스트 ==========
 
     TSharedRef<ITableRow> GenerateEntityRow(
-        TSharedPtr<FHktEntityDisplayRow> Item,
+        TSharedPtr<FHktEntityListEntry> Item,
         const TSharedRef<STableViewBase>& OwnerTable);
 
-    void OnEntitySelected(TSharedPtr<FHktEntityDisplayRow> Item, ESelectInfo::Type SelectType);
+    void OnEntitySelectionChanged(TSharedPtr<FHktEntityListEntry> Item, ESelectInfo::Type SelectType);
 
-    TSharedPtr<SListView<TSharedPtr<FHktEntityDisplayRow>>> EntityListView;
-    TArray<TSharedPtr<FHktEntityDisplayRow>>                EntityListItems;
+    TSharedPtr<SListView<TSharedPtr<FHktEntityListEntry>>> EntityListView;
+    TArray<TSharedPtr<FHktEntityListEntry>>                EntityListItems;
 
-    // ========== 프로퍼티 상세 리스트 ==========
+    // ========== 상세 패널 (동적 컨텐츠) ==========
 
-    TSharedRef<ITableRow> GenerateDetailRow(
-        TSharedPtr<FHktPropPair> Item,
-        const TSharedRef<STableViewBase>& OwnerTable);
-
-    void UpdateDetailPanel(const FHktEntityDisplayRow& Row);
-
-    TSharedPtr<SListView<TSharedPtr<FHktPropPair>>> DetailListView;
-    TArray<TSharedPtr<FHktPropPair>>                DetailListItems;
+    TSharedPtr<SScrollBox> DetailScrollBox;
 
     // ========== 데이터 갱신 ==========
 
     void RefreshData(bool bForceRebuild = false);
     void RebuildEntityList();
+    void RebuildDetailPanel();
 
-    TArray<FHktWorldStateSnapshot> CachedSnapshots;
+    int32 CachedEntityListVersion = -1;
     int32 CachedTotalEntities = 0;
-    int32 CachedNumSources    = 0;
-
-    /** 소스별 마지막 프레임 번호 — 변경 감지용 */
-    TMap<FString, int64> LastFrameBySource;
+    int32 CachedNumSources = 0;
 
     // ========== 자동 새로고침 ==========
 
@@ -110,20 +79,21 @@ private:
     float AutoRefreshInterval = 0.1f;
     double LastRefreshTime    = 0.0;
 
-    // ========== 선택 상태 보존 ==========
+    // ========== 필터 ==========
 
-    FString SelectedSource;
-    int32   SelectedEntityId = -1;
+    FString SourceFilter;     // Source contains 매칭 (빈 = All)
+    FString TypeFilter;       // Type contains 매칭
+    FString EntityIdFilter;   // EntityId contains 매칭
+    FString SearchText;       // 일반 텍스트 검색 (모든 필드)
 
-    // ========== 검색 ==========
-
-    FString SearchText;
+    bool PassesFilter(const FHktEntityListEntry& Entry) const;
 
     // ========== 콜백 ==========
 
+    void    OnSourceFilterChanged(const FText& NewText);
+    void    OnTypeFilterChanged(const FText& NewText);
+    void    OnEntityIdFilterChanged(const FText& NewText);
     void    OnSearchTextChanged(const FText& NewText);
     FReply  OnPauseResumeClicked();
     FReply  OnClearClicked();
-
-    TSharedPtr<SSearchBox> SearchBox;
 };

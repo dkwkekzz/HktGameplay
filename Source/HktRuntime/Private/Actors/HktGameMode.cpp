@@ -11,7 +11,6 @@
 #if WITH_HKT_INSIGHTS
 #include "HktRuntimeInsightsCollector.h"
 #include "HktCoreSimulator.h"
-#include "HktWorldStateInsightsHelper.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogHktGameMode, Log, All);
@@ -282,20 +281,15 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
             }
             OutSnapshot.AddInfo(Cat, TEXT("TotalPlayers"), FString::FromInt(TotalPlayers));
 
-            // WorldState 스냅샷 push
+            // InsightsSourceName 설정 (AdvanceFrame에서 자동 push됨)
             for (int32 i = 0; i < NumGroups; ++i)
             {
-                const IHktRelevancyGroup& Group = Graph->GetRelevancyGroup(i);
-                const IHktAuthoritySimulator& Simulator = Group.GetSimulator();
-
-                const FHktWorldState& WS = Simulator.GetWorldState();
-
+                IHktRelevancyGroup& MutableGroup = CachedRelevancyGraph->GetRelevancyGroup(i);
+                IHktAuthoritySimulator& Simulator = MutableGroup.GetSimulator();
                 const FString SourceName = (NumGroups == 1)
                     ? TEXT("Server")
                     : FString::Printf(TEXT("Server[%d]"), i);
-
-                FHktWorldStateSnapshot Snapshot = HktWorldStateInsights::BuildSnapshot(WS, SourceName);
-                FHktRuntimeInsightsCollector::Get().PushWorldStateSnapshot(MoveTemp(Snapshot));
+                Simulator.SetInsightsSourceName(SourceName);
             }
         }
         else

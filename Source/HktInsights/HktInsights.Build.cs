@@ -24,10 +24,6 @@ public class HktInsights : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(new string[]
         {
-            // 프로젝트의 실제 모듈명에 맞게 수정 필요
-            // "HktCore",
-            // "HktRuntime",
-            // "HktService"
         });
 
 		PrivateDefinitions.Add("WITH_HKT_INSIGHTS=1");

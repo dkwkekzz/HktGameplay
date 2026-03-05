@@ -1,7 +1,7 @@
 // Copyright HKT. All Rights Reserved.
 
 #include "HktInsightsPanelFactory.h"
-#include "Slate/SHktInsightsPanel.h"
+#include "Slate/SHktVMStatePanel.h"
 #include "Slate/SHktRuntimeInsightsPanel.h"
 #include "Slate/SHktWorldStatePanel.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -35,7 +35,7 @@ public:
                 .Padding(2.0f)
                 [
                     SNew(SButton)
-                    .Text(FText::FromString(TEXT("Intent / VM")))
+                    .Text(FText::FromString(TEXT("VM State")))
                     .OnClicked_Lambda([this]() { ShowTab(0); return FReply::Handled(); })
                 ]
 
@@ -72,7 +72,7 @@ public:
 
                 + SWidgetSwitcher::Slot()
                 [
-                    SNew(SHktInsightsPanel)
+                    SNew(SHktVMStatePanel)
                 ]
 
                 + SWidgetSwitcher::Slot()
@@ -102,14 +102,14 @@ private:
 
 // ============================================================================
 
-TSharedRef<SWidget> FHktInsightsPanelFactory::CreatePanel()
+TSharedRef<SWidget> FHktInsightsPanelFactory::CreateVMStatePanel()
 {
-    return SNew(SHktInsightsPanel);
+    return SNew(SHktVMStatePanel);
 }
 
-TSharedRef<SWidget> FHktInsightsPanelFactory::CreatePanel(float AutoRefreshInterval)
+TSharedRef<SWidget> FHktInsightsPanelFactory::CreateVMStatePanel(float AutoRefreshInterval)
 {
-    return SNew(SHktInsightsPanel)
+    return SNew(SHktVMStatePanel)
         .AutoRefreshInterval(AutoRefreshInterval);
 }
 

@@ -183,31 +183,113 @@ void FHktRuntimeInsightsCollector::RecomputeStats() const
 }
 
 // ============================================================================
-// WorldState 스냅샷
+// 엔티티 리스트
 // ============================================================================
 
-void FHktRuntimeInsightsCollector::PushWorldStateSnapshot(FHktWorldStateSnapshot&& Snapshot)
+void FHktRuntimeInsightsCollector::SyncEntityList(const FString& Source, TArray<FHktEntityListEntry>&& NewEntries)
 {
     if (!bEnabled) return;
 
-    FScopeLock Lock(&WorldStateLock);
-    WorldStateBySource.Emplace(Snapshot.SourceName, MoveTemp(Snapshot));
+    FScopeLock Lock(&EntityListLock);
+
+    TArray<FHktEntityListEntry>& Existing = EntityListBySource.FindOrAdd(Source);
+
+    // 빠른 변경 감지: 개수가 다르면 무조건 변경
+    if (Existing.Num() != NewEntries.Num())
+    {
+        Existing = MoveTemp(NewEntries);
+        ++EntityListVersion;
+        return;
+    }
+
+    // 개수 동일 → EntityId 집합 비교 (정렬 없이 O(N) 비교)
+    bool bChanged = false;
+    for (int32 i = 0; i < Existing.Num(); ++i)
+    {
+        if (Existing[i].EntityId != NewEntries[i].EntityId)
+        {
+            bChanged = true;
+            break;
+        }
+    }
+
+    if (bChanged)
+    {
+        Existing = MoveTemp(NewEntries);
+        ++EntityListVersion;
+    }
 }
 
-TArray<FHktWorldStateSnapshot> FHktRuntimeInsightsCollector::GetWorldStateSnapshots() const
+TArray<FHktEntityListEntry> FHktRuntimeInsightsCollector::GetEntityList() const
 {
-    FScopeLock Lock(&WorldStateLock);
+    FScopeLock Lock(&EntityListLock);
 
-    TArray<FHktWorldStateSnapshot> Result;
-    WorldStateBySource.GenerateValueArray(Result);
-
-    // SourceName 알파벳 순 정렬
-    Result.Sort([](const FHktWorldStateSnapshot& A, const FHktWorldStateSnapshot& B)
+    TArray<FHktEntityListEntry> Result;
+    for (const auto& Pair : EntityListBySource)
     {
-        return A.SourceName < B.SourceName;
-    });
-
+        Result.Append(Pair.Value);
+    }
     return Result;
+}
+
+int32 FHktRuntimeInsightsCollector::GetEntityListVersion() const
+{
+    FScopeLock Lock(&EntityListLock);
+    return EntityListVersion;
+}
+
+// ============================================================================
+// 선택 엔티티
+// ============================================================================
+
+void FHktRuntimeInsightsCollector::SetSelectedEntity(const FString& Source, int32 EntityId)
+{
+    FScopeLock Lock(&SelectionLock);
+    SelectedEntity.Source = Source;
+    SelectedEntity.EntityId = EntityId;
+    CachedDetail = FHktSelectedEntityDetail(); // 리셋
+}
+
+FHktEntitySelection FHktRuntimeInsightsCollector::GetSelectedEntity() const
+{
+    FScopeLock Lock(&SelectionLock);
+    return SelectedEntity;
+}
+
+void FHktRuntimeInsightsCollector::PushSelectedEntityDetail(FHktSelectedEntityDetail&& Detail)
+{
+    if (!bEnabled) return;
+
+    FScopeLock Lock(&SelectionLock);
+    CachedDetail = MoveTemp(Detail);
+}
+
+const FHktSelectedEntityDetail& FHktRuntimeInsightsCollector::GetSelectedEntityDetail() const
+{
+    // Note: caller should be on game thread; no lock needed for read-only access
+    return CachedDetail;
+}
+
+// ============================================================================
+// 다중 엔티티 상세
+// ============================================================================
+
+void FHktRuntimeInsightsCollector::PushAllEntityDetails(const FString& Source, TArray<FHktSelectedEntityDetail>&& Details)
+{
+    if (!bEnabled) return;
+
+    FScopeLock Lock(&DetailLock);
+    EntityDetailsBySource.FindOrAdd(Source) = MoveTemp(Details);
+}
+
+TArray<FHktSelectedEntityDetail> FHktRuntimeInsightsCollector::GetAllEntityDetails(const FString& Source) const
+{
+    FScopeLock Lock(&DetailLock);
+    if (const TArray<FHktSelectedEntityDetail>* Found = EntityDetailsBySource.Find(Source))
+    {
+        return *Found;
+    }
+    return {};
 }
 
 // ============================================================================
@@ -224,8 +306,20 @@ void FHktRuntimeInsightsCollector::Clear()
     }
 
     {
-        FScopeLock Lock(&WorldStateLock);
-        WorldStateBySource.Empty();
+        FScopeLock Lock(&EntityListLock);
+        EntityListBySource.Empty();
+        ++EntityListVersion;
+    }
+
+    {
+        FScopeLock Lock(&SelectionLock);
+        SelectedEntity.Reset();
+        CachedDetail = FHktSelectedEntityDetail();
+    }
+
+    {
+        FScopeLock Lock(&DetailLock);
+        EntityDetailsBySource.Empty();
     }
 
     CachedStats = FHktPacketStats();

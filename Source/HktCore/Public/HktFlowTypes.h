@@ -45,93 +45,83 @@ namespace Reg
 
 // ============================================================================
 // OpCode 정의 (Flow 빌더 / VM 공통)
+// X-매크로 패턴: enum과 이름 문자열을 한 곳에서 관리
 // ============================================================================
+
+#define HKT_OPCODE_LIST(X) \
+    X(Nop)              \
+    X(Halt)             \
+    X(Yield)            \
+    X(YieldSeconds)     \
+    X(Jump)             \
+    X(JumpIf)           \
+    X(JumpIfNot)        \
+    X(WaitCollision)    \
+    X(WaitMoveEnd)      \
+    X(LoadConst)        \
+    X(LoadConstHigh)    \
+    X(LoadStore)        \
+    X(LoadStoreEntity)  \
+    X(SaveStore)        \
+    X(SaveStoreEntity)  \
+    X(Move)             \
+    X(Add)              \
+    X(Sub)              \
+    X(Mul)              \
+    X(Div)              \
+    X(Mod)              \
+    X(AddImm)           \
+    X(CmpEq)            \
+    X(CmpNe)            \
+    X(CmpLt)            \
+    X(CmpLe)            \
+    X(CmpGt)            \
+    X(CmpGe)            \
+    X(SpawnEntity)      \
+    X(DestroyEntity)    \
+    X(GetPosition)      \
+    X(SetPosition)      \
+    X(GetDistance)       \
+    X(MoveToward)       \
+    X(MoveForward)      \
+    X(StopMovement)     \
+    X(FindInRadius)     \
+    X(NextFound)        \
+    X(ApplyDamage)      \
+    X(ApplyEffect)      \
+    X(RemoveEffect)     \
+    X(PlayAnim)         \
+    X(PlayAnimMontage)  \
+    X(StopAnim)         \
+    X(PlayVFX)          \
+    X(PlayVFXAttached)  \
+    X(PlaySound)        \
+    X(PlaySoundAtLocation) \
+    X(SpawnEquipment)   \
+    X(AddTag)           \
+    X(RemoveTag)        \
+    X(HasTag)           \
+    X(Log)
 
 enum class EOpCode : uint8
 {
-    // Control Flow
-    Nop = 0,
-    Halt,                   // 프로그램 종료
-    Yield,                  // 다음 틱까지 대기
-    YieldSeconds,           // N초 대기
-    Jump,                   // 무조건 점프
-    JumpIf,                 // 조건부 점프
-    JumpIfNot,              // 조건부 점프 (반전)
-
-    // Event Wait
-    WaitCollision,          // 충돌 이벤트 대기
-    WaitMoveEnd,            // 이동 완료 대기
-
-    // Data Operations
-    LoadConst,              // 상수 → 레지스터
-    LoadConstHigh,          // 상수 상위 비트 로드
-    LoadStore,              // Store 속성 → 레지스터
-    LoadStoreEntity,        // 엔티티 속성 → 레지스터
-    SaveStore,              // 레지스터 → Store 속성 (버퍼링됨)
-    SaveStoreEntity,        // 레지스터 → 엔티티 속성 (버퍼링됨)
-    Move,                   // 레지스터 → 레지스터
-
-    // Arithmetic
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-    AddImm,                 // 즉시값 더하기
-
-    // Comparison (결과를 플래그 레지스터에 저장)
-    CmpEq,
-    CmpNe,
-    CmpLt,
-    CmpLe,
-    CmpGt,
-    CmpGe,
-
-    // Entity Management
-    SpawnEntity,            // 엔티티 생성
-    DestroyEntity,          // 엔티티 제거
-
-    // Position & Movement
-    GetPosition,            // 위치 가져오기
-    SetPosition,            // 위치 설정
-    GetDistance,            // 거리 계산
-    MoveToward,             // 목표로 이동
-    MoveForward,            // 전방 이동
-    StopMovement,           // 이동 중지
-
-    // Spatial Query
-    FindInRadius,           // 반경 내 검색
-    NextFound,              // 다음 검색 결과
-
-    // Combat
-    ApplyDamage,            // 데미지 적용
-    ApplyEffect,            // 이펙트 적용
-    RemoveEffect,           // 이펙트 제거
-
-    // Animation & VFX
-    PlayAnim,               // 애니메이션 재생
-    PlayAnimMontage,        // 몽타주 재생
-    StopAnim,               // 애니메이션 중지
-    PlayVFX,                // VFX 재생 (위치)
-    PlayVFXAttached,        // VFX 재생 (엔티티 부착)
-
-    // Audio
-    PlaySound,              // 사운드 재생
-    PlaySoundAtLocation,    // 위치에서 사운드 재생
-
-    // Equipment
-    SpawnEquipment,         // 장비 생성 및 부착
-
-    // Tags
-    AddTag,                 // 엔티티에 태그 추가
-    RemoveTag,              // 엔티티에서 태그 제거
-    HasTag,                 // 엔티티 태그 보유 여부 (결과 → Dst 레지스터)
-
-    // Utility
-    Log,                    // 디버그 로그
-
+    #define HKT_OPCODE_ENUM(Name) Name,
+    HKT_OPCODE_LIST(HKT_OPCODE_ENUM)
+    #undef HKT_OPCODE_ENUM
     Max
 };
+
+/** OpCode → 이름 문자열 (디버그/인사이트용) */
+inline const TCHAR* GetOpCodeName(EOpCode Op)
+{
+    static const TCHAR* Names[] = {
+        #define HKT_OPCODE_NAME(Name) TEXT(#Name),
+        HKT_OPCODE_LIST(HKT_OPCODE_NAME)
+        #undef HKT_OPCODE_NAME
+    };
+    const uint8 Index = static_cast<uint8>(Op);
+    return Index < static_cast<uint8>(EOpCode::Max) ? Names[Index] : TEXT("Unknown");
+}
 
 // ============================================================================
 // 명령어 인코딩 (Flow 빌더 / VM 공통)

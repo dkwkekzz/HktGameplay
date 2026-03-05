@@ -14,18 +14,15 @@
 class HKTINSIGHTS_API FHktInsightsPanelFactory
 {
 public:
-    /**
-     * HKT Insights 패널 위젯 생성
-     * @return 새로 생성된 패널 위젯
-     */
-    static TSharedRef<SWidget> CreatePanel();
+    /** VM State 패널 위젯 생성 */
+    static TSharedRef<SWidget> CreateVMStatePanel();
 
-    /**
-     * 자동 새로고침 간격을 지정하여 패널 생성
-     * @param AutoRefreshInterval 자동 새로고침 간격 (초)
-     * @return 새로 생성된 패널 위젯
-     */
-    static TSharedRef<SWidget> CreatePanel(float AutoRefreshInterval);
+    /** VM State 패널 (자동 새로고침 간격 지정) */
+    static TSharedRef<SWidget> CreateVMStatePanel(float AutoRefreshInterval);
+
+    /** 기존 이름 alias */
+    static TSharedRef<SWidget> CreatePanel() { return CreateVMStatePanel(); }
+    static TSharedRef<SWidget> CreatePanel(float AutoRefreshInterval) { return CreateVMStatePanel(AutoRefreshInterval); }
 
     /**
      * 런타임 인사이트 패널 생성 (Provider + Packet)
