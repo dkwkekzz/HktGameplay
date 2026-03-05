@@ -16,10 +16,7 @@ void UHktProxySimulatorComponent::BeginPlay()
 {
     Super::BeginPlay();
     SchemaRegistry.Initialize();
-    Simulator = CreateDeterminismSimulator();
-#if WITH_HKT_INSIGHTS
-    Simulator->SetInsightsSourceName(TEXT("Client"));
-#endif
+    Simulator = CreateDeterminismSimulator(TEXT("Client"));
     HKT_INSIGHTS_REGISTER_PROVIDER(this);
 }
 

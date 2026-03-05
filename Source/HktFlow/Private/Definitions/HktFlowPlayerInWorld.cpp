@@ -51,7 +51,7 @@ namespace HktFlowPlayerInWorld
 			// 위치 설정 (이벤트의 Location에서)
 			.LoadConst(R0, 0.f)
 			.LoadConst(R1, 0.f)
-			.LoadConst(R2, 100.f)
+			.LoadConst(R2, 0.f)
 			.SetPosition(Self, R0)
 
 			// OwnedPlayerUid는 SpawnEntity에서 Runtime.PlayerUid로 자동 설정됨

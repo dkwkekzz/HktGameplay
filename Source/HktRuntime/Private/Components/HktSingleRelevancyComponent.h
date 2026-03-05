@@ -33,9 +33,6 @@ public:
     virtual void AdvanceFrame(const FHktSimulationEvent& InEvent) override { Simulator->AdvanceFrame(InEvent); }
     virtual const FHktWorldState& GetWorldState() const override { return Simulator->GetWorldState(); }
     virtual FHktPlayerState ExportPlayerState(int64 OwnerUid) const override { return Simulator->ExportPlayerState(OwnerUid); }
-    virtual int32 GetActiveVMCount() const override { return Simulator->GetActiveVMCount(); }
-    virtual void ForEachActiveVM(TFunctionRef<void(const FHktVMDebugInfo&)> Callback) const override { Simulator->ForEachActiveVM(Callback); }
-    virtual void SetInsightsSourceName(const FString& Name) override { Simulator->SetInsightsSourceName(Name); }
 
     // IHktRelevancyGroup
     virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }

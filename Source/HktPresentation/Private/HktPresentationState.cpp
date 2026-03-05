@@ -2,6 +2,7 @@
 
 #include "HktPresentationState.h"
 #include "GameplayTagsManager.h"
+#include "HktCoreProperties.h"
 
 // --------------------------------------------------------------------------- FHktEntityPresentation
 void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
@@ -11,6 +12,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	RenderCategory = DetermineRenderCategory(TypeId);
 	SpawnedFrame = Frame;
 	RemovedFrame = 0;
+	LastDirtyFrame = Frame; // 스폰 시점도 일종의 Dirty 상태
 	Transform.Apply(WS, Id, Frame);
 	Movement.Apply(WS, Id, Frame);
 	Vitals.Apply(WS, Id, Frame);
@@ -22,13 +24,56 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 
 void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
 {
-	if (Transform.TryApplyDelta(PropId, NewValue, Frame, Transform.Location.Value, Transform.Rotation.Value)) return;
-	if (Movement.TryApplyDelta(PropId, NewValue, Frame, Movement.MoveTarget.Value)) return;
-	if (Vitals.TryApplyDelta(PropId, NewValue, Frame)) return;
-	if (Combat.TryApplyDelta(PropId, NewValue, Frame)) return;
-	if (Ownership.TryApplyDelta(PropId, NewValue, Frame)) return;
-	if (Animation.TryApplyDelta(PropId, NewValue, Frame)) return;
-	if (Visualization.TryApplyDelta(PropId, NewValue, Frame)) return;
+	// 최적화: 캐스케이딩 방식(if-else 체인) 대신 단일 Switch문으로 직접 라우팅
+	switch (PropId)
+	{
+		// Transform
+	case PropertyId::PosX:
+	case PropertyId::PosY:
+	case PropertyId::PosZ:
+	case PropertyId::RotYaw:
+		Transform.TryApplyDelta(PropId, NewValue, Frame, Transform.Location.Value, Transform.Rotation.Value);
+		break;
+
+		// Movement
+	case PropertyId::MoveTargetX:
+	case PropertyId::MoveTargetY:
+	case PropertyId::MoveTargetZ:
+	case PropertyId::MoveForce:
+	case PropertyId::IsMoving:
+		Movement.TryApplyDelta(PropId, NewValue, Frame, Movement.MoveTarget.Value);
+		break;
+
+		// Vitals
+	case PropertyId::Health:
+	case PropertyId::MaxHealth:
+	case PropertyId::Mana:
+	case PropertyId::MaxMana:
+		Vitals.TryApplyDelta(PropId, NewValue, Frame);
+		break;
+
+		// Combat
+	case PropertyId::AttackPower:
+	case PropertyId::Defense:
+		Combat.TryApplyDelta(PropId, NewValue, Frame);
+		break;
+
+		// Ownership
+	case PropertyId::Team:
+		Ownership.TryApplyDelta(PropId, NewValue, Frame);
+		break;
+
+		// Animation
+	case PropertyId::AnimState:
+	case PropertyId::VisualState:
+		Animation.TryApplyDelta(PropId, NewValue, Frame);
+		break;
+
+		// Visualization
+	case PropertyId::EntitySpawnTag:
+		Visualization.TryApplyDelta(PropId, NewValue, Frame);
+		break;
+	}
 }
 
 void FHktEntityPresentation::ApplyOwnerDelta(int64 NewOwnerUid, int64 Frame)
@@ -105,20 +150,29 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 {
 	if (Id >= Entities.Num() || !ValidMask[Id]) return;
 	FHktEntityPresentation& E = Entities[Id];
-	bool bWasCleanThisFrame = !IsEntityDirtyThisFrame(E);
-	E.ApplyDelta(PropId, NewValue, CurrentFrame);
-	if (bWasCleanThisFrame)
+
+	// 최적화: 단 한 번의 정수 비교로 Dirty 상태 추적 및 중복 삽입 방지
+	if (E.LastDirtyFrame != CurrentFrame)
+	{
+		E.LastDirtyFrame = CurrentFrame;
 		DirtyThisFrame.Add(Id);
+	}
+
+	E.ApplyDelta(PropId, NewValue, CurrentFrame);
 }
 
 void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
 {
 	if (Id >= Entities.Num() || !ValidMask[Id]) return;
 	FHktEntityPresentation& E = Entities[Id];
-	bool bWasCleanThisFrame = !IsEntityDirtyThisFrame(E);
-	E.ApplyOwnerDelta(NewOwnerUid, CurrentFrame);
-	if (bWasCleanThisFrame)
+
+	if (E.LastDirtyFrame != CurrentFrame)
+	{
+		E.LastDirtyFrame = CurrentFrame;
 		DirtyThisFrame.Add(Id);
+	}
+
+	E.ApplyOwnerDelta(NewOwnerUid, CurrentFrame);
 }
 
 bool FHktPresentationState::IsValid(FHktEntityId Id) const
@@ -149,15 +203,4 @@ void FHktPresentationState::Clear()
 	RemovedThisFrame.Reset();
 	DirtyThisFrame.Reset();
 	CurrentFrame = 0;
-}
-
-bool FHktPresentationState::IsEntityDirtyThisFrame(const FHktEntityPresentation& E) const
-{
-	return E.Transform.Location.IsDirty(CurrentFrame)
-		|| E.Transform.Rotation.IsDirty(CurrentFrame)
-		|| E.Movement.bIsMoving.IsDirty(CurrentFrame)
-		|| E.Vitals.Health.IsDirty(CurrentFrame)
-		|| E.Animation.AnimState.IsDirty(CurrentFrame)
-		|| E.Combat.AttackPower.IsDirty(CurrentFrame)
-		|| E.Ownership.Team.IsDirty(CurrentFrame);
 }

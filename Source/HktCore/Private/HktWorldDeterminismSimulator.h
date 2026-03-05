@@ -20,7 +20,7 @@ struct FHktPendingEvent;
 class HKTCORE_API FHktWorldDeterminismSimulator : public IHktDeterminismSimulator
 {
 public:
-    FHktWorldDeterminismSimulator();
+    FHktWorldDeterminismSimulator(const FString& InSourceName);
     ~FHktWorldDeterminismSimulator();
 
     virtual FHktSimulationDiff AdvanceFrame(const FHktSimulationEvent& InEvent) override;
@@ -28,12 +28,11 @@ public:
     virtual const FHktWorldState& GetWorldState() const override { return WorldState; }
     virtual void RestoreWorldState(const FHktWorldState& InState) override;
     virtual void UndoDiff(const FHktSimulationDiff& Diff) override;
-    virtual int32 GetActiveVMCount() const override;
-    virtual void ForEachActiveVM(TFunctionRef<void(const FHktVMDebugInfo&)> Callback) const override;
 
 private:
     void ProcessBatch(const FHktSimulationEvent& Event);
 
+    FString SourceName;
     FHktWorldState WorldState;
     FHktVMWorldStateProxy VMProxy;
 

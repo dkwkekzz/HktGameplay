@@ -296,6 +296,13 @@ void FHktMovementSystem::Process(
         const float DZ = TgtZ - CurZ;
         const float DistSq = DX * DX + DY * DY + DZ * DZ;
 
+        // [수정점] 회전(Yaw) 연산을 최상단으로 이동 및 미세 거리 각도 튐 방지
+        if (DistSq > 1.0f) // 거리가 1cm 이상일 때만 방향을 갱신 (부동소수점 오차로 인한 떨림 방지)
+        {
+            const int32 YawDeg = FMath::RoundToInt(FMath::Atan2(DY, DX) * (180.0f / PI));
+            VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::RotYaw, YawDeg);
+        }
+
         // 도착 판정 (기존 로직 유지)
         if (DistSq <= ArrivalThresholdSq)
         {
@@ -376,11 +383,6 @@ void FHktMovementSystem::Process(
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelX, FMath::RoundToInt(VX));
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelY, FMath::RoundToInt(VY));
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelZ, FMath::RoundToInt(VZ));
-
-        // 회전 (Yaw)
-        // 시각적으로 즉각적인 방향 전환을 위해 새 타겟 방향으로 회전값을 직접 지정
-        const int32 YawDeg = FMath::RoundToInt(FMath::Atan2(DY, DX) * (180.0f / PI));
-        VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::RotYaw, YawDeg);
     });
 }
 

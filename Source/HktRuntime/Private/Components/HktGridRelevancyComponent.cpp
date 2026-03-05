@@ -4,8 +4,7 @@
 
 FHktRelevancyGroupImpl::FHktRelevancyGroupImpl()
 {
-    auto Det = CreateDeterminismSimulator();
-    Simulator = CreateDeterminismSimulator();
+    Simulator = CreateDeterminismSimulator(TEXT("Server"));
 }
 
 void FHktRelevancyGroupImpl::AddPlayer(int64 Uid, IHktWorldPlayer* Player)

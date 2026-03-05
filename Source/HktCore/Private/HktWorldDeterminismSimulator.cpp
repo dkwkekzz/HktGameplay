@@ -63,7 +63,8 @@ namespace HktInsightsInternal
 }
 #endif
 
-FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator()
+FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(const FString& InSourceName)
+    : SourceName(InSourceName)
 {
     WorldState.Initialize();
     VMProxy.Initialize(WorldState);
@@ -95,7 +96,7 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     FrameRemovedEntities = EntityArrangeSystem.ScratchRemoveList;
 
     VMBuildSystem.Process(Event.NewEvents, static_cast<int32>(Event.FrameNumber),
-                          *VMPool, ActiveVMs, WorldState, VMProxy, InsightsSourceName);
+                          *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
 
     VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool,
                             Event.DeltaSeconds, PendingExternalEvents);
@@ -196,7 +197,7 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
     }
 
 #if WITH_HKT_INSIGHTS
-    if (!InsightsSourceName.IsEmpty())
+    if (!SourceName.IsEmpty())
     {
         FHktRuntimeInsightsCollector& Collector = FHktRuntimeInsightsCollector::Get();
 
@@ -210,13 +211,13 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             Pool.ForEachEntity([&](FHktEntityId Id, int32)
             {
                 FHktEntityListEntry E;
-                E.Source = InsightsSourceName;
+                E.Source = SourceName;
                 E.EntityId = Id;
                 E.TypeName = TypeName;
                 Entries.Add(MoveTemp(E));
             });
         }
-        Collector.SyncEntityList(InsightsSourceName, MoveTemp(Entries));
+        Collector.SyncEntityList(SourceName, MoveTemp(Entries));
 
         // 2. 전체 엔티티 상세 빌드 & Push
         TArray<FHktSelectedEntityDetail> Details;
@@ -229,7 +230,7 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             {
                 FHktSelectedEntityDetail Detail;
                 Detail.EntityId = Id;
-                Detail.Source = InsightsSourceName;
+                Detail.Source = SourceName;
                 Detail.FrameNumber = WorldState.FrameNumber;
                 Detail.OwnerUid = WorldState.GetOwnerUid(Id);
                 Detail.PropNames.Reserve(Pool.Stride);
@@ -242,7 +243,7 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
                 Details.Add(MoveTemp(Detail));
             });
         }
-        Collector.PushAllEntityDetails(InsightsSourceName, MoveTemp(Details));
+        Collector.PushAllEntityDetails(SourceName, MoveTemp(Details));
     }
 #endif
 
@@ -277,40 +278,11 @@ void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)
     WorldState.UndoDiff(Diff);
 }
 
-int32 FHktWorldDeterminismSimulator::GetActiveVMCount() const
-{
-    int32 Count = 0;
-    const_cast<FHktVMRuntimePool*>(VMPool.Get())->ForEachActive(
-        [&Count](FHktVMHandle, FHktVMRuntime&) { ++Count; });
-    return Count;
-}
-
-void FHktWorldDeterminismSimulator::ForEachActiveVM(
-    TFunctionRef<void(const FHktVMDebugInfo&)> Callback) const
-{
-    const_cast<FHktVMRuntimePool*>(VMPool.Get())->ForEachActive(
-        [&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
-    {
-        FHktVMDebugInfo Info;
-        Info.PC = Runtime.PC;
-        Info.Status = static_cast<int32>(Runtime.Status);
-        Info.ProgramTag = Runtime.Program ? Runtime.Program->Tag.ToString() : TEXT("");
-        Info.PlayerUid = Runtime.PlayerUid;
-        Info.CreationFrame = Runtime.CreationFrame;
-        Info.SelfEntity = Runtime.Context ? Runtime.Context->SourceEntity : -1;
-        Info.TargetEntity = Runtime.Context ? Runtime.Context->TargetEntity : -1;
-#if !UE_BUILD_SHIPPING
-        Info.SourceEventId = Runtime.SourceEventId;
-#endif
-        Callback(Info);
-    });
-}
-
 // ============================================================================
 // Factory
 // ============================================================================
 
-TUniquePtr<IHktDeterminismSimulator> CreateDeterminismSimulator()
+TUniquePtr<IHktDeterminismSimulator> CreateDeterminismSimulator(const FString& InSourceName)
 {
-    return MakeUnique<FHktWorldDeterminismSimulator>();
+    return MakeUnique<FHktWorldDeterminismSimulator>(InSourceName);
 }

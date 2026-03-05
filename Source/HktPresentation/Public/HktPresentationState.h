@@ -23,6 +23,7 @@ struct FHktEntityPresentation
 	EHktRenderCategory RenderCategory = EHktRenderCategory::None;
 	int64 SpawnedFrame = 0;
 	int64 RemovedFrame = 0;
+	int64 LastDirtyFrame = -1; // 최적화: 엔티티의 최상단에서 변경 상태를 즉시 추적
 
 	FHktVM_Transform Transform;
 	FHktVM_Movement Movement;
@@ -74,7 +75,4 @@ struct FHktPresentationState
 	}
 
 	void Clear();
-
-private:
-	bool IsEntityDirtyThisFrame(const FHktEntityPresentation& E) const;
 };

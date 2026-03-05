@@ -37,18 +37,6 @@ public:
 
     /** Diff 역적용 — 프레임 변경 되돌리기 (클라이언트 예측 롤백용) */
     virtual void UndoDiff(const FHktSimulationDiff& Diff) = 0;
-
-    /** 활성 VM 개수 (디버그/인사이트용) */
-    virtual int32 GetActiveVMCount() const { return 0; }
-
-    /** 활성 VM 순회 — FHktVMDebugInfo로 외부에 노출 */
-    virtual void ForEachActiveVM(TFunctionRef<void(const FHktVMDebugInfo&)> Callback) const {}
-
-    /** Insights 소스 이름 (Server[0], Client 등) — AdvanceFrame push에 사용 */
-    FString InsightsSourceName;
-
-    /** 소스 이름 설정 (HktRuntime에서 호출) */
-    virtual void SetInsightsSourceName(const FString& Name) { InsightsSourceName = Name; }
 };
 
 // ============================================================================
@@ -56,4 +44,4 @@ public:
 // ============================================================================
 
 /** 클라이언트/서버 공통: 결정론 시뮬레이터 (서버는 반환값을 IHktAuthoritySimulator*로 캐스트하여 사용) */
-HKTCORE_API TUniquePtr<IHktDeterminismSimulator> CreateDeterminismSimulator();
+HKTCORE_API TUniquePtr<IHktDeterminismSimulator> CreateDeterminismSimulator(const FString& SourceName);

@@ -80,13 +80,6 @@ public:
 	virtual void AdvanceFrame(const FHktSimulationEvent& InEvent) = 0;
 	virtual const FHktWorldState& GetWorldState() const = 0;
 	virtual FHktPlayerState ExportPlayerState(int64 OwnerHash) const = 0;
-
-	/** VM 디버그 (Insights용) — 기본 구현은 빈 동작 */
-	virtual int32 GetActiveVMCount() const { return 0; }
-	virtual void ForEachActiveVM(TFunctionRef<void(const FHktVMDebugInfo&)> Callback) const {}
-
-	/** Insights 소스 이름 설정 (AdvanceFrame에서 WorldState push에 사용) */
-	virtual void SetInsightsSourceName(const FString& Name) {}
 };
 
 //=============================================================================
