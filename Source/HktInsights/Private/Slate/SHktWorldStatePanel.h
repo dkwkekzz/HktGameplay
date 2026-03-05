@@ -59,15 +59,26 @@ private:
     TSharedPtr<SListView<TSharedPtr<FHktEntityListEntry>>> EntityListView;
     TArray<TSharedPtr<FHktEntityListEntry>>                EntityListItems;
 
-    // ========== 상세 패널 (동적 컨텐츠) ==========
+    // ========== 상세 패널 ==========
 
     TSharedPtr<SScrollBox> DetailScrollBox;
+
+    /** 선택된 엔티티별 캐시된 상세 데이터 (Text_Lambda에서 참조) */
+    TArray<TSharedPtr<FHktSelectedEntityDetail>> CachedDetailEntries;
+
+    /** 위젯 구조 재생성이 필요한지 (선택 변경 / 프로퍼티 수 변경) */
+    bool bDetailWidgetsDirty = true;
+
+    /** 상세 데이터 갱신 (매 틱, 위젯 재생성 없음) */
+    void UpdateDetailData();
+
+    /** 상세 위젯 구조 재생성 (선택 변경 시에만) */
+    void RebuildDetailWidgets();
 
     // ========== 데이터 갱신 ==========
 
     void RefreshData(bool bForceRebuild = false);
     void RebuildEntityList();
-    void RebuildDetailPanel();
 
     int32 CachedEntityListVersion = -1;
     int32 CachedTotalEntities = 0;

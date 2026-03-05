@@ -266,7 +266,8 @@ void FHktMovementSystem::Process(
 {
     OutMoveEndEvents.Reset();
 
-    static constexpr float ArrivalThresholdSq = 16.0f;  // 4cm
+    static constexpr float ArrivalThresholdSq = 16.0f;  // 4cm (도착 판정)
+    static constexpr float SlowingRadius = 250.0f;      // 감속 시작 거리 (2.5m)
 
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
@@ -295,9 +296,9 @@ void FHktMovementSystem::Process(
         const float DZ = TgtZ - CurZ;
         const float DistSq = DX * DX + DY * DY + DZ * DZ;
 
+        // 도착 판정 (기존 로직 유지)
         if (DistSq <= ArrivalThresholdSq)
         {
-            // 도착 — snap & 정지
             VMProxy.SetPosition(WorldState, Id,
                 FMath::RoundToInt(TgtX), FMath::RoundToInt(TgtY), FMath::RoundToInt(TgtZ));
             VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelX, 0);
@@ -318,49 +319,37 @@ void FHktMovementSystem::Process(
         const float DirY = DY * InvDist;
         const float DirZ = DZ * InvDist;
 
-        // F = ma → a = F/m
-        const float Accel = Force / Mass;
-        VX += DirX * Accel * FixedDeltaSeconds;
-        VY += DirY * Accel * FixedDeltaSeconds;
-        VZ += DirZ * Accel * FixedDeltaSeconds;
+        // 1. 현재 속력(Speed) 계산 (방향과 속력을 분리)
+        float CurSpeed = FMath::Sqrt(VX * VX + VY * VY + VZ * VZ);
 
-        // 최대속도 제한
-        const float SpeedSq = VX * VX + VY * VY + VZ * VZ;
-        if (SpeedSq > MaxSpeed * MaxSpeed)
+        // 2. 목표 속력(Desired Speed) 계산: 반경 내에 들어오면 속도를 선형으로 줄임
+        float DesiredSpeed = MaxSpeed;
+        if (Dist < SlowingRadius)
         {
-            const float Scale = MaxSpeed / FMath::Sqrt(SpeedSq);
-            VX *= Scale;
-            VY *= Scale;
-            VZ *= Scale;
+            DesiredSpeed = MaxSpeed * (Dist / SlowingRadius);
         }
 
-        // 감쇠 (damping)
-        VX *= Damping;
-        VY *= Damping;
-        VZ *= Damping;
+        // 3. 속력 가감속 적용 (가속도로 속력 크기만 변경하여 관성은 유지하되 방향은 즉시 전환)
+        const float Accel = Force / Mass;
+        const float MaxSpeedChange = Accel * FixedDeltaSeconds;
 
-        // 새 위치
-        float NewX = CurX + VX * FixedDeltaSeconds;
-        float NewY = CurY + VY * FixedDeltaSeconds;
-        float NewZ = CurZ + VZ * FixedDeltaSeconds;
-
-        // 오버슈트 판정: 새 위치가 타겟을 지나쳤으면 snap
-        const float NewDX = TgtX - NewX;
-        const float NewDY = TgtY - NewY;
-        const float NewDZ = TgtZ - NewZ;
-        const float DotAfter = NewDX * DirX + NewDY * DirY + NewDZ * DirZ;
-        if (DotAfter <= 0.0f)
+        if (CurSpeed < DesiredSpeed)
         {
-            // 타겟을 지나침 → snap
-            NewX = TgtX;
-            NewY = TgtY;
-            NewZ = TgtZ;
-            VX = 0.0f;
-            VY = 0.0f;
-            VZ = 0.0f;
+            CurSpeed = FMath::Min(CurSpeed + MaxSpeedChange, DesiredSpeed);
+        }
+        else if (CurSpeed > DesiredSpeed)
+        {
+            CurSpeed = FMath::Max(CurSpeed - MaxSpeedChange, DesiredSpeed);
+        }
 
+        // 이번 프레임에 이동할 실제 거리
+        const float MoveStep = CurSpeed * FixedDeltaSeconds;
+
+        // 4. 오버슈트 방지: 이번 프레임의 이동 거리가 남은 거리와 같거나 크면 즉시 스냅 처리
+        if (MoveStep >= Dist)
+        {
             VMProxy.SetPosition(WorldState, Id,
-                FMath::RoundToInt(NewX), FMath::RoundToInt(NewY), FMath::RoundToInt(NewZ));
+                FMath::RoundToInt(TgtX), FMath::RoundToInt(TgtY), FMath::RoundToInt(TgtZ));
             VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelX, 0);
             VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelY, 0);
             VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelZ, 0);
@@ -373,6 +362,15 @@ void FHktMovementSystem::Process(
             return;
         }
 
+        // 5. 직선 궤적으로 속도 벡터 재설정 (곡선 제거, 항상 타겟을 향함)
+        VX = DirX * CurSpeed;
+        VY = DirY * CurSpeed;
+        VZ = DirZ * CurSpeed;
+
+        float NewX = CurX + VX * FixedDeltaSeconds;
+        float NewY = CurY + VY * FixedDeltaSeconds;
+        float NewZ = CurZ + VZ * FixedDeltaSeconds;
+
         VMProxy.SetPosition(WorldState, Id,
             FMath::RoundToInt(NewX), FMath::RoundToInt(NewY), FMath::RoundToInt(NewZ));
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelX, FMath::RoundToInt(VX));
@@ -380,6 +378,7 @@ void FHktMovementSystem::Process(
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelZ, FMath::RoundToInt(VZ));
 
         // 회전 (Yaw)
+        // 시각적으로 즉각적인 방향 전환을 위해 새 타겟 방향으로 회전값을 직접 지정
         const int32 YawDeg = FMath::RoundToInt(FMath::Atan2(DY, DX) * (180.0f / PI));
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::RotYaw, YawDeg);
     });

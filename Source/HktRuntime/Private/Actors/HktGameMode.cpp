@@ -101,6 +101,20 @@ void AHktGameMode::Tick(float DeltaSeconds)
 void AHktGameMode::SimulationTick()
 {
 #if WITH_HKT_INSIGHTS
+    // AdvanceFrame push에 필요한 SourceName을 최초 1회 설정
+    if (!bInsightsSourceNamesSet && CachedRelevancyGraph)
+    {
+        bInsightsSourceNamesSet = true;
+        const int32 NumGroups = CachedRelevancyGraph->NumRelevancyGroup();
+        for (int32 i = 0; i < NumGroups; ++i)
+        {
+            IHktRelevancyGroup& Group = CachedRelevancyGraph->GetRelevancyGroup(i);
+            const FString SourceName = (NumGroups == 1)
+                ? TEXT("Server")
+                : FString::Printf(TEXT("Server[%d]"), i);
+            Group.GetSimulator().SetInsightsSourceName(SourceName);
+        }
+    }
     double TickStart = FPlatformTime::Seconds();
 #endif
 
@@ -280,17 +294,6 @@ void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
                 }
             }
             OutSnapshot.AddInfo(Cat, TEXT("TotalPlayers"), FString::FromInt(TotalPlayers));
-
-            // InsightsSourceName 설정 (AdvanceFrame에서 자동 push됨)
-            for (int32 i = 0; i < NumGroups; ++i)
-            {
-                IHktRelevancyGroup& MutableGroup = CachedRelevancyGraph->GetRelevancyGroup(i);
-                IHktAuthoritySimulator& Simulator = MutableGroup.GetSimulator();
-                const FString SourceName = (NumGroups == 1)
-                    ? TEXT("Server")
-                    : FString::Printf(TEXT("Server[%d]"), i);
-                Simulator.SetInsightsSourceName(SourceName);
-            }
         }
         else
         {

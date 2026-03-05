@@ -67,6 +67,11 @@ private:
     /** Insight 통계: 틱 당 처리 시간 추적 */
     float LastTickDurationMs = 0.0f;
 
+#if WITH_HKT_INSIGHTS
+    /** Server InsightsSourceName 설정 완료 여부 */
+    bool bInsightsSourceNamesSet = false;
+#endif
+
     /** 서버 규칙 (UHktRuleSubsystem이 소유) */
     IHktServerRule* CachedServerRule = nullptr;
 

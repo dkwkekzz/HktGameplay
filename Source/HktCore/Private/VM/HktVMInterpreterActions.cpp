@@ -103,7 +103,7 @@ void FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst
         int64 DY = Y2 - Y1;
         int64 DZ = Z2 - Z1;
 
-        int32 DistSq = static_cast<int32>(FMath::Min(static_cast<int64>(MAX_int32), DX*DX + DY*DY + DZ*DZ));
+        int32 DistSq = static_cast<int32>(FMath::Min(static_cast<int64>(MAX_int32), DX * DX + DY * DY + DZ * DZ));
         Runtime.SetReg(Dst, static_cast<int32>(FMath::Sqrt(static_cast<float>(DistSq))));
     }
 }
@@ -117,9 +117,9 @@ void FHktVMInterpreter::Op_MoveToward(FHktVMRuntime& Runtime, RegisterIndex Enti
         Runtime.Context->WriteEntity(E, PropertyId::MoveTargetY, Runtime.GetReg(TargetBase + 1));
         Runtime.Context->WriteEntity(E, PropertyId::MoveTargetZ, Runtime.GetReg(TargetBase + 2));
         Runtime.Context->WriteEntity(E, PropertyId::MoveForce, Speed);
-        Runtime.Context->WriteEntity(E, PropertyId::VelX, 0);
-        Runtime.Context->WriteEntity(E, PropertyId::VelY, 0);
-        Runtime.Context->WriteEntity(E, PropertyId::VelZ, 0);
+
+        // 관성 유지: 기존의 속도 초기화 코드를 제거했습니다. 
+        // 이동 중에 새로운 타겟이 주어져도 현재 속도를 유지하며 부드럽게 선회합니다.
         Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 1);
     }
     UE_LOG(LogTemp, Log, TEXT("[VM] MoveToward: Entity %d, Force %d"), Runtime.GetRegEntity(Entity), Speed);
@@ -131,9 +131,7 @@ void FHktVMInterpreter::Op_MoveForward(FHktVMRuntime& Runtime, RegisterIndex Ent
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
         Runtime.Context->WriteEntity(E, PropertyId::MoveForce, Speed);
-        Runtime.Context->WriteEntity(E, PropertyId::VelX, 0);
-        Runtime.Context->WriteEntity(E, PropertyId::VelY, 0);
-        Runtime.Context->WriteEntity(E, PropertyId::VelZ, 0);
+        // 여기서도 연속적인 이동 명령을 위해 속도를 강제 초기화하지 않는 것이 좋습니다.
         Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 1);
     }
     UE_LOG(LogTemp, Log, TEXT("[VM] MoveForward: Entity %d, Force %d"), Runtime.GetRegEntity(Entity), Speed);
@@ -186,7 +184,7 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
             int64 DY = EP.Y - CY;
             int64 DZ = EP.Z - CZ;
 
-            if (DX*DX + DY*DY + DZ*DZ <= RadiusSq)
+            if (DX * DX + DY * DY + DZ * DZ <= RadiusSq)
                 Runtime.SpatialQuery.Entities.Add(E);
         });
     }
@@ -270,7 +268,7 @@ void FHktVMInterpreter::Op_StopAnim(FHktVMRuntime& Runtime, RegisterIndex Entity
 void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)
 {
     UE_LOG(LogTemp, Log, TEXT("[VM] PlayVFX: (%d,%d,%d), VFX %s"),
-        Runtime.GetReg(PosBase), Runtime.GetReg(PosBase+1), Runtime.GetReg(PosBase+2),
+        Runtime.GetReg(PosBase), Runtime.GetReg(PosBase + 1), Runtime.GetReg(PosBase + 2),
         *GetString(Runtime, StringIndex));
 }
 
@@ -298,7 +296,7 @@ void FHktVMInterpreter::Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex)
 void FHktVMInterpreter::Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)
 {
     UE_LOG(LogTemp, Log, TEXT("[VM] PlaySoundAtLocation: (%d,%d,%d), Sound %s"),
-        Runtime.GetReg(PosBase), Runtime.GetReg(PosBase+1), Runtime.GetReg(PosBase+2),
+        Runtime.GetReg(PosBase), Runtime.GetReg(PosBase + 1), Runtime.GetReg(PosBase + 2),
         *GetString(Runtime, StringIndex));
 }
 

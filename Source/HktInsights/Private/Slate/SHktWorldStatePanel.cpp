@@ -414,7 +414,6 @@ bool SHktWorldStatePanel::PassesFilter(const FHktEntityListEntry& Entry) const
 void SHktWorldStatePanel::RefreshData(bool bForceRebuild)
 {
     FHktRuntimeInsightsCollector& Collector = FHktRuntimeInsightsCollector::Get();
-    // CollectAll 호출 제거 — 데이터는 AdvanceFrame에서 push됨
 
     // 엔티티 리스트 변경 감지
     const int32 CurrentVersion = Collector.GetEntityListVersion();
@@ -424,10 +423,14 @@ void SHktWorldStatePanel::RefreshData(bool bForceRebuild)
         RebuildEntityList();
     }
 
-    // 다중 선택 엔티티 상세 갱신 (매 틱)
-    if (EntityListView.IsValid() && EntityListView->GetSelectedItems().Num() > 0)
+    // 상세 데이터 갱신 (위젯 재생성 없음 — Text_Lambda가 자동 반영)
+    UpdateDetailData();
+
+    // 위젯 구조가 바뀐 경우에만 재생성
+    if (bDetailWidgetsDirty)
     {
-        RebuildDetailPanel();
+        bDetailWidgetsDirty = false;
+        RebuildDetailWidgets();
     }
 }
 
@@ -453,7 +456,6 @@ void SHktWorldStatePanel::RebuildEntityList()
         {
             if (Sel.IsValid())
             {
-                // Source + EntityId를 키로 사용
                 int64 Key = GetTypeHash(Sel->Source) ^ (static_cast<int64>(Sel->EntityId) << 32);
                 PrevSelectedKeys.Add(Key);
             }
@@ -497,30 +499,83 @@ void SHktWorldStatePanel::RebuildEntityList()
     }
 }
 
-void SHktWorldStatePanel::RebuildDetailPanel()
+// ============================================================================
+// 상세 패널 — 데이터만 갱신 (위젯 재생성 없음)
+// ============================================================================
+
+void SHktWorldStatePanel::UpdateDetailData()
+{
+    if (!EntityListView.IsValid()) return;
+
+    FHktRuntimeInsightsCollector& Collector = FHktRuntimeInsightsCollector::Get();
+    TArray<TSharedPtr<FHktEntityListEntry>> SelectedItems = EntityListView->GetSelectedItems();
+
+    // 선택 수 변경 → 위젯 구조 재생성 필요
+    if (SelectedItems.Num() != CachedDetailEntries.Num())
+    {
+        bDetailWidgetsDirty = true;
+    }
+
+    CachedDetailEntries.SetNum(SelectedItems.Num());
+
+    for (int32 i = 0; i < SelectedItems.Num(); ++i)
+    {
+        const TSharedPtr<FHktEntityListEntry>& SelEntry = SelectedItems[i];
+        if (!SelEntry.IsValid()) continue;
+
+        if (!CachedDetailEntries[i].IsValid())
+        {
+            CachedDetailEntries[i] = MakeShared<FHktSelectedEntityDetail>();
+            bDetailWidgetsDirty = true;
+        }
+
+        FHktSelectedEntityDetail& Cached = *CachedDetailEntries[i];
+
+        // 엔티티 자체가 바뀌었으면 위젯 재생성
+        if (Cached.EntityId != SelEntry->EntityId || Cached.Source != SelEntry->Source)
+        {
+            bDetailWidgetsDirty = true;
+        }
+
+        // Collector에서 최신 데이터 가져오기
+        TArray<FHktSelectedEntityDetail> AllDetails = Collector.GetAllEntityDetails(SelEntry->Source);
+        for (const FHktSelectedEntityDetail& D : AllDetails)
+        {
+            if (D.EntityId == SelEntry->EntityId)
+            {
+                // 프로퍼티 수 변경 → 위젯 구조 재생성
+                if (Cached.PropNames.Num() != D.PropNames.Num())
+                {
+                    bDetailWidgetsDirty = true;
+                }
+                Cached = D; // 값 복사 (Text_Lambda가 다음 페인트에서 반영)
+                break;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 상세 패널 — 위젯 구조 재생성 (선택 변경/프로퍼티 수 변경 시에만)
+//   모든 값 표시에 Text_Lambda 사용 → CachedDetailEntries 갱신만으로 화면 반영
+// ============================================================================
+
+void SHktWorldStatePanel::RebuildDetailWidgets()
 {
     if (!DetailScrollBox.IsValid() || !EntityListView.IsValid()) return;
 
     DetailScrollBox->ClearChildren();
 
-    FHktRuntimeInsightsCollector& Collector = FHktRuntimeInsightsCollector::Get();
     TArray<TSharedPtr<FHktEntityListEntry>> SelectedItems = EntityListView->GetSelectedItems();
 
-    for (const TSharedPtr<FHktEntityListEntry>& SelEntry : SelectedItems)
+    for (int32 Idx = 0; Idx < CachedDetailEntries.Num(); ++Idx)
     {
+        if (Idx >= SelectedItems.Num()) break;
+        const TSharedPtr<FHktEntityListEntry>& SelEntry = SelectedItems[Idx];
         if (!SelEntry.IsValid()) continue;
 
-        // 소스별 상세 데이터에서 해당 엔티티 찾기
-        TArray<FHktSelectedEntityDetail> AllDetails = Collector.GetAllEntityDetails(SelEntry->Source);
-        const FHktSelectedEntityDetail* Found = nullptr;
-        for (const FHktSelectedEntityDetail& D : AllDetails)
-        {
-            if (D.EntityId == SelEntry->EntityId)
-            {
-                Found = &D;
-                break;
-            }
-        }
+        TSharedPtr<FHktSelectedEntityDetail> Entry = CachedDetailEntries[Idx];
+        if (!Entry.IsValid()) continue;
 
         // 헤더 텍스트
         const FString Header = FString::Printf(TEXT("[%s] Entity #%d (%s)"),
@@ -528,7 +583,7 @@ void SHktWorldStatePanel::RebuildDetailPanel()
 
         TSharedRef<SVerticalBox> PropList = SNew(SVerticalBox);
 
-        if (Found && Found->IsValid())
+        if (Entry->IsValid())
         {
             // OwnerUid
             PropList->AddSlot()
@@ -546,8 +601,10 @@ void SHktWorldStatePanel::RebuildDetailPanel()
                 ]
                 + SHorizontalBox::Slot().FillWidth(1.0f)
                 [
-                    SNew(STextBlock).Text(FText::FromString(
-                        FString::Printf(TEXT("%lld"), Found->OwnerUid)))
+                    SNew(STextBlock).Text_Lambda([Entry]()
+                    {
+                        return FText::FromString(FString::Printf(TEXT("%lld"), Entry->OwnerUid));
+                    })
                 ]
             ];
 
@@ -567,17 +624,16 @@ void SHktWorldStatePanel::RebuildDetailPanel()
                 ]
                 + SHorizontalBox::Slot().FillWidth(1.0f)
                 [
-                    SNew(STextBlock).Text(FText::FromString(
-                        FString::Printf(TEXT("%lld"), Found->FrameNumber)))
+                    SNew(STextBlock).Text_Lambda([Entry]()
+                    {
+                        return FText::FromString(FString::Printf(TEXT("%lld"), Entry->FrameNumber));
+                    })
                 ]
             ];
 
-            // Properties
-            for (int32 i = 0; i < Found->PropNames.Num(); ++i)
+            // Properties (Text_Lambda로 동적 값 표시)
+            for (int32 PropIdx = 0; PropIdx < Entry->PropNames.Num(); ++PropIdx)
             {
-                const FString& PropName = Found->PropNames[i];
-                const int32 PropVal = Found->PropValues[i];
-
                 PropList->AddSlot()
                 .AutoHeight()
                 .Padding(8.0f, 1.0f)
@@ -587,13 +643,23 @@ void SHktWorldStatePanel::RebuildDetailPanel()
                     [
                         SNew(SBox).WidthOverride(160.0f)
                         [
-                            SNew(STextBlock).Text(FText::FromString(PropName))
+                            SNew(STextBlock).Text_Lambda([Entry, PropIdx]()
+                            {
+                                return PropIdx < Entry->PropNames.Num()
+                                    ? FText::FromString(Entry->PropNames[PropIdx])
+                                    : FText::GetEmpty();
+                            })
                             .ColorAndOpacity(FLinearColor(0.5f, 0.8f, 1.0f))
                         ]
                     ]
                     + SHorizontalBox::Slot().FillWidth(1.0f)
                     [
-                        SNew(STextBlock).Text(FText::FromString(FString::FromInt(PropVal)))
+                        SNew(STextBlock).Text_Lambda([Entry, PropIdx]()
+                        {
+                            return PropIdx < Entry->PropValues.Num()
+                                ? FText::FromString(FString::FromInt(Entry->PropValues[PropIdx]))
+                                : FText::GetEmpty();
+                        })
                     ]
                 ];
             }
@@ -609,10 +675,6 @@ void SHktWorldStatePanel::RebuildDetailPanel()
                 .ColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
             ];
         }
-
-        const FLinearColor HeaderColor = SelEntry->Source.StartsWith(TEXT("Server"))
-            ? FLinearColor(1.0f, 0.6f, 0.0f)
-            : FLinearColor(0.0f, 0.8f, 0.8f);
 
         DetailScrollBox->AddSlot()
         [
@@ -636,7 +698,7 @@ void SHktWorldStatePanel::RebuildDetailPanel()
 void SHktWorldStatePanel::OnEntitySelectionChanged(TSharedPtr<FHktEntityListEntry> Item, ESelectInfo::Type SelectType)
 {
     if (SelectType == ESelectInfo::Direct) return;
-    RebuildDetailPanel();
+    bDetailWidgetsDirty = true;
 }
 
 void SHktWorldStatePanel::OnSourceFilterChanged(const FText& NewText)
