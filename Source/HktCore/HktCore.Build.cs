@@ -15,8 +15,6 @@ public class HktCore : ModuleRules
 				
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Private",
-				"Private/VM"
 			}
 		);
 			

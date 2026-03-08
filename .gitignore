@@ -58,7 +58,7 @@ lnks/*
 __pycache__/
 
 # Legacy code for reference
-Legacy/*
+.legacy/*
 
 # Claude
 .claude/*
