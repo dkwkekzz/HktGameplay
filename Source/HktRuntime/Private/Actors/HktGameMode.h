@@ -6,10 +6,6 @@
 #include "HktServerRuleInterfaces.h"
 #include "HktClientRuleInterfaces.h"
 
-#if WITH_HKT_INSIGHTS
-#include "HktInsightProvider.h"
-#endif
-
 #include "HktGameMode.generated.h"
 
 class AHktIngamePlayerController;
@@ -31,7 +27,7 @@ class IHktClientRule;
  *   ReceiveIntent  → Rule->OnReceived_FireIntentEvent()
  */
 UCLASS()
-class HKTRUNTIME_API AHktGameMode : public AGameModeBase, public IHktInsightProvider
+class HKTRUNTIME_API AHktGameMode : public AGameModeBase
 {
     GENERATED_BODY()
 
@@ -50,12 +46,6 @@ protected:
 
     IHktServerRule* GetServerRule() const;
 
-#if WITH_HKT_INSIGHTS
-public:
-    virtual void CollectInsightData(FHktInsightSnapshot& OutSnapshot) const override;
-    virtual FString GetInsightProviderName() const override { return TEXT("GameMode"); }
-#endif
-
 private:
     /** 고정 시뮬레이션 틱 (결정론적 시뮬레이션) */
     void SimulationTick();
@@ -66,11 +56,6 @@ private:
 
     /** Insight 통계: 틱 당 처리 시간 추적 */
     float LastTickDurationMs = 0.0f;
-
-#if WITH_HKT_INSIGHTS
-    /** Server InsightsSourceName 설정 완료 여부 */
-    bool bInsightsSourceNamesSet = false;
-#endif
 
     /** 서버 규칙 (UHktRuleSubsystem이 소유) */
     IHktServerRule* CachedServerRule = nullptr;

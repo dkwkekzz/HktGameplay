@@ -1,10 +1,6 @@
 #include "HktProxySimulatorComponent.h"
 #include "HktRuntimeCommon.h"
-
-#if WITH_HKT_INSIGHTS
-#include "HktRuntimeInsightsCollector.h"
-#include "HktCoreSimulator.h"
-#endif
+#include "HktCoreDataCollector.h"
 
 UHktProxySimulatorComponent::UHktProxySimulatorComponent()
 {
@@ -17,12 +13,10 @@ void UHktProxySimulatorComponent::BeginPlay()
     Super::BeginPlay();
     SchemaRegistry.Initialize();
     Simulator = CreateDeterminismSimulator(TEXT("Client"));
-    HKT_INSIGHTS_REGISTER_PROVIDER(this);
 }
 
 void UHktProxySimulatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    HKT_INSIGHTS_UNREGISTER_PROVIDER(this);
     Simulator.Reset();
     Super::EndPlay(EndPlayReason);
 }
@@ -44,7 +38,6 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
         FrameAccumulator -= FixedDeltaTime;
 
         // 서버 Batch가 있으면 로컬 예측 건너뛰고 바로 조정 처리
-        // (어차피 Diff 역적용으로 롤백되므로 로컬 예측은 낭비)
         if (PendingServerBatches.Num() > 0)
         {
             ProcessPendingServerBatches();
@@ -54,6 +47,21 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
             AdvanceLocalFrame(FixedDeltaTime);
         }
     }
+
+#if ENABLE_HKT_INSIGHTS
+    {
+        const FString Cat = TEXT("Runtime.ProxySimulator");
+        HKT_INSIGHT_COLLECT(Cat, TEXT("Initialized"), bInitialized ? TEXT("Yes") : TEXT("No"));
+        HKT_INSIGHT_COLLECT(Cat, TEXT("LocalFrame"), FString::Printf(TEXT("%lld"), LocalFrame));
+        HKT_INSIGHT_COLLECT(Cat, TEXT("DiffHistory"), FString::FromInt(DiffHistory.Num()));
+        HKT_INSIGHT_COLLECT(Cat, TEXT("PendingBatches"), FString::FromInt(PendingServerBatches.Num()));
+        if (bInitialized)
+        {
+            const FHktWorldState& WS = Simulator->GetWorldState();
+            HKT_INSIGHT_COLLECT(Cat, TEXT("Entities"), FString::FromInt(WS.GetEntityCount()));
+        }
+    }
+#endif
 }
 
 void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
@@ -130,11 +138,10 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
         const int64 ServerFrame = ServerBatch.FrameNumber;
 
         // --- 1. Diff 역적용으로 ServerFrame 직전까지 롤백 ---
-        //   DiffHistory는 시간순 정렬 (오래된 것이 앞), 역순으로 Undo
         while (DiffHistory.Num() > 0)
         {
             const FHktSimulationDiff& TopDiff = DiffHistory.Last();
-            if (TopDiff.FrameNumber < ServerFrame) break;  // 서버 프레임보다 이전이면 중단
+            if (TopDiff.FrameNumber < ServerFrame) break;
             Simulator->UndoDiff(TopDiff);
             DiffHistory.Pop();
         }
@@ -145,7 +152,6 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
         {
             FHktSimulationEvent GapBatch = BuildLocalBatch(F, FixedDeltaTime);
             Simulator->AdvanceFrame(GapBatch);
-            // 갭 프레임 Diff는 저장하지 않음 (서버 확정 후 바로 덮어쓰기)
         }
 
         // --- 3. 서버 권위 Batch로 해당 프레임 실행 → Diff 획득 ---
@@ -192,32 +198,3 @@ bool UHktProxySimulatorComponent::IsInitialized() const
 {
     return bInitialized;
 }
-
-// ============================================================================
-// Insights
-// ============================================================================
-
-#if WITH_HKT_INSIGHTS
-void UHktProxySimulatorComponent::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
-{
-    OutSnapshot.ProviderName = TEXT("ClientSimulator");
-
-    const FString Cat = TEXT("Client WorldState");
-    OutSnapshot.AddInfo(Cat, TEXT("Initialized"),
-        bInitialized ? TEXT("Yes") : TEXT("No"));
-    OutSnapshot.AddInfo(Cat, TEXT("LocalFrame"),
-        FString::Printf(TEXT("%lld"), LocalFrame));
-    OutSnapshot.AddInfo(Cat, TEXT("DiffHistorySize"),
-        FString::FromInt(DiffHistory.Num()));
-    OutSnapshot.AddInfo(Cat, TEXT("PendingServerBatches"),
-        FString::FromInt(PendingServerBatches.Num()));
-
-    if (bInitialized)
-    {
-        const FHktWorldState& WS = Simulator->GetWorldState();
-        OutSnapshot.AddInfo(Cat, TEXT("Entities"),
-            FString::FromInt(WS.GetEntityCount()));
-        // WorldState 엔티티 리스트/상세는 AdvanceFrame에서 자동 push됨
-    }
-}
-#endif

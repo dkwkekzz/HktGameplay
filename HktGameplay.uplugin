@@ -54,16 +54,6 @@
 			"Name": "HktVFX",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "HktInsights",
-			"Type": "DeveloperTool",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "HktInsightsEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

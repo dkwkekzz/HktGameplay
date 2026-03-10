@@ -8,9 +8,8 @@
 #include "HktCoreProperties.h"
 #include "HktSimulationLimits.h"
 
-#if WITH_HKT_INSIGHTS
-#include "HktRuntimeInsightsCollector.h"
-#include "HktInsightsRuntimeTypes.h"
+#if ENABLE_HKT_INSIGHTS
+#include "HktCoreDataCollector.h"
 
 namespace HktInsightsInternal
 {
@@ -196,54 +195,44 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         });
     }
 
-#if WITH_HKT_INSIGHTS
+#if ENABLE_HKT_INSIGHTS
     if (!SourceName.IsEmpty())
     {
-        FHktRuntimeInsightsCollector& Collector = FHktRuntimeInsightsCollector::Get();
+        // 카테고리: "WorldState.{SourceName}" (예: "WorldState.Server", "WorldState.Client")
+        const FString WsCat = FString::Printf(TEXT("WorldState.%s"), *SourceName);
+        HKT_INSIGHT_CLEAR_CATEGORY(WsCat);
 
-        // 1. 엔티티 리스트 동기화
-        TArray<FHktEntityListEntry> Entries;
+        // 프레임 메타 정보
+        HKT_INSIGHT_COLLECT(WsCat, TEXT("_Frame"),
+            FString::Printf(TEXT("%lld"), WorldState.FrameNumber));
+        HKT_INSIGHT_COLLECT(WsCat, TEXT("_EntityCount"),
+            FString::FromInt(WorldState.GetEntityCount()));
+
+        // 엔티티별 속성 요약
         for (int32 T = 1; T < HktType::MaxTypes; ++T)
         {
             const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
             if (Pool.ActiveCount == 0) continue;
             const FString TypeName = HktInsightsInternal::TypeIdToName(static_cast<FHktTypeId>(T));
-            Pool.ForEachEntity([&](FHktEntityId Id, int32)
-            {
-                FHktEntityListEntry E;
-                E.Source = SourceName;
-                E.EntityId = Id;
-                E.TypeName = TypeName;
-                Entries.Add(MoveTemp(E));
-            });
-        }
-        Collector.SyncEntityList(SourceName, MoveTemp(Entries));
-
-        // 2. 전체 엔티티 상세 빌드 & Push
-        TArray<FHktSelectedEntityDetail> Details;
-        for (int32 T = 1; T < HktType::MaxTypes; ++T)
-        {
-            const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
-            if (Pool.ActiveCount == 0) continue;
             const FHktEntitySchema& Schema = FHktSchemaRegistry::Get().Get(static_cast<FHktTypeId>(T));
+
             Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
             {
-                FHktSelectedEntityDetail Detail;
-                Detail.EntityId = Id;
-                Detail.Source = SourceName;
-                Detail.FrameNumber = WorldState.FrameNumber;
-                Detail.OwnerUid = WorldState.GetOwnerUid(Id);
-                Detail.PropNames.Reserve(Pool.Stride);
-                Detail.PropValues.Reserve(Pool.Stride);
+                // 키: "E_{EntityId}" — 값: "Type=Unit | Owner=123 | PosX=100 PosY=200 ..."
+                FString PropSummary;
+                PropSummary += FString::Printf(TEXT("Type=%s"), *TypeName);
+                PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
                 for (int8 LocalIdx = 0; LocalIdx < Pool.Stride; ++LocalIdx)
                 {
-                    Detail.PropNames.Add(HktInsightsInternal::PropIdToName(Schema.PropertyIds[LocalIdx]));
-                    Detail.PropValues.Add(Pool.Get(Slot, LocalIdx));
+                    PropSummary += FString::Printf(TEXT(" | %s=%d"),
+                        *HktInsightsInternal::PropIdToName(Schema.PropertyIds[LocalIdx]),
+                        Pool.Get(Slot, LocalIdx));
                 }
-                Details.Add(MoveTemp(Detail));
+
+                FString EntityKey = FString::Printf(TEXT("E_%d"), Id);
+                HKT_INSIGHT_COLLECT(WsCat, EntityKey, PropSummary);
             });
         }
-        Collector.PushAllEntityDetails(SourceName, MoveTemp(Details));
     }
 #endif
 

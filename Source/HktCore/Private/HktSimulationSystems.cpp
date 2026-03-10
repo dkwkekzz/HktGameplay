@@ -33,21 +33,21 @@ static TAutoConsoleVariable<float> CVarMoveMinSpeed(
     ECVF_Default);
 
 
-#if WITH_HKT_INSIGHTS
-#include "HktInsightsDataCollector.h"
+#if ENABLE_HKT_INSIGHTS
+#include "HktCoreDataCollector.h"
 #include "HktFlowTypes.h"
 
-static EHktInsightsVMState ToInsightsVMState(EVMStatus Status)
+static FString VMStatusToString(EVMStatus Status)
 {
     switch (Status)
     {
-    case EVMStatus::Running:
-    case EVMStatus::Ready:        return EHktInsightsVMState::Running;
-    case EVMStatus::Yielded:      return EHktInsightsVMState::Yielded;
-    case EVMStatus::WaitingEvent: return EHktInsightsVMState::Blocked;
-    case EVMStatus::Completed:    return EHktInsightsVMState::Completed;
-    case EVMStatus::Failed:       return EHktInsightsVMState::Error;
-    default:                      return EHktInsightsVMState::Running;
+    case EVMStatus::Running:      return TEXT("Running");
+    case EVMStatus::Ready:        return TEXT("Ready");
+    case EVMStatus::Yielded:      return TEXT("Yielded");
+    case EVMStatus::WaitingEvent: return TEXT("Blocked");
+    case EVMStatus::Completed:    return TEXT("Completed");
+    case EVMStatus::Failed:       return TEXT("Failed");
+    default:                      return TEXT("Unknown");
     }
 }
 #endif
@@ -153,14 +153,20 @@ void FHktVMBuildSystem::Process(
         OutActiveVMs.Add(Handle);
         WorldState.ActiveEvents.Add(Event);
 
-#if WITH_HKT_INSIGHTS
+#if ENABLE_HKT_INSIGHTS
         Runtime->SourceEventId = Event.EventId;
-        FHktInsightsDataCollector::Get().RecordIntentEvent(
-            Event.EventId, Event.EventTag, Event.SourceEntity, Event.TargetEntity,
-            Event.Location, EHktInsightsEventState::Processing);
-        FHktInsightsDataCollector::Get().RecordVMCreated(
-            static_cast<int32>(Handle.Index), Event.EventId, Event.EventTag,
-            Program->CodeSize(), Event.SourceEntity, InsightsSource);
+        {
+            FString VMKey = FString::Printf(TEXT("VM_%d"), static_cast<int32>(Handle.Index));
+            HKT_INSIGHT_COLLECT(TEXT("VM"), VMKey,
+                FString::Printf(TEXT("Created | Event=%s | Src=%d | Tgt=%d | CodeSize=%d | Source=%s"),
+                    *Event.EventTag.ToString(), Event.SourceEntity, Event.TargetEntity,
+                    Program->CodeSize(), *InsightsSource));
+
+            FString IntentKey = FString::Printf(TEXT("Intent_%d"), Event.EventId);
+            HKT_INSIGHT_COLLECT(TEXT("VM"), IntentKey,
+                FString::Printf(TEXT("Processing | Tag=%s | Src=%d | Tgt=%d"),
+                    *Event.EventTag.ToString(), Event.SourceEntity, Event.TargetEntity));
+        }
 #endif
 
         UE_LOG(LogTemp, Log, TEXT("VM created: %s for Entity %d"), *Event.EventTag.ToString(), Event.SourceEntity);
@@ -252,7 +258,7 @@ void FHktVMProcessSystem::Process(
         EVMStatus Result = Interpreter->Execute(*Runtime);
         Runtime->Status = Result;
 
-#if WITH_HKT_INSIGHTS
+#if ENABLE_HKT_INSIGHTS
         {
             FString OpName;
             if (Runtime->Program && Runtime->PC > 0 && Runtime->Program->Code.Num() > 0)
@@ -260,19 +266,27 @@ void FHktVMProcessSystem::Process(
                 int32 Idx = FMath::Min(Runtime->PC - 1, Runtime->Program->Code.Num() - 1);
                 OpName = GetOpCodeName(Runtime->Program->Code[Idx].GetOpCode());
             }
-            FHktInsightsDataCollector::Get().RecordVMTick(
-                static_cast<int32>(Handle.Index), Runtime->PC, ToInsightsVMState(Result), OpName);
+            FString VMKey = FString::Printf(TEXT("VM_%d"), static_cast<int32>(Handle.Index));
+            HKT_INSIGHT_COLLECT(TEXT("VM"), VMKey,
+                FString::Printf(TEXT("%s | PC=%d | Op=%s | Src=%d"),
+                    *VMStatusToString(Result), Runtime->PC, *OpName, Runtime->Context ? Runtime->Context->SourceEntity : -1));
         }
 #endif
 
         if (Result == EVMStatus::Completed || Result == EVMStatus::Failed)
         {
-#if WITH_HKT_INSIGHTS
-            FHktInsightsDataCollector::Get().RecordVMCompleted(
-                static_cast<int32>(Handle.Index), Result == EVMStatus::Completed);
-            FHktInsightsDataCollector::Get().UpdateIntentEventState(
-                Runtime->SourceEventId,
-                Result == EVMStatus::Completed ? EHktInsightsEventState::Completed : EHktInsightsEventState::Failed);
+#if ENABLE_HKT_INSIGHTS
+            {
+                FString VMKey = FString::Printf(TEXT("VM_%d"), static_cast<int32>(Handle.Index));
+                HKT_INSIGHT_COLLECT(TEXT("VM"), VMKey,
+                    FString::Printf(TEXT("%s | PC=%d"),
+                        Result == EVMStatus::Completed ? TEXT("Completed") : TEXT("Failed"), Runtime->PC));
+
+                FString IntentKey = FString::Printf(TEXT("Intent_%d"), Runtime->SourceEventId);
+                HKT_INSIGHT_COLLECT(TEXT("VM"), IntentKey,
+                    FString::Printf(TEXT("%s"),
+                        Result == EVMStatus::Completed ? TEXT("Completed") : TEXT("Failed")));
+            }
 #endif
             OutCompletedVMs.Add(Handle);
             ActiveVMs.RemoveAtSwap(i);

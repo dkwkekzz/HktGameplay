@@ -49,14 +49,6 @@ public class HktRuntime : ModuleRules
 			}
 		);
 
-        if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-        {
-            PrivateDependencyModuleNames.Add("HktInsights");
-            PrivateDefinitions.Add("WITH_HKT_INSIGHTS=1");
-        }
-        else
-        {
-            PrivateDefinitions.Add("WITH_HKT_INSIGHTS=0");
-        }
+        // ENABLE_HKT_INSIGHTS는 HktCore에서 PublicDefinitions로 전파됨
     }
 }

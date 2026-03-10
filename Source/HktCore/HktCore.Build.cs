@@ -39,15 +39,14 @@ public class HktCore : ModuleRules
 			}
 		);
 
-		// HktInsights - 개발/에디터 빌드에서만 활성화
+		// ENABLE_HKT_INSIGHTS - 비-Shipping 빌드에서 인사이트 데이터 수집 활성화
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
-			PrivateDependencyModuleNames.Add("HktInsights");
-			PrivateDefinitions.Add("WITH_HKT_INSIGHTS=1");
+			PublicDefinitions.Add("ENABLE_HKT_INSIGHTS=1");
 		}
 		else
 		{
-			PrivateDefinitions.Add("WITH_HKT_INSIGHTS=0");
+			PublicDefinitions.Add("ENABLE_HKT_INSIGHTS=0");
 		}
 	}
 }

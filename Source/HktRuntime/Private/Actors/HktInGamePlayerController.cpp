@@ -6,15 +6,10 @@
 #include "HktGameMode.h"
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
-#include "HktWorldView.h"
+#include "HktCoreDataCollector.h"
 #include "DataAssets/HktInputAction.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
-
-#if WITH_HKT_INSIGHTS
-#include "HktRuntimeInsightsCollector.h"
-#include "HktInsightsRuntimeTypes.h"
-#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogHktIngamePlayerController, Log, All);
 
@@ -88,13 +83,10 @@ void AHktIngamePlayerController::BeginPlay()
     }
 
     // ProxySimulatorComponent가 먼저 틱한 후 PlayerController Tick이 실행되도록 보장
-    // (AdvanceLocalFrame + ProcessPendingServerBatches → Diff 생성 → Tick에서 소비)
     if (UActorComponent* ProxyComp = Cast<UActorComponent>(CachedProxySimulator))
     {
         AddTickPrerequisiteComponent(ProxyComp);
     }
-
-    HKT_INSIGHTS_REGISTER_PROVIDER(this);
 }
 
 void AHktIngamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -111,7 +103,6 @@ void AHktIngamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReaso
     CachedCommandContainer = nullptr;
     CachedWorldPlayer      = nullptr;
 
-    HKT_INSIGHTS_UNREGISTER_PROVIDER(this);
     Super::EndPlay(EndPlayReason);
 }
 
@@ -244,18 +235,8 @@ void AHktIngamePlayerController::OnZoom(const FInputActionValue& Value)
 
 void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State)
 {
-#if WITH_HKT_INSIGHTS
-    const FHktWorldState& CoreState = State;
+#if ENABLE_HKT_INSIGHTS
     InsightReceivedInitialStateCount++;
-    HKT_INSIGHTS_RECORD_PACKET(
-        EHktPacketDirection::ServerToClient,
-        EHktPacketType::InitialState,
-        0,
-        CoreState.FrameNumber,
-        CoreState.GetEntityCount(),
-        static_cast<int32>(sizeof(FHktRuntimeSimulationState) + CoreState.GetEntityCount() * sizeof(FHktEntityState)),
-        FString::Printf(TEXT("InitialState: Entities=%d"), CoreState.GetEntityCount())
-    );
 #endif
 
     bIsInitialSync = false;
@@ -263,7 +244,6 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
     IHktClientRule* Rule = GetClientRule();
     if (Rule)
     {
-        // Rule이 내부 캐싱된 Simulator에 전달
         Rule->OnReceived_InitialState(HktRuntimeConverter::ConvertToWorldState(State));
     }
 }
@@ -273,7 +253,10 @@ void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
 
-    // 서버 Batch를 큐에 적재만 함 — Diff 처리는 Tick에서 ConsumePendingDiff로
+#if ENABLE_HKT_INSIGHTS
+    InsightReceivedBatchCount++;
+#endif
+
     Rule->OnReceived_FrameBatch(static_cast<const FHktSimulationEvent&>(Batch));
 }
 
@@ -318,6 +301,46 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
         View.OwnerDeltas = &Diff.OwnerDeltas;
         WorldViewUpdatedDelegate.Broadcast(View);
     }
+
+#if ENABLE_HKT_INSIGHTS
+    // 클라이언트 런타임 상태 수집
+    {
+        const FString Cat = TEXT("Runtime.Client");
+        FString NetModeStr;
+        switch (GetWorld()->GetNetMode())
+        {
+        case NM_Standalone:       NetModeStr = TEXT("Standalone"); break;
+        case NM_DedicatedServer:  NetModeStr = TEXT("DedicatedServer"); break;
+        case NM_ListenServer:     NetModeStr = TEXT("ListenServer"); break;
+        default:                  NetModeStr = TEXT("Client"); break;
+        }
+        HKT_INSIGHT_COLLECT(Cat, TEXT("NetMode"), NetModeStr);
+        HKT_INSIGHT_COLLECT(Cat, TEXT("Role"), HasAuthority() ? TEXT("Server") : TEXT("Client"));
+
+        if (CachedIntentBuilder)
+        {
+            HKT_INSIGHT_COLLECT(Cat, TEXT("Subject"), FString::FromInt(CachedIntentBuilder->GetSubjectEntityId()));
+            FGameplayTag Tag = CachedIntentBuilder->GetEventTag();
+            HKT_INSIGHT_COLLECT(Cat, TEXT("Command"), Tag.IsValid() ? Tag.ToString() : TEXT("(none)"));
+        }
+
+        if (CachedProxySimulator && CachedProxySimulator->IsInitialized())
+        {
+            const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
+            HKT_INSIGHT_COLLECT(Cat, TEXT("ProxyFrame"), FString::Printf(TEXT("%lld"), WS.FrameNumber));
+            HKT_INSIGHT_COLLECT(Cat, TEXT("ProxyEntities"), FString::FromInt(WS.GetEntityCount()));
+        }
+
+        if (CachedWorldPlayer)
+        {
+            HKT_INSIGHT_COLLECT(Cat, TEXT("PlayerUid"), FString::Printf(TEXT("%lld"), CachedWorldPlayer->GetPlayerUid()));
+        }
+
+        HKT_INSIGHT_COLLECT(Cat, TEXT("SentIntents"), FString::FromInt(InsightSentIntentCount));
+        HKT_INSIGHT_COLLECT(Cat, TEXT("ReceivedBatches"), FString::FromInt(InsightReceivedBatchCount));
+        HKT_INSIGHT_COLLECT(Cat, TEXT("ReceivedInitialStates"), FString::FromInt(InsightReceivedInitialStateCount));
+    }
+#endif
 }
 
 bool AHktIngamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)
@@ -327,20 +350,8 @@ bool AHktIngamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntime
 
 void AHktIngamePlayerController::Server_ReceiveIntent_Implementation(const FHktRuntimeEvent& Event)
 {
-#if WITH_HKT_INSIGHTS
+#if ENABLE_HKT_INSIGHTS
     InsightSentIntentCount++;
-    {
-        const FHktEvent& CoreEvent = Event;
-        HKT_INSIGHTS_RECORD_PACKET(
-            EHktPacketDirection::ClientToServer,
-            EHktPacketType::Intent,
-            GetPlayerUid(),
-            0,
-            1,
-            static_cast<int32>(sizeof(FHktRuntimeEvent)),
-            FString::Printf(TEXT("Intent: %s Src=%d→Tgt=%d"), *CoreEvent.EventTag.ToString(), CoreEvent.SourceEntity, CoreEvent.TargetEntity)
-        );
-    }
 #endif
 
     if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
@@ -403,74 +414,3 @@ int64 AHktIngamePlayerController::GetPlayerUid() const
 {
     return CachedWorldPlayer ? CachedWorldPlayer->GetPlayerUid() : 0;
 }
-
-// ============================================================================
-// IHktInsightProvider 구현
-// ============================================================================
-
-#if WITH_HKT_INSIGHTS
-void AHktIngamePlayerController::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
-{
-    OutSnapshot.ProviderName = GetInsightProviderName();
-
-    {
-        const FString Cat = TEXT("PlayerController");
-        OutSnapshot.AddInfo(Cat, TEXT("Name"), GetName());
-        OutSnapshot.AddInfo(Cat, TEXT("Role"), HasAuthority() ? TEXT("Server") : TEXT("Client"));
-
-        FString NetModeStr;
-        switch (GetWorld()->GetNetMode())
-        {
-        case NM_Standalone:       NetModeStr = TEXT("Standalone"); break;
-        case NM_DedicatedServer:  NetModeStr = TEXT("DedicatedServer"); break;
-        case NM_ListenServer:     NetModeStr = TEXT("ListenServer"); break;
-        default:                  NetModeStr = TEXT("Client"); break;
-        }
-        OutSnapshot.AddInfo(Cat, TEXT("NetMode"), NetModeStr);
-    }
-
-    if (CachedIntentBuilder)
-    {
-        const FString Cat = TEXT("IntentBuilder");
-        OutSnapshot.AddInfo(Cat, TEXT("Subject"), FString::FromInt(CachedIntentBuilder->GetSubjectEntityId()));
-        OutSnapshot.AddInfo(Cat, TEXT("Target"),  FString::FromInt(CachedIntentBuilder->GetTargetEntityId()));
-        FGameplayTag Tag = CachedIntentBuilder->GetEventTag();
-        OutSnapshot.AddInfo(Cat, TEXT("Command"),       Tag.IsValid() ? Tag.ToString() : TEXT("(none)"));
-        OutSnapshot.AddInfo(Cat, TEXT("ReadyToSubmit"), CachedIntentBuilder->IsReadyToSubmit() ? TEXT("Yes") : TEXT("No"));
-        OutSnapshot.AddInfo(Cat, TEXT("PendingSubmit"), CachedIntentBuilder->HasPendingSubmit() ? TEXT("Yes") : TEXT("No"));
-    }
-
-    if (CachedProxySimulator)
-    {
-        const FString Cat = TEXT("ProxySimulator");
-        bool bInit = CachedProxySimulator->IsInitialized();
-        OutSnapshot.AddInfo(Cat, TEXT("Initialized"), bInit ? TEXT("Yes") : TEXT("No"));
-        if (bInit)
-        {
-            const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
-            OutSnapshot.AddInfo(Cat, TEXT("LastFrame"), FString::Printf(TEXT("%lld"), WS.FrameNumber));
-            OutSnapshot.AddInfo(Cat, TEXT("Entities"),  FString::FromInt(WS.GetEntityCount()));
-        }
-    }
-
-    if (CachedCommandContainer)
-    {
-        const FString Cat = TEXT("CommandContainer");
-        OutSnapshot.AddInfo(Cat, TEXT("NumSlots"), FString::FromInt(CachedCommandContainer->GetNumSlots()));
-    }
-
-    if (CachedWorldPlayer)
-    {
-        const FString Cat = TEXT("WorldPlayer");
-        OutSnapshot.AddInfo(Cat, TEXT("PlayerUid"),   FString::Printf(TEXT("%lld"), CachedWorldPlayer->GetPlayerUid()));
-        OutSnapshot.AddInfo(Cat, TEXT("Initialized"), CachedWorldPlayer->IsInitialized() ? TEXT("Yes") : TEXT("No"));
-    }
-
-    {
-        const FString Cat = TEXT("RPC Stats");
-        OutSnapshot.AddInfo(Cat, TEXT("SentIntents"),          FString::FromInt(InsightSentIntentCount));
-        OutSnapshot.AddInfo(Cat, TEXT("ReceivedBatches"),      FString::FromInt(InsightReceivedBatchCount));
-        OutSnapshot.AddInfo(Cat, TEXT("ReceivedInitialStates"),FString::FromInt(InsightReceivedInitialStateCount));
-    }
-}
-#endif

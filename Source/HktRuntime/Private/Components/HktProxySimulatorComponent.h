@@ -7,14 +7,10 @@
 #include "HktClientRuleInterfaces.h"
 #include "HktCoreSimulator.h"
 
-#if WITH_HKT_INSIGHTS
-#include "HktInsightProvider.h"
-#endif
-
 #include "HktProxySimulatorComponent.generated.h"
 
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
-class HKTRUNTIME_API UHktProxySimulatorComponent : public UActorComponent, public IHktProxySimulator, public IHktInsightProvider
+class HKTRUNTIME_API UHktProxySimulatorComponent : public UActorComponent, public IHktProxySimulator
 {
 	GENERATED_BODY()
 
@@ -33,12 +29,6 @@ protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-#if WITH_HKT_INSIGHTS
-public:
-	virtual void CollectInsightData(FHktInsightSnapshot& OutSnapshot) const override;
-	virtual FString GetInsightProviderName() const override { return TEXT("ProxySimulator"); }
-#endif
 
 private:
     /** 로컬 Batch 생성 (결정론적 시드) */

@@ -13,10 +13,6 @@
 #include "HktRuntimeTypes.h"
 #include "IHktPlayerInteractionInterface.h"
 
-#if WITH_HKT_INSIGHTS
-#include "HktInsightProvider.h"
-#endif
-
 #include "HktIngamePlayerController.generated.h"
 
 class UInputMappingContext;
@@ -26,7 +22,7 @@ class IHktClientRule;
 
 UCLASS()
 class HKTRUNTIME_API AHktIngamePlayerController : public APlayerController
-    , public IHktPlayerInteractionInterface, public IHktInsightProvider
+    , public IHktPlayerInteractionInterface
 {
     GENERATED_BODY()
 
@@ -57,7 +53,6 @@ public:
     virtual FOnHktIntentSubmitted& OnIntentSubmitted() override { return IntentSubmittedDelegate; }
 
     // === Player UID ===
-    /** 인터페이스를 통해 Player UID를 반환합니다. */
     int64 GetPlayerUid() const;
 
 protected:
@@ -73,12 +68,6 @@ protected:
     void OnZoom(const FInputActionValue& Value);
 
     IHktClientRule* GetClientRule() const;
-
-#if WITH_HKT_INSIGHTS
-public:
-    virtual void CollectInsightData(FHktInsightSnapshot& OutSnapshot) const override;
-    virtual FString GetInsightProviderName() const override { return TEXT("PlayerController"); }
-#endif
 
 protected:
     // === Input ===
@@ -122,8 +111,8 @@ private:
     /** WorldState에서 나의 엔티티를 찾아 DefaultSubjectEntityId로 설정 */
     void ResolveDefaultSubject();
 
-#if WITH_HKT_INSIGHTS
-    /** Insight 통계: 보낸 Intent 수, 받은 배치 수 */
+#if ENABLE_HKT_INSIGHTS
+    /** Insight 통계 카운터 */
     int32 InsightSentIntentCount = 0;
     int32 InsightReceivedBatchCount = 0;
     int32 InsightReceivedInitialStateCount = 0;

@@ -7,11 +7,7 @@
 #include "HktClientRuleInterfaces.h"
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
-
-#if WITH_HKT_INSIGHTS
-#include "HktRuntimeInsightsCollector.h"
-#include "HktCoreSimulator.h"
-#endif
+#include "HktCoreDataCollector.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHktGameMode, Log, All);
 
@@ -26,7 +22,7 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
     Super::InitGame(MapName, Options, ErrorMessage);
 
     CachedServerRule = HktRule::GetServerRule(GetWorld());
-    if (!CachedServerRule) 
+    if (!CachedServerRule)
     {
         UE_LOG(LogHktGameMode, Error, TEXT("InitGame: ServerRule is null"));
         return;
@@ -59,8 +55,6 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
             CachedRelevancyGraph,
             CachedWorldDatabase);
     }
-
-    HKT_INSIGHTS_REGISTER_PROVIDER(this);
 }
 
 void AHktGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -75,7 +69,6 @@ void AHktGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
     CachedRelevancyGraph         = nullptr;
     CachedWorldDatabase          = nullptr;
 
-    HKT_INSIGHTS_UNREGISTER_PROVIDER(this);
     Super::EndPlay(EndPlayReason);
 }
 
@@ -100,7 +93,7 @@ void AHktGameMode::Tick(float DeltaSeconds)
 
 void AHktGameMode::SimulationTick()
 {
-#if WITH_HKT_INSIGHTS
+#if ENABLE_HKT_INSIGHTS
     double TickStart = FPlatformTime::Seconds();
 #endif
 
@@ -142,8 +135,41 @@ void AHktGameMode::SimulationTick()
         }
     }
 
-#if WITH_HKT_INSIGHTS
+#if ENABLE_HKT_INSIGHTS
     LastTickDurationMs = static_cast<float>((FPlatformTime::Seconds() - TickStart) * 1000.0);
+
+    // 서버 런타임 상태 수집
+    {
+        const FString Cat = TEXT("Runtime.Server");
+        HKT_INSIGHT_COLLECT(Cat, TEXT("ServerRule"), CachedServerRule ? TEXT("Active") : TEXT("None"));
+        HKT_INSIGHT_COLLECT(Cat, TEXT("TickDuration"),
+            FString::Printf(TEXT("%.2f ms"), LastTickDurationMs));
+
+        if (CachedFrameManager)
+        {
+            HKT_INSIGHT_COLLECT(Cat, TEXT("Frame"),
+                FString::Printf(TEXT("%lld"), CachedFrameManager->GetFrameNumber()));
+            HKT_INSIGHT_COLLECT(Cat, TEXT("FrameInitialized"),
+                CachedFrameManager->IsInitialized() ? TEXT("Yes") : TEXT("No"));
+        }
+
+        if (CachedRelevancyGraph)
+        {
+            int32 NumGroups = CachedRelevancyGraph->NumRelevancyGroup();
+            HKT_INSIGHT_COLLECT(Cat, TEXT("RelevancyGroups"), FString::FromInt(NumGroups));
+
+            int32 TotalPlayers = 0;
+            for (int32 i = 0; i < NumGroups; ++i)
+            {
+                TotalPlayers += CachedRelevancyGraph->GetRelevancyGroup(i).GetPlayerUids().Num();
+            }
+            HKT_INSIGHT_COLLECT(Cat, TEXT("TotalPlayers"), FString::FromInt(TotalPlayers));
+        }
+
+        HKT_INSIGHT_COLLECT(Cat, TEXT("PersistentFrame"), CachedFrameManager ? TEXT("OK") : TEXT("NULL"));
+        HKT_INSIGHT_COLLECT(Cat, TEXT("Relevancy"), CachedRelevancyGraph ? TEXT("OK") : TEXT("NULL"));
+        HKT_INSIGHT_COLLECT(Cat, TEXT("Database"), CachedWorldDatabase ? TEXT("OK") : TEXT("NULL"));
+    }
 #endif
 }
 
@@ -205,103 +231,3 @@ IHktServerRule* AHktGameMode::GetServerRule() const
 {
     return CachedServerRule;
 }
-
-// ============================================================================
-// IHktInsightProvider 구현
-// ============================================================================
-
-#if WITH_HKT_INSIGHTS
-void AHktGameMode::CollectInsightData(FHktInsightSnapshot& OutSnapshot) const
-{
-    OutSnapshot.ProviderName = TEXT("GameMode");
-
-    // === Frame 정보 ===
-    {
-        const FString Cat = TEXT("Frame");
-        if (CachedFrameManager)
-        {
-            OutSnapshot.AddInfo(Cat, TEXT("Initialized"),
-                CachedFrameManager->IsInitialized() ? TEXT("Yes") : TEXT("No"));
-            OutSnapshot.AddInfo(Cat, TEXT("CurrentFrame"),
-                FString::Printf(TEXT("%lld"), CachedFrameManager->GetFrameNumber()));
-        }
-        else
-        {
-            OutSnapshot.AddWarning(Cat, TEXT("PersistentFrame"), TEXT("NULL"));
-        }
-    }
-
-    // === Tick 성능 ===
-    {
-        const FString Cat = TEXT("Performance");
-        OutSnapshot.Add(Cat, TEXT("TickDuration"),
-            FString::Printf(TEXT("%.2f ms"), LastTickDurationMs),
-            LastTickDurationMs > 16.0f ? 1 : 0);
-    }
-
-    // === Relevancy / Player 정보 ===
-    {
-        const FString Cat = TEXT("Relevancy");
-        if (CachedRelevancyGraph)
-        {
-            const IHktRelevancyGraph* Graph = CachedRelevancyGraph;
-            int32 NumGroups = Graph->NumRelevancyGroup();
-            OutSnapshot.AddInfo(Cat, TEXT("NumGroups"), FString::FromInt(NumGroups));
-
-            int32 TotalPlayers = 0;
-            for (int32 i = 0; i < NumGroups; ++i)
-            {
-                const IHktRelevancyGroup& Group = Graph->GetRelevancyGroup(i);
-                int32 PlayerCount = Group.GetPlayerUids().Num();
-                TotalPlayers += PlayerCount;
-
-                if (NumGroups > 1 || PlayerCount > 0)
-                {
-                    OutSnapshot.AddInfo(Cat,
-                        FString::Printf(TEXT("Group[%d].Players"), i),
-                        FString::FromInt(PlayerCount));
-
-                    const TArray<int64>& Uids = Group.GetPlayerUids();
-                    FString UidList;
-                    for (int32 j = 0; j < FMath::Min(Uids.Num(), 5); ++j)
-                    {
-                        if (j > 0) UidList += TEXT(", ");
-                        UidList += FString::Printf(TEXT("%lld"), Uids[j]);
-                    }
-                    if (Uids.Num() > 5)
-                    {
-                        UidList += FString::Printf(TEXT(" (+%d more)"), Uids.Num() - 5);
-                    }
-                    if (!UidList.IsEmpty())
-                    {
-                        OutSnapshot.AddInfo(Cat,
-                            FString::Printf(TEXT("Group[%d].UIDs"), i), UidList);
-                    }
-                }
-            }
-            OutSnapshot.AddInfo(Cat, TEXT("TotalPlayers"), FString::FromInt(TotalPlayers));
-        }
-        else
-        {
-            OutSnapshot.AddError(Cat, TEXT("GridRelevancy"), TEXT("NULL"));
-        }
-    }
-
-    // === ServerRule 정보 ===
-    {
-        const FString Cat = TEXT("Rule");
-        OutSnapshot.AddInfo(Cat, TEXT("ServerRule"), CachedServerRule ? TEXT("Active") : TEXT("None"));
-    }
-
-    // === Component 상태 요약 ===
-    {
-        const FString Cat = TEXT("Components");
-        OutSnapshot.AddInfo(Cat, TEXT("PersistentFrame"),
-            CachedFrameManager ? TEXT("OK") : TEXT("NULL"));
-        OutSnapshot.AddInfo(Cat, TEXT("GridRelevancy"),
-            CachedRelevancyGraph ? TEXT("OK") : TEXT("NULL"));
-        OutSnapshot.AddInfo(Cat, TEXT("PlayerDatabase"),
-            CachedWorldDatabase ? TEXT("OK") : TEXT("NULL"));
-    }
-}
-#endif
