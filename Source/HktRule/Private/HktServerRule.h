@@ -46,4 +46,7 @@ private:
 	TArray<TArray<FHktEvent>>                     PendingGroupIntents;
 
 	int32 ServerEventSequence = 0;
+
+	// NPC 스포너 — fire된 스포너 EventTag 추적 (그룹별)
+	TSet<FGameplayTag> ActiveSpawnerFlows;
 };

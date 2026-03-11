@@ -101,7 +101,15 @@ namespace Reg
     X(AddTag)           \
     X(RemoveTag)        \
     X(HasTag)           \
-    X(Log)
+    X(Log)              \
+    /* NPC Spawning */  \
+    X(CountByTag)       \
+    X(GetWorldTime)     \
+    X(RandomInt)        \
+    X(HasPlayerInGroup) \
+    /* Item System */   \
+    X(CountByOwner)     \
+    X(FindByOwner)
 
 enum class EOpCode : uint8
 {

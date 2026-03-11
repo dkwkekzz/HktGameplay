@@ -1,0 +1,70 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+
+#include "CoreMinimal.h"
+#include "HktFlowBuilder.h"
+#include "HktCoreProperties.h"
+#include "HktFlowRegistry.h"
+#include "NativeGameplayTags.h"
+
+namespace HktFlowNPCLifecycle
+{
+	// Flow Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_NPC_Lifecycle, "Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
+
+	// Anim
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Death, "Anim.Death", "Death animation.");
+
+	// Loot
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_NPCLoot, "Entity.Item.NPCLoot", "Generic NPC loot drop.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Material, "Tag.Item.Material", "Material item tag.");
+
+	/**
+	 * ================================================================
+	 * NPC 생명주기 Flow
+	 *
+	 * 자연어로 읽으면:
+	 * "1초마다 체력을 확인한다.
+	 *  체력이 0 이하이면 죽음 애니메이션을 재생하고
+	 *  NPC 위치에 전리품을 드랍한 뒤
+	 *  3초 후 엔티티를 제거한다."
+	 *
+	 * NPC 스폰 시 함께 fire되어야 함.
+	 * Self = NPC 엔티티
+	 * ================================================================
+	 */
+	HKT_REGISTER_FLOW_BODY()
+	{
+		using namespace Reg;
+
+		Flow(Flow_NPC_Lifecycle)
+			.Label(TEXT("check"))
+				.LoadEntityProperty(R0, Self, PropertyId::Health)
+				.LoadConst(R1, 0)
+				.CmpLe(Flag, R0, R1)                    // Health <= 0?
+				.JumpIf(Flag, TEXT("die"))
+				.WaitSeconds(1.0f)
+				.Jump(TEXT("check"))
+
+			.Label(TEXT("die"))
+				.Log(TEXT("NPC died"))
+
+				// 전리품 드랍
+				.SpawnEntity(HktType::Equipment, Entity_Item_NPCLoot)
+				.LoadConst(R2, 0)
+				.SaveEntityProperty(Spawned, PropertyId::ItemState, R2)      // Ground
+				.LoadConst(R2, 201)
+				.SaveEntityProperty(Spawned, PropertyId::ItemId, R2)         // Loot ID
+				.LoadConst(R2, -1)
+				.SaveEntityProperty(Spawned, PropertyId::ActionSlot, R2)     // 미등록
+				.GetPosition(R3, Self)
+				.SetPosition(Spawned, R3)                                    // NPC 위치에 드랍
+				.AddTag(Spawned, Tag_Item_Material)
+
+				// 죽음 연출
+				.PlayAnim(Self, Anim_Death)
+				.WaitSeconds(3.0f)
+				.DestroyEntity(Self)
+				.Halt()
+			.BuildAndRegister();
+	}
+}
