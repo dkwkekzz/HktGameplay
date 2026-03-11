@@ -10,56 +10,7 @@
 
 #if ENABLE_HKT_INSIGHTS
 #include "HktCoreDataCollector.h"
-
-namespace HktInsightsInternal
-{
-    inline FString PropIdToName(uint16 PropId)
-    {
-        switch (PropId)
-        {
-        case PropertyId::PosX:            return TEXT("PosX");
-        case PropertyId::PosY:            return TEXT("PosY");
-        case PropertyId::PosZ:            return TEXT("PosZ");
-        case PropertyId::RotYaw:          return TEXT("RotYaw");
-        case PropertyId::MoveTargetX:     return TEXT("MoveTargX");
-        case PropertyId::MoveTargetY:     return TEXT("MoveTargY");
-        case PropertyId::MoveTargetZ:     return TEXT("MoveTargZ");
-        case PropertyId::MoveForce:       return TEXT("MoveForce");
-        case PropertyId::IsMoving:        return TEXT("IsMoving");
-        case PropertyId::Health:          return TEXT("Health");
-        case PropertyId::MaxHealth:       return TEXT("MaxHealth");
-        case PropertyId::AttackPower:     return TEXT("AtkPow");
-        case PropertyId::Defense:         return TEXT("Defense");
-        case PropertyId::Team:            return TEXT("Team");
-        case PropertyId::Mana:            return TEXT("Mana");
-        case PropertyId::MaxMana:         return TEXT("MaxMana");
-        case PropertyId::OwnerEntity:     return TEXT("OwnerEnt");
-        case PropertyId::EntityType:      return TEXT("EntType");
-        case PropertyId::TargetPosX:      return TEXT("TargPosX");
-        case PropertyId::TargetPosY:      return TEXT("TargPosY");
-        case PropertyId::TargetPosZ:      return TEXT("TargPosZ");
-        case PropertyId::Param0:          return TEXT("Param0");
-        case PropertyId::Param1:          return TEXT("Param1");
-        case PropertyId::Param2:          return TEXT("Param2");
-        case PropertyId::Param3:          return TEXT("Param3");
-        case PropertyId::AnimState:       return TEXT("AnimState");
-        case PropertyId::VisualState:     return TEXT("VisState");
-        default:                          return FString::Printf(TEXT("P%d"), PropId);
-        }
-    }
-
-    inline FString TypeIdToName(FHktTypeId TypeId)
-    {
-        switch (TypeId)
-        {
-        case HktType::Unit:       return TEXT("Unit");
-        case HktType::Projectile: return TEXT("Projectile");
-        case HktType::Equipment:  return TEXT("Equipment");
-        case HktType::Building:   return TEXT("Building");
-        default:                  return FString::Printf(TEXT("Type%d"), TypeId);
-        }
-    }
-}
+#include "HktCoreDefs.h"
 #endif
 
 FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(const FString& InSourceName)
@@ -213,19 +164,20 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         {
             const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
             if (Pool.ActiveCount == 0) continue;
-            const FString TypeName = HktInsightsInternal::TypeIdToName(static_cast<FHktTypeId>(T));
+            const TCHAR* TypeName = GetTypeName(static_cast<FHktTypeId>(T));
             const FHktEntitySchema& Schema = FHktSchemaRegistry::Get().Get(static_cast<FHktTypeId>(T));
 
             Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
             {
                 // 키: "E_{EntityId}" — 값: "Type=Unit | Owner=123 | PosX=100 PosY=200 ..."
                 FString PropSummary;
-                PropSummary += FString::Printf(TEXT("Type=%s"), *TypeName);
+                PropSummary += FString::Printf(TEXT("Type=%s"), TypeName ? TypeName : TEXT("Unknown"));
                 PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
                 for (int8 LocalIdx = 0; LocalIdx < Pool.Stride; ++LocalIdx)
                 {
+                    const TCHAR* PropName = GetPropertyName(Schema.PropertyIds[LocalIdx]);
                     PropSummary += FString::Printf(TEXT(" | %s=%d"),
-                        *HktInsightsInternal::PropIdToName(Schema.PropertyIds[LocalIdx]),
+                        PropName ? PropName : TEXT("?"),
                         Pool.Get(Slot, LocalIdx));
                 }
 

@@ -6,57 +6,70 @@
 
 /**
  * PropertyId - 엔티티 속성 ID 상수
- * 
+ *
  * SOA 레이아웃에서 각 속성의 인덱스를 정의
  * WorldState, VM Store 등에서 공통 사용
+ *
+ * X-매크로 패턴: ID 상수와 이름 문자열을 한 곳에서 관리
  */
+
+#define HKT_PROPERTY_LIST(X) \
+    /* 위치/이동 */           \
+    X(PosX, 0)               \
+    X(PosY, 1)               \
+    X(PosZ, 2)               \
+    X(RotYaw, 3)             \
+    X(MoveTargetX, 4)        \
+    X(MoveTargetY, 5)        \
+    X(MoveTargetZ, 6)        \
+    X(MoveForce, 7)          \
+    X(IsMoving, 8)           \
+    X(MaxSpeed, 9)           \
+    /* 전투/상태 */           \
+    X(Health, 10)            \
+    X(MaxHealth, 11)         \
+    X(AttackPower, 12)       \
+    X(Defense, 13)           \
+    X(Team, 14)              \
+    X(Mana, 15)              \
+    X(MaxMana, 16)           \
+    /* 소유/타입 */           \
+    X(OwnerEntity, 20)       \
+    X(EntityType, 21)        \
+    X(EntitySpawnTag, 22)    \
+    /* 이벤트 파라미터 */     \
+    X(TargetPosX, 30)        \
+    X(TargetPosY, 31)        \
+    X(TargetPosZ, 32)        \
+    X(Param0, 33)            \
+    X(Param1, 34)            \
+    X(Param2, 35)            \
+    X(Param3, 36)            \
+    /* 애니메이션/비주얼 */   \
+    X(AnimState, 40)         \
+    X(VisualState, 41)       \
+    /* 물리 */                \
+    X(VelX, 50)              \
+    X(VelY, 51)              \
+    X(VelZ, 52)              \
+    X(Mass, 53)              \
+    X(CollisionRadius, 54)
+
 namespace PropertyId
 {
-    // === 위치/이동 ===
-    constexpr uint16 PosX = 0;
-    constexpr uint16 PosY = 1;
-    constexpr uint16 PosZ = 2;
-    constexpr uint16 RotYaw = 3;
+    #define HKT_PROPID_CONST(Name, Id) constexpr uint16 Name = Id;
+    HKT_PROPERTY_LIST(HKT_PROPID_CONST)
+    #undef HKT_PROPID_CONST
+}
 
-    constexpr uint16 MoveTargetX = 4;
-    constexpr uint16 MoveTargetY = 5;
-    constexpr uint16 MoveTargetZ = 6;
-    constexpr uint16 MoveForce = 7;  // was MoveSpeed — now force unit (F=ma)
-    constexpr uint16 IsMoving = 8;
-    constexpr uint16 MaxSpeed = 9;
-
-    // === 전투/상태 ===
-    constexpr uint16 Health = 10;
-    constexpr uint16 MaxHealth = 11;
-    constexpr uint16 AttackPower = 12;
-    constexpr uint16 Defense = 13;
-    constexpr uint16 Team = 14;
-
-    constexpr uint16 Mana = 15;
-    constexpr uint16 MaxMana = 16;
-
-    // === 소유/타입 ===
-    constexpr uint16 OwnerEntity = 20;
-    constexpr uint16 EntityType = 21;
-    constexpr uint16 EntitySpawnTag = 22;
-
-    // === 이벤트 파라미터 (Event에서 전달) ===
-    constexpr uint16 TargetPosX = 30;
-    constexpr uint16 TargetPosY = 31;
-    constexpr uint16 TargetPosZ = 32;
-    constexpr uint16 Param0 = 33;
-    constexpr uint16 Param1 = 34;
-    constexpr uint16 Param2 = 35;
-    constexpr uint16 Param3 = 36;
-
-    // === 애니메이션/비주얼 ===
-    constexpr uint16 AnimState = 40;
-    constexpr uint16 VisualState = 41;
-
-    // === 물리 ===
-    constexpr uint16 VelX = 50;
-    constexpr uint16 VelY = 51;
-    constexpr uint16 VelZ = 52;
-    constexpr uint16 Mass = 53;             // F=ma, 기본값 100
-    constexpr uint16 CollisionRadius = 54;  // cm, 기본값 50
+/** PropertyId → 이름 문자열 (디버그/인사이트용) */
+inline const TCHAR* GetPropertyName(uint16 PropId)
+{
+    switch (PropId)
+    {
+    #define HKT_PROPID_NAME(Name, Id) case Id: return TEXT(#Name);
+    HKT_PROPERTY_LIST(HKT_PROPID_NAME)
+    #undef HKT_PROPID_NAME
+    default: return nullptr;
+    }
 }
