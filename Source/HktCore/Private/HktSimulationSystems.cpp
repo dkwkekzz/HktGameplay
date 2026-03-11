@@ -144,11 +144,12 @@ void FHktVMBuildSystem::Process(
         Runtime->SetRegEntity(Reg::Self, Event.SourceEntity);
         Runtime->SetRegEntity(Reg::Target, Event.TargetEntity);
 
-        Context->Write(PropertyId::Param0, Event.Param0);
-        Context->Write(PropertyId::Param1, Event.Param1);
-        Context->Write(PropertyId::TargetPosX, FMath::RoundToInt(Event.Location.X));
-        Context->Write(PropertyId::TargetPosY, FMath::RoundToInt(Event.Location.Y));
-        Context->Write(PropertyId::TargetPosZ, FMath::RoundToInt(Event.Location.Z));
+        // 이벤트 파라미터를 Context 로컬에 저장 (SourceEntity 없이도 LoadStore로 읽기 가능)
+        Context->EventParam0 = Event.Param0;
+        Context->EventParam1 = Event.Param1;
+        Context->EventTargetPosX = FMath::RoundToInt(Event.Location.X);
+        Context->EventTargetPosY = FMath::RoundToInt(Event.Location.Y);
+        Context->EventTargetPosZ = FMath::RoundToInt(Event.Location.Z);
 
         OutActiveVMs.Add(Handle);
         WorldState.ActiveEvents.Add(Event);
