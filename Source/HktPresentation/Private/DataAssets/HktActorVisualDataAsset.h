@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HktTagDataAsset.h"
+#include "HktAnimInstance.h"
 #include "HktActorVisualDataAsset.generated.h"
 
 class AActor;
@@ -21,4 +22,8 @@ public:
 	/** 이 시각 태그에 대응하는 액터 또는 블루프린트 클래스 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Visual")
 	TSubclassOf<AActor> ActorClass;
+
+	/** 애니메이션 태그 → 몽타주 매핑 (스폰 시 AnimInstance에 주입) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
+	TArray<FHktAnimMontageEntry> MontageMappings;
 };

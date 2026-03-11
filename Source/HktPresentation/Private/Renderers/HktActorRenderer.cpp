@@ -1,9 +1,10 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktActorRenderer.h"
-#include "HktAnimationComponent.h"
+#include "HktAnimInstance.h"
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Components/CapsuleComponent.h"
@@ -112,6 +113,15 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
 
+			// AnimInstance에 몽타주 매핑 주입
+			if (USkeletalMeshComponent* SkelMesh = SpawnedActor->FindComponentByClass<USkeletalMeshComponent>())
+			{
+				if (UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance()))
+				{
+					HktAnim->InitMontageMappings(VisualAsset->MontageMappings);
+				}
+			}
+
 			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
 			Motion.TargetLocation = SpawnLocation;
 			Motion.TargetRotation = Rotation;
@@ -182,17 +192,29 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 	}
 
 	AActor* Actor = WeakPtr->Get();
-	UHktAnimationComponent* AnimComp = Actor->FindComponentByClass<UHktAnimationComponent>();
-	if (!AnimComp)
+	USkeletalMeshComponent* SkelMesh = Actor->FindComponentByClass<USkeletalMeshComponent>();
+	if (!SkelMesh)
 	{
 		return;
+	}
+
+	UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance());
+	if (!HktAnim)
+	{
+		return;
+	}
+
+	// 이동 상태 동기화
+	if (Entity.Movement.bIsMoving.IsDirty(Frame))
+	{
+		HktAnim->bIsMoving = Entity.Movement.bIsMoving.Get();
 	}
 
 	// 루프 애니메이션 상태 변경 (Anim.Idle, Anim.Run 등)
 	if (Entity.Animation.AnimState.IsDirty(Frame))
 	{
 		FGameplayTag AnimTag = Entity.Animation.AnimState.Get();
-		AnimComp->SetAnimStateTag(AnimTag);
+		HktAnim->SetAnimStateTag(AnimTag);
 	}
 
 	// 원샷 몽타주 재생 (Anim.Montage.Attack 등)
@@ -201,7 +223,7 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		FGameplayTag MontageTag = Entity.Animation.MontageState.Get();
 		if (MontageTag.IsValid())
 		{
-			AnimComp->PlayMontageByTag(MontageTag);
+			HktAnim->PlayMontageByTag(MontageTag);
 		}
 	}
 }
