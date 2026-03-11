@@ -46,10 +46,12 @@ void FHktSchemaRegistry::Initialize()
         auto& S = Schemas[HktType::Equipment];
         S.TypeId = HktType::Equipment;
         for (uint16 P : {
+            PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ,
             PropertyId::OwnerEntity, PropertyId::AttackPower,
             PropertyId::TargetPosX, PropertyId::TargetPosY, PropertyId::TargetPosZ, PropertyId::Param0, PropertyId::Param1,
-            PropertyId::OwnerEntity, PropertyId::EntityType, PropertyId::EntitySpawnTag,
-            PropertyId::Defense })
+            PropertyId::EntityType, PropertyId::EntitySpawnTag,
+            PropertyId::Defense,
+            PropertyId::ItemState, PropertyId::ItemId, PropertyId::BagSlot, PropertyId::ActionSlot })
             S.AddProperty(P);
     }
     {

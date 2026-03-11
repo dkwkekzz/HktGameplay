@@ -100,6 +100,8 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::GetWorldTime: Op_GetWorldTime(Runtime, Inst.Dst); break;
     case EOpCode::RandomInt: Op_RandomInt(Runtime, Inst.Dst, Inst.Src1); break;
     case EOpCode::HasPlayerInGroup: Op_HasPlayerInGroup(Runtime, Inst.Dst); break;
+    case EOpCode::CountByOwner: Op_CountByOwner(Runtime, Inst.Dst, Inst.Src1, static_cast<FHktTypeId>(Inst.Imm12)); break;
+    case EOpCode::FindByOwner: Op_FindByOwner(Runtime, Inst.Src1, static_cast<FHktTypeId>(Inst.Imm12)); break;
     default: return EVMStatus::Failed;
     }
     return EVMStatus::Running;

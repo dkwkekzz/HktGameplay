@@ -106,7 +106,10 @@ namespace Reg
     X(CountByTag)       \
     X(GetWorldTime)     \
     X(RandomInt)        \
-    X(HasPlayerInGroup)
+    X(HasPlayerInGroup) \
+    /* Item System */   \
+    X(CountByOwner)     \
+    X(FindByOwner)
 
 enum class EOpCode : uint8
 {

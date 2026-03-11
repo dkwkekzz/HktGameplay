@@ -113,6 +113,10 @@ private:
     void Op_RandomInt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex ModulusReg);
     void Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterIndex Dst);
 
+    // ===== Item System =====
+    void Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId);
+    void Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, FHktTypeId TypeId);
+
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);
 

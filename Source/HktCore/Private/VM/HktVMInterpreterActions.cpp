@@ -437,6 +437,52 @@ void FHktVMInterpreter::Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterInde
 }
 
 // ============================================================================
+// Item System
+// ============================================================================
+
+void FHktVMInterpreter::Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId)
+{
+    int32 Count = 0;
+    if (WorldState && TypeId > 0 && TypeId < HktType::MaxTypes)
+    {
+        FHktEntityId OwnerId = Runtime.GetRegEntity(OwnerEntity);
+        const FHktEntityPool& Pool = WorldState->GetPool(TypeId);
+        const int8 LP = FHktSchemaRegistry::Get().Get(TypeId).GetLocalIndex(PropertyId::OwnerEntity);
+        if (LP >= 0)
+        {
+            Pool.ForEachEntity([&](FHktEntityId /*E*/, int32 Slot)
+            {
+                if (Pool.Get(Slot, LP) == OwnerId)
+                    ++Count;
+            });
+        }
+    }
+    Runtime.SetReg(Dst, Count);
+}
+
+void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, FHktTypeId TypeId)
+{
+    Runtime.SpatialQuery.Reset();
+
+    if (WorldState && TypeId > 0 && TypeId < HktType::MaxTypes)
+    {
+        FHktEntityId OwnerId = Runtime.GetRegEntity(OwnerEntity);
+        const FHktEntityPool& Pool = WorldState->GetPool(TypeId);
+        const int8 LP = FHktSchemaRegistry::Get().Get(TypeId).GetLocalIndex(PropertyId::OwnerEntity);
+        if (LP >= 0)
+        {
+            Pool.ForEachEntity([&](FHktEntityId E, int32 Slot)
+            {
+                if (Pool.Get(Slot, LP) == OwnerId)
+                    Runtime.SpatialQuery.Entities.Add(E);
+            });
+        }
+    }
+
+    Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
+}
+
+// ============================================================================
 // Utility
 // ============================================================================
 

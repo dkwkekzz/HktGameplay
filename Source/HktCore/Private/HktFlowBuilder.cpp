@@ -519,6 +519,22 @@ FHktFlowBuilder& FHktFlowBuilder::HasPlayerInGroup(RegisterIndex Dst)
 }
 
 // ============================================================================
+// Item System
+// ============================================================================
+
+FHktFlowBuilder& FHktFlowBuilder::CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId)
+{
+    Emit(FInstruction::Make(EOpCode::CountByOwner, Dst, OwnerEntity, 0, TypeId & 0xFFF));
+    return *this;
+}
+
+FHktFlowBuilder& FHktFlowBuilder::FindByOwner(RegisterIndex OwnerEntity, FHktTypeId TypeId)
+{
+    Emit(FInstruction::Make(EOpCode::FindByOwner, Reg::Count, OwnerEntity, 0, TypeId & 0xFFF));
+    return *this;
+}
+
+// ============================================================================
 // Utility
 // ============================================================================
 

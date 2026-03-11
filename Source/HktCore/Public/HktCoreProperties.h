@@ -54,6 +54,11 @@
     X(VelZ, 52)              \
     X(Mass, 53)              \
     X(CollisionRadius, 54)   \
+    /* 아이템 */              \
+    X(ItemState, 55)         \
+    X(ItemId, 56)            \
+    X(BagSlot, 57)           \
+    X(ActionSlot, 58)        \
     /* NPC */                 \
     X(IsNPC, 60)             \
     X(SpawnFlowTag, 61)

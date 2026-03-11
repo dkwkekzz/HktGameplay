@@ -204,6 +204,14 @@ public:
     /** 현재 relevancy group에 플레이어 존재 여부 → Dst (1/0) */
     FHktFlowBuilder& HasPlayerInGroup(RegisterIndex Dst);
 
+    // ========== Item System ==========
+
+    /** 특정 엔티티가 소유한 TypeId 엔티티 수 카운트 → Dst */
+    FHktFlowBuilder& CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId);
+
+    /** 특정 엔티티가 소유한 TypeId 엔티티 검색 → NextFound()로 순회 */
+    FHktFlowBuilder& FindByOwner(RegisterIndex OwnerEntity, FHktTypeId TypeId);
+
     // ========== Utility ==========
 
     FHktFlowBuilder& Log(const FString& Message);
