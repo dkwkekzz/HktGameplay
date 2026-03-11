@@ -24,6 +24,10 @@ namespace HktFlowPlayerInWorld
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Spawn, "Sound.Spawn", "Character spawn sound.");
 
+	// Item
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_WoodenSword, "Entity.Item.WoodenSword", "Wooden sword starter item.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Weapon_Sword, "Tag.Weapon.Sword", "Sword weapon tag.");
+
 	/**
 	 * ================================================================
 	 * 플레이어 월드 진입 상태 Flow
@@ -71,6 +75,22 @@ namespace HktFlowPlayerInWorld
 
 			// Idle 상태로 전환
 			.PlayAnim(Self, Anim_Idle)
+
+			// === 초기 아이템: 목검 ===
+			.Log(TEXT("PlayerInWorld: 목검 지급"))
+			.SpawnEntity(HktType::Equipment, Entity_Item_WoodenSword)
+			.SaveEntityProperty(Spawned, PropertyId::OwnerEntity, Self)  // 소유자 = 플레이어
+			.LoadConst(R3, 1)
+			.SaveEntityProperty(Spawned, PropertyId::ItemState, R3)      // InBag
+			.LoadConst(R3, 100)
+			.SaveEntityProperty(Spawned, PropertyId::ItemId, R3)         // 목검 ID
+			.LoadConst(R3, 0)
+			.SaveEntityProperty(Spawned, PropertyId::BagSlot, R3)        // 가방 슬롯 0
+			.LoadConst(R3, -1)
+			.SaveEntityProperty(Spawned, PropertyId::ActionSlot, R3)     // 미등록
+			.LoadConst(R3, 5)
+			.SaveEntityProperty(Spawned, PropertyId::AttackPower, R3)    // 공격력 5
+			.AddTag(Spawned, Tag_Weapon_Sword)
 
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))
 
