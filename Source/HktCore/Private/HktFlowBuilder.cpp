@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktFlowBuilder.h"
+#include "HktCoreProperties.h"
 #include "VM/HktVMProgram.h"
 #include "GameplayTagsManager.h"
 
@@ -59,6 +60,16 @@ int32 FHktFlowBuilder::TagToInt(const FGameplayTag& Tag)
         return static_cast<int32>(NetIndex);
     }
     return 0;
+}
+
+uint8 FHktFlowBuilder::LayerTagToIndex(const FGameplayTag& LayerTag)
+{
+    static const FGameplayTag UpperBodyTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.Layer.UpperBody")), false);
+    if (LayerTag.MatchesTagExact(UpperBodyTag))
+    {
+        return HktAnimLayer::UpperBody;
+    }
+    return HktAnimLayer::FullBody;
 }
 
 // ============================================================================
@@ -404,7 +415,15 @@ FHktFlowBuilder& FHktFlowBuilder::RemoveEffect(RegisterIndex Target, const FGame
 FHktFlowBuilder& FHktFlowBuilder::PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
 {
     int32 TagIdx = TagToInt(AnimTag);
-    Emit(FInstruction::Make(EOpCode::PlayAnim, 0, Entity, 0, TagIdx & 0xFFF));
+    Emit(FInstruction::Make(EOpCode::PlayAnim, HktAnimLayer::FullBody, Entity, 0, TagIdx & 0xFFF));
+    return *this;
+}
+
+FHktFlowBuilder& FHktFlowBuilder::PlayAnimLayer(RegisterIndex Entity, const FGameplayTag& LayerTag, const FGameplayTag& AnimTag)
+{
+    uint8 LayerIdx = LayerTagToIndex(LayerTag);
+    int32 TagIdx = TagToInt(AnimTag);
+    Emit(FInstruction::Make(EOpCode::PlayAnim, LayerIdx, Entity, 0, TagIdx & 0xFFF));
     return *this;
 }
 
@@ -417,7 +436,14 @@ FHktFlowBuilder& FHktFlowBuilder::PlayAnimMontage(RegisterIndex Entity, const FG
 
 FHktFlowBuilder& FHktFlowBuilder::StopAnim(RegisterIndex Entity)
 {
-    Emit(FInstruction::Make(EOpCode::StopAnim, 0, Entity, 0, 0));
+    Emit(FInstruction::Make(EOpCode::StopAnim, HktAnimLayer::FullBody, Entity, 0, 0));
+    return *this;
+}
+
+FHktFlowBuilder& FHktFlowBuilder::StopAnimLayer(RegisterIndex Entity, const FGameplayTag& LayerTag)
+{
+    uint8 LayerIdx = LayerTagToIndex(LayerTag);
+    Emit(FInstruction::Make(EOpCode::StopAnim, LayerIdx, Entity, 0, 0));
     return *this;
 }
 

@@ -1,21 +1,43 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktAnimInstance.h"
+#include "HktRuntimeTags.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 
-void UHktAnimInstance::SetAnimStateTag(const FGameplayTag& NewAnimTag)
+void UHktAnimInstance::SetAnimLayerTag(const FGameplayTag& LayerTag, const FGameplayTag& AnimTag)
 {
-	if (AnimStateTag == NewAnimTag)
+	FGameplayTag& Current = AnimLayerTags.FindOrAdd(LayerTag);
+	if (Current == AnimTag)
 	{
 		return;
 	}
 
-	AnimStateTag = NewAnimTag;
+	Current = AnimTag;
 
-	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] SetAnimStateTag: %s on %s"),
-		*NewAnimTag.ToString(), *GetOwningActor()->GetName());
+	// FullBody 레이어는 AnimStateTag와 동기화 (하위호환)
+	if (LayerTag.MatchesTagExact(HktGameplayTags::Anim_Layer_FullBody))
+	{
+		AnimStateTag = AnimTag;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] SetAnimLayerTag: Layer=%s Anim=%s on %s"),
+		*LayerTag.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName());
+}
+
+void UHktAnimInstance::SetAnimStateTag(const FGameplayTag& NewAnimTag)
+{
+	SetAnimLayerTag(HktGameplayTags::Anim_Layer_FullBody, NewAnimTag);
+}
+
+FGameplayTag UHktAnimInstance::GetAnimLayerTag(const FGameplayTag& LayerTag) const
+{
+	if (const FGameplayTag* Found = AnimLayerTags.Find(LayerTag))
+	{
+		return *Found;
+	}
+	return FGameplayTag();
 }
 
 void UHktAnimInstance::PlayMontageByTag(const FGameplayTag& MontageTag)

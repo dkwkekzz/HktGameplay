@@ -84,9 +84,9 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::ApplyDamage: Op_ApplyDamage(Runtime, Inst.Src1, Inst.Src2); break;
     case EOpCode::ApplyEffect: Op_ApplyEffect(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::RemoveEffect: Op_RemoveEffect(Runtime, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::PlayAnim: Op_PlayAnim(Runtime, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::PlayAnim: Op_PlayAnim(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
     case EOpCode::PlayAnimMontage: Op_PlayAnimMontage(Runtime, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::StopAnim: Op_StopAnim(Runtime, Inst.Src1); break;
+    case EOpCode::StopAnim: Op_StopAnim(Runtime, Inst.Dst, Inst.Src1); break;
     case EOpCode::PlayVFX: Op_PlayVFX(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::PlayVFXAttached: Op_PlayVFXAttached(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::PlaySound: Op_PlaySound(Runtime, Inst.GetSignedImm20()); break;

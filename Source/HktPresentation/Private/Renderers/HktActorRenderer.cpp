@@ -2,6 +2,7 @@
 
 #include "HktActorRenderer.h"
 #include "HktAnimInstance.h"
+#include "HktRuntimeTags.h"
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -212,11 +213,18 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->bIsMoving = Entity.Movement.bIsMoving.Get();
 	}
 
-	// 루프 애니메이션 상태 변경 (Anim.Idle, Anim.Run 등)
+	// FullBody 루프 애니메이션 상태 변경 (Anim.Idle, Anim.Run 등)
 	if (Entity.Animation.AnimState.IsDirty(Frame))
 	{
 		FGameplayTag AnimTag = Entity.Animation.AnimState.Get();
-		HktAnim->SetAnimStateTag(AnimTag);
+		HktAnim->SetAnimLayerTag(HktGameplayTags::Anim_Layer_FullBody, AnimTag);
+	}
+
+	// UpperBody 레이어 애니메이션 상태 변경
+	if (Entity.Animation.AnimStateUpper.IsDirty(Frame))
+	{
+		FGameplayTag AnimTag = Entity.Animation.AnimStateUpper.Get();
+		HktAnim->SetAnimLayerTag(HktGameplayTags::Anim_Layer_UpperBody, AnimTag);
 	}
 
 	// 원샷 몽타주 재생 (Anim.Montage.Attack 등)

@@ -4,6 +4,7 @@
 #include "HktFlowBuilder.h"
 #include "HktCoreProperties.h"
 #include "HktFlowRegistry.h"
+#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktFlowHeal
@@ -37,8 +38,8 @@ namespace HktFlowHeal
 		Flow(Flow_Heal)
 			.Log(TEXT("Heal: 시전 시작"))
 
-			// 시전 애니메이션
-			.PlayAnim(Self, Anim_CastHeal)
+			// 상체 레이어에 시전 애니메이션 (하체 이동 유지)
+			.PlayAnimLayer(Self, HktGameplayTags::Anim_Layer_UpperBody, Anim_CastHeal)
 			.PlayVFXAttached(Self, VFX_HealCast)
 			.WaitSeconds(0.8f)
 
@@ -68,6 +69,9 @@ namespace HktFlowHeal
 			// 회복 이펙트
 			.PlayVFXAttached(Self, VFX_HealBurst)
 			.PlaySound(Sound_Heal)
+
+			// 상체 레이어 초기화
+			.StopAnimLayer(Self, HktGameplayTags::Anim_Layer_UpperBody)
 
 			.Log(TEXT("Heal: 완료"))
 			.Halt()

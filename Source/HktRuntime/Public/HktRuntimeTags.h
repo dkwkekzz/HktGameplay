@@ -14,4 +14,8 @@ namespace HktGameplayTags
 
     // Effect Tags
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Burn);
+
+    // Animation Layer Tags
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_Layer_FullBody);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_Layer_UpperBody);
 }

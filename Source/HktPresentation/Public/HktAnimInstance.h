@@ -63,9 +63,9 @@ struct FHktAnimBlendSpaceEntry
  *
  * Flow VM의 AnimState/MontageState 프로퍼티를 UE5 애니메이션 시스템에 전달.
  *
- * - AnimStateTag: 루프 애니메이션 상태 (AnimBP 상태머신에서 직접 읽음)
- * - bIsMoving: 이동 여부 (블렌드스페이스용)
- * - PlayMontageByTag(): 원샷 몽타주 재생
+ * 레이어 시스템:
+ * - AnimLayerTags: 레이어별 애니메이션 상태 태그 맵 (LayerTag → AnimTag)
+ * - AnimStateTag: FullBody 레이어의 편의 프로퍼티 (AnimBP 하위호환)
  *
  * 몽타주 매핑은 UHktActorVisualDataAsset에서 로딩하여 InitMontageMappings()로 주입합니다.
  */
@@ -75,7 +75,11 @@ class HKTPRESENTATION_API UHktAnimInstance : public UAnimInstance
 	GENERATED_BODY()
 
 public:
-	/** 루프 애니메이션 상태 태그 (Anim.Idle, Anim.Run 등) — AnimBP에서 직접 읽기 */
+	/** 레이어별 애니메이션 상태 태그 (Anim.Layer.* → Anim.* 매핑) — AnimBP에서 직접 읽기 */
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
+	TMap<FGameplayTag, FGameplayTag> AnimLayerTags;
+
+	/** FullBody 루프 애니메이션 상태 태그 (하위호환) — AnimBP에서 직접 읽기 */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	FGameplayTag AnimStateTag;
 
@@ -83,8 +87,15 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	bool bIsMoving = false;
 
-	/** 루프 애니메이션 상태 태그 설정 */
+	/** 특정 레이어의 애니메이션 상태 태그 설정 */
+	void SetAnimLayerTag(const FGameplayTag& LayerTag, const FGameplayTag& AnimTag);
+
+	/** FullBody 루프 애니메이션 상태 태그 설정 (하위호환) */
 	void SetAnimStateTag(const FGameplayTag& NewAnimTag);
+
+	/** 특정 레이어의 애니메이션 상태 태그 조회 */
+	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
+	FGameplayTag GetAnimLayerTag(const FGameplayTag& LayerTag) const;
 
 	/** 몽타주 재생 (Anim.Montage.Attack 등) */
 	void PlayMontageByTag(const FGameplayTag& MontageTag);

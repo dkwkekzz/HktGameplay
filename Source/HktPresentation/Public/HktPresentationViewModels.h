@@ -65,11 +65,14 @@ struct FHktVM_Ownership
 /** Animation/Visual 그룹 */
 struct FHktVM_Animation
 {
-	/** 루프 애니메이션 상태 태그 (Anim.Idle, Anim.Run 등) */
+	/** FullBody 레이어 애니메이션 상태 태그 (Anim.Idle, Anim.Run 등) */
 	THktVisualField<FGameplayTag> AnimState;
 
 	/** 원샷 몽타주 태그 (Anim.Montage.Attack 등) */
 	THktVisualField<FGameplayTag> MontageState;
+
+	/** UpperBody 레이어 애니메이션 상태 태그 */
+	THktVisualField<FGameplayTag> AnimStateUpper;
 
 	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
 	bool TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);

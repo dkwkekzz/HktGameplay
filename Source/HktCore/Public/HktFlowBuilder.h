@@ -154,14 +154,20 @@ public:
 
     // ========== Animation & VFX ==========
 
-    /** 애니메이션 재생 */
+    /** 애니메이션 재생 (FullBody 레이어 기본) */
     FHktFlowBuilder& PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag);
+
+    /** 특정 레이어에 애니메이션 재생 (레이어는 Anim.Layer.* 태그로 지정) */
+    FHktFlowBuilder& PlayAnimLayer(RegisterIndex Entity, const FGameplayTag& LayerTag, const FGameplayTag& AnimTag);
 
     /** 몽타주 재생 */
     FHktFlowBuilder& PlayAnimMontage(RegisterIndex Entity, const FGameplayTag& MontageTag);
 
-    /** 애니메이션 중지 */
+    /** 애니메이션 중지 (FullBody 레이어 기본) */
     FHktFlowBuilder& StopAnim(RegisterIndex Entity);
+
+    /** 특정 레이어 애니메이션 중지 */
+    FHktFlowBuilder& StopAnimLayer(RegisterIndex Entity, const FGameplayTag& LayerTag);
 
     /** VFX 재생 (위치) */
     FHktFlowBuilder& PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag);
@@ -228,6 +234,7 @@ private:
     int32 AddString(const FString& Str);
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
+    uint8 LayerTagToIndex(const FGameplayTag& LayerTag);
     void ResolveLabels();
 
 private:

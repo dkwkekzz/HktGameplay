@@ -11,4 +11,8 @@ namespace HktGameplayTags
 
     // Effect Tags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Burn, "Effect.Burn", "Burn effect: fire damage over time.");
+
+    // Animation Layer Tags
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Layer_FullBody, "Anim.Layer.FullBody", "Full body animation layer (locomotion, idle).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Layer_UpperBody, "Anim.Layer.UpperBody", "Upper body animation layer (attack, cast override).");
 }

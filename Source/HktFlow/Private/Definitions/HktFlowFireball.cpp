@@ -4,6 +4,7 @@
 #include "HktFlowBuilder.h"
 #include "HktCoreProperties.h"
 #include "HktFlowRegistry.h"
+#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktFlowFireball
@@ -46,7 +47,7 @@ namespace HktFlowFireball
 		Flow(Flow_Fireball)
 			// === 시전 시작 ===
 			.Log(TEXT("Fireball: 시전 시작"))
-			.PlayAnim(Self, Anim_CastFireball)
+			.PlayAnimLayer(Self, HktGameplayTags::Anim_Layer_UpperBody, Anim_CastFireball)
 			.WaitSeconds(1.0f)                          // 1초 대기
 
 			// === 파이어볼 생성 및 발사 ===
@@ -96,6 +97,9 @@ namespace HktFlowFireball
 				.ApplyDamageConst(Target, 50)           // 50 피해
 				.ApplyEffect(Target, Effect_Burn)
 			.EndForEach()
+
+			// 상체 레이어 초기화
+			.StopAnimLayer(Self, HktGameplayTags::Anim_Layer_UpperBody)
 
 			.Log(TEXT("Fireball: 완료"))
 			.Halt()
