@@ -119,6 +119,8 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 				if (UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance()))
 				{
 					HktAnim->InitMontageMappings(VisualAsset->MontageMappings);
+					HktAnim->InitSequenceMappings(VisualAsset->SequenceMappings);
+					HktAnim->InitBlendSpaceMappings(VisualAsset->BlendSpaceMappings);
 				}
 			}
 

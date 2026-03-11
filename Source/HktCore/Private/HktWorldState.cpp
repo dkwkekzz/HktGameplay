@@ -35,7 +35,7 @@ void FHktSchemaRegistry::Initialize()
             PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ,
             PropertyId::TargetPosX, PropertyId::TargetPosY, PropertyId::TargetPosZ, PropertyId::Param0, PropertyId::Param1,
             PropertyId::MoveTargetX, PropertyId::MoveTargetY, PropertyId::MoveTargetZ,
-            PropertyId::MoveForce, PropertyId::IsMoving, PropertyId::MaxSpeed,
+            PropertyId::MoveForce, PropertyId::IsMoving, PropertyId::MaxSpeed, 
             PropertyId::VelX, PropertyId::VelY, PropertyId::VelZ,
             PropertyId::Mass, PropertyId::CollisionRadius,
             PropertyId::OwnerEntity, PropertyId::EntityType, PropertyId::EntitySpawnTag,
@@ -49,7 +49,11 @@ void FHktSchemaRegistry::Initialize()
             PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ,
             PropertyId::OwnerEntity, PropertyId::AttackPower,
             PropertyId::TargetPosX, PropertyId::TargetPosY, PropertyId::TargetPosZ, PropertyId::Param0, PropertyId::Param1,
-            PropertyId::EntityType, PropertyId::EntitySpawnTag,
+            PropertyId::MoveTargetX, PropertyId::MoveTargetY, PropertyId::MoveTargetZ,
+            PropertyId::MoveForce, PropertyId::IsMoving, PropertyId::MaxSpeed,
+            PropertyId::VelX, PropertyId::VelY, PropertyId::VelZ,
+            PropertyId::Mass, PropertyId::CollisionRadius,
+            PropertyId::OwnerEntity, PropertyId::EntityType, PropertyId::EntitySpawnTag,
             PropertyId::Defense,
             PropertyId::ItemState, PropertyId::ItemId, PropertyId::BagSlot, PropertyId::ActionSlot })
             S.AddProperty(P);

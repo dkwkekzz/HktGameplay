@@ -26,4 +26,12 @@ public:
 	/** 애니메이션 태그 → 몽타주 매핑 (스폰 시 AnimInstance에 주입) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
 	TArray<FHktAnimMontageEntry> MontageMappings;
+
+	/** 애니메이션 태그 → 시퀀스 매핑 (스폰 시 AnimInstance에 주입) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
+	TArray<FHktAnimSequenceEntry> SequenceMappings;
+
+	/** 애니메이션 태그 → 블렌드스페이스 매핑 (스폰 시 AnimInstance에 주입) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
+	TArray<FHktAnimBlendSpaceEntry> BlendSpaceMappings;
 };

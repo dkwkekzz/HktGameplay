@@ -8,6 +8,8 @@
 #include "HktAnimInstance.generated.h"
 
 class UAnimMontage;
+class UAnimSequence;
+class UBlendSpace;
 
 /**
  * 애니메이션 태그 → 몽타주 매핑 엔트리
@@ -24,6 +26,36 @@ struct FHktAnimMontageEntry
 	/** 재생할 몽타주 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
 	TObjectPtr<UAnimMontage> Montage;
+};
+
+/**
+ * 애니메이션 태그 → 시퀀스 매핑 엔트리
+ */
+USTRUCT(BlueprintType)
+struct FHktAnimSequenceEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
+	FGameplayTag AnimTag;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
+	TObjectPtr<UAnimSequence> Sequence;
+};
+
+/**
+ * 애니메이션 태그 → 블렌드스페이스 매핑 엔트리
+ */
+USTRUCT(BlueprintType)
+struct FHktAnimBlendSpaceEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
+	FGameplayTag AnimTag;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
+	TObjectPtr<UBlendSpace> BlendSpace;
 };
 
 /**
@@ -57,16 +89,44 @@ public:
 	/** 몽타주 재생 (Anim.Montage.Attack 등) */
 	void PlayMontageByTag(const FGameplayTag& MontageTag);
 
+	/** 시퀀스 재생 — 슬롯 기반 다이나믹 몽타주로 재생 */
+	void PlaySequenceByTag(const FGameplayTag& SequenceTag, FName SlotName = FName(TEXT("DefaultSlot")), float PlayRate = 1.0f);
+
+	/** 블렌드스페이스 활성화 — ActiveBlendSpace를 설정하고 AnimBP에서 파라미터와 함께 사용 */
+	void SetBlendSpaceByTag(const FGameplayTag& BlendSpaceTag);
+
 	/** 몽타주가 재생 중인지 */
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
 	bool IsPlayingMontageAnim() const;
 
+	/** 현재 활성 블렌드스페이스 — AnimBP에서 직접 읽기 */
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
+	TObjectPtr<UBlendSpace> ActiveBlendSpace;
+
+	/** 블렌드스페이스 입력 파라미터 X (Speed 등) */
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
+	float BlendSpaceX = 0.0f;
+
+	/** 블렌드스페이스 입력 파라미터 Y (Direction 등) */
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
+	float BlendSpaceY = 0.0f;
+
 	/** DataAsset에서 로딩한 매핑 테이블 주입 */
 	void InitMontageMappings(const TArray<FHktAnimMontageEntry>& InMappings);
+	void InitSequenceMappings(const TArray<FHktAnimSequenceEntry>& InMappings);
+	void InitBlendSpaceMappings(const TArray<FHktAnimBlendSpaceEntry>& InMappings);
 
 private:
 	UAnimMontage* FindMontage(const FGameplayTag& Tag) const;
+	UAnimSequence* FindSequence(const FGameplayTag& Tag) const;
+	UBlendSpace* FindBlendSpace(const FGameplayTag& Tag) const;
 
 	UPROPERTY()
 	TArray<FHktAnimMontageEntry> MontageMappings;
+
+	UPROPERTY()
+	TArray<FHktAnimSequenceEntry> SequenceMappings;
+
+	UPROPERTY()
+	TArray<FHktAnimBlendSpaceEntry> BlendSpaceMappings;
 };
