@@ -1,8 +1,10 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktActorRenderer.h"
+#include "HktAnimInstance.h"
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Components/CapsuleComponent.h"
@@ -37,6 +39,7 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
 		if (!ActorMap.Contains(Id)) continue;
 		UpdateMotionTarget(Id, *E, Frame);
+		UpdateAnimation(Id, *E, Frame);
 	}
 
 	// --- 모든 활성 엔티티 보간 ---
@@ -110,6 +113,15 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
 
+			// AnimInstance에 몽타주 매핑 주입
+			if (USkeletalMeshComponent* SkelMesh = SpawnedActor->FindComponentByClass<USkeletalMeshComponent>())
+			{
+				if (UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance()))
+				{
+					HktAnim->InitMontageMappings(VisualAsset->MontageMappings);
+				}
+			}
+
 			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
 			Motion.TargetLocation = SpawnLocation;
 			Motion.TargetRotation = Rotation;
@@ -168,6 +180,51 @@ void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPres
 	if (Entity.Movement.bIsMoving.IsDirty(Frame))
 	{
 		Motion.bIsMoving = Entity.Movement.bIsMoving.Get();
+	}
+}
+
+void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame)
+{
+	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
+	if (!WeakPtr || !WeakPtr->IsValid())
+	{
+		return;
+	}
+
+	AActor* Actor = WeakPtr->Get();
+	USkeletalMeshComponent* SkelMesh = Actor->FindComponentByClass<USkeletalMeshComponent>();
+	if (!SkelMesh)
+	{
+		return;
+	}
+
+	UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance());
+	if (!HktAnim)
+	{
+		return;
+	}
+
+	// 이동 상태 동기화
+	if (Entity.Movement.bIsMoving.IsDirty(Frame))
+	{
+		HktAnim->bIsMoving = Entity.Movement.bIsMoving.Get();
+	}
+
+	// 루프 애니메이션 상태 변경 (Anim.Idle, Anim.Run 등)
+	if (Entity.Animation.AnimState.IsDirty(Frame))
+	{
+		FGameplayTag AnimTag = Entity.Animation.AnimState.Get();
+		HktAnim->SetAnimStateTag(AnimTag);
+	}
+
+	// 원샷 몽타주 재생 (Anim.Montage.Attack 등)
+	if (Entity.Animation.MontageState.IsDirty(Frame))
+	{
+		FGameplayTag MontageTag = Entity.Animation.MontageState.Get();
+		if (MontageTag.IsValid())
+		{
+			HktAnim->PlayMontageByTag(MontageTag);
+		}
 	}
 }
 

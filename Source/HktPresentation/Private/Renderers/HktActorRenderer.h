@@ -29,6 +29,7 @@ private:
 	void SpawnActor(const FHktEntityPresentation& Entity);
 	void DestroyActor(FHktEntityId Id);
 	void UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame);
+	void UpdateAnimation(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame);
 	void InterpolateActors(float DeltaSeconds);
 
 	/** 지면 높이 트레이스 (위에서 아래로 라인트레이스) */

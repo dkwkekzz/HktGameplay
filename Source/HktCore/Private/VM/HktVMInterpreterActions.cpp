@@ -248,20 +248,35 @@ void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Ta
 // Animation & VFX
 // ============================================================================
 
-void FHktVMInterpreter::Op_PlayAnim(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
+void FHktVMInterpreter::Op_PlayAnim(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagNetIndex)
 {
-    UE_LOG(LogTemp, Log, TEXT("[VM] PlayAnim: Entity %d, Anim %s"),
-        Runtime.GetRegEntity(Entity), *GetString(Runtime, StringIndex));
+    if (VMProxy && WorldState)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::AnimState, TagNetIndex);
+    }
+    UE_LOG(LogTemp, Log, TEXT("[VM] PlayAnim: Entity %d, TagNetIndex %d"),
+        Runtime.GetRegEntity(Entity), TagNetIndex);
 }
 
-void FHktVMInterpreter::Op_PlayAnimMontage(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
+void FHktVMInterpreter::Op_PlayAnimMontage(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagNetIndex)
 {
-    UE_LOG(LogTemp, Log, TEXT("[VM] PlayAnimMontage: Entity %d, Montage %s"),
-        Runtime.GetRegEntity(Entity), *GetString(Runtime, StringIndex));
+    if (VMProxy && WorldState)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::VisualState, TagNetIndex);
+    }
+    UE_LOG(LogTemp, Log, TEXT("[VM] PlayAnimMontage: Entity %d, TagNetIndex %d"),
+        Runtime.GetRegEntity(Entity), TagNetIndex);
 }
 
 void FHktVMInterpreter::Op_StopAnim(FHktVMRuntime& Runtime, RegisterIndex Entity)
 {
+    if (VMProxy && WorldState)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::AnimState, 0);
+    }
     UE_LOG(LogTemp, Log, TEXT("[VM] StopAnim: Entity %d"), Runtime.GetRegEntity(Entity));
 }
 
