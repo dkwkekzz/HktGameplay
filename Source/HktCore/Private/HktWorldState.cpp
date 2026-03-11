@@ -24,7 +24,8 @@ void FHktSchemaRegistry::Initialize()
             PropertyId::AttackPower, PropertyId::Defense,
             PropertyId::Team, PropertyId::Mana, PropertyId::MaxMana,
             PropertyId::OwnerEntity, PropertyId::EntityType, PropertyId::EntitySpawnTag,
-            PropertyId::AnimState, PropertyId::VisualState })
+            PropertyId::AnimState, PropertyId::VisualState,
+            PropertyId::IsNPC, PropertyId::SpawnFlowTag })
             S.AddProperty(P);
     }
     {

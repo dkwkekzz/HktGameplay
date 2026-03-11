@@ -96,6 +96,10 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::RemoveTag: Op_RemoveTag(Runtime, Inst.Src1, Inst.Imm12);         break;
     case EOpCode::HasTag:    Op_HasTag(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
     case EOpCode::Log: Op_Log(Runtime, Inst.GetSignedImm20()); break;
+    case EOpCode::CountByTag: Op_CountByTag(Runtime, Inst.Dst, Inst.Imm12); break;
+    case EOpCode::GetWorldTime: Op_GetWorldTime(Runtime, Inst.Dst); break;
+    case EOpCode::RandomInt: Op_RandomInt(Runtime, Inst.Dst, Inst.Src1); break;
+    case EOpCode::HasPlayerInGroup: Op_HasPlayerInGroup(Runtime, Inst.Dst); break;
     default: return EVMStatus::Failed;
     }
     return EVMStatus::Running;

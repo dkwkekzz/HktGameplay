@@ -370,6 +370,73 @@ void FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, Reg
 }
 
 // ============================================================================
+// NPC Spawning
+// ============================================================================
+
+void FHktVMInterpreter::Op_CountByTag(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 StringIndex)
+{
+    int32 Count = 0;
+    if (WorldState)
+    {
+        const FString& TagName = GetString(Runtime, StringIndex);
+        FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
+        if (Tag.IsValid())
+        {
+            WorldState->ForEachEntity([&](FHktEntityId E, int32 /*Slot*/)
+            {
+                if (WorldState->HasTag(E, Tag))
+                    ++Count;
+            });
+        }
+    }
+    Runtime.SetReg(Dst, Count);
+}
+
+void FHktVMInterpreter::Op_GetWorldTime(FHktVMRuntime& Runtime, RegisterIndex Dst)
+{
+    if (WorldState)
+    {
+        Runtime.SetReg(Dst, static_cast<int32>(WorldState->FrameNumber & 0x7FFFFFFF));
+    }
+    else
+    {
+        Runtime.SetReg(Dst, 0);
+    }
+}
+
+void FHktVMInterpreter::Op_RandomInt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex ModulusReg)
+{
+    int32 Modulus = Runtime.GetReg(ModulusReg);
+    if (Modulus <= 0 || !WorldState)
+    {
+        Runtime.SetReg(Dst, 0);
+        return;
+    }
+
+    // 결정론적 해시: seed + frame + PC → 같은 상태에서 항상 같은 결과
+    int32 Hash = static_cast<int32>(WorldState->FrameNumber * 2654435761) ^ (WorldState->RandomSeed + Runtime.PC);
+    Hash = (Hash < 0) ? -Hash : Hash;
+    Runtime.SetReg(Dst, Hash % Modulus);
+}
+
+void FHktVMInterpreter::Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterIndex Dst)
+{
+    // Unit 풀에서 OwnerUid가 0이 아닌 엔티티가 있는지 확인
+    // (OwnerUid != 0 → 플레이어 소유 엔티티 존재 → 플레이어가 이 그룹에 있음)
+    bool bHasPlayer = false;
+    if (WorldState)
+    {
+        const FHktEntityPool& UnitPool = WorldState->GetPool(HktType::Unit);
+        for (int32 S = 0; S < UnitPool.OwnerUids.Num() && !bHasPlayer; ++S)
+        {
+            if (UnitPool.SlotToEntity[S] != InvalidEntityId && UnitPool.OwnerUids[S] != 0)
+                bHasPlayer = true;
+        }
+    }
+    Runtime.SetReg(Dst, bHasPlayer ? 1 : 0);
+}
+
+// ============================================================================
 // Utility
 // ============================================================================
 

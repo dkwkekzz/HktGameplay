@@ -465,6 +465,60 @@ FHktFlowBuilder& FHktFlowBuilder::SpawnEquipment(RegisterIndex Owner, int32 Slot
 }
 
 // ============================================================================
+// Tags
+// ============================================================================
+
+FHktFlowBuilder& FHktFlowBuilder::AddTag(RegisterIndex Entity, const FGameplayTag& Tag)
+{
+    int32 StrIdx = AddString(Tag.ToString());
+    Emit(FInstruction::Make(EOpCode::AddTag, 0, Entity, 0, StrIdx & 0xFFF));
+    return *this;
+}
+
+FHktFlowBuilder& FHktFlowBuilder::RemoveTag(RegisterIndex Entity, const FGameplayTag& Tag)
+{
+    int32 StrIdx = AddString(Tag.ToString());
+    Emit(FInstruction::Make(EOpCode::RemoveTag, 0, Entity, 0, StrIdx & 0xFFF));
+    return *this;
+}
+
+FHktFlowBuilder& FHktFlowBuilder::HasTag(RegisterIndex Dst, RegisterIndex Entity, const FGameplayTag& Tag)
+{
+    int32 StrIdx = AddString(Tag.ToString());
+    Emit(FInstruction::Make(EOpCode::HasTag, Dst, Entity, 0, StrIdx & 0xFFF));
+    return *this;
+}
+
+// ============================================================================
+// NPC Spawning
+// ============================================================================
+
+FHktFlowBuilder& FHktFlowBuilder::CountByTag(RegisterIndex Dst, const FGameplayTag& Tag)
+{
+    int32 StrIdx = AddString(Tag.ToString());
+    Emit(FInstruction::Make(EOpCode::CountByTag, Dst, 0, 0, StrIdx & 0xFFF));
+    return *this;
+}
+
+FHktFlowBuilder& FHktFlowBuilder::GetWorldTime(RegisterIndex Dst)
+{
+    Emit(FInstruction::Make(EOpCode::GetWorldTime, Dst, 0, 0, 0));
+    return *this;
+}
+
+FHktFlowBuilder& FHktFlowBuilder::RandomInt(RegisterIndex Dst, RegisterIndex ModulusReg)
+{
+    Emit(FInstruction::Make(EOpCode::RandomInt, Dst, ModulusReg, 0, 0));
+    return *this;
+}
+
+FHktFlowBuilder& FHktFlowBuilder::HasPlayerInGroup(RegisterIndex Dst)
+{
+    Emit(FInstruction::Make(EOpCode::HasPlayerInGroup, Dst, 0, 0, 0));
+    return *this;
+}
+
+// ============================================================================
 // Utility
 // ============================================================================
 

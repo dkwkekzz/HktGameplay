@@ -107,6 +107,12 @@ private:
     void Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
     void Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 StringIndex);
 
+    // ===== NPC Spawning =====
+    void Op_CountByTag(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 StringIndex);
+    void Op_GetWorldTime(FHktVMRuntime& Runtime, RegisterIndex Dst);
+    void Op_RandomInt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex ModulusReg);
+    void Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterIndex Dst);
+
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);
 

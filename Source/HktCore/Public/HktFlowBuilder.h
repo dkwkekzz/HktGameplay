@@ -179,6 +179,31 @@ public:
     /** 장비 스폰 및 부착 */
     FHktFlowBuilder& SpawnEquipment(RegisterIndex Owner, int32 Slot, const FGameplayTag& EquipTag);
 
+    // ========== Tags ==========
+
+    /** 엔티티에 태그 추가 */
+    FHktFlowBuilder& AddTag(RegisterIndex Entity, const FGameplayTag& Tag);
+
+    /** 엔티티에서 태그 제거 */
+    FHktFlowBuilder& RemoveTag(RegisterIndex Entity, const FGameplayTag& Tag);
+
+    /** 엔티티가 태그를 가지고 있는지 확인 → Dst (1/0) */
+    FHktFlowBuilder& HasTag(RegisterIndex Dst, RegisterIndex Entity, const FGameplayTag& Tag);
+
+    // ========== NPC Spawning ==========
+
+    /** 특정 태그를 가진 엔티티 수 카운트 → Dst */
+    FHktFlowBuilder& CountByTag(RegisterIndex Dst, const FGameplayTag& Tag);
+
+    /** 현재 프레임 번호 → Dst */
+    FHktFlowBuilder& GetWorldTime(RegisterIndex Dst);
+
+    /** 결정론적 랜덤 [0, ModulusReg) → Dst */
+    FHktFlowBuilder& RandomInt(RegisterIndex Dst, RegisterIndex ModulusReg);
+
+    /** 현재 relevancy group에 플레이어 존재 여부 → Dst (1/0) */
+    FHktFlowBuilder& HasPlayerInGroup(RegisterIndex Dst);
+
     // ========== Utility ==========
 
     FHktFlowBuilder& Log(const FString& Message);

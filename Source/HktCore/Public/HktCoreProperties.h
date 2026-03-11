@@ -53,7 +53,10 @@
     X(VelY, 51)              \
     X(VelZ, 52)              \
     X(Mass, 53)              \
-    X(CollisionRadius, 54)
+    X(CollisionRadius, 54)   \
+    /* NPC */                 \
+    X(IsNPC, 60)             \
+    X(SpawnFlowTag, 61)
 
 namespace PropertyId
 {
