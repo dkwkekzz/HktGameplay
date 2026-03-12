@@ -12,7 +12,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	RenderCategory = DetermineRenderCategory(TypeId);
 	SpawnedFrame = Frame;
 	RemovedFrame = 0;
-	LastDirtyFrame = Frame; // ½ºÆù ½ÃÁ¡µµ ÀÏÁ¾ÀÇ Dirty »óÅÂ
+	LastDirtyFrame = Frame; // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Dirty ï¿½ï¿½ï¿½ï¿½
 	Transform.Apply(WS, Id, Frame);
 	Movement.Apply(WS, Id, Frame);
 	Vitals.Apply(WS, Id, Frame);
@@ -24,7 +24,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 
 void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
 {
-	// ÃÖÀûÈ­: Ä³½ºÄÉÀÌµù ¹æ½Ä(if-else Ã¼ÀÎ) ´ë½Å ´ÜÀÏ Switch¹®À¸·Î Á÷Á¢ ¶ó¿ìÆÃ
+	// ï¿½ï¿½ï¿½ï¿½È­: Ä³ï¿½ï¿½ï¿½ï¿½ï¿½Ìµï¿½ ï¿½ï¿½ï¿½(if-else Ã¼ï¿½ï¿½) ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Switchï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
 	switch (PropId)
 	{
 		// Transform
@@ -41,7 +41,10 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	case PropertyId::MoveTargetZ:
 	case PropertyId::MoveForce:
 	case PropertyId::IsMoving:
-		Movement.TryApplyDelta(PropId, NewValue, Frame, Movement.MoveTarget.Value);
+	case PropertyId::VelX:
+	case PropertyId::VelY:
+	case PropertyId::VelZ:
+		Movement.TryApplyDelta(PropId, NewValue, Frame, Movement.MoveTarget.Value, Movement.Velocity.Value);
 		break;
 
 		// Vitals
@@ -66,6 +69,7 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 		// Animation
 	case PropertyId::AnimState:
 	case PropertyId::VisualState:
+	case PropertyId::AnimStateUpper:
 		Animation.TryApplyDelta(PropId, NewValue, Frame);
 		break;
 
@@ -151,7 +155,7 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 	if (Id >= Entities.Num() || !ValidMask[Id]) return;
 	FHktEntityPresentation& E = Entities[Id];
 
-	// ÃÖÀûÈ­: ´Ü ÇÑ ¹øÀÇ Á¤¼ö ºñ±³·Î Dirty »óÅÂ ÃßÀû ¹× Áßº¹ »ğÀÔ ¹æÁö
+	// ï¿½ï¿½ï¿½ï¿½È­: ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ñ±³·ï¿½ Dirty ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ßºï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	if (E.LastDirtyFrame != CurrentFrame)
 	{
 		E.LastDirtyFrame = CurrentFrame;

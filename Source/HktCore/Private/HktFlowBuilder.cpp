@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktFlowBuilder.h"
+#include "HktCoreProperties.h"
 #include "VM/HktVMProgram.h"
 #include "GameplayTagsManager.h"
 
@@ -59,6 +60,16 @@ int32 FHktFlowBuilder::TagToInt(const FGameplayTag& Tag)
         return static_cast<int32>(NetIndex);
     }
     return 0;
+}
+
+uint16 FHktFlowBuilder::AnimTagToPropertyId(const FGameplayTag& AnimTag)
+{
+    static const FGameplayTag UpperBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.UpperBody")), false);
+    if (AnimTag.MatchesTag(UpperBodyParent))
+    {
+        return PropertyId::AnimStateUpper;
+    }
+    return PropertyId::AnimState;
 }
 
 // ============================================================================
@@ -403,8 +414,9 @@ FHktFlowBuilder& FHktFlowBuilder::RemoveEffect(RegisterIndex Target, const FGame
 
 FHktFlowBuilder& FHktFlowBuilder::PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
 {
+    uint16 PropId = AnimTagToPropertyId(AnimTag);
     int32 TagIdx = TagToInt(AnimTag);
-    Emit(FInstruction::Make(EOpCode::PlayAnim, 0, Entity, 0, TagIdx & 0xFFF));
+    Emit(FInstruction::Make(EOpCode::PlayAnim, PropId - PropertyId::AnimState, Entity, 0, TagIdx & 0xFFF));
     return *this;
 }
 
@@ -415,9 +427,10 @@ FHktFlowBuilder& FHktFlowBuilder::PlayAnimMontage(RegisterIndex Entity, const FG
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::StopAnim(RegisterIndex Entity)
+FHktFlowBuilder& FHktFlowBuilder::StopAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
 {
-    Emit(FInstruction::Make(EOpCode::StopAnim, 0, Entity, 0, 0));
+    uint16 PropId = AnimTagToPropertyId(AnimTag);
+    Emit(FInstruction::Make(EOpCode::StopAnim, PropId - PropertyId::AnimState, Entity, 0, 0));
     return *this;
 }
 

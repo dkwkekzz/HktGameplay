@@ -89,9 +89,9 @@ private:
     void Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex);
 
     // ===== Animation & VFX =====
-    void Op_PlayAnim(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagNetIndex);
+    void Op_PlayAnim(FHktVMRuntime& Runtime, int32 PropOffset, RegisterIndex Entity, int32 TagNetIndex);
     void Op_PlayAnimMontage(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagNetIndex);
-    void Op_StopAnim(FHktVMRuntime& Runtime, RegisterIndex Entity);
+    void Op_StopAnim(FHktVMRuntime& Runtime, int32 PropOffset, RegisterIndex Entity);
     void Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex);
     void Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
 

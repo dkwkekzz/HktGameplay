@@ -48,6 +48,7 @@
     /* 애니메이션/비주얼 */   \
     X(AnimState, 40)         \
     X(VisualState, 41)       \
+    X(AnimStateUpper, 42)    \
     /* 물리 */                \
     X(VelX, 50)              \
     X(VelY, 51)              \

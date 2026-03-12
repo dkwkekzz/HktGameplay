@@ -14,9 +14,9 @@ namespace HktFlowPlayerInWorld
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "Player character entity.");
 
-	// Anim
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Spawn, "Anim.Spawn", "Spawn intro animation.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Idle, "Anim.Idle", "Idle animation.");
+	// Anim — 태그 계층에 레이어 포함
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Action_Spawn, "Anim.FullBody.Action.Spawn", "Spawn intro animation.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Locomotion_Idle, "Anim.FullBody.Locomotion.Idle", "Idle animation.");
 
 	// VFX
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect, "VFX.SpawnEffect", "Character spawn VFX.");
@@ -36,9 +36,6 @@ namespace HktFlowPlayerInWorld
 	 * "플레이어 캐릭터를 생성하고 위치를 설정한다.
 	 *  플레이어 속성을 초기화한다.
 	 *  캐릭터가 파괴되기 전까지 이 상태를 유지한다."
-	 *
-	 * 이 플로우는 무한 루프로 실행되어 VM이 완료되지 않도록 하며,
-	 * WorldState.ActiveEvents에 이벤트가 유지됩니다.
 	 * ================================================================
 	 */
 	HKT_REGISTER_FLOW_BODY()
@@ -58,23 +55,16 @@ namespace HktFlowPlayerInWorld
 			.LoadConst(R2, 0.f)
 			.SetPosition(Self, R0)
 
-			// OwnedPlayerUid는 SpawnEntity에서 Runtime.PlayerUid로 자동 설정됨
-
-			// 기본 체력 설정 (필요시)
-			// .LoadConst(R4, 100)
-			// .SaveEntityProperty(Self, PropertyId::Health, R4)
-			// .SaveEntityProperty(Self, PropertyId::MaxHealth, R4)
-
 			// 스폰 이펙트
 			.PlayVFXAttached(Self, VFX_SpawnEffect)
 			.PlaySound(Sound_Spawn)
 
 			// 스폰 애니메이션
-			.PlayAnim(Self, Anim_Spawn)
+			.PlayAnim(Self, Anim_FullBody_Action_Spawn)
 			.WaitSeconds(0.5f)
 
 			// Idle 상태로 전환
-			.PlayAnim(Self, Anim_Idle)
+			.PlayAnim(Self, Anim_FullBody_Locomotion_Idle)
 
 			// === 초기 아이템: 목검 ===
 			.Log(TEXT("PlayerInWorld: 목검 지급"))

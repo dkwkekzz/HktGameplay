@@ -248,15 +248,16 @@ void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Ta
 // Animation & VFX
 // ============================================================================
 
-void FHktVMInterpreter::Op_PlayAnim(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagNetIndex)
+void FHktVMInterpreter::Op_PlayAnim(FHktVMRuntime& Runtime, int32 PropOffset, RegisterIndex Entity, int32 TagNetIndex)
 {
     if (VMProxy && WorldState)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::AnimState, TagNetIndex);
+        uint16 PropId = PropertyId::AnimState + static_cast<uint16>(PropOffset);
+        VMProxy->SetPropertyDirty(*WorldState, E, PropId, TagNetIndex);
     }
-    UE_LOG(LogTemp, Log, TEXT("[VM] PlayAnim: Entity %d, TagNetIndex %d"),
-        Runtime.GetRegEntity(Entity), TagNetIndex);
+    UE_LOG(LogTemp, Log, TEXT("[VM] PlayAnim: Entity %d, PropId %d, TagNetIndex %d"),
+        Runtime.GetRegEntity(Entity), PropertyId::AnimState + PropOffset, TagNetIndex);
 }
 
 void FHktVMInterpreter::Op_PlayAnimMontage(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagNetIndex)
@@ -270,14 +271,15 @@ void FHktVMInterpreter::Op_PlayAnimMontage(FHktVMRuntime& Runtime, RegisterIndex
         Runtime.GetRegEntity(Entity), TagNetIndex);
 }
 
-void FHktVMInterpreter::Op_StopAnim(FHktVMRuntime& Runtime, RegisterIndex Entity)
+void FHktVMInterpreter::Op_StopAnim(FHktVMRuntime& Runtime, int32 PropOffset, RegisterIndex Entity)
 {
     if (VMProxy && WorldState)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::AnimState, 0);
+        uint16 PropId = PropertyId::AnimState + static_cast<uint16>(PropOffset);
+        VMProxy->SetPropertyDirty(*WorldState, E, PropId, 0);
     }
-    UE_LOG(LogTemp, Log, TEXT("[VM] StopAnim: Entity %d"), Runtime.GetRegEntity(Entity));
+    UE_LOG(LogTemp, Log, TEXT("[VM] StopAnim: Entity %d, PropId %d"), Runtime.GetRegEntity(Entity), PropertyId::AnimState + PropOffset);
 }
 
 void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)

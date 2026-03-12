@@ -5,32 +5,87 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 
-void UHktAnimInstance::SetAnimStateTag(const FGameplayTag& NewAnimTag)
+FGameplayTag UHktAnimInstance::ExtractLayerParent(const FGameplayTag& AnimTag)
 {
-	if (AnimStateTag == NewAnimTag)
+	// Anim.FullBody.Locomotion.Run → Anim.FullBody
+	// Anim.UpperBody.Combat.Attack → Anim.UpperBody
+	// 태그 이름에서 두 번째 레벨까지 추출
+	FString TagStr = AnimTag.ToString();
+	int32 FirstDot = INDEX_NONE;
+	int32 SecondDot = INDEX_NONE;
+	TagStr.FindChar(TEXT('.'), FirstDot);
+	if (FirstDot != INDEX_NONE)
 	{
-		return;
+		SecondDot = TagStr.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromStart, FirstDot + 1);
 	}
-
-	AnimStateTag = NewAnimTag;
-
-	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] SetAnimStateTag: %s on %s"),
-		*NewAnimTag.ToString(), *GetOwningActor()->GetName());
+	if (SecondDot != INDEX_NONE)
+	{
+		FString ParentStr = TagStr.Left(SecondDot);
+		return FGameplayTag::RequestGameplayTag(FName(*ParentStr), false);
+	}
+	// 2레벨 이하의 태그는 그대로 반환
+	return AnimTag;
 }
 
-void UHktAnimInstance::PlayMontageByTag(const FGameplayTag& MontageTag)
+void UHktAnimInstance::SetAnimTag(const FGameplayTag& AnimTag)
 {
-	UAnimMontage* Montage = FindMontage(MontageTag);
-	if (!Montage)
+	if (!AnimTag.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HktAnimInst] PlayMontageByTag: No montage mapped for tag %s"), *MontageTag.ToString());
 		return;
 	}
 
-	Montage_Play(Montage);
+	FGameplayTag LayerParent = ExtractLayerParent(AnimTag);
 
-	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] PlayMontageByTag: %s -> %s on %s"),
-		*MontageTag.ToString(), *Montage->GetName(), *GetOwningActor()->GetName());
+	FGameplayTag& Current = AnimLayerTags.FindOrAdd(LayerParent);
+	if (Current == AnimTag)
+	{
+		return;
+	}
+
+	Current = AnimTag;
+
+	// FullBody는 AnimStateTag와 동기화 (하위호환)
+	static const FGameplayTag FullBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.FullBody")), false);
+	if (LayerParent.MatchesTagExact(FullBodyParent))
+	{
+		AnimStateTag = AnimTag;
+	}
+
+	// 매핑 테이블에서 에셋을 찾아 자동 재생
+	if (const FHktAnimMappingEntry* Entry = FindMapping(AnimTag))
+	{
+		if (Entry->Montage)
+		{
+			Montage_Play(Entry->Montage);
+			UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] PlayMontage: %s -> %s"),
+				*AnimTag.ToString(), *Entry->Montage->GetName());
+		}
+		else if (Entry->Sequence)
+		{
+			PlaySlotAnimationAsDynamicMontage(Entry->Sequence, FName(TEXT("DefaultSlot")), 0.25f, 0.25f, 1.0f);
+			UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] PlaySequence: %s -> %s"),
+				*AnimTag.ToString(), *Entry->Sequence->GetName());
+		}
+
+		if (Entry->BlendSpace && ActiveBlendSpace != Entry->BlendSpace)
+		{
+			ActiveBlendSpace = Entry->BlendSpace;
+			UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] SetBlendSpace: %s -> %s"),
+				*AnimTag.ToString(), *Entry->BlendSpace->GetName());
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] SetAnimTag: Parent=%s Anim=%s on %s"),
+		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName());
+}
+
+FGameplayTag UHktAnimInstance::GetAnimLayerTag(const FGameplayTag& LayerTag) const
+{
+	if (const FGameplayTag* Found = AnimLayerTags.Find(LayerTag))
+	{
+		return *Found;
+	}
+	return FGameplayTag();
 }
 
 bool UHktAnimInstance::IsPlayingMontageAnim() const
@@ -38,87 +93,13 @@ bool UHktAnimInstance::IsPlayingMontageAnim() const
 	return IsAnyMontagePlaying();
 }
 
-void UHktAnimInstance::PlaySequenceByTag(const FGameplayTag& SequenceTag, FName SlotName, float PlayRate)
+const FHktAnimMappingEntry* UHktAnimInstance::FindMapping(const FGameplayTag& Tag) const
 {
-	UAnimSequence* Sequence = FindSequence(SequenceTag);
-	if (!Sequence)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[HktAnimInst] PlaySequenceByTag: No sequence mapped for tag %s"), *SequenceTag.ToString());
-		return;
-	}
-
-	PlaySlotAnimationAsDynamicMontage(Sequence, SlotName, 0.25f, 0.25f, PlayRate);
-
-	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] PlaySequenceByTag: %s -> %s on %s"),
-		*SequenceTag.ToString(), *Sequence->GetName(), *GetOwningActor()->GetName());
-}
-
-void UHktAnimInstance::SetBlendSpaceByTag(const FGameplayTag& BlendSpaceTag)
-{
-	UBlendSpace* NewBS = FindBlendSpace(BlendSpaceTag);
-	if (!NewBS)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[HktAnimInst] SetBlendSpaceByTag: No blendspace mapped for tag %s"), *BlendSpaceTag.ToString());
-		return;
-	}
-
-	if (ActiveBlendSpace == NewBS)
-	{
-		return;
-	}
-
-	ActiveBlendSpace = NewBS;
-
-	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] SetBlendSpaceByTag: %s -> %s on %s"),
-		*BlendSpaceTag.ToString(), *NewBS->GetName(), *GetOwningActor()->GetName());
-}
-
-void UHktAnimInstance::InitMontageMappings(const TArray<FHktAnimMontageEntry>& InMappings)
-{
-	MontageMappings = InMappings;
-}
-
-void UHktAnimInstance::InitSequenceMappings(const TArray<FHktAnimSequenceEntry>& InMappings)
-{
-	SequenceMappings = InMappings;
-}
-
-void UHktAnimInstance::InitBlendSpaceMappings(const TArray<FHktAnimBlendSpaceEntry>& InMappings)
-{
-	BlendSpaceMappings = InMappings;
-}
-
-UAnimMontage* UHktAnimInstance::FindMontage(const FGameplayTag& Tag) const
-{
-	for (const FHktAnimMontageEntry& Entry : MontageMappings)
+	for (const FHktAnimMappingEntry& Entry : AnimMappings)
 	{
 		if (Entry.AnimTag.MatchesTagExact(Tag))
 		{
-			return Entry.Montage;
-		}
-	}
-	return nullptr;
-}
-
-UAnimSequence* UHktAnimInstance::FindSequence(const FGameplayTag& Tag) const
-{
-	for (const FHktAnimSequenceEntry& Entry : SequenceMappings)
-	{
-		if (Entry.AnimTag.MatchesTagExact(Tag))
-		{
-			return Entry.Sequence;
-		}
-	}
-	return nullptr;
-}
-
-UBlendSpace* UHktAnimInstance::FindBlendSpace(const FGameplayTag& Tag) const
-{
-	for (const FHktAnimBlendSpaceEntry& Entry : BlendSpaceMappings)
-	{
-		if (Entry.AnimTag.MatchesTagExact(Tag))
-		{
-			return Entry.BlendSpace;
+			return &Entry;
 		}
 	}
 	return nullptr;

@@ -113,17 +113,6 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
 
-			// AnimInstance에 몽타주 매핑 주입
-			if (USkeletalMeshComponent* SkelMesh = SpawnedActor->FindComponentByClass<USkeletalMeshComponent>())
-			{
-				if (UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance()))
-				{
-					HktAnim->InitMontageMappings(VisualAsset->MontageMappings);
-					HktAnim->InitSequenceMappings(VisualAsset->SequenceMappings);
-					HktAnim->InitBlendSpaceMappings(VisualAsset->BlendSpaceMappings);
-				}
-			}
-
 			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
 			Motion.TargetLocation = SpawnLocation;
 			Motion.TargetRotation = Rotation;
@@ -212,21 +201,30 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->bIsMoving = Entity.Movement.bIsMoving.Get();
 	}
 
-	// 루프 애니메이션 상태 변경 (Anim.Idle, Anim.Run 등)
-	if (Entity.Animation.AnimState.IsDirty(Frame))
+	// 속도 벡터에서 이동 속도 계산 — 블렌드스페이스 파라미터로 활용
+	if (Entity.Movement.Velocity.IsDirty(Frame))
 	{
-		FGameplayTag AnimTag = Entity.Animation.AnimState.Get();
-		HktAnim->SetAnimStateTag(AnimTag);
+		FVector Vel = Entity.Movement.Velocity.Get();
+		HktAnim->MoveSpeed = FVector2D(Vel.X, Vel.Y).Size();
+		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
 	}
 
-	// 원샷 몽타주 재생 (Anim.Montage.Attack 등)
+	// FullBody 애니메이션 상태 (Anim.FullBody.Locomotion.Run 등)
+	if (Entity.Animation.AnimState.IsDirty(Frame))
+	{
+		HktAnim->SetAnimTag(Entity.Animation.AnimState.Get());
+	}
+
+	// UpperBody 애니메이션 상태 (Anim.UpperBody.Combat.Attack 등)
+	if (Entity.Animation.AnimStateUpper.IsDirty(Frame))
+	{
+		HktAnim->SetAnimTag(Entity.Animation.AnimStateUpper.Get());
+	}
+
+	// 몽타주 상태 (VisualState 경유)
 	if (Entity.Animation.MontageState.IsDirty(Frame))
 	{
-		FGameplayTag MontageTag = Entity.Animation.MontageState.Get();
-		if (MontageTag.IsValid())
-		{
-			HktAnim->PlayMontageByTag(MontageTag);
-		}
+		HktAnim->SetAnimTag(Entity.Animation.MontageState.Get());
 	}
 }
 

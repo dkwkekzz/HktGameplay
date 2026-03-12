@@ -154,14 +154,14 @@ public:
 
     // ========== Animation & VFX ==========
 
-    /** 애니메이션 재생 */
+    /** 애니메이션 재생 — 태그 계층으로 PropertyId 자동 결정 (Anim.FullBody.*, Anim.UpperBody.*) */
     FHktFlowBuilder& PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag);
 
     /** 몽타주 재생 */
     FHktFlowBuilder& PlayAnimMontage(RegisterIndex Entity, const FGameplayTag& MontageTag);
 
-    /** 애니메이션 중지 */
-    FHktFlowBuilder& StopAnim(RegisterIndex Entity);
+    /** 애니메이션 중지 — 태그 계층으로 PropertyId 자동 결정 */
+    FHktFlowBuilder& StopAnim(RegisterIndex Entity, const FGameplayTag& AnimTag);
 
     /** VFX 재생 (위치) */
     FHktFlowBuilder& PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag);
@@ -228,6 +228,7 @@ private:
     int32 AddString(const FString& Str);
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
+    uint16 AnimTagToPropertyId(const FGameplayTag& AnimTag);
     void ResolveLabels();
 
 private:

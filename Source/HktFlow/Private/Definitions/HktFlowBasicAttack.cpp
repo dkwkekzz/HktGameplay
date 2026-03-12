@@ -11,8 +11,9 @@ namespace HktFlowBasicAttack
 	// Flow Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_BasicAttack, "Ability.Attack.Basic", "Basic attack ability flow.");
 
-	// Anim.Montage
+	// Anim — 태그 계층에 레이어 포함
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Montage_Attack, "Anim.Montage.Attack", "Basic attack montage.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_UpperBody_Combat_Attack, "Anim.UpperBody.Combat.Attack", "Basic attack upper body animation.");
 
 	// VFX
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HitSpark, "VFX.HitSpark", "Melee hit spark VFX.");
@@ -22,11 +23,12 @@ namespace HktFlowBasicAttack
 
 	/**
 	 * ================================================================
-	 * 추가 예제: 기본 공격 Flow
+	 * 기본 공격 Flow
 	 *
 	 * 자연어로 읽으면:
-	 * "공격 애니메이션을 재생하고, 애니메이션이 끝나면
-	 *  대상에게 공격력만큼 피해를 준다."
+	 * "상체에 공격 애니메이션을 재생하고 (하체는 이동 유지),
+	 *  애니메이션이 끝나면 대상에게 공격력만큼 피해를 준다.
+	 *  완료 후 상체 애니메이션을 초기화한다."
 	 * ================================================================
 	 */
 	HKT_REGISTER_FLOW_BODY()
@@ -39,7 +41,8 @@ namespace HktFlowBasicAttack
 			// 타겟 로드 (IntentEvent에서)
 			.LoadStore(Target, PropertyId::Param0)      // Param0 = 타겟 EntityId
 
-			// 공격 애니메이션
+			// 상체에 공격 애니메이션 (하체 이동 유지) — 태그 계층에서 레이어 자동 감지
+			.PlayAnim(Self, Anim_UpperBody_Combat_Attack)
 			.PlayAnimMontage(Self, Anim_Montage_Attack)
 			.WaitAnimEnd(Self)
 
@@ -50,6 +53,9 @@ namespace HktFlowBasicAttack
 			.ApplyDamage(Target, R0)
 			.PlayVFXAttached(Target, VFX_HitSpark)
 			.PlaySound(Sound_Hit)
+
+			// 상체 애니메이션 초기화
+			.StopAnim(Self, Anim_UpperBody_Combat_Attack)
 
 			.Log(TEXT("BasicAttack: 완료"))
 			.Halt()
