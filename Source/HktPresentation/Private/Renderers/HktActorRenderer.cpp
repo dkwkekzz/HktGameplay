@@ -113,17 +113,6 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
 
-			// AnimInstance에 몽타주 매핑 주입
-			if (USkeletalMeshComponent* SkelMesh = SpawnedActor->FindComponentByClass<USkeletalMeshComponent>())
-			{
-				if (UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance()))
-				{
-					HktAnim->InitMontageMappings(VisualAsset->MontageMappings);
-					HktAnim->InitSequenceMappings(VisualAsset->SequenceMappings);
-					HktAnim->InitBlendSpaceMappings(VisualAsset->BlendSpaceMappings);
-				}
-			}
-
 			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
 			Motion.TargetLocation = SpawnLocation;
 			Motion.TargetRotation = Rotation;

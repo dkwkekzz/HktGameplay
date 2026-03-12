@@ -114,21 +114,6 @@ void UHktAnimInstance::SetBlendSpaceByTag(const FGameplayTag& BlendSpaceTag)
 		*BlendSpaceTag.ToString(), *NewBS->GetName(), *GetOwningActor()->GetName());
 }
 
-void UHktAnimInstance::InitMontageMappings(const TArray<FHktAnimMontageEntry>& InMappings)
-{
-	MontageMappings = InMappings;
-}
-
-void UHktAnimInstance::InitSequenceMappings(const TArray<FHktAnimSequenceEntry>& InMappings)
-{
-	SequenceMappings = InMappings;
-}
-
-void UHktAnimInstance::InitBlendSpaceMappings(const TArray<FHktAnimBlendSpaceEntry>& InMappings)
-{
-	BlendSpaceMappings = InMappings;
-}
-
 UAnimMontage* UHktAnimInstance::FindMontage(const FGameplayTag& Tag) const
 {
 	for (const FHktAnimMontageEntry& Entry : MontageMappings)
