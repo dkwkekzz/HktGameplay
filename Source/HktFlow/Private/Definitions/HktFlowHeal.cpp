@@ -4,7 +4,6 @@
 #include "HktFlowBuilder.h"
 #include "HktCoreProperties.h"
 #include "HktFlowRegistry.h"
-#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktFlowHeal
@@ -12,8 +11,8 @@ namespace HktFlowHeal
 	// Flow Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_Heal, "Ability.Skill.Heal", "Heal skill ability flow.");
 
-	// Anim
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_CastHeal, "Anim.CastHeal", "Heal cast animation.");
+	// Anim — 태그 계층에 레이어 포함
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_UpperBody_Cast_Heal, "Anim.UpperBody.Cast.Heal", "Heal cast animation.");
 
 	// VFX
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HealCast, "VFX.HealCast", "Heal cast VFX.");
@@ -24,10 +23,10 @@ namespace HktFlowHeal
 
 	/**
 	 * ================================================================
-	 * 추가 예제: 회복 스킬 Flow
+	 * 회복 스킬 Flow
 	 *
 	 * 자연어로 읽으면:
-	 * "시전 애니메이션을 재생하고, 자신의 체력을 회복량만큼 회복한다.
+	 * "상체에 시전 애니메이션을 재생하고, 자신의 체력을 회복량만큼 회복한다.
 	 *  체력이 최대치를 넘지 않도록 한다."
 	 * ================================================================
 	 */
@@ -38,8 +37,8 @@ namespace HktFlowHeal
 		Flow(Flow_Heal)
 			.Log(TEXT("Heal: 시전 시작"))
 
-			// 상체 레이어에 시전 애니메이션 (하체 이동 유지)
-			.PlayAnimLayer(Self, HktGameplayTags::Anim_Layer_UpperBody, Anim_CastHeal)
+			// 상체에 시전 애니메이션 (하체 이동 유지) — 태그 계층에서 레이어 자동 감지
+			.PlayAnim(Self, Anim_UpperBody_Cast_Heal)
 			.PlayVFXAttached(Self, VFX_HealCast)
 			.WaitSeconds(0.8f)
 
@@ -70,8 +69,8 @@ namespace HktFlowHeal
 			.PlayVFXAttached(Self, VFX_HealBurst)
 			.PlaySound(Sound_Heal)
 
-			// 상체 레이어 초기화
-			.StopAnimLayer(Self, HktGameplayTags::Anim_Layer_UpperBody)
+			// 상체 애니메이션 초기화
+			.StopAnim(Self, Anim_UpperBody_Cast_Heal)
 
 			.Log(TEXT("Heal: 완료"))
 			.Halt()

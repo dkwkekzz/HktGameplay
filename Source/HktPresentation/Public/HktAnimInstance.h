@@ -63,9 +63,10 @@ struct FHktAnimBlendSpaceEntry
  *
  * Flow VM의 AnimState/MontageState 프로퍼티를 UE5 애니메이션 시스템에 전달.
  *
- * 레이어 시스템:
- * - AnimLayerTags: 레이어별 애니메이션 상태 태그 맵 (LayerTag → AnimTag)
- * - AnimStateTag: FullBody 레이어의 편의 프로퍼티 (AnimBP 하위호환)
+ * 태그 기반 레이어 시스템:
+ * - 태그 계층으로 레이어 자동 감지: Anim.FullBody.* → FullBody, Anim.UpperBody.* → UpperBody
+ * - AnimLayerTags: 레이어 부모 태그 → 현재 AnimTag 맵 (AnimBP에서 직접 읽기)
+ * - AnimStateTag: FullBody 편의 프로퍼티 (하위호환)
  *
  * 몽타주 매핑은 UHktActorVisualDataAsset에서 로딩하여 InitMontageMappings()로 주입합니다.
  */
@@ -75,11 +76,11 @@ class HKTPRESENTATION_API UHktAnimInstance : public UAnimInstance
 	GENERATED_BODY()
 
 public:
-	/** 레이어별 애니메이션 상태 태그 (Anim.Layer.* → Anim.* 매핑) — AnimBP에서 직접 읽기 */
+	/** 레이어별 애니메이션 상태 태그 (레이어 부모 태그 → AnimTag 매핑) — AnimBP에서 직접 읽기 */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	TMap<FGameplayTag, FGameplayTag> AnimLayerTags;
 
-	/** FullBody 루프 애니메이션 상태 태그 (하위호환) — AnimBP에서 직접 읽기 */
+	/** FullBody 애니메이션 상태 태그 (하위호환) — AnimBP에서 직접 읽기 */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	FGameplayTag AnimStateTag;
 
@@ -87,11 +88,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	bool bIsMoving = false;
 
-	/** 특정 레이어의 애니메이션 상태 태그 설정 */
-	void SetAnimLayerTag(const FGameplayTag& LayerTag, const FGameplayTag& AnimTag);
+	/** 이동 속도 (cm/s) — 블렌드스페이스 파라미터로 활용 */
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
+	float MoveSpeed = 0.0f;
 
-	/** FullBody 루프 애니메이션 상태 태그 설정 (하위호환) */
-	void SetAnimStateTag(const FGameplayTag& NewAnimTag);
+	/** 애니메이션 태그 설정 — 태그 계층에서 레이어를 자동 감지하여 해당 레이어에 저장 */
+	void SetAnimTag(const FGameplayTag& AnimTag);
 
 	/** 특정 레이어의 애니메이션 상태 태그 조회 */
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
@@ -128,6 +130,9 @@ public:
 	void InitBlendSpaceMappings(const TArray<FHktAnimBlendSpaceEntry>& InMappings);
 
 private:
+	/** 태그 계층에서 레이어 부모 태그 추출 (Anim.FullBody.X → Anim.FullBody) */
+	static FGameplayTag ExtractLayerParent(const FGameplayTag& AnimTag);
+
 	UAnimMontage* FindMontage(const FGameplayTag& Tag) const;
 	UAnimSequence* FindSequence(const FGameplayTag& Tag) const;
 	UBlendSpace* FindBlendSpace(const FGameplayTag& Tag) const;

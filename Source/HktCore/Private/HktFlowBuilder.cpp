@@ -62,10 +62,10 @@ int32 FHktFlowBuilder::TagToInt(const FGameplayTag& Tag)
     return 0;
 }
 
-uint8 FHktFlowBuilder::LayerTagToIndex(const FGameplayTag& LayerTag)
+uint8 FHktFlowBuilder::AnimTagToLayerIndex(const FGameplayTag& AnimTag)
 {
-    static const FGameplayTag UpperBodyTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.Layer.UpperBody")), false);
-    if (LayerTag.MatchesTagExact(UpperBodyTag))
+    static const FGameplayTag UpperBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.UpperBody")), false);
+    if (AnimTag.MatchesTag(UpperBodyParent))
     {
         return HktAnimLayer::UpperBody;
     }
@@ -414,14 +414,7 @@ FHktFlowBuilder& FHktFlowBuilder::RemoveEffect(RegisterIndex Target, const FGame
 
 FHktFlowBuilder& FHktFlowBuilder::PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
 {
-    int32 TagIdx = TagToInt(AnimTag);
-    Emit(FInstruction::Make(EOpCode::PlayAnim, HktAnimLayer::FullBody, Entity, 0, TagIdx & 0xFFF));
-    return *this;
-}
-
-FHktFlowBuilder& FHktFlowBuilder::PlayAnimLayer(RegisterIndex Entity, const FGameplayTag& LayerTag, const FGameplayTag& AnimTag)
-{
-    uint8 LayerIdx = LayerTagToIndex(LayerTag);
+    uint8 LayerIdx = AnimTagToLayerIndex(AnimTag);
     int32 TagIdx = TagToInt(AnimTag);
     Emit(FInstruction::Make(EOpCode::PlayAnim, LayerIdx, Entity, 0, TagIdx & 0xFFF));
     return *this;
@@ -434,15 +427,9 @@ FHktFlowBuilder& FHktFlowBuilder::PlayAnimMontage(RegisterIndex Entity, const FG
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::StopAnim(RegisterIndex Entity)
+FHktFlowBuilder& FHktFlowBuilder::StopAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
 {
-    Emit(FInstruction::Make(EOpCode::StopAnim, HktAnimLayer::FullBody, Entity, 0, 0));
-    return *this;
-}
-
-FHktFlowBuilder& FHktFlowBuilder::StopAnimLayer(RegisterIndex Entity, const FGameplayTag& LayerTag)
-{
-    uint8 LayerIdx = LayerTagToIndex(LayerTag);
+    uint8 LayerIdx = AnimTagToLayerIndex(AnimTag);
     Emit(FInstruction::Make(EOpCode::StopAnim, LayerIdx, Entity, 0, 0));
     return *this;
 }

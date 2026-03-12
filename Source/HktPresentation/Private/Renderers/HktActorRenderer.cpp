@@ -2,7 +2,6 @@
 
 #include "HktActorRenderer.h"
 #include "HktAnimInstance.h"
-#include "HktRuntimeTags.h"
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -213,18 +212,25 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->bIsMoving = Entity.Movement.bIsMoving.Get();
 	}
 
-	// FullBody 루프 애니메이션 상태 변경 (Anim.Idle, Anim.Run 등)
+	// 이동 속도 동기화 — 블렌드스페이스 파라미터로 활용
+	if (Entity.Movement.MoveSpeed.IsDirty(Frame))
+	{
+		HktAnim->MoveSpeed = Entity.Movement.MoveSpeed.Get();
+		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
+	}
+
+	// FullBody 애니메이션 상태 (Anim.FullBody.Locomotion.Run 등) — 태그에서 레이어 자동 감지
 	if (Entity.Animation.AnimState.IsDirty(Frame))
 	{
 		FGameplayTag AnimTag = Entity.Animation.AnimState.Get();
-		HktAnim->SetAnimLayerTag(HktGameplayTags::Anim_Layer_FullBody, AnimTag);
+		HktAnim->SetAnimTag(AnimTag);
 	}
 
-	// UpperBody 레이어 애니메이션 상태 변경
+	// UpperBody 애니메이션 상태 (Anim.UpperBody.Combat.Attack 등) — 태그에서 레이어 자동 감지
 	if (Entity.Animation.AnimStateUpper.IsDirty(Frame))
 	{
 		FGameplayTag AnimTag = Entity.Animation.AnimStateUpper.Get();
-		HktAnim->SetAnimLayerTag(HktGameplayTags::Anim_Layer_UpperBody, AnimTag);
+		HktAnim->SetAnimTag(AnimTag);
 	}
 
 	// 원샷 몽타주 재생 (Anim.Montage.Attack 등)

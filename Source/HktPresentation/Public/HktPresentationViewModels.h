@@ -23,6 +23,7 @@ struct FHktVM_Movement
 	THktVisualField<FVector> MoveTarget;
 	THktVisualField<float> MoveForce;
 	THktVisualField<bool> bIsMoving;
+	THktVisualField<float> MoveSpeed;
 
 	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
 	bool TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame, FVector& CachedTarget);

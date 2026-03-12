@@ -4,7 +4,6 @@
 #include "HktFlowBuilder.h"
 #include "HktCoreProperties.h"
 #include "HktFlowRegistry.h"
-#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktFlowFireball
@@ -15,8 +14,8 @@ namespace HktFlowFireball
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Projectile_Fireball, "Entity.Projectile.Fireball", "Fireball projectile entity.");
 
-	// Anim
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_CastFireball, "Anim.CastFireball", "Fireball cast animation.");
+	// Anim — 태그 계층에 레이어 포함
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_UpperBody_Cast_Fireball, "Anim.UpperBody.Cast.Fireball", "Fireball cast animation.");
 
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_FireballLaunch, "Sound.FireballLaunch", "Fireball launch sound.");
@@ -34,7 +33,7 @@ namespace HktFlowFireball
 	 * 파이어볼 스킬 Flow
 	 *
 	 * 자연어로 읽으면:
-	 * "시전 애니메이션을 재생하고 1초 기다린다.
+	 * "상체에 시전 애니메이션을 재생하고 1초 기다린다.
 	 *  파이어볼을 생성하여 앞으로 날린다.
 	 *  충돌하면 파이어볼을 제거하고 직격 대상에게 100 피해를 준다.
 	 *  주변 300 범위 내 대상들에게 각각 50 피해와 화상을 입힌다."
@@ -47,7 +46,7 @@ namespace HktFlowFireball
 		Flow(Flow_Fireball)
 			// === 시전 시작 ===
 			.Log(TEXT("Fireball: 시전 시작"))
-			.PlayAnimLayer(Self, HktGameplayTags::Anim_Layer_UpperBody, Anim_CastFireball)
+			.PlayAnim(Self, Anim_UpperBody_Cast_Fireball)
 			.WaitSeconds(1.0f)                          // 1초 대기
 
 			// === 파이어볼 생성 및 발사 ===
@@ -86,20 +85,14 @@ namespace HktFlowFireball
 			// === 범위 피해 (반경 300cm) ===
 			.Log(TEXT("Fireball: 범위 피해 적용"))
 
-			// R3에 저장된 위치를 중심으로 범위 검색을 위해
-			// 임시 엔티티로 Spawned 레지스터 활용 (이미 제거됨)
-			// 대신 Self 기준으로 검색 (시전자 주변 = 폭발 위치 근처 가정)
-			// 실제로는 폭발 위치 기준으로 검색해야 하지만,
-			// 여기서는 Hit 엔티티 기준으로 검색
-
 			.ForEachInRadius(Hit, 300)                  // Hit 주변 300cm 내 적들
 				.Move(Target, Iter)                     // Target = 현재 순회 대상
 				.ApplyDamageConst(Target, 50)           // 50 피해
 				.ApplyEffect(Target, Effect_Burn)
 			.EndForEach()
 
-			// 상체 레이어 초기화
-			.StopAnimLayer(Self, HktGameplayTags::Anim_Layer_UpperBody)
+			// 상체 애니메이션 초기화
+			.StopAnim(Self, Anim_UpperBody_Cast_Fireball)
 
 			.Log(TEXT("Fireball: 완료"))
 			.Halt()

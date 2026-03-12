@@ -14,10 +14,10 @@ namespace HktFlowCharacterSpawn
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "Player character entity.");
 
-	// Anim
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Spawn, "Anim.Spawn", "Spawn intro animation.");
+	// Anim — 태그 계층에 레이어 포함
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Action_Spawn, "Anim.FullBody.Action.Spawn", "Spawn intro animation.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Montage_Intro, "Anim.Montage.Intro", "Character intro montage.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Idle, "Anim.Idle", "Idle animation.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Locomotion_Idle, "Anim.FullBody.Locomotion.Idle", "Idle animation.");
 
 	// VFX
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect, "VFX.SpawnEffect", "Character spawn VFX.");
@@ -61,7 +61,7 @@ namespace HktFlowCharacterSpawn
 			.PlaySound(Sound_Spawn)
 
 			// 스폰 애니메이션
-			.PlayAnim(Self, Anim_Spawn)
+			.PlayAnim(Self, Anim_FullBody_Action_Spawn)
 
 			// 0.5초 대기
 			.WaitSeconds(0.5f)
@@ -81,7 +81,7 @@ namespace HktFlowCharacterSpawn
 			.WaitAnimEnd(Self)
 
 			// 준비 완료 - Idle 상태로 전환
-			.PlayAnim(Self, Anim_Idle)
+			.PlayAnim(Self, Anim_FullBody_Locomotion_Idle)
 
 			.Log(TEXT("CharacterSpawn: 준비 완료"))
 			.Halt()

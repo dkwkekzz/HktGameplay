@@ -11,8 +11,8 @@ namespace HktFlowNPCLifecycle
 	// Flow Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_NPC_Lifecycle, "Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
 
-	// Anim
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Death, "Anim.Death", "Death animation.");
+	// Anim — 태그 계층에 레이어 포함
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death animation.");
 
 	// Loot
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_NPCLoot, "Entity.Item.NPCLoot", "Generic NPC loot drop.");
@@ -61,7 +61,7 @@ namespace HktFlowNPCLifecycle
 				.AddTag(Spawned, Tag_Item_Material)
 
 				// 죽음 연출
-				.PlayAnim(Self, Anim_Death)
+				.PlayAnim(Self, Anim_FullBody_Action_Death)
 				.WaitSeconds(3.0f)
 				.DestroyEntity(Self)
 				.Halt()

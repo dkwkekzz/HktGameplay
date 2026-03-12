@@ -1,14 +1,37 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktAnimInstance.h"
-#include "HktRuntimeTags.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 
-void UHktAnimInstance::SetAnimLayerTag(const FGameplayTag& LayerTag, const FGameplayTag& AnimTag)
+FGameplayTag UHktAnimInstance::ExtractLayerParent(const FGameplayTag& AnimTag)
 {
-	FGameplayTag& Current = AnimLayerTags.FindOrAdd(LayerTag);
+	// Anim.FullBody.Locomotion.Run → Anim.FullBody
+	// Anim.UpperBody.Combat.Attack → Anim.UpperBody
+	// 태그 이름에서 두 번째 레벨까지 추출
+	FString TagStr = AnimTag.ToString();
+	int32 FirstDot = INDEX_NONE;
+	int32 SecondDot = INDEX_NONE;
+	TagStr.FindChar(TEXT('.'), FirstDot);
+	if (FirstDot != INDEX_NONE)
+	{
+		SecondDot = TagStr.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromStart, FirstDot + 1);
+	}
+	if (SecondDot != INDEX_NONE)
+	{
+		FString ParentStr = TagStr.Left(SecondDot);
+		return FGameplayTag::RequestGameplayTag(FName(*ParentStr), false);
+	}
+	// 2레벨 이하의 태그는 그대로 반환
+	return AnimTag;
+}
+
+void UHktAnimInstance::SetAnimTag(const FGameplayTag& AnimTag)
+{
+	FGameplayTag LayerParent = ExtractLayerParent(AnimTag);
+
+	FGameplayTag& Current = AnimLayerTags.FindOrAdd(LayerParent);
 	if (Current == AnimTag)
 	{
 		return;
@@ -17,18 +40,14 @@ void UHktAnimInstance::SetAnimLayerTag(const FGameplayTag& LayerTag, const FGame
 	Current = AnimTag;
 
 	// FullBody 레이어는 AnimStateTag와 동기화 (하위호환)
-	if (LayerTag.MatchesTagExact(HktGameplayTags::Anim_Layer_FullBody))
+	static const FGameplayTag FullBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.FullBody")), false);
+	if (LayerParent.MatchesTagExact(FullBodyParent))
 	{
 		AnimStateTag = AnimTag;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] SetAnimLayerTag: Layer=%s Anim=%s on %s"),
-		*LayerTag.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName());
-}
-
-void UHktAnimInstance::SetAnimStateTag(const FGameplayTag& NewAnimTag)
-{
-	SetAnimLayerTag(HktGameplayTags::Anim_Layer_FullBody, NewAnimTag);
+	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] SetAnimTag: Layer=%s Anim=%s on %s"),
+		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName());
 }
 
 FGameplayTag UHktAnimInstance::GetAnimLayerTag(const FGameplayTag& LayerTag) const

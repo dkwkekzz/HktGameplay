@@ -33,6 +33,7 @@
     X(Team, 14)              \
     X(Mana, 15)              \
     X(MaxMana, 16)           \
+    X(MoveSpeed, 17)         \
     /* 소유/타입 */           \
     X(OwnerEntity, 20)       \
     X(EntityType, 21)        \
