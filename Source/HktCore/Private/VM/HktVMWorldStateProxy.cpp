@@ -13,7 +13,7 @@ void FHktVMEntityPoolProxy::Initialize(const FHktEntityPool& Pool, int32 Reserve
     DirtySlots.Reserve(256);
     TagsDirtyMask.Reserve(Reserve);
     TagsDirtySlots.Reserve(256);
-    PreFrameData.Reserve(Reserve * Pool.Stride);
+    PreFrameData.Reserve(Reserve * FHktEntityPool::Stride);
     PreFrameTagContainers.Reserve(Reserve);
     PreFrameOwnerUids.Reserve(Reserve);
     OwnerDirtyMask.Reserve(Reserve);
@@ -63,10 +63,8 @@ void FHktVMWorldStateProxy::SetPropertyDirty(FHktWorldState& WS, FHktEntityId En
 {
     if (!WS.IsValidEntity(Entity)) return;
     const FHktWorldState::FEntityLocation& L = WS.EntityLocations[Entity];
-    int8 LP = FHktSchemaRegistry::Get().Get(L.TypeId).GetLocalIndex(PropId);
-    if (ensure(LP != -1) == false) return;
     FHktEntityPool& Pool = WS.Pools[L.TypeId];
-    PoolProxies[L.TypeId].SetDirty(Pool, L.PoolSlot, LP, Value);
+    PoolProxies[L.TypeId].SetDirty(Pool, L.PoolSlot, PropId, Value);
 }
 
 void FHktVMWorldStateProxy::SetOwnerUid(FHktWorldState& WS, FHktEntityId Entity, int64 Uid)

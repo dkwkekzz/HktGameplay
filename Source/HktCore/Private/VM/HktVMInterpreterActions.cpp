@@ -449,15 +449,11 @@ void FHktVMInterpreter::Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Ds
     {
         FHktEntityId OwnerId = Runtime.GetRegEntity(OwnerEntity);
         const FHktEntityPool& Pool = WorldState->GetPool(TypeId);
-        const int8 LP = FHktSchemaRegistry::Get().Get(TypeId).GetLocalIndex(PropertyId::OwnerEntity);
-        if (LP >= 0)
+        Pool.ForEachEntity([&](FHktEntityId /*E*/, int32 Slot)
         {
-            Pool.ForEachEntity([&](FHktEntityId /*E*/, int32 Slot)
-            {
-                if (Pool.Get(Slot, LP) == OwnerId)
-                    ++Count;
-            });
-        }
+            if (Pool.Get(Slot, PropertyId::OwnerEntity) == OwnerId)
+                ++Count;
+        });
     }
     Runtime.SetReg(Dst, Count);
 }
@@ -470,15 +466,11 @@ void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex Own
     {
         FHktEntityId OwnerId = Runtime.GetRegEntity(OwnerEntity);
         const FHktEntityPool& Pool = WorldState->GetPool(TypeId);
-        const int8 LP = FHktSchemaRegistry::Get().Get(TypeId).GetLocalIndex(PropertyId::OwnerEntity);
-        if (LP >= 0)
+        Pool.ForEachEntity([&](FHktEntityId E, int32 Slot)
         {
-            Pool.ForEachEntity([&](FHktEntityId E, int32 Slot)
-            {
-                if (Pool.Get(Slot, LP) == OwnerId)
-                    Runtime.SpatialQuery.Entities.Add(E);
-            });
-        }
+            if (Pool.Get(Slot, PropertyId::OwnerEntity) == OwnerId)
+                Runtime.SpatialQuery.Entities.Add(E);
+        });
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());

@@ -7,43 +7,49 @@
 #include "HktCoreProperties.h"
 
 // ============================================================================
-// FHktEntitySchema — 타입별 프로퍼티 메타데이터
+// FHktPropertyMask — 프로퍼티 유효성 비트마스크
 //
-//   PropertyIds[LocalIndex] = GlobalPropertyId
-//   PropertyToLocal[GlobalPropertyId] = LocalIndex (stride 내 오프셋)
+// PropertyId::MaxCount <= 64 이면 uint64 1개, 그 이상이면 배열로 확장.
+// ============================================================================
+
+struct FHktPropertyMask
+{
+    static constexpr int32 NumWords = (PropertyId::MaxCount + 63) / 64;
+    uint64 Bits[NumWords] = {};
+
+    FORCEINLINE void Set(uint16 PropId)       { Bits[PropId >> 6] |= (1ULL << (PropId & 63)); }
+    FORCEINLINE bool Test(uint16 PropId) const { return (Bits[PropId >> 6] & (1ULL << (PropId & 63))) != 0; }
+    FORCEINLINE bool IsZero() const
+    {
+        for (int32 i = 0; i < NumWords; ++i) if (Bits[i] != 0) return false;
+        return true;
+    }
+};
+
+// ============================================================================
+// FHktEntitySchema — 타입별 프로퍼티 메타데이터 (디버그 검증용)
+//
+// Uniform Stride: PropertyId가 곧 배열 오프셋. 매핑 불필요.
+// ValidMask는 디버그 빌드에서 잘못된 property 접근 감지용.
 // ============================================================================
 
 struct HKTCORE_API FHktEntitySchema
 {
     FHktTypeId TypeId = HktType::None;
-    TArray<uint16> PropertyIds;
-    TArray<int8> PropertyToLocal;
+    FHktPropertyMask ValidMask;
 
-    void AddProperty(uint16 PropId)
+    void MarkValid(uint16 PropId)
     {
-        int8 LocalIdx = static_cast<int8>(PropertyIds.Num());
-        PropertyIds.Add(PropId);
-        if (PropId >= PropertyToLocal.Num())
-        {
-            int32 OldNum = PropertyToLocal.Num();
-            PropertyToLocal.SetNum(PropId + 1);
-            for (int32 i = OldNum; i < PropertyToLocal.Num(); ++i)
-                PropertyToLocal[i] = -1;
-        }
-        PropertyToLocal[PropId] = LocalIdx;
+        checkf(PropId < PropertyId::MaxCount, TEXT("PropId %u out of range"), PropId);
+        ValidMask.Set(PropId);
     }
 
-    bool HasProperty(uint16 PropId) const
+    FORCEINLINE bool HasProperty(uint16 PropId) const
     {
-        return PropId < PropertyToLocal.Num() && PropertyToLocal[PropId] != -1;
+        return PropId < PropertyId::MaxCount && ValidMask.Test(PropId);
     }
 
-    FORCEINLINE int8 GetLocalIndex(uint16 PropId) const
-    {
-        return (PropId < PropertyToLocal.Num()) ? PropertyToLocal[PropId] : -1;
-    }
-
-    FORCEINLINE int32 GetStride() const { return PropertyIds.Num(); }
+    static constexpr int32 GetStride() { return PropertyId::MaxCount; }
 };
 
 // ============================================================================
@@ -72,16 +78,14 @@ struct HKTCORE_API FHktSchemaRegistry
 // ============================================================================
 // FHktEntityPool — 타입별 Flat AOS 저장소 (순수 게임 상태)
 //
-// 메모리 레이아웃 (예: Unit, Stride=20):
-//   Data[] = [E0_P0 E0_P1 ... E0_P19 | E1_P0 E1_P1 ... E1_P19 | ...]
-//
-// VM 처리 중간물(DirtyMask, PreFrameData 등)은 HktVMWorldStateProxy에 격리.
+// Uniform Stride: 모든 타입이 PropertyId::MaxCount 고정.
+// Data[Slot * Stride + PropId] — PropertyId가 곧 오프셋.
 // ============================================================================
 
 struct HKTCORE_API FHktEntityPool
 {
     FHktTypeId TypeId = HktType::None;
-    int32 Stride = 0;
+    static constexpr int32 Stride = PropertyId::MaxCount;
 
     TArray<int32> Data;
     TArray<FHktEntityId> SlotToEntity;
@@ -91,14 +95,14 @@ struct HKTCORE_API FHktEntityPool
     TArray<FGameplayTagContainer> TagContainers;
     TArray<int64> OwnerUids;  // SlotToEntity/TagContainers와 병렬
 
-    void Initialize(const FHktEntitySchema& InSchema, int32 ReserveCount);
+    void Initialize(FHktTypeId InTypeId, int32 ReserveCount);
     int32 AllocateSlot(FHktEntityId EntityId);
     void FreeSlot(int32 Slot);
 
     FORCEINLINE int32* EntityData(int32 Slot) { return Data.GetData() + Slot * Stride; }
     FORCEINLINE const int32* EntityData(int32 Slot) const { return Data.GetData() + Slot * Stride; }
-    FORCEINLINE int32 Get(int32 Slot, int8 LP) const { return Data[Slot * Stride + LP]; }
-    FORCEINLINE void Set(int32 Slot, int8 LP, int32 V) { Data[Slot * Stride + LP] = V; }
+    FORCEINLINE int32 Get(int32 Slot, uint16 PropId) const { return Data[Slot * Stride + PropId]; }
+    FORCEINLINE void Set(int32 Slot, uint16 PropId, int32 V) { Data[Slot * Stride + PropId] = V; }
 
     FORCEINLINE void AddTag(int32 Slot, const FGameplayTag& Tag)     { TagContainers[Slot].AddTag(Tag); }
     FORCEINLINE void RemoveTag(int32 Slot, const FGameplayTag& Tag)  { TagContainers[Slot].RemoveTag(Tag); }
@@ -149,23 +153,21 @@ struct HKTCORE_API FHktWorldState
         return IsValidEntity(Id) ? EntityLocations[Id].TypeId : HktType::None;
     }
 
-    // --- Property Access ---
+    // --- Property Access (직접 접근, 매핑 없음) ---
     FORCEINLINE int32 GetProperty(FHktEntityId Entity, uint16 PropId) const
     {
         if (!ensure(IsValidEntity(Entity))) return 0;
         const FEntityLocation& L = EntityLocations[Entity];
-        int8 LP = FHktSchemaRegistry::Get().Get(L.TypeId).GetLocalIndex(PropId);
-        if (ensure(LP != -1) == false) return 0;
-        return Pools[L.TypeId].Get(L.PoolSlot, LP);
+        checkSlow(FHktSchemaRegistry::Get().Get(L.TypeId).HasProperty(PropId));
+        return Pools[L.TypeId].Get(L.PoolSlot, PropId);
     }
 
     FORCEINLINE void SetProperty(FHktEntityId Entity, uint16 PropId, int32 Value)
     {
         if (!ensure(IsValidEntity(Entity))) return;
         const FEntityLocation& L = EntityLocations[Entity];
-        int8 LP = FHktSchemaRegistry::Get().Get(L.TypeId).GetLocalIndex(PropId);
-        if (ensure(LP != -1) == false) return;
-        Pools[L.TypeId].Set(L.PoolSlot, LP, Value);
+        checkSlow(FHktSchemaRegistry::Get().Get(L.TypeId).HasProperty(PropId));
+        Pools[L.TypeId].Set(L.PoolSlot, PropId, Value);
     }
 
     // --- Tag Access ---

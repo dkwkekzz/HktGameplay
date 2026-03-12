@@ -5,80 +5,82 @@
 #include "CoreMinimal.h"
 
 /**
- * PropertyId - 엔티티 속성 ID 상수
+ * PropertyId - 엔티티 속성 ID
  *
- * SOA 레이아웃에서 각 속성의 인덱스를 정의
- * WorldState, VM Store 등에서 공통 사용
- *
- * X-매크로 패턴: ID 상수와 이름 문자열을 한 곳에서 관리
+ * Dense enum: HKT_PROPERTY(Name) 매크로 하나로 인덱스+이름 자동 생성.
+ * PropertyId 자체가 SOA 배열 오프셋 — LocalIndex 매핑 불필요.
  */
 
 #define HKT_PROPERTY_LIST(X) \
     /* 위치/이동 */           \
-    X(PosX, 0)               \
-    X(PosY, 1)               \
-    X(PosZ, 2)               \
-    X(RotYaw, 3)             \
-    X(MoveTargetX, 4)        \
-    X(MoveTargetY, 5)        \
-    X(MoveTargetZ, 6)        \
-    X(MoveForce, 7)          \
-    X(IsMoving, 8)           \
-    X(MaxSpeed, 9)           \
+    X(PosX)                   \
+    X(PosY)                   \
+    X(PosZ)                   \
+    X(RotYaw)                 \
+    X(MoveTargetX)            \
+    X(MoveTargetY)            \
+    X(MoveTargetZ)            \
+    X(MoveForce)              \
+    X(IsMoving)               \
+    X(MaxSpeed)               \
     /* 전투/상태 */           \
-    X(Health, 10)            \
-    X(MaxHealth, 11)         \
-    X(AttackPower, 12)       \
-    X(Defense, 13)           \
-    X(Team, 14)              \
-    X(Mana, 15)              \
-    X(MaxMana, 16)           \
+    X(Health)                 \
+    X(MaxHealth)              \
+    X(AttackPower)            \
+    X(Defense)                \
+    X(Team)                   \
+    X(Mana)                   \
+    X(MaxMana)                \
     /* 소유/타입 */           \
-    X(OwnerEntity, 20)       \
-    X(EntityType, 21)        \
-    X(EntitySpawnTag, 22)    \
+    X(OwnerEntity)            \
+    X(EntityType)             \
+    X(EntitySpawnTag)         \
     /* 이벤트 파라미터 */     \
-    X(TargetPosX, 30)        \
-    X(TargetPosY, 31)        \
-    X(TargetPosZ, 32)        \
-    X(Param0, 33)            \
-    X(Param1, 34)            \
-    X(Param2, 35)            \
-    X(Param3, 36)            \
+    X(TargetPosX)             \
+    X(TargetPosY)             \
+    X(TargetPosZ)             \
+    X(Param0)                 \
+    X(Param1)                 \
+    X(Param2)                 \
+    X(Param3)                 \
     /* 애니메이션/비주얼 */   \
-    X(AnimState, 40)         \
-    X(VisualState, 41)       \
-    X(AnimStateUpper, 42)    \
+    X(AnimState)              \
+    X(VisualState)            \
+    X(AnimStateUpper)         \
     /* 물리 */                \
-    X(VelX, 50)              \
-    X(VelY, 51)              \
-    X(VelZ, 52)              \
-    X(Mass, 53)              \
-    X(CollisionRadius, 54)   \
+    X(VelX)                   \
+    X(VelY)                   \
+    X(VelZ)                   \
+    X(Mass)                   \
+    X(CollisionRadius)        \
     /* 아이템 */              \
-    X(ItemState, 55)         \
-    X(ItemId, 56)            \
-    X(BagSlot, 57)           \
-    X(ActionSlot, 58)        \
+    X(ItemState)              \
+    X(ItemId)                 \
+    X(BagSlot)                \
+    X(ActionSlot)             \
     /* NPC */                 \
-    X(IsNPC, 60)             \
-    X(SpawnFlowTag, 61)
+    X(IsNPC)                  \
+    X(SpawnFlowTag)
 
 namespace PropertyId
 {
-    #define HKT_PROPID_CONST(Name, Id) constexpr uint16 Name = Id;
-    HKT_PROPERTY_LIST(HKT_PROPID_CONST)
-    #undef HKT_PROPID_CONST
+    enum : uint16
+    {
+        #define HKT_PROP_ENUM(Name) Name,
+        HKT_PROPERTY_LIST(HKT_PROP_ENUM)
+        #undef HKT_PROP_ENUM
+        MaxCount
+    };
 }
 
-/** PropertyId → 이름 문자열 (디버그/인사이트용) */
+/** PropertyId -> 이름 문자열 (디버그/인사이트용) */
 inline const TCHAR* GetPropertyName(uint16 PropId)
 {
     switch (PropId)
     {
-    #define HKT_PROPID_NAME(Name, Id) case Id: return TEXT(#Name);
-    HKT_PROPERTY_LIST(HKT_PROPID_NAME)
-    #undef HKT_PROPID_NAME
+    #define HKT_PROP_NAME(Name) case PropertyId::Name: return TEXT(#Name);
+    HKT_PROPERTY_LIST(HKT_PROP_NAME)
+    #undef HKT_PROP_NAME
     default: return nullptr;
     }
 }

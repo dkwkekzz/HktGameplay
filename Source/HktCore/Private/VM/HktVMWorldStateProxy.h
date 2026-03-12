@@ -14,7 +14,7 @@
 
 struct FHktVMEntityPoolProxy
 {
-    TArray<uint32> DirtyMask;
+    TArray<uint64> DirtyMask;
     TArray<int32>  DirtySlots;
     TArray<uint8>  TagsDirtyMask;
     TArray<int32>  TagsDirtySlots;
@@ -27,16 +27,16 @@ struct FHktVMEntityPoolProxy
 
     void Initialize(const FHktEntityPool& Pool, int32 Reserve);
 
-    FORCEINLINE void SetDirty(FHktEntityPool& Pool, int32 Slot, int8 LP, int32 V)
+    FORCEINLINE void SetDirty(FHktEntityPool& Pool, int32 Slot, uint16 PropId, int32 V)
     {
-        Pool.Data[Slot * Pool.Stride + LP] = V;
+        Pool.Data[Slot * FHktEntityPool::Stride + PropId] = V;
         if (Slot >= DirtyMask.Num())
         {
             DirtyMask.SetNum(Slot + 1, EAllowShrinking::No);
             TagsDirtyMask.SetNum(Slot + 1, EAllowShrinking::No);
         }
         if (DirtyMask[Slot] == 0) DirtySlots.Add(Slot);
-        DirtyMask[Slot] |= (1u << LP);
+        DirtyMask[Slot] |= (1ULL << PropId);
     }
 
     FORCEINLINE void SetTagsDirty(int32 Slot)
@@ -106,9 +106,9 @@ struct FHktVMEntityPoolProxy
         }
     }
 
-    FORCEINLINE int32 GetPreFrameValue(const FHktEntityPool& Pool, int32 Slot, int8 LP) const
+    FORCEINLINE int32 GetPreFrameValue(int32 Slot, uint16 PropId) const
     {
-        return PreFrameData[Slot * Pool.Stride + LP];
+        return PreFrameData[Slot * FHktEntityPool::Stride + PropId];
     }
 
     FORCEINLINE const FGameplayTagContainer& GetPreFrameTags(int32 Slot) const
