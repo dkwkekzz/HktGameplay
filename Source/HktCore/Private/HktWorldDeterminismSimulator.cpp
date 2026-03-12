@@ -107,22 +107,19 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         if (WorldState.IsValidEntity(Id))
             Diff.SpawnedEntities.Add(WorldState.ExtractEntityState(Id));
 
-    for (int32 T = 1; T < HktType::MaxTypes; ++T)
     {
-        const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
-        const FHktVMEntityPoolProxy& Proxy = VMProxy.GetProxy(static_cast<FHktTypeId>(T));
-        if (Pool.Stride == 0) continue;
-        const FHktEntitySchema& Schema = FHktSchemaRegistry::Get().Get(static_cast<FHktTypeId>(T));
-        Proxy.ForEachDirtyEntity(Pool, [&](FHktEntityId Id, int32 Slot, uint32 Mask)
+        const FHktEntityPool& Pool = WorldState.GetPool();
+        const FHktVMEntityPoolProxy& Proxy = VMProxy.GetProxy();
+        Proxy.ForEachDirtyEntity(Pool, [&](FHktEntityId Id, int32 Slot, uint64 Mask)
         {
             if (Id >= PrevNext) return;
             const int32* ED = Pool.EntityData(Slot);
-            uint32 M = Mask;
+            uint64 M = Mask;
             while (M)
             {
-                int32 LP = FMath::CountTrailingZeros(M);
-                int32 OldVal = Proxy.GetPreFrameValue(Pool, Slot, LP);
-                Diff.PropertyDeltas.Add({ Id, Schema.PropertyIds[LP], ED[LP], OldVal });
+                uint16 PropId = static_cast<uint16>(FMath::CountTrailingZeros64(M));
+                int32 OldVal = Proxy.GetPreFrameValue(Slot, PropId);
+                Diff.PropertyDeltas.Add({ Id, PropId, ED[PropId], OldVal });
                 M &= M - 1;
             }
         });
@@ -160,31 +157,26 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             FString::FromInt(WorldState.GetEntityCount()));
 
         // 엔티티별 속성 요약
-        for (int32 T = 1; T < HktType::MaxTypes; ++T)
+        const FHktEntityPool& Pool = WorldState.GetPool();
+        Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
-            const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
-            if (Pool.ActiveCount == 0) continue;
-            const TCHAR* TypeName = GetTypeName(static_cast<FHktTypeId>(T));
-            const FHktEntitySchema& Schema = FHktSchemaRegistry::Get().Get(static_cast<FHktTypeId>(T));
+            const TCHAR* TypeName = GetTypeName(static_cast<FHktTypeId>(Pool.Get(Slot, PropertyId::EntityType)));
 
-            Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
+            FString PropSummary;
+            PropSummary += FString::Printf(TEXT("Type=%s"), TypeName ? TypeName : TEXT("Unknown"));
+            PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
+            for (uint16 PropId = 0; PropId < PropertyId::MaxCount; ++PropId)
             {
-                // 키: "E_{EntityId}" — 값: "Type=Unit | Owner=123 | PosX=100 PosY=200 ..."
-                FString PropSummary;
-                PropSummary += FString::Printf(TEXT("Type=%s"), TypeName ? TypeName : TEXT("Unknown"));
-                PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
-                for (int8 LocalIdx = 0; LocalIdx < Pool.Stride; ++LocalIdx)
-                {
-                    const TCHAR* PropName = GetPropertyName(Schema.PropertyIds[LocalIdx]);
-                    PropSummary += FString::Printf(TEXT(" | %s=%d"),
-                        PropName ? PropName : TEXT("?"),
-                        Pool.Get(Slot, LocalIdx));
-                }
+                const TCHAR* PropName = GetPropertyName(PropId);
+                if (!PropName) continue;
+                int32 Val = Pool.Get(Slot, PropId);
+                if (Val == 0) continue;
+                PropSummary += FString::Printf(TEXT(" | %s=%d"), PropName, Val);
+            }
 
-                FString EntityKey = FString::Printf(TEXT("E_%d"), Id);
-                HKT_INSIGHT_COLLECT(WsCat, EntityKey, PropSummary);
-            });
-        }
+            FString EntityKey = FString::Printf(TEXT("E_%d"), Id);
+            HKT_INSIGHT_COLLECT(WsCat, EntityKey, PropSummary);
+        });
     }
 #endif
 

@@ -39,7 +39,6 @@ private:
 
     // --- 코어 시뮬레이터 ---
     TUniquePtr<IHktDeterminismSimulator> Simulator;
-    FHktSchemaRegistry SchemaRegistry;
     bool bInitialized = false;
 
     // --- Diff 히스토리 (로컬 예측 프레임별 Diff, 역적용으로 롤백) ---

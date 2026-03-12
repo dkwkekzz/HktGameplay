@@ -6,15 +6,15 @@
 #include "HktCoreProperties.h"
 
 // ============================================================================
-// FHktVMEntityPoolProxy — 풀별 VM 중간 데이터 (CorePrivate 전용)
+// FHktVMEntityPoolProxy — 단일 풀 VM 중간 데이터 (CorePrivate 전용)
 //
-// DirtyMask / DirtySlots / TagsDirtyMask / TagsDirtySlots — 프레임 내 변경 추적
-// PreFrameData / PreFrameTagContainers — 프레임 시작 스냅샷 (UndoDiff OldValue 조회)
+// DirtyMask / DirtySlots — 프레임 내 변경 추적
+// PreFrameData — 프레임 시작 스냅샷 (UndoDiff OldValue 조회)
 // ============================================================================
 
 struct FHktVMEntityPoolProxy
 {
-    TArray<uint32> DirtyMask;
+    TArray<uint64> DirtyMask;
     TArray<int32>  DirtySlots;
     TArray<uint8>  TagsDirtyMask;
     TArray<int32>  TagsDirtySlots;
@@ -25,18 +25,18 @@ struct FHktVMEntityPoolProxy
     TArray<int32>  OwnerDirtySlots;
     TArray<uint8>  OwnerDirtyMask;
 
-    void Initialize(const FHktEntityPool& Pool, int32 Reserve);
+    void Initialize(int32 Reserve);
 
-    FORCEINLINE void SetDirty(FHktEntityPool& Pool, int32 Slot, int8 LP, int32 V)
+    FORCEINLINE void SetDirty(FHktEntityPool& Pool, int32 Slot, uint16 PropId, int32 V)
     {
-        Pool.Data[Slot * Pool.Stride + LP] = V;
+        Pool.Data[Slot * FHktEntityPool::Stride + PropId] = V;
         if (Slot >= DirtyMask.Num())
         {
             DirtyMask.SetNum(Slot + 1, EAllowShrinking::No);
             TagsDirtyMask.SetNum(Slot + 1, EAllowShrinking::No);
         }
         if (DirtyMask[Slot] == 0) DirtySlots.Add(Slot);
-        DirtyMask[Slot] |= (1u << LP);
+        DirtyMask[Slot] |= (1ULL << PropId);
     }
 
     FORCEINLINE void SetTagsDirty(int32 Slot)
@@ -106,9 +106,9 @@ struct FHktVMEntityPoolProxy
         }
     }
 
-    FORCEINLINE int32 GetPreFrameValue(const FHktEntityPool& Pool, int32 Slot, int8 LP) const
+    FORCEINLINE int32 GetPreFrameValue(int32 Slot, uint16 PropId) const
     {
-        return PreFrameData[Slot * Pool.Stride + LP];
+        return PreFrameData[Slot * FHktEntityPool::Stride + PropId];
     }
 
     FORCEINLINE const FGameplayTagContainer& GetPreFrameTags(int32 Slot) const
@@ -123,7 +123,7 @@ struct FHktVMEntityPoolProxy
 
 struct FHktVMWorldStateProxy
 {
-    FHktVMEntityPoolProxy PoolProxies[HktType::MaxTypes];
+    FHktVMEntityPoolProxy PoolProxy;
 
     void Initialize(const FHktWorldState& WS);
     void ResetDirtyIndices(const FHktWorldState& WS);
@@ -145,6 +145,6 @@ struct FHktVMWorldStateProxy
         SetPosition(WS, Entity, Pos.X, Pos.Y, Pos.Z);
     }
 
-    FORCEINLINE FHktVMEntityPoolProxy& GetProxy(FHktTypeId T) { return PoolProxies[T]; }
-    FORCEINLINE const FHktVMEntityPoolProxy& GetProxy(FHktTypeId T) const { return PoolProxies[T]; }
+    FORCEINLINE FHktVMEntityPoolProxy& GetProxy() { return PoolProxy; }
+    FORCEINLINE const FHktVMEntityPoolProxy& GetProxy() const { return PoolProxy; }
 };

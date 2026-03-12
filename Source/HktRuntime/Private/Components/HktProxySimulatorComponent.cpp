@@ -11,7 +11,6 @@ UHktProxySimulatorComponent::UHktProxySimulatorComponent()
 void UHktProxySimulatorComponent::BeginPlay()
 {
     Super::BeginPlay();
-    SchemaRegistry.Initialize();
     Simulator = CreateDeterminismSimulator(TEXT("Client"));
 }
 
