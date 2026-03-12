@@ -12,10 +12,11 @@ class UAnimSequence;
 class UBlendSpace;
 
 /**
- * 애니메이션 태그 → 몽타주 매핑 엔트리
+ * 애니메이션 태그 → 에셋 매핑 엔트리
+ * 하나의 태그에 대해 Montage/Sequence/BlendSpace 중 설정된 에셋을 자동 재생
  */
 USTRUCT(BlueprintType)
-struct FHktAnimMontageEntry
+struct FHktAnimMappingEntry
 {
 	GENERATED_BODY()
 
@@ -24,33 +25,9 @@ struct FHktAnimMontageEntry
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
 	TObjectPtr<UAnimMontage> Montage;
-};
-
-/**
- * 애니메이션 태그 → 시퀀스 매핑 엔트리
- */
-USTRUCT(BlueprintType)
-struct FHktAnimSequenceEntry
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
-	FGameplayTag AnimTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
 	TObjectPtr<UAnimSequence> Sequence;
-};
-
-/**
- * 애니메이션 태그 → 블렌드스페이스 매핑 엔트리
- */
-USTRUCT(BlueprintType)
-struct FHktAnimBlendSpaceEntry
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
-	FGameplayTag AnimTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
 	TObjectPtr<UBlendSpace> BlendSpace;
@@ -59,8 +36,8 @@ struct FHktAnimBlendSpaceEntry
 /**
  * UHktAnimInstance
  *
- * Flow VM의 AnimState/MontageState 프로퍼티를 UE5 애니메이션 시스템에 전달.
- * HktProperty를 통해 현재 재생 정보를 받고, 내부 매핑 테이블로 자체 재생.
+ * Flow VM의 AnimTag를 UE5 애니메이션 시스템에 전달.
+ * SetAnimTag() 하나로 태그를 받으면 매핑 테이블에서 에셋을 찾아 자동 재생.
  *
  * 태그 계층 기반 애니메이션 관리:
  * - AnimTag에서 부모 태그를 추출하여 자동 분류: Anim.FullBody.* / Anim.UpperBody.*
@@ -107,35 +84,18 @@ public:
 
 	// ========== 매핑 테이블 (AnimBP 클래스 기본값에서 설정) ==========
 
-	/** 애니메이션 태그 → 몽타주 매핑 */
+	/** 애니메이션 태그 → 에셋 매핑 (Montage/Sequence/BlendSpace 중 설정된 것을 자동 재생) */
 	UPROPERTY(EditDefaultsOnly, Category = "HKT|Animation")
-	TArray<FHktAnimMontageEntry> MontageMappings;
-
-	/** 애니메이션 태그 → 시퀀스 매핑 */
-	UPROPERTY(EditDefaultsOnly, Category = "HKT|Animation")
-	TArray<FHktAnimSequenceEntry> SequenceMappings;
-
-	/** 애니메이션 태그 → 블렌드스페이스 매핑 */
-	UPROPERTY(EditDefaultsOnly, Category = "HKT|Animation")
-	TArray<FHktAnimBlendSpaceEntry> BlendSpaceMappings;
+	TArray<FHktAnimMappingEntry> AnimMappings;
 
 	// ========== 제어 API ==========
 
-	/** 애니메이션 태그 설정 — 태그 계층에서 부모 태그를 추출하여 AnimLayerTags에 저장 */
+	/** 애니메이션 태그 설정 — 매핑 테이블에서 에셋을 찾아 자동 재생 */
 	void SetAnimTag(const FGameplayTag& AnimTag);
 
 	/** 특정 부모 태그의 애니메이션 상태 태그 조회 */
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
 	FGameplayTag GetAnimLayerTag(const FGameplayTag& LayerTag) const;
-
-	/** 몽타주 재생 (Anim.Montage.Attack 등) */
-	void PlayMontageByTag(const FGameplayTag& MontageTag);
-
-	/** 시퀀스 재생 — 슬롯 기반 다이나믹 몽타주로 재생 */
-	void PlaySequenceByTag(const FGameplayTag& SequenceTag, FName SlotName = FName(TEXT("DefaultSlot")), float PlayRate = 1.0f);
-
-	/** 블렌드스페이스 활성화 */
-	void SetBlendSpaceByTag(const FGameplayTag& BlendSpaceTag);
 
 	/** 몽타주가 재생 중인지 */
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
@@ -144,7 +104,5 @@ public:
 private:
 	static FGameplayTag ExtractLayerParent(const FGameplayTag& AnimTag);
 
-	UAnimMontage* FindMontage(const FGameplayTag& Tag) const;
-	UAnimSequence* FindSequence(const FGameplayTag& Tag) const;
-	UBlendSpace* FindBlendSpace(const FGameplayTag& Tag) const;
+	const FHktAnimMappingEntry* FindMapping(const FGameplayTag& Tag) const;
 };

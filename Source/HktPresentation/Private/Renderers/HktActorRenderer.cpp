@@ -221,14 +221,10 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->SetAnimTag(Entity.Animation.AnimStateUpper.Get());
 	}
 
-	// 원샷 몽타주 재생 (Anim.Montage.Attack 등)
+	// 몽타주 상태 (VisualState 경유)
 	if (Entity.Animation.MontageState.IsDirty(Frame))
 	{
-		FGameplayTag MontageTag = Entity.Animation.MontageState.Get();
-		if (MontageTag.IsValid())
-		{
-			HktAnim->PlayMontageByTag(MontageTag);
-		}
+		HktAnim->SetAnimTag(Entity.Animation.MontageState.Get());
 	}
 }
 
