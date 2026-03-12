@@ -209,18 +209,16 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
 	}
 
-	// FullBody 애니메이션 상태 (Anim.FullBody.Locomotion.Run 등) — 태그에서 레이어 자동 감지
+	// FullBody 애니메이션 상태 (Anim.FullBody.Locomotion.Run 등)
 	if (Entity.Animation.AnimState.IsDirty(Frame))
 	{
-		FGameplayTag AnimTag = Entity.Animation.AnimState.Get();
-		HktAnim->SetAnimTag(AnimTag);
+		HktAnim->SetAnimTag(Entity.Animation.AnimState.Get());
 	}
 
-	// UpperBody 애니메이션 상태 (Anim.UpperBody.Combat.Attack 등) — 태그에서 레이어 자동 감지
+	// UpperBody 애니메이션 상태 (Anim.UpperBody.Combat.Attack 등)
 	if (Entity.Animation.AnimStateUpper.IsDirty(Frame))
 	{
-		FGameplayTag AnimTag = Entity.Animation.AnimStateUpper.Get();
-		HktAnim->SetAnimTag(AnimTag);
+		HktAnim->SetAnimTag(Entity.Animation.AnimStateUpper.Get());
 	}
 
 	// 원샷 몽타주 재생 (Anim.Montage.Attack 등)

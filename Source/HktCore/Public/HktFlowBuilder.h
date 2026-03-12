@@ -154,13 +154,13 @@ public:
 
     // ========== Animation & VFX ==========
 
-    /** 애니메이션 재생 — 태그 계층에서 레이어 자동 감지 (Anim.FullBody.*, Anim.UpperBody.*) */
+    /** 애니메이션 재생 — 태그 계층으로 PropertyId 자동 결정 (Anim.FullBody.*, Anim.UpperBody.*) */
     FHktFlowBuilder& PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag);
 
     /** 몽타주 재생 */
     FHktFlowBuilder& PlayAnimMontage(RegisterIndex Entity, const FGameplayTag& MontageTag);
 
-    /** 애니메이션 중지 — 태그 계층에서 레이어 자동 감지 */
+    /** 애니메이션 중지 — 태그 계층으로 PropertyId 자동 결정 */
     FHktFlowBuilder& StopAnim(RegisterIndex Entity, const FGameplayTag& AnimTag);
 
     /** VFX 재생 (위치) */
@@ -228,7 +228,7 @@ private:
     int32 AddString(const FString& Str);
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
-    uint8 AnimTagToLayerIndex(const FGameplayTag& AnimTag);
+    uint16 AnimTagToPropertyId(const FGameplayTag& AnimTag);
     void ResolveLabels();
 
 private:

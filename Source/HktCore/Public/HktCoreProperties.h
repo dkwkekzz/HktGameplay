@@ -71,29 +71,6 @@ namespace PropertyId
     #undef HKT_PROPID_CONST
 }
 
-/**
- * HktAnimLayer - 애니메이션 레이어 인덱스 상수
- *
- * PlayAnim 명령어의 Dst 필드에 인코딩됨 (4비트, 최대 16레이어)
- * 레이어 인덱스 → PropertyId 매핑 제공
- */
-namespace HktAnimLayer
-{
-    constexpr uint8 FullBody = 0;
-    constexpr uint8 UpperBody = 1;
-    constexpr uint8 MaxLayers = 4;
-
-    inline uint16 GetPropertyId(uint8 LayerIndex)
-    {
-        switch (LayerIndex)
-        {
-        case FullBody:   return PropertyId::AnimState;
-        case UpperBody:  return PropertyId::AnimStateUpper;
-        default:         return PropertyId::AnimState;
-        }
-    }
-}
-
 /** PropertyId → 이름 문자열 (디버그/인사이트용) */
 inline const TCHAR* GetPropertyName(uint16 PropId)
 {

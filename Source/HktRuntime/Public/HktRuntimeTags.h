@@ -15,7 +15,7 @@ namespace HktGameplayTags
     // Effect Tags
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Burn);
 
-    // Animation Layer Parent Tags — 태그 계층의 레이어 루트
+    // Animation Parent Tags — 태그 계층 루트
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_FullBody);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_UpperBody);
 }

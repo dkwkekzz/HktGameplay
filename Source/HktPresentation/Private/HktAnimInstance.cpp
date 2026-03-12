@@ -39,7 +39,7 @@ void UHktAnimInstance::SetAnimTag(const FGameplayTag& AnimTag)
 
 	Current = AnimTag;
 
-	// FullBody 레이어는 AnimStateTag와 동기화 (하위호환)
+	// FullBody는 AnimStateTag와 동기화 (하위호환)
 	static const FGameplayTag FullBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.FullBody")), false);
 	if (LayerParent.MatchesTagExact(FullBodyParent))
 	{

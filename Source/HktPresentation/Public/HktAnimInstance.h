@@ -62,9 +62,9 @@ struct FHktAnimBlendSpaceEntry
  * Flow VM의 AnimState/MontageState 프로퍼티를 UE5 애니메이션 시스템에 전달.
  * HktProperty를 통해 현재 재생 정보를 받고, 내부 매핑 테이블로 자체 재생.
  *
- * 태그 기반 레이어 시스템:
- * - 태그 계층으로 레이어 자동 감지: Anim.FullBody.* → FullBody, Anim.UpperBody.* → UpperBody
- * - AnimLayerTags: 레이어 부모 태그 → 현재 AnimTag 맵 (AnimBP에서 직접 읽기)
+ * 태그 계층 기반 애니메이션 관리:
+ * - AnimTag에서 부모 태그를 추출하여 자동 분류: Anim.FullBody.* / Anim.UpperBody.*
+ * - AnimLayerTags: 부모 태그 → 현재 AnimTag 맵 (AnimBP에서 직접 읽기)
  * - AnimStateTag: FullBody 편의 프로퍼티 (하위호환)
  *
  * 매핑 테이블은 AnimBP 클래스 기본값에서 직접 설정합니다.
@@ -77,7 +77,7 @@ class HKTPRESENTATION_API UHktAnimInstance : public UAnimInstance
 public:
 	// ========== 런타임 상태 (Renderer에서 갱신) ==========
 
-	/** 레이어별 애니메이션 상태 태그 (레이어 부모 태그 → AnimTag 매핑) */
+	/** 부모 태그별 애니메이션 상태 (부모 태그 → AnimTag 매핑) */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	TMap<FGameplayTag, FGameplayTag> AnimLayerTags;
 
@@ -121,10 +121,10 @@ public:
 
 	// ========== 제어 API ==========
 
-	/** 애니메이션 태그 설정 — 태그 계층에서 레이어를 자동 감지하여 해당 레이어에 저장 */
+	/** 애니메이션 태그 설정 — 태그 계층에서 부모 태그를 추출하여 AnimLayerTags에 저장 */
 	void SetAnimTag(const FGameplayTag& AnimTag);
 
-	/** 특정 레이어의 애니메이션 상태 태그 조회 */
+	/** 특정 부모 태그의 애니메이션 상태 태그 조회 */
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
 	FGameplayTag GetAnimLayerTag(const FGameplayTag& LayerTag) const;
 

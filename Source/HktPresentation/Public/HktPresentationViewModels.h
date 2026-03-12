@@ -66,13 +66,13 @@ struct FHktVM_Ownership
 /** Animation/Visual 그룹 */
 struct FHktVM_Animation
 {
-	/** FullBody 레이어 애니메이션 상태 태그 (Anim.Idle, Anim.Run 등) */
+	/** FullBody 애니메이션 상태 태그 (Anim.FullBody.Locomotion.Idle 등) */
 	THktVisualField<FGameplayTag> AnimState;
 
 	/** 원샷 몽타주 태그 (Anim.Montage.Attack 등) */
 	THktVisualField<FGameplayTag> MontageState;
 
-	/** UpperBody 레이어 애니메이션 상태 태그 */
+	/** UpperBody 애니메이션 상태 태그 (Anim.UpperBody.Combat.Attack 등) */
 	THktVisualField<FGameplayTag> AnimStateUpper;
 
 	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
