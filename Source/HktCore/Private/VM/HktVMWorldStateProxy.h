@@ -6,10 +6,10 @@
 #include "HktCoreProperties.h"
 
 // ============================================================================
-// FHktVMEntityPoolProxy — 풀별 VM 중간 데이터 (CorePrivate 전용)
+// FHktVMEntityPoolProxy — 단일 풀 VM 중간 데이터 (CorePrivate 전용)
 //
-// DirtyMask / DirtySlots / TagsDirtyMask / TagsDirtySlots — 프레임 내 변경 추적
-// PreFrameData / PreFrameTagContainers — 프레임 시작 스냅샷 (UndoDiff OldValue 조회)
+// DirtyMask / DirtySlots — 프레임 내 변경 추적
+// PreFrameData — 프레임 시작 스냅샷 (UndoDiff OldValue 조회)
 // ============================================================================
 
 struct FHktVMEntityPoolProxy
@@ -25,7 +25,7 @@ struct FHktVMEntityPoolProxy
     TArray<int32>  OwnerDirtySlots;
     TArray<uint8>  OwnerDirtyMask;
 
-    void Initialize(const FHktEntityPool& Pool, int32 Reserve);
+    void Initialize(int32 Reserve);
 
     FORCEINLINE void SetDirty(FHktEntityPool& Pool, int32 Slot, uint16 PropId, int32 V)
     {
@@ -123,7 +123,7 @@ struct FHktVMEntityPoolProxy
 
 struct FHktVMWorldStateProxy
 {
-    FHktVMEntityPoolProxy PoolProxies[HktType::MaxTypes];
+    FHktVMEntityPoolProxy PoolProxy;
 
     void Initialize(const FHktWorldState& WS);
     void ResetDirtyIndices(const FHktWorldState& WS);
@@ -145,6 +145,6 @@ struct FHktVMWorldStateProxy
         SetPosition(WS, Entity, Pos.X, Pos.Y, Pos.Z);
     }
 
-    FORCEINLINE FHktVMEntityPoolProxy& GetProxy(FHktTypeId T) { return PoolProxies[T]; }
-    FORCEINLINE const FHktVMEntityPoolProxy& GetProxy(FHktTypeId T) const { return PoolProxies[T]; }
+    FORCEINLINE FHktVMEntityPoolProxy& GetProxy() { return PoolProxy; }
+    FORCEINLINE const FHktVMEntityPoolProxy& GetProxy() const { return PoolProxy; }
 };

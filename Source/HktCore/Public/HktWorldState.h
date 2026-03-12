@@ -8,8 +8,6 @@
 
 // ============================================================================
 // FHktPropertyMask — 프로퍼티 유효성 비트마스크
-//
-// PropertyId::MaxCount <= 64 이면 uint64 1개, 그 이상이면 배열로 확장.
 // ============================================================================
 
 struct FHktPropertyMask
@@ -19,11 +17,6 @@ struct FHktPropertyMask
 
     FORCEINLINE void Set(uint16 PropId)       { Bits[PropId >> 6] |= (1ULL << (PropId & 63)); }
     FORCEINLINE bool Test(uint16 PropId) const { return (Bits[PropId >> 6] & (1ULL << (PropId & 63))) != 0; }
-    FORCEINLINE bool IsZero() const
-    {
-        for (int32 i = 0; i < NumWords; ++i) if (Bits[i] != 0) return false;
-        return true;
-    }
 };
 
 // ============================================================================
@@ -54,9 +47,6 @@ struct HKTCORE_API FHktEntitySchema
 
 // ============================================================================
 // FHktSchemaRegistry — 전역 스키마 등록소
-//
-// 싱글톤 패턴: FHktSchemaRegistry::Get() 으로 접근.
-// 게임 초기화 시 최초 접근으로 자동 초기화됨.
 // ============================================================================
 
 struct HKTCORE_API FHktSchemaRegistry
@@ -71,20 +61,19 @@ struct HKTCORE_API FHktSchemaRegistry
         return Schemas[TypeId];
     }
 
-    /** 모듈 전역 싱글톤 */
     static FHktSchemaRegistry& Get();
 };
 
 // ============================================================================
-// FHktEntityPool — 타입별 Flat AOS 저장소 (순수 게임 상태)
+// FHktEntityPool — 단일 Flat AOS 저장소
 //
-// Uniform Stride: 모든 타입이 PropertyId::MaxCount 고정.
-// Data[Slot * Stride + PropId] — PropertyId가 곧 오프셋.
+// Uniform Stride: Data[Slot * Stride + PropId]
+// 타입 구분 없이 모든 엔티티를 하나의 배열에 저장.
+// EntityType은 PropertyId::EntityType property로 조회.
 // ============================================================================
 
 struct HKTCORE_API FHktEntityPool
 {
-    FHktTypeId TypeId = HktType::None;
     static constexpr int32 Stride = PropertyId::MaxCount;
 
     TArray<int32> Data;
@@ -93,9 +82,9 @@ struct HKTCORE_API FHktEntityPool
     int32 ActiveCount = 0;
 
     TArray<FGameplayTagContainer> TagContainers;
-    TArray<int64> OwnerUids;  // SlotToEntity/TagContainers와 병렬
+    TArray<int64> OwnerUids;
 
-    void Initialize(FHktTypeId InTypeId, int32 ReserveCount);
+    void Initialize(int32 ReserveCount);
     int32 AllocateSlot(FHktEntityId EntityId);
     void FreeSlot(int32 Slot);
 
@@ -118,7 +107,7 @@ struct HKTCORE_API FHktEntityPool
 };
 
 // ============================================================================
-// FHktWorldState — Archetype 기반 타입별 AOS (순수 게임 상태)
+// FHktWorldState — 단일 Pool 기반 (순수 게임 상태)
 // ============================================================================
 
 struct HKTCORE_API FHktWorldState
@@ -127,14 +116,8 @@ struct HKTCORE_API FHktWorldState
     int32 RandomSeed = 0;
     FHktEntityId NextEntityId = 0;
 
-    struct FEntityLocation
-    {
-        FHktTypeId TypeId = HktType::None;
-        int32 PoolSlot = -1;
-    };
-
-    TArray<FEntityLocation> EntityLocations;
-    FHktEntityPool Pools[HktType::MaxTypes];
+    TArray<int32> EntitySlots;   // EntityId → Pool Slot (-1 = invalid)
+    FHktEntityPool Pool;
     TArray<FHktEvent> ActiveEvents;
 
     // --- Lifecycle ---
@@ -144,30 +127,26 @@ struct HKTCORE_API FHktWorldState
 
     FORCEINLINE bool IsValidEntity(FHktEntityId Id) const
     {
-        return Id >= 0 && Id < EntityLocations.Num()
-            && EntityLocations[Id].TypeId != HktType::None;
+        return Id >= 0 && Id < EntitySlots.Num() && EntitySlots[Id] >= 0;
     }
 
     FORCEINLINE FHktTypeId GetEntityType(FHktEntityId Id) const
     {
-        return IsValidEntity(Id) ? EntityLocations[Id].TypeId : HktType::None;
+        if (!IsValidEntity(Id)) return HktType::None;
+        return static_cast<FHktTypeId>(Pool.Get(EntitySlots[Id], PropertyId::EntityType));
     }
 
     // --- Property Access (직접 접근, 매핑 없음) ---
     FORCEINLINE int32 GetProperty(FHktEntityId Entity, uint16 PropId) const
     {
         if (!ensure(IsValidEntity(Entity))) return 0;
-        const FEntityLocation& L = EntityLocations[Entity];
-        checkSlow(FHktSchemaRegistry::Get().Get(L.TypeId).HasProperty(PropId));
-        return Pools[L.TypeId].Get(L.PoolSlot, PropId);
+        return Pool.Get(EntitySlots[Entity], PropId);
     }
 
     FORCEINLINE void SetProperty(FHktEntityId Entity, uint16 PropId, int32 Value)
     {
         if (!ensure(IsValidEntity(Entity))) return;
-        const FEntityLocation& L = EntityLocations[Entity];
-        checkSlow(FHktSchemaRegistry::Get().Get(L.TypeId).HasProperty(PropId));
-        Pools[L.TypeId].Set(L.PoolSlot, PropId, Value);
+        Pool.Set(EntitySlots[Entity], PropId, Value);
     }
 
     // --- Tag Access ---
@@ -180,15 +159,13 @@ struct HKTCORE_API FHktWorldState
     FORCEINLINE int64 GetOwnerUid(FHktEntityId Entity) const
     {
         if (!ensure(IsValidEntity(Entity))) return 0;
-        const FEntityLocation& L = EntityLocations[Entity];
-        return Pools[L.TypeId].OwnerUids[L.PoolSlot];
+        return Pool.OwnerUids[EntitySlots[Entity]];
     }
 
     FORCEINLINE void SetOwnerUid(FHktEntityId Entity, int64 Uid)
     {
         if (!ensure(IsValidEntity(Entity))) return;
-        const FEntityLocation& L = EntityLocations[Entity];
-        Pools[L.TypeId].OwnerUids[L.PoolSlot] = Uid;
+        Pool.OwnerUids[EntitySlots[Entity]] = Uid;
     }
 
     // --- Position shortcuts ---
@@ -213,28 +190,35 @@ struct HKTCORE_API FHktWorldState
     }
 
     // --- Pool Access ---
-    FORCEINLINE FHktEntityPool& GetPool(FHktTypeId T) { return Pools[T]; }
-    FORCEINLINE const FHktEntityPool& GetPool(FHktTypeId T) const { return Pools[T]; }
+    FORCEINLINE FHktEntityPool& GetPool() { return Pool; }
+    FORCEINLINE const FHktEntityPool& GetPool() const { return Pool; }
+
+    // --- Slot Access (내부 사용) ---
+    FORCEINLINE int32 GetSlot(FHktEntityId Id) const { return EntitySlots[Id]; }
 
     // --- Iteration ---
     template<typename F> void ForEachEntity(F&& Cb) const
     {
-        for (int32 T = 1; T < HktType::MaxTypes; ++T) Pools[T].ForEachEntity(Cb);
+        Pool.ForEachEntity(Forward<F>(Cb));
     }
 
-    /** OwnerUid에 속한 모든 엔티티 순회 (O(N) 선형 스캔, N=풀 슬롯 수) */
+    template<typename F> void ForEachEntityByType(FHktTypeId TypeId, F&& Cb) const
+    {
+        Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
+        {
+            if (Pool.Get(Slot, PropertyId::EntityType) == TypeId)
+                Cb(Id, Slot);
+        });
+    }
+
     template<typename F> void ForEachEntityByOwner(int64 OwnerUid, F&& Cb) const
     {
-        for (int32 T = 1; T < HktType::MaxTypes; ++T)
+        if (Pool.ActiveCount == 0) return;
+        Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
-            const FHktEntityPool& Pool = Pools[T];
-            if (Pool.ActiveCount == 0) continue;
-            Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
-            {
-                if (Pool.OwnerUids[Slot] == OwnerUid)
-                    Cb(Id, Slot);
-            });
-        }
+            if (Pool.OwnerUids[Slot] == OwnerUid)
+                Cb(Id, Slot);
+        });
     }
 
     // --- State ---
@@ -243,19 +227,15 @@ struct HKTCORE_API FHktWorldState
     // --- DTO ---
     FHktEntityState ExtractEntityState(FHktEntityId Id) const;
     FHktEntityId ImportEntityState(const FHktEntityState& InState);
-
-    /** 지정된 EntityId로 엔티티 복원 (UndoDiff에서 제거된 엔티티 복원용) */
     void ImportEntityStateWithId(const FHktEntityState& InState);
 
-    /** Diff 역적용 — 프레임 변경 되돌리기 (클라이언트 예측 롤백용) */
+    /** Diff 역적용 — 프레임 변경 되돌리기 */
     void UndoDiff(const FHktSimulationDiff& Diff);
 
     /** 전체 상태 복사 */
     void CopyFrom(const FHktWorldState& Other);
 
     // --- Serialization ---
-
-    /** 네트워크 직렬화 (활성 엔티티만 송수신) */
     bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 };
 

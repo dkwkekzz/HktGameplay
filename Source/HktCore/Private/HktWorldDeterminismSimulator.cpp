@@ -107,11 +107,9 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         if (WorldState.IsValidEntity(Id))
             Diff.SpawnedEntities.Add(WorldState.ExtractEntityState(Id));
 
-    for (int32 T = 1; T < HktType::MaxTypes; ++T)
     {
-        const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
-        const FHktVMEntityPoolProxy& Proxy = VMProxy.GetProxy(static_cast<FHktTypeId>(T));
-        if (Pool.ActiveCount == 0) continue;
+        const FHktEntityPool& Pool = WorldState.GetPool();
+        const FHktVMEntityPoolProxy& Proxy = VMProxy.GetProxy();
         Proxy.ForEachDirtyEntity(Pool, [&](FHktEntityId Id, int32 Slot, uint64 Mask)
         {
             if (Id >= PrevNext) return;
@@ -159,32 +157,28 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             FString::FromInt(WorldState.GetEntityCount()));
 
         // 엔티티별 속성 요약
-        for (int32 T = 1; T < HktType::MaxTypes; ++T)
+        const FHktEntityPool& Pool = WorldState.GetPool();
+        Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
-            const FHktEntityPool& Pool = WorldState.GetPool(static_cast<FHktTypeId>(T));
-            if (Pool.ActiveCount == 0) continue;
-            const TCHAR* TypeName = GetTypeName(static_cast<FHktTypeId>(T));
-            const FHktEntitySchema& Schema = FHktSchemaRegistry::Get().Get(static_cast<FHktTypeId>(T));
+            FHktTypeId TypeId = static_cast<FHktTypeId>(Pool.Get(Slot, PropertyId::EntityType));
+            const TCHAR* TypeName = GetTypeName(TypeId);
+            const FHktEntitySchema& Schema = FHktSchemaRegistry::Get().Get(TypeId);
 
-            Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
+            FString PropSummary;
+            PropSummary += FString::Printf(TEXT("Type=%s"), TypeName ? TypeName : TEXT("Unknown"));
+            PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
+            for (uint16 PropId = 0; PropId < PropertyId::MaxCount; ++PropId)
             {
-                // 키: "E_{EntityId}" — 값: "Type=Unit | Owner=123 | PosX=100 PosY=200 ..."
-                FString PropSummary;
-                PropSummary += FString::Printf(TEXT("Type=%s"), TypeName ? TypeName : TEXT("Unknown"));
-                PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
-                for (uint16 PropId = 0; PropId < PropertyId::MaxCount; ++PropId)
-                {
-                    if (!Schema.HasProperty(PropId)) continue;
-                    const TCHAR* PropName = GetPropertyName(PropId);
-                    PropSummary += FString::Printf(TEXT(" | %s=%d"),
-                        PropName ? PropName : TEXT("?"),
-                        Pool.Get(Slot, PropId));
-                }
+                if (!Schema.HasProperty(PropId)) continue;
+                const TCHAR* PropName = GetPropertyName(PropId);
+                PropSummary += FString::Printf(TEXT(" | %s=%d"),
+                    PropName ? PropName : TEXT("?"),
+                    Pool.Get(Slot, PropId));
+            }
 
-                FString EntityKey = FString::Printf(TEXT("E_%d"), Id);
-                HKT_INSIGHT_COLLECT(WsCat, EntityKey, PropSummary);
-            });
-        }
+            FString EntityKey = FString::Printf(TEXT("E_%d"), Id);
+            HKT_INSIGHT_COLLECT(WsCat, EntityKey, PropSummary);
+        });
     }
 #endif
 
