@@ -160,20 +160,18 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         const FHktEntityPool& Pool = WorldState.GetPool();
         Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
-            FHktTypeId TypeId = static_cast<FHktTypeId>(Pool.Get(Slot, PropertyId::EntityType));
-            const TCHAR* TypeName = GetTypeName(TypeId);
-            const FHktEntitySchema& Schema = FHktSchemaRegistry::Get().Get(TypeId);
+            const TCHAR* TypeName = GetTypeName(static_cast<FHktTypeId>(Pool.Get(Slot, PropertyId::EntityType)));
 
             FString PropSummary;
             PropSummary += FString::Printf(TEXT("Type=%s"), TypeName ? TypeName : TEXT("Unknown"));
             PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
             for (uint16 PropId = 0; PropId < PropertyId::MaxCount; ++PropId)
             {
-                if (!Schema.HasProperty(PropId)) continue;
                 const TCHAR* PropName = GetPropertyName(PropId);
-                PropSummary += FString::Printf(TEXT(" | %s=%d"),
-                    PropName ? PropName : TEXT("?"),
-                    Pool.Get(Slot, PropId));
+                if (!PropName) continue;
+                int32 Val = Pool.Get(Slot, PropId);
+                if (Val == 0) continue;
+                PropSummary += FString::Printf(TEXT(" | %s=%d"), PropName, Val);
             }
 
             FString EntityKey = FString::Printf(TEXT("E_%d"), Id);

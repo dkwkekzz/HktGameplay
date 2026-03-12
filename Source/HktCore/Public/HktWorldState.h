@@ -7,64 +7,6 @@
 #include "HktCoreProperties.h"
 
 // ============================================================================
-// FHktPropertyMask — 프로퍼티 유효성 비트마스크
-// ============================================================================
-
-struct FHktPropertyMask
-{
-    static constexpr int32 NumWords = (PropertyId::MaxCount + 63) / 64;
-    uint64 Bits[NumWords] = {};
-
-    FORCEINLINE void Set(uint16 PropId)       { Bits[PropId >> 6] |= (1ULL << (PropId & 63)); }
-    FORCEINLINE bool Test(uint16 PropId) const { return (Bits[PropId >> 6] & (1ULL << (PropId & 63))) != 0; }
-};
-
-// ============================================================================
-// FHktEntitySchema — 타입별 프로퍼티 메타데이터 (디버그 검증용)
-//
-// Uniform Stride: PropertyId가 곧 배열 오프셋. 매핑 불필요.
-// ValidMask는 디버그 빌드에서 잘못된 property 접근 감지용.
-// ============================================================================
-
-struct HKTCORE_API FHktEntitySchema
-{
-    FHktTypeId TypeId = HktType::None;
-    FHktPropertyMask ValidMask;
-
-    void MarkValid(uint16 PropId)
-    {
-        checkf(PropId < PropertyId::MaxCount, TEXT("PropId %u out of range"), PropId);
-        ValidMask.Set(PropId);
-    }
-
-    FORCEINLINE bool HasProperty(uint16 PropId) const
-    {
-        return PropId < PropertyId::MaxCount && ValidMask.Test(PropId);
-    }
-
-    static constexpr int32 GetStride() { return PropertyId::MaxCount; }
-};
-
-// ============================================================================
-// FHktSchemaRegistry — 전역 스키마 등록소
-// ============================================================================
-
-struct HKTCORE_API FHktSchemaRegistry
-{
-    FHktEntitySchema Schemas[HktType::MaxTypes];
-
-    void Initialize();
-
-    FORCEINLINE const FHktEntitySchema& Get(FHktTypeId TypeId) const
-    {
-        check(TypeId < HktType::MaxTypes);
-        return Schemas[TypeId];
-    }
-
-    static FHktSchemaRegistry& Get();
-};
-
-// ============================================================================
 // FHktEntityPool — 단일 Flat AOS 저장소
 //
 // Uniform Stride: Data[Slot * Stride + PropId]
