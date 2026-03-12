@@ -41,8 +41,10 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	case PropertyId::MoveTargetZ:
 	case PropertyId::MoveForce:
 	case PropertyId::IsMoving:
-	case PropertyId::MoveSpeed:
-		Movement.TryApplyDelta(PropId, NewValue, Frame, Movement.MoveTarget.Value);
+	case PropertyId::VelX:
+	case PropertyId::VelY:
+	case PropertyId::VelZ:
+		Movement.TryApplyDelta(PropId, NewValue, Frame, Movement.MoveTarget.Value, Movement.Velocity.Value);
 		break;
 
 		// Vitals

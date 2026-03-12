@@ -41,10 +41,13 @@ void FHktVM_Movement::Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Fra
 		static_cast<float>(WS.GetProperty(Id, PropertyId::MoveTargetZ))), Frame);
 	MoveForce.Set(static_cast<float>(WS.GetProperty(Id, PropertyId::MoveForce)), Frame);
 	bIsMoving.Set(WS.GetProperty(Id, PropertyId::IsMoving) != 0, Frame);
-	MoveSpeed.Set(static_cast<float>(WS.GetProperty(Id, PropertyId::MoveSpeed)), Frame);
+	Velocity.Set(FVector(
+		static_cast<float>(WS.GetProperty(Id, PropertyId::VelX)),
+		static_cast<float>(WS.GetProperty(Id, PropertyId::VelY)),
+		static_cast<float>(WS.GetProperty(Id, PropertyId::VelZ))), Frame);
 }
 
-bool FHktVM_Movement::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame, FVector& CachedTarget)
+bool FHktVM_Movement::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame, FVector& CachedTarget, FVector& CachedVel)
 {
 	switch (PropId)
 	{
@@ -53,7 +56,9 @@ bool FHktVM_Movement::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame, 
 	case PropertyId::MoveTargetZ: CachedTarget.Z = static_cast<float>(NewValue); MoveTarget.Set(CachedTarget, Frame); return true;
 	case PropertyId::MoveForce:   MoveForce.Set(static_cast<float>(NewValue), Frame); return true;
 	case PropertyId::IsMoving:    bIsMoving.Set(NewValue != 0, Frame); return true;
-	case PropertyId::MoveSpeed:   MoveSpeed.Set(static_cast<float>(NewValue), Frame); return true;
+	case PropertyId::VelX:        CachedVel.X = static_cast<float>(NewValue); Velocity.Set(CachedVel, Frame); return true;
+	case PropertyId::VelY:        CachedVel.Y = static_cast<float>(NewValue); Velocity.Set(CachedVel, Frame); return true;
+	case PropertyId::VelZ:        CachedVel.Z = static_cast<float>(NewValue); Velocity.Set(CachedVel, Frame); return true;
 	default: return false;
 	}
 }

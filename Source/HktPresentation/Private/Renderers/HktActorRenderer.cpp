@@ -212,10 +212,11 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->bIsMoving = Entity.Movement.bIsMoving.Get();
 	}
 
-	// 이동 속도 동기화 — 블렌드스페이스 파라미터로 활용
-	if (Entity.Movement.MoveSpeed.IsDirty(Frame))
+	// 속도 벡터에서 이동 속도 계산 — 블렌드스페이스 파라미터로 활용
+	if (Entity.Movement.Velocity.IsDirty(Frame))
 	{
-		HktAnim->MoveSpeed = Entity.Movement.MoveSpeed.Get();
+		FVector Vel = Entity.Movement.Velocity.Get();
+		HktAnim->MoveSpeed = FVector2D(Vel.X, Vel.Y).Size();
 		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
 	}
 
