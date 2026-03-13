@@ -107,14 +107,13 @@ struct HKTCORE_API FHktEvent
 struct HKTCORE_API FHktEntityState
 {
     FHktEntityId EntityId = InvalidEntityId;
-    FHktTypeId TypeId = HktType::None;
     TArray<int32> Data;
     FGameplayTagContainer Tags;
     int64 OwnerUid = 0;
 
     bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
-        Ar << EntityId << TypeId << Data;
+        Ar << EntityId << Data;
         Tags.NetSerialize(Ar, Map, bOutSuccess);
         Ar << OwnerUid;
         return true;

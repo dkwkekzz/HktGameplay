@@ -146,7 +146,7 @@ PropertyId 네임스페이스에 uint16 상수로 정의:
 
     위치/이동: PosX(0), PosY(1), PosZ(2), RotYaw(3), MoveTargetX/Y/Z(4-6), MoveSpeed(7), IsMoving(8)
     전투/상태: Health(10), MaxHealth(11), AttackPower(12), Defense(13), Team(14), Mana(15), MaxMana(16)
-    소유/타입: OwnerEntity(20), EntityType(21)
+    소유: OwnerEntity(20), EntitySpawnTag(21)
     이벤트 파라미터: TargetPosX/Y/Z(30-32), Param0-3(33-36)
     애니메이션: AnimState(40), VisualState(41)
     소유권: OwnedPlayerUid(52)
@@ -276,7 +276,7 @@ FHktEntityState는 DTO: HktCore 내부에서는 SOA WorldState를 직접 사용.
 
 HktCore/
 ├── Public/
-│   ├── HktCoreDefs.h          // FHktEntityId, FHktTypeId, HktType
+│   ├── HktCoreDefs.h          // FHktEntityId
 │   ├── HktCoreEvents.h        // FHktEvent, FHktEntityState, FHktSimulationEvent, FHktSimulationDiff, FHktPlayerState
 │   ├── HktCoreProperties.h    // PropertyId 네임스페이스 (uint16 상수)
 │   ├── HktCoreSimulator.h     // IHktAuthoritySimulator 인터페이스

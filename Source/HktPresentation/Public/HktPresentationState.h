@@ -19,7 +19,6 @@ enum class EHktRenderCategory : uint8
 struct FHktEntityPresentation
 {
 	FHktEntityId EntityId = InvalidEntityId;
-	FHktTypeId TypeId = HktType::None;
 	EHktRenderCategory RenderCategory = EHktRenderCategory::None;
 	int64 SpawnedFrame = 0;
 	int64 RemovedFrame = 0;
@@ -45,7 +44,7 @@ struct FHktEntityPresentation
 	bool IsSpawnedAt(int64 Frame) const;
 	bool IsRemovedAt(int64 Frame) const;
 
-	static EHktRenderCategory DetermineRenderCategory(FHktTypeId Type);
+	static EHktRenderCategory DetermineRenderCategory(const FGameplayTagContainer& Tags);
 };
 
 /** 전체 Presentation 상태 (렌더러가 그대로 읽어서 그리는 ViewModel) */

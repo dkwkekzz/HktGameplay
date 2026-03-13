@@ -68,7 +68,7 @@ private:
     void Op_CmpGe(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
 
     // ===== Entity Management =====
-    void Op_SpawnEntity(FHktVMRuntime& Runtime, FHktTypeId TypeId, int32 StringIndex);
+    void Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex);
     void Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
     // ===== Position & Movement =====
@@ -111,8 +111,8 @@ private:
     void Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterIndex Dst);
 
     // ===== Item System =====
-    void Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId);
-    void Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, FHktTypeId TypeId);
+    void Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, int32 StringIndex);
+    void Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, int32 StringIndex);
 
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);

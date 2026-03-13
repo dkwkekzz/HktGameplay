@@ -11,6 +11,9 @@ namespace HktStoryItemPickup
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Pickup, "Event.Item.Pickup", "Item pickup intent event.");
 
+	// Entity Filter
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_Item, "Entity.Item", "Item entity parent tag.");
+
 	/**
 	 * ================================================================
 	 * 아이템 줍기 Flow
@@ -41,14 +44,13 @@ namespace HktStoryItemPickup
 			.JumpIf(Flag, TEXT("fail"))
 
 			// 가방 공간 확인
-			.CountByOwner(R0, Self, HktType::Equipment)
+			.CountByOwner(R0, Self, Tag_Entity_Item)
 			.LoadConst(R1, 20)                                          // 가방 용량
 			.CmpGe(Flag, R0, R1)
 			.JumpIf(Flag, TEXT("fail"))
 
 			// 아이템을 가방으로 이동
 			.Move(R3, R0)                                               // BagSlot = 현재 카운트
-			.LoadEntityProperty(R4, Self, PropertyId::EntityType)       // Self의 EntityId를 직접 사용
 			.SaveEntityProperty(Target, PropertyId::OwnerEntity, Self)
 			.LoadConst(R2, 1)
 			.SaveEntityProperty(Target, PropertyId::ItemState, R2)      // InBag

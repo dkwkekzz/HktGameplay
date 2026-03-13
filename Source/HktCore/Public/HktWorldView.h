@@ -42,10 +42,6 @@ struct HKTCORE_API FHktWorldView
 		return WorldState && WorldState->IsValidEntity(Entity);
 	}
 
-	FORCEINLINE FHktTypeId GetEntityType(FHktEntityId Entity) const
-	{
-		return WorldState ? WorldState->GetEntityType(Entity) : HktType::None;
-	}
 
 	template<typename F>
 	void ForEachEntity(F&& Cb) const

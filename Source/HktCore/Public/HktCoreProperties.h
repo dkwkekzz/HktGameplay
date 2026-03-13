@@ -34,9 +34,8 @@
     X(Team)                   \
     X(Mana)                   \
     X(MaxMana)                \
-    /* 소유/타입 */           \
+    /* 소유 */                \
     X(OwnerEntity)            \
-    X(EntityType)             \
     X(EntitySpawnTag)
 
 #define HKT_COLD_PROPERTY_LIST(X) \

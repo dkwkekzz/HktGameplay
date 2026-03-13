@@ -49,7 +49,7 @@ namespace HktStoryNPCSpawnerWave
 				.CmpGe(Flag, R2, R1)
 				.JumpIf(Flag, TEXT("wave1_wait"))
 
-				.SpawnEntity(HktType::Unit, Entity_NPC_Goblin)
+				.SpawnEntity( Entity_NPC_Goblin)
 				.LoadConst(R3, 1)
 				.SaveEntityProperty(Spawned, PropertyId::IsNPC, R3)
 				.LoadConst(R3, 80)
@@ -86,7 +86,7 @@ namespace HktStoryNPCSpawnerWave
 				.CmpGe(Flag, R2, R1)
 				.JumpIf(Flag, TEXT("wave2_wait"))
 
-				.SpawnEntity(HktType::Unit, Entity_NPC_Skeleton)
+				.SpawnEntity( Entity_NPC_Skeleton)
 				.LoadConst(R3, 1)
 				.SaveEntityProperty(Spawned, PropertyId::IsNPC, R3)
 				.LoadConst(R3, 60)

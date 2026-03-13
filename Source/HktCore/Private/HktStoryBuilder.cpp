@@ -271,10 +271,10 @@ FHktStoryBuilder& FHktStoryBuilder::CmpGe(RegisterIndex Dst, RegisterIndex Src1,
 // Entity Management
 // ============================================================================
 
-FHktStoryBuilder& FHktStoryBuilder::SpawnEntity(FHktTypeId TypeId, const FGameplayTag& ClassTag)
+FHktStoryBuilder& FHktStoryBuilder::SpawnEntity(const FGameplayTag& ClassTag)
 {
-    int32 TagIdx = TagToInt(ClassTag);
-    Emit(FInstruction::Make(EOpCode::SpawnEntity, TypeId, 0, 0, TagIdx & 0xFFF));
+    int32 StrIdx = AddString(ClassTag.ToString());
+    Emit(FInstruction::Make(EOpCode::SpawnEntity, 0, 0, 0, StrIdx & 0xFFF));
     return *this;
 }
 
@@ -440,8 +440,8 @@ FHktStoryBuilder& FHktStoryBuilder::PlaySoundAtLocation(RegisterIndex PosBase, c
 
 FHktStoryBuilder& FHktStoryBuilder::SpawnEquipment(RegisterIndex Owner, int32 Slot, const FGameplayTag& EquipTag)
 {
-    int32 TagIdx = TagToInt(EquipTag);
-    Emit(FInstruction::Make(EOpCode::SpawnEquipment, Reg::Spawned, Owner, Slot & 0xF, TagIdx & 0xFFF));
+    int32 StrIdx = AddString(EquipTag.ToString());
+    Emit(FInstruction::Make(EOpCode::SpawnEquipment, Reg::Spawned, Owner, Slot & 0xF, StrIdx & 0xFFF));
     return *this;
 }
 
@@ -503,15 +503,17 @@ FHktStoryBuilder& FHktStoryBuilder::HasPlayerInGroup(RegisterIndex Dst)
 // Item System
 // ============================================================================
 
-FHktStoryBuilder& FHktStoryBuilder::CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId)
+FHktStoryBuilder& FHktStoryBuilder::CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, const FGameplayTag& Tag)
 {
-    Emit(FInstruction::Make(EOpCode::CountByOwner, Dst, OwnerEntity, 0, TypeId & 0xFFF));
+    int32 StrIdx = AddString(Tag.ToString());
+    Emit(FInstruction::Make(EOpCode::CountByOwner, Dst, OwnerEntity, 0, StrIdx & 0xFFF));
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::FindByOwner(RegisterIndex OwnerEntity, FHktTypeId TypeId)
+FHktStoryBuilder& FHktStoryBuilder::FindByOwner(RegisterIndex OwnerEntity, const FGameplayTag& Tag)
 {
-    Emit(FInstruction::Make(EOpCode::FindByOwner, Reg::Count, OwnerEntity, 0, TypeId & 0xFFF));
+    int32 StrIdx = AddString(Tag.ToString());
+    Emit(FInstruction::Make(EOpCode::FindByOwner, Reg::Count, OwnerEntity, 0, StrIdx & 0xFFF));
     return *this;
 }
 

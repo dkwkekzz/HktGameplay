@@ -22,7 +22,7 @@ struct FHktVMProgram;
  *   Story(TEXT("Ability.Skill.Fireball"))
  *       .AddTag(Self, TAG_Anim_UpperBody_Cast_Fireball)
  *       .WaitSeconds(1.0f)
- *       .SpawnEntity(HktType::Projectile, TAG_Entity_Fireball).MoveForward(500)
+ *       .SpawnEntity(TAG_Entity_Fireball).MoveForward(500)
  *       .OnCollision()
  *           .DestroyEntity(Spawned)
  *           .ApplyDamageConst(Hit, 100)
@@ -103,8 +103,8 @@ public:
 
     // ========== Entity Management ==========
 
-    /** 엔티티 스폰 → Spawned 레지스터에 저장 */
-    FHktStoryBuilder& SpawnEntity(FHktTypeId TypeId, const FGameplayTag& ClassTag);
+    /** 엔티티 스폰 → Spawned 레지스터에 저장. ClassTag는 영구 태그로 부여됨. */
+    FHktStoryBuilder& SpawnEntity(const FGameplayTag& ClassTag);
 
     /** 엔티티 제거 */
     FHktStoryBuilder& DestroyEntity(RegisterIndex Entity);
@@ -198,11 +198,11 @@ public:
 
     // ========== Item System ==========
 
-    /** 특정 엔티티가 소유한 TypeId 엔티티 수 카운트 → Dst */
-    FHktStoryBuilder& CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId);
+    /** 특정 엔티티가 소유한 Tag 매칭 엔티티 수 카운트 → Dst */
+    FHktStoryBuilder& CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, const FGameplayTag& Tag);
 
-    /** 특정 엔티티가 소유한 TypeId 엔티티 검색 → NextFound()로 순회 */
-    FHktStoryBuilder& FindByOwner(RegisterIndex OwnerEntity, FHktTypeId TypeId);
+    /** 특정 엔티티가 소유한 Tag 매칭 엔티티 검색 → NextFound()로 순회 */
+    FHktStoryBuilder& FindByOwner(RegisterIndex OwnerEntity, const FGameplayTag& Tag);
 
     // ========== Utility ==========
 

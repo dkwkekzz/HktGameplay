@@ -155,10 +155,9 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         // 엔티티별 속성 요약
         WorldState.ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
-            const TCHAR* TypeName = GetTypeName(static_cast<FHktTypeId>(WorldState.Get(Slot, PropertyId::EntityType)));
-
             FString PropSummary;
-            PropSummary += FString::Printf(TEXT("Type=%s"), TypeName ? TypeName : TEXT("Unknown"));
+            const FGameplayTagContainer& SlotTags = WorldState.GetTagsBySlot(Slot);
+            PropSummary += FString::Printf(TEXT("Tags=%s"), *SlotTags.ToStringSimple());
             PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
             for (uint16 PropId = 0; PropId < PropertyId::MaxCount; ++PropId)
             {

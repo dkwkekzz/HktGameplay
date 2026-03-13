@@ -49,7 +49,7 @@ namespace HktStoryNPCLifecycle
 				.Log(TEXT("NPC died"))
 
 				// 전리품 드랍
-				.SpawnEntity(HktType::Equipment, Entity_Item_NPCLoot)
+				.SpawnEntity(Entity_Item_NPCLoot)
 				.LoadConst(R2, 0)
 				.SaveEntityProperty(Spawned, PropertyId::ItemState, R2)      // Ground
 				.LoadConst(R2, 201)

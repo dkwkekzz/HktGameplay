@@ -59,18 +59,12 @@ struct HKTCORE_API FHktWorldState
 
     // --- Lifecycle ---
     void Initialize();
-    FHktEntityId AllocateEntity(FHktTypeId TypeId);
+    FHktEntityId AllocateEntity();
     void RemoveEntity(FHktEntityId Id);
 
     FORCEINLINE bool IsValidEntity(FHktEntityId Id) const
     {
         return Id >= 0 && Id < EntitySlots.Num() && EntitySlots[Id] >= 0;
-    }
-
-    FORCEINLINE FHktTypeId GetEntityType(FHktEntityId Id) const
-    {
-        if (!IsValidEntity(Id)) return HktType::None;
-        return static_cast<FHktTypeId>(Get(EntitySlots[Id], PropertyId::EntityType));
     }
 
     // --- Slot-level Hot Data Access (내부/시스템용, Hot 전용) ---
@@ -161,15 +155,6 @@ struct HKTCORE_API FHktWorldState
     {
         for (int32 S = 0; S < SlotToEntity.Num(); ++S)
             if (SlotToEntity[S] != InvalidEntityId) Cb(SlotToEntity[S], S);
-    }
-
-    template<typename F> void ForEachEntityByType(FHktTypeId TypeId, F&& Cb) const
-    {
-        ForEachEntity([&](FHktEntityId Id, int32 Slot)
-        {
-            if (Get(Slot, PropertyId::EntityType) == TypeId)
-                Cb(Id, Slot);
-        });
     }
 
     template<typename F> void ForEachEntityByOwner(int64 OwnerUid, F&& Cb) const

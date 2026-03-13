@@ -48,7 +48,7 @@ namespace HktStoryCharacterSpawn
 			.Log(TEXT("CharacterSpawn: 캐릭터 생성"))
 
 			// 캐릭터 스폰
-			.SpawnEntity(HktType::Unit, Entity_Character_Player)
+			.SpawnEntity(Entity_Character_Player)
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
 			// 스폰 위치 설정 (IntentEvent에서)

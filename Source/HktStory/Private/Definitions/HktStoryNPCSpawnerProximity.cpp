@@ -55,7 +55,7 @@ namespace HktStoryNPCSpawnerProximity
 				.JumpIf(Flag, TEXT("sleep"))
 
 				// 스켈레톤 NPC 직접 생성
-				.SpawnEntity(HktType::Unit, Entity_NPC_Skeleton)
+				.SpawnEntity(Entity_NPC_Skeleton)
 				.LoadConst(R2, 1)
 				.SaveEntityProperty(Spawned, PropertyId::IsNPC, R2)
 				.LoadConst(R2, 60)

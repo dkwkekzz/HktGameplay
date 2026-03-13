@@ -22,18 +22,31 @@ const FString& FHktVMInterpreter::GetString(FHktVMRuntime& Runtime, int32 Index)
 // Entity Management
 // ============================================================================
 
-void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, FHktTypeId TypeId, int32 StringIndex)
+void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex)
 {
     if (WorldState)
     {
-        FHktEntityId NewEntity = WorldState->AllocateEntity(TypeId);
+        FHktEntityId NewEntity = WorldState->AllocateEntity();
         Runtime.SetRegEntity(Reg::Spawned, NewEntity);
+
+        // ClassTag를 영구 태그로 부여
+        const FString& TagName = GetString(Runtime, StringIndex);
+        FGameplayTag ClassTag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
+        if (ClassTag.IsValid() && VMProxy)
+        {
+            VMProxy->AddTag(*WorldState, NewEntity, ClassTag);
+        }
 
         if (Runtime.Context)
         {
             Runtime.Context->WriteEntity(NewEntity, PropertyId::OwnerEntity, Runtime.GetRegEntity(Reg::Self));
-            Runtime.Context->WriteEntity(NewEntity, PropertyId::EntityType, TypeId);
-            Runtime.Context->WriteEntity(NewEntity, PropertyId::EntitySpawnTag, StringIndex);
+
+            // EntitySpawnTag: net index for presentation visual lookup
+            FGameplayTagNetIndex NetIndex = ClassTag.IsValid()
+                ? UGameplayTagsManager::Get().GetNetIndexFromTag(ClassTag)
+                : FGameplayTagNetIndex(0);
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::EntitySpawnTag, static_cast<int32>(NetIndex));
+
             Runtime.Context->WriteEntity(NewEntity, PropertyId::Mass, 1);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::MaxSpeed, 100);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::CollisionRadius, 50);
@@ -296,9 +309,16 @@ void FHktVMInterpreter::Op_SpawnEquipment(FHktVMRuntime& Runtime, RegisterIndex 
 
     if (WorldState && Runtime.Context)
     {
-        FHktEntityId NewEquip = WorldState->AllocateEntity(HktType::Equipment);
+        FHktEntityId NewEquip = WorldState->AllocateEntity();
         Runtime.Context->WriteEntity(NewEquip, PropertyId::OwnerEntity, OwnerEntity);
         Runtime.SetRegEntity(Reg::Spawned, NewEquip);
+
+        // EquipTag를 영구 태그로 부여
+        FGameplayTag EquipTag = FGameplayTag::RequestGameplayTag(FName(*EquipClass), false);
+        if (EquipTag.IsValid() && VMProxy)
+        {
+            VMProxy->AddTag(*WorldState, NewEquip, EquipTag);
+        }
     }
 }
 
@@ -389,15 +409,16 @@ void FHktVMInterpreter::Op_RandomInt(FHktVMRuntime& Runtime, RegisterIndex Dst, 
 
 void FHktVMInterpreter::Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterIndex Dst)
 {
-    // OwnerUid가 0이 아닌 Unit 엔티티가 있는지 확인
+    // OwnerUid가 0이 아닌 캐릭터 엔티티가 있는지 확인
+    static const FGameplayTag CharacterTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Character")), false);
     bool bHasPlayer = false;
     if (WorldState)
     {
         for (int32 S = 0; S < WorldState->SlotToEntity.Num() && !bHasPlayer; ++S)
         {
             if (WorldState->SlotToEntity[S] != InvalidEntityId
-                && WorldState->Get(S, PropertyId::EntityType) == HktType::Unit
-                && WorldState->OwnerUids[S] != 0)
+                && WorldState->OwnerUids[S] != 0
+                && WorldState->GetTagsBySlot(S).HasTag(CharacterTag))
                 bHasPlayer = true;
         }
     }
@@ -408,33 +429,47 @@ void FHktVMInterpreter::Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterInde
 // Item System
 // ============================================================================
 
-void FHktVMInterpreter::Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId)
+void FHktVMInterpreter::Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, int32 StringIndex)
 {
     int32 Count = 0;
-    if (WorldState && TypeId > 0 && TypeId < HktType::MaxTypes)
+    if (WorldState)
     {
+        const FString& TagName = GetString(Runtime, StringIndex);
+        FGameplayTag FilterTag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
         FHktEntityId OwnerId = Runtime.GetRegEntity(OwnerEntity);
-        WorldState->ForEachEntityByType(TypeId, [&](FHktEntityId /*E*/, int32 Slot)
+
+        if (FilterTag.IsValid())
         {
-            if (WorldState->Get(Slot, PropertyId::OwnerEntity) == OwnerId)
-                ++Count;
-        });
+            WorldState->ForEachEntity([&](FHktEntityId /*E*/, int32 Slot)
+            {
+                if (WorldState->Get(Slot, PropertyId::OwnerEntity) == OwnerId
+                    && WorldState->GetTagsBySlot(Slot).HasTag(FilterTag))
+                    ++Count;
+            });
+        }
     }
     Runtime.SetReg(Dst, Count);
 }
 
-void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, FHktTypeId TypeId)
+void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, int32 StringIndex)
 {
     Runtime.SpatialQuery.Reset();
 
-    if (WorldState && TypeId > 0 && TypeId < HktType::MaxTypes)
+    if (WorldState)
     {
+        const FString& TagName = GetString(Runtime, StringIndex);
+        FGameplayTag FilterTag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
         FHktEntityId OwnerId = Runtime.GetRegEntity(OwnerEntity);
-        WorldState->ForEachEntityByType(TypeId, [&](FHktEntityId E, int32 Slot)
+
+        if (FilterTag.IsValid())
         {
-            if (WorldState->Get(Slot, PropertyId::OwnerEntity) == OwnerId)
-                Runtime.SpatialQuery.Entities.Add(E);
-        });
+            WorldState->ForEachEntity([&](FHktEntityId E, int32 Slot)
+            {
+                if (WorldState->Get(Slot, PropertyId::OwnerEntity) == OwnerId
+                    && WorldState->GetTagsBySlot(Slot).HasTag(FilterTag))
+                    Runtime.SpatialQuery.Entities.Add(E);
+            });
+        }
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
