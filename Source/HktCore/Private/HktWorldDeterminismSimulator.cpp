@@ -73,7 +73,7 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
         PendingExternalEvents.Add(PB);
     }
 
-    VMCleanupSystem.Process(CompletedVMs, *VMPool, WorldState);
+    VMCleanupSystem.Process(CompletedVMs, *VMPool, WorldState, VMProxy);
 }
 
 FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulationEvent& InEvent)

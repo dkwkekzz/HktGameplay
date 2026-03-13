@@ -98,5 +98,5 @@ struct HKTCORE_API FHktPhysicsSystem
 /** 5. VM Cleanup System: 종료된 VM 해제 */
 struct HKTCORE_API FHktVMCleanupSystem
 {
-    void Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState);
+    void Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState, FHktVMWorldStateProxy& VMProxy);
 };
