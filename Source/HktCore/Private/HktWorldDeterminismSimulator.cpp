@@ -110,13 +110,13 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
     VMProxy.ForEachDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot, uint64 Mask)
     {
         if (Id >= PrevNext) return;
-        const int32* ED = WorldState.EntityData(Slot);
         uint64 M = Mask;
         while (M)
         {
             uint16 PropId = static_cast<uint16>(FMath::CountTrailingZeros64(M));
+            int32 NewVal = WorldState.Get(Slot, PropId);
             int32 OldVal = VMProxy.GetPreFrameValue(Slot, PropId);
-            Diff.PropertyDeltas.Add({ Id, PropId, ED[PropId], OldVal });
+            Diff.PropertyDeltas.Add({ Id, PropId, NewVal, OldVal });
             M &= M - 1;
         }
     });

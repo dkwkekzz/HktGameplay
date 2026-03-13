@@ -16,4 +16,5 @@ namespace HktLimits
     constexpr int32 MaxActiveEvents = 512;
     constexpr int32 MaxPendingEvents = 1024;
     constexpr int32 MaxPhysicsEvents = 512;
+    constexpr int32 WarmPropertyCapacity = 16;
 }

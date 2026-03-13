@@ -9,7 +9,7 @@
 // FHktVMWorldStateProxy — VM dirty-aware 뮤테이션 API (CorePrivate 전용)
 //
 // DirtyMask / DirtySlots — 프레임 내 변경 추적
-// PreFrameData — 프레임 시작 스냅샷 (UndoDiff OldValue 조회)
+// PreFrame 스냅샷 — UndoDiff OldValue 조회 (3-Tier 대응)
 // ============================================================================
 
 struct FHktVMWorldStateProxy
@@ -18,9 +18,13 @@ struct FHktVMWorldStateProxy
     TArray<int32>  DirtySlots;
     TArray<uint8>  TagsDirtyMask;
     TArray<int32>  TagsDirtySlots;
-    TArray<int32>  PreFrameData;
-    TArray<FGameplayTagContainer> PreFrameTagContainers;
 
+    // PreFrame 스냅샷 (3-Tier)
+    TArray<int32>  PreFrameHotData;
+    TArray<FHktPropertyPair> PreFrameWarmData;
+    TArray<TArray<FHktPropertyPair>> PreFrameOverflowData;
+
+    TArray<FGameplayTagContainer> PreFrameTagContainers;
     TArray<int64>  PreFrameOwnerUids;
     TArray<int32>  OwnerDirtySlots;
     TArray<uint8>  OwnerDirtyMask;
@@ -31,7 +35,7 @@ struct FHktVMWorldStateProxy
     // --- Property Dirty ---
     FORCEINLINE void SetDirty(FHktWorldState& WS, int32 Slot, uint16 PropId, int32 V)
     {
-        WS.Data[Slot * FHktWorldState::Stride + PropId] = V;
+        WS.Set(Slot, PropId, V);
         if (Slot >= DirtyMask.Num())
         {
             DirtyMask.SetNum(Slot + 1, EAllowShrinking::No);
@@ -91,11 +95,8 @@ struct FHktVMWorldStateProxy
         SetPosition(WS, Entity, Pos.X, Pos.Y, Pos.Z);
     }
 
-    // --- PreFrame Access ---
-    FORCEINLINE int32 GetPreFrameValue(int32 Slot, uint16 PropId) const
-    {
-        return PreFrameData[Slot * FHktWorldState::Stride + PropId];
-    }
+    // --- PreFrame Access (3-Tier) ---
+    int32 GetPreFrameValue(int32 Slot, uint16 PropId) const;
 
     FORCEINLINE const FGameplayTagContainer& GetPreFrameTags(int32 Slot) const
     {

@@ -7,27 +7,50 @@
 #include "HktCoreProperties.h"
 
 // ============================================================================
-// FHktWorldState — 단일 Flat AOS 기반 순수 게임 상태
+// FHktPropertyPair — Warm/Overflow 페어 저장 단위
+// ============================================================================
+
+struct FHktPropertyPair
+{
+    static constexpr uint16 EmptyPropId = 0xFFFF;
+
+    uint16 PropId = EmptyPropId;
+    int32 Value = 0;
+
+    FORCEINLINE bool IsEmpty() const { return PropId == EmptyPropId; }
+
+    friend FArchive& operator<<(FArchive& Ar, FHktPropertyPair& P)
+    {
+        Ar << P.PropId << P.Value;
+        return Ar;
+    }
+};
+
+// ============================================================================
+// FHktWorldState — 3-Tier Property Storage 기반 순수 게임 상태
 //
-// Uniform Stride: Data[Slot * Stride + PropId]
-// 타입 구분 없이 모든 엔티티를 하나의 배열에 저장.
-// EntityType은 PropertyId::EntityType property로 조회.
+// Hot:  HotData[Slot * HotStride + PropId]        — O(1) 직접 인덱싱
+// Warm: WarmData[Slot * WarmCapacity + i]          — 선형 탐색 (고정 용량)
+// Overflow: OverflowData[Slot]                     — 힙 TArray (Warm 초과 시)
 // ============================================================================
 
 struct HKTCORE_API FHktWorldState
 {
-    static constexpr int32 Stride = PropertyId::MaxCount;
+    static constexpr int32 HotStride = PropertyId::HotMaxCount;
+    static constexpr int32 WarmCapacity = 16;
 
     // --- Frame State ---
     int64 FrameNumber = 0;
     int32 RandomSeed = 0;
     FHktEntityId NextEntityId = 0;
 
-    // --- Entity Storage (Flat AOS) ---
-    TArray<int32> EntitySlots;           // EntityId → Slot (-1 = invalid)
-    TArray<int32> Data;                  // Flat property storage: Data[Slot * Stride + PropId]
-    TArray<FHktEntityId> SlotToEntity;   // Slot → EntityId reverse mapping
-    TArray<int32> FreeSlots;             // Free slot stack for reuse
+    // --- Entity Storage (3-Tier) ---
+    TArray<int32> EntitySlots;                      // EntityId → Slot (-1 = invalid)
+    TArray<int32> HotData;                          // Hot property storage
+    TArray<FHktPropertyPair> WarmData;              // Warm property pairs
+    TArray<TArray<FHktPropertyPair>> OverflowData;  // Heap overflow per slot
+    TArray<FHktEntityId> SlotToEntity;              // Slot → EntityId reverse mapping
+    TArray<int32> FreeSlots;                        // Free slot stack for reuse
     int32 ActiveCount = 0;
 
     TArray<FGameplayTagContainer> TagContainers;
@@ -50,11 +73,29 @@ struct HKTCORE_API FHktWorldState
         return static_cast<FHktTypeId>(Get(EntitySlots[Id], PropertyId::EntityType));
     }
 
-    // --- Slot-level Access (내부/시스템용) ---
-    FORCEINLINE int32* EntityData(int32 Slot) { return Data.GetData() + Slot * Stride; }
-    FORCEINLINE const int32* EntityData(int32 Slot) const { return Data.GetData() + Slot * Stride; }
-    FORCEINLINE int32 Get(int32 Slot, uint16 PropId) const { return Data[Slot * Stride + PropId]; }
-    FORCEINLINE void Set(int32 Slot, uint16 PropId, int32 V) { Data[Slot * Stride + PropId] = V; }
+    // --- Slot-level Hot Data Access (내부/시스템용, Hot 전용) ---
+    FORCEINLINE int32* HotEntityData(int32 Slot) { return HotData.GetData() + Slot * HotStride; }
+    FORCEINLINE const int32* HotEntityData(int32 Slot) const { return HotData.GetData() + Slot * HotStride; }
+
+    // --- 3-Tier Get/Set ---
+    FORCEINLINE int32 Get(int32 Slot, uint16 PropId) const
+    {
+        if (PropId < HotStride)
+        {
+            return HotData[Slot * HotStride + PropId];
+        }
+        return GetCold(Slot, PropId);
+    }
+
+    FORCEINLINE void Set(int32 Slot, uint16 PropId, int32 V)
+    {
+        if (PropId < HotStride)
+        {
+            HotData[Slot * HotStride + PropId] = V;
+            return;
+        }
+        SetCold(Slot, PropId, V);
+    }
 
     // --- Property Access (EntityId 기반) ---
     FORCEINLINE int32 GetProperty(FHktEntityId Entity, uint16 PropId) const
@@ -161,6 +202,11 @@ struct HKTCORE_API FHktWorldState
 private:
     int32 AllocateSlot(FHktEntityId EntityId);
     void FreeSlot(int32 Slot);
+    void ClearSlotWarm(int32 Slot);
+
+    // Cold (Warm+Overflow) 접근 헬퍼
+    int32 GetCold(int32 Slot, uint16 PropId) const;
+    void SetCold(int32 Slot, uint16 PropId, int32 V);
 };
 
 template<>
