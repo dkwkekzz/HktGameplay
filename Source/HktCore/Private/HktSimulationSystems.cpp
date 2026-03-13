@@ -151,6 +151,12 @@ void FHktVMBuildSystem::Process(
         Context->EventTargetPosY = FMath::RoundToInt(Event.Location.Y);
         Context->EventTargetPosZ = FMath::RoundToInt(Event.Location.Z);
 
+        // 이벤트 태그를 SourceEntity에 자동 부여
+        if (WorldState.IsValidEntity(Event.SourceEntity))
+        {
+            VMProxy.AddTag(WorldState, Event.SourceEntity, Event.EventTag);
+        }
+
         OutActiveVMs.Add(Handle);
         WorldState.ActiveEvents.Add(Event);
 
@@ -524,7 +530,7 @@ void FHktPhysicsSystem::Process(
 // 5. VM Cleanup System
 // ============================================================================
 
-void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState)
+void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState, FHktVMWorldStateProxy& VMProxy)
 {
     for (FHktVMHandle Handle : CompletedVMs)
     {
@@ -542,6 +548,25 @@ void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRunt
                 {
                     return E.SourceEntity == Source && E.EventTag == Tag;
                 });
+
+                // 이벤트 태그 + 자식 태그를 SourceEntity에서 일괄 제거
+                if (WorldState.IsValidEntity(Source))
+                {
+                    int32 Slot = WorldState.GetSlot(Source);
+                    const FGameplayTagContainer& CurrentTags = WorldState.GetTagsBySlot(Slot);
+                    TArray<FGameplayTag> TagsToRemove;
+                    for (const FGameplayTag& T : CurrentTags)
+                    {
+                        if (T.MatchesTag(Tag))
+                        {
+                            TagsToRemove.Add(T);
+                        }
+                    }
+                    for (const FGameplayTag& T : TagsToRemove)
+                    {
+                        VMProxy.RemoveTag(WorldState, Source, T);
+                    }
+                }
             }
 
             if (Runtime->Context)
