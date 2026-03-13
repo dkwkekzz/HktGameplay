@@ -8,11 +8,12 @@
 void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
 {
 	EntityId = Id;
-	TypeId = WS.GetEntityType(Id);
-	RenderCategory = DetermineRenderCategory(TypeId);
+	Tags = WS.GetTags(Id);
+	TagsDirtyFrame = Frame;
+	RenderCategory = DetermineRenderCategory(Tags);
 	SpawnedFrame = Frame;
 	RemovedFrame = 0;
-	LastDirtyFrame = Frame; // ���� ������ ������ Dirty ����
+	LastDirtyFrame = Frame;
 	Transform.Apply(WS, Id, Frame);
 	Movement.Apply(WS, Id, Frame);
 	Vitals.Apply(WS, Id, Frame);
@@ -100,15 +101,18 @@ bool FHktEntityPresentation::IsRemovedAt(int64 Frame) const
 	return RemovedFrame == Frame;
 }
 
-EHktRenderCategory FHktEntityPresentation::DetermineRenderCategory(FHktTypeId Type)
+EHktRenderCategory FHktEntityPresentation::DetermineRenderCategory(const FGameplayTagContainer& Tags)
 {
-	switch (Type)
-	{
-	case HktType::Unit:       return EHktRenderCategory::Actor;
-	case HktType::Building:   return EHktRenderCategory::Actor;
-	case HktType::Projectile: return EHktRenderCategory::MassEntity;
-	default:                  return EHktRenderCategory::None;
-	}
+	static const FGameplayTag CharacterTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Character")), false);
+	static const FGameplayTag NPCTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.NPC")), false);
+	static const FGameplayTag BuildingTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Building")), false);
+	static const FGameplayTag ProjectileTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Projectile")), false);
+
+	if (Tags.HasTag(CharacterTag) || Tags.HasTag(NPCTag) || Tags.HasTag(BuildingTag))
+		return EHktRenderCategory::Actor;
+	if (Tags.HasTag(ProjectileTag))
+		return EHktRenderCategory::MassEntity;
+	return EHktRenderCategory::None;
 }
 
 // --------------------------------------------------------------------------- FHktPresentationState
@@ -177,6 +181,21 @@ void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
 	}
 
 	E.ApplyOwnerDelta(NewOwnerUid, CurrentFrame);
+}
+
+void FHktPresentationState::ApplyTagDelta(FHktEntityId Id, const FGameplayTagContainer& NewTags)
+{
+	if (Id >= Entities.Num() || !ValidMask[Id]) return;
+	FHktEntityPresentation& E = Entities[Id];
+
+	if (E.LastDirtyFrame != CurrentFrame)
+	{
+		E.LastDirtyFrame = CurrentFrame;
+		DirtyThisFrame.Add(Id);
+	}
+
+	E.Tags = NewTags;
+	E.TagsDirtyFrame = CurrentFrame;
 }
 
 bool FHktPresentationState::IsValid(FHktEntityId Id) const

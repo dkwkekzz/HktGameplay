@@ -68,7 +68,7 @@ private:
     void Op_CmpGe(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
 
     // ===== Entity Management =====
-    void Op_SpawnEntity(FHktVMRuntime& Runtime, FHktTypeId TypeId, int32 StringIndex);
+    void Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex);
     void Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
     // ===== Position & Movement =====
@@ -88,10 +88,7 @@ private:
     void Op_ApplyEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex);
     void Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex);
 
-    // ===== Animation & VFX =====
-    void Op_PlayAnim(FHktVMRuntime& Runtime, int32 PropOffset, RegisterIndex Entity, int32 TagNetIndex);
-    void Op_PlayAnimMontage(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagNetIndex);
-    void Op_StopAnim(FHktVMRuntime& Runtime, int32 PropOffset, RegisterIndex Entity);
+    // ===== VFX =====
     void Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex);
     void Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
 
@@ -114,8 +111,8 @@ private:
     void Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterIndex Dst);
 
     // ===== Item System =====
-    void Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId);
-    void Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, FHktTypeId TypeId);
+    void Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, int32 StringIndex);
+    void Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, int32 StringIndex);
 
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);

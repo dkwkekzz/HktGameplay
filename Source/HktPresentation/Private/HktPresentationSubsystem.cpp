@@ -147,9 +147,13 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 		State.ApplyOwnerDelta(Id, NewOwnerUid);
 	});
 
-	// VFX 태그 감지: OldTags에 없고 Tags에 있는 "VFX." 접두사 태그 → VFXRenderer 호출
+	// 태그 델타 처리
 	View.ForEachTagDelta([this, &View](FHktEntityId Id, const FGameplayTagContainer& Tags, const FGameplayTagContainer& OldTags)
 	{
+		// Entity presentation에 태그 동기화 (AnimInstance 태그 기반 애니메이션용)
+		State.ApplyTagDelta(Id, Tags);
+
+		// VFX 태그 감지: OldTags에 없고 Tags에 있는 "VFX." 접두사 태그 → VFXRenderer 호출
 		FGameplayTagContainer NewlyAdded = Tags.Filter(FGameplayTagContainer(Tag_VFX_Prefix));
 		FGameplayTagContainer OldVFX = OldTags.Filter(FGameplayTagContainer(Tag_VFX_Prefix));
 

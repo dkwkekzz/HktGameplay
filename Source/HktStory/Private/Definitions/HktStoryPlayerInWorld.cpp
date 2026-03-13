@@ -14,9 +14,9 @@ namespace HktStoryPlayerInWorld
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "Player character entity.");
 
-	// Anim — 태그 계층에 레이어 포함
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Action_Spawn, "Anim.FullBody.Action.Spawn", "Spawn intro animation.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Locomotion_Idle, "Anim.FullBody.Locomotion.Idle", "Idle animation.");
+	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Spawn, "Anim.FullBody.Action.Spawn", "Spawn intro state tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Locomotion_Idle, "Anim.FullBody.Locomotion.Idle", "Idle state tag.");
 
 	// VFX
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect, "VFX.SpawnEffect", "Character spawn VFX.");
@@ -46,7 +46,7 @@ namespace HktStoryPlayerInWorld
 			.Log(TEXT("PlayerInWorld: 플레이어 캐릭터 생성"))
 
 			// 캐릭터 엔티티 생성
-			.SpawnEntity(HktType::Unit, Entity_Character_Player)
+			.SpawnEntity(Entity_Character_Player)
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
 			// 위치 설정 (이벤트의 Location에서)
@@ -59,16 +59,17 @@ namespace HktStoryPlayerInWorld
 			.PlayVFXAttached(Self, VFX_SpawnEffect)
 			.PlaySound(Sound_Spawn)
 
-			// 스폰 애니메이션
-			.PlayAnim(Self, Anim_FullBody_Action_Spawn)
+			// 스폰 상태 태그 추가 → AnimInstance가 태그를 감지하여 스폰 애니메이션 자동 재생
+			.AddTag(Self, Tag_Anim_FullBody_Action_Spawn)
 			.WaitSeconds(0.5f)
 
-			// Idle 상태로 전환
-			.PlayAnim(Self, Anim_FullBody_Locomotion_Idle)
+			// Idle 상태 태그로 전환
+			.RemoveTag(Self, Tag_Anim_FullBody_Action_Spawn)
+			.AddTag(Self, Tag_Anim_FullBody_Locomotion_Idle)
 
 			// === 초기 아이템: 목검 ===
 			.Log(TEXT("PlayerInWorld: 목검 지급"))
-			.SpawnEntity(HktType::Equipment, Entity_Item_WoodenSword)
+			.SpawnEntity(Entity_Item_WoodenSword)
 			.SaveEntityProperty(Spawned, PropertyId::OwnerEntity, Self)  // 소유자 = 플레이어
 			.LoadConst(R3, 1)
 			.SaveEntityProperty(Spawned, PropertyId::ItemState, R3)      // InBag

@@ -20,15 +20,16 @@ struct FHktVMProgram;
  * 
  * 사용 예:
  *   Story(TEXT("Ability.Skill.Fireball"))
- *       .PlayAnim(Self, TAG_Anim_CastStart)
+ *       .AddTag(Self, TAG_Anim_UpperBody_Cast_Fireball)
  *       .WaitSeconds(1.0f)
- *       .SpawnEntity(HktType::Projectile, TAG_Entity_Fireball).MoveForward(500)
+ *       .SpawnEntity(TAG_Entity_Fireball).MoveForward(500)
  *       .OnCollision()
  *           .DestroyEntity(Spawned)
  *           .ApplyDamageConst(Hit, 100)
  *           .ForEachInRadius(Hit, 300)
  *               .ApplyDamageConst(Iter, 50)
  *           .EndForEach()
+ *       .RemoveTag(Self, TAG_Anim_UpperBody_Cast_Fireball)
  *       .End();
  */
 class HKTCORE_API FHktStoryBuilder
@@ -68,7 +69,7 @@ public:
     /** 충돌 대기 - 충돌 시 Hit 레지스터에 대상 저장 */
     FHktStoryBuilder& WaitCollision(RegisterIndex WatchEntity = Reg::Spawned);
 
-    /** 애니메이션 종료 대기 */
+    /** 애니메이션 종료 대기 (프레임 대기로 대체) */
     FHktStoryBuilder& WaitAnimEnd(RegisterIndex Entity = Reg::Self);
 
     /** 이동 완료 대기 */
@@ -102,8 +103,8 @@ public:
 
     // ========== Entity Management ==========
 
-    /** 엔티티 스폰 → Spawned 레지스터에 저장 */
-    FHktStoryBuilder& SpawnEntity(FHktTypeId TypeId, const FGameplayTag& ClassTag);
+    /** 엔티티 스폰 → Spawned 레지스터에 저장. ClassTag는 영구 태그로 부여됨. */
+    FHktStoryBuilder& SpawnEntity(const FGameplayTag& ClassTag);
 
     /** 엔티티 제거 */
     FHktStoryBuilder& DestroyEntity(RegisterIndex Entity);
@@ -152,16 +153,7 @@ public:
     /** 이펙트 제거 */
     FHktStoryBuilder& RemoveEffect(RegisterIndex Target, const FGameplayTag& EffectTag);
 
-    // ========== Animation & VFX ==========
-
-    /** 애니메이션 재생 — 태그 계층으로 PropertyId 자동 결정 (Anim.FullBody.*, Anim.UpperBody.*) */
-    FHktStoryBuilder& PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag);
-
-    /** 몽타주 재생 */
-    FHktStoryBuilder& PlayAnimMontage(RegisterIndex Entity, const FGameplayTag& MontageTag);
-
-    /** 애니메이션 중지 — 태그 계층으로 PropertyId 자동 결정 */
-    FHktStoryBuilder& StopAnim(RegisterIndex Entity, const FGameplayTag& AnimTag);
+    // ========== VFX ==========
 
     /** VFX 재생 (위치) */
     FHktStoryBuilder& PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag);
@@ -206,11 +198,11 @@ public:
 
     // ========== Item System ==========
 
-    /** 특정 엔티티가 소유한 TypeId 엔티티 수 카운트 → Dst */
-    FHktStoryBuilder& CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId);
+    /** 특정 엔티티가 소유한 Tag 매칭 엔티티 수 카운트 → Dst */
+    FHktStoryBuilder& CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, const FGameplayTag& Tag);
 
-    /** 특정 엔티티가 소유한 TypeId 엔티티 검색 → NextFound()로 순회 */
-    FHktStoryBuilder& FindByOwner(RegisterIndex OwnerEntity, FHktTypeId TypeId);
+    /** 특정 엔티티가 소유한 Tag 매칭 엔티티 검색 → NextFound()로 순회 */
+    FHktStoryBuilder& FindByOwner(RegisterIndex OwnerEntity, const FGameplayTag& Tag);
 
     // ========== Utility ==========
 
@@ -228,7 +220,6 @@ private:
     int32 AddString(const FString& Str);
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
-    uint16 AnimTagToPropertyId(const FGameplayTag& AnimTag);
     void ResolveLabels();
 
 private:

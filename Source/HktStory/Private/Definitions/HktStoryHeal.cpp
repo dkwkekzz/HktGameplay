@@ -11,8 +11,8 @@ namespace HktStoryHeal
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Heal, "Ability.Skill.Heal", "Heal skill ability flow.");
 
-	// Anim — 태그 계층에 레이어 포함
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_UpperBody_Cast_Heal, "Anim.UpperBody.Cast.Heal", "Heal cast animation.");
+	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_UpperBody_Cast_Heal, "Anim.UpperBody.Cast.Heal", "Heal cast state tag.");
 
 	// VFX
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HealCast, "VFX.HealCast", "Heal cast VFX.");
@@ -26,8 +26,9 @@ namespace HktStoryHeal
 	 * 회복 스킬 Flow
 	 *
 	 * 자연어로 읽으면:
-	 * "상체에 시전 애니메이션을 재생하고, 자신의 체력을 회복량만큼 회복한다.
-	 *  체력이 최대치를 넘지 않도록 한다."
+	 * "시전 상태 태그를 추가하면 AnimInstance가 자동으로 시전 애니메이션을 재생한다.
+	 *  자신의 체력을 회복량만큼 회복하고 최대치를 넘지 않도록 한다.
+	 *  완료 시 시전 상태 태그를 제거한다."
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
@@ -37,8 +38,8 @@ namespace HktStoryHeal
 		Story(Story_Heal)
 			.Log(TEXT("Heal: 시전 시작"))
 
-			// 상체에 시전 애니메이션 (하체 이동 유지) — 태그 계층에서 레이어 자동 감지
-			.PlayAnim(Self, Anim_UpperBody_Cast_Heal)
+			// 시전 상태 태그 추가 → AnimInstance가 태그를 감지하여 시전 애니메이션 자동 재생
+			.AddTag(Self, Tag_Anim_UpperBody_Cast_Heal)
 			.PlayVFXAttached(Self, VFX_HealCast)
 			.WaitSeconds(0.8f)
 
@@ -69,8 +70,8 @@ namespace HktStoryHeal
 			.PlayVFXAttached(Self, VFX_HealBurst)
 			.PlaySound(Sound_Heal)
 
-			// 상체 애니메이션 초기화
-			.StopAnim(Self, Anim_UpperBody_Cast_Heal)
+			// 시전 상태 태그 제거
+			.RemoveTag(Self, Tag_Anim_UpperBody_Cast_Heal)
 
 			.Log(TEXT("Heal: 완료"))
 			.Halt()

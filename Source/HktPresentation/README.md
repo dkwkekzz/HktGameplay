@@ -97,10 +97,10 @@ Location.Get();                           // 현재 값
 
 **RenderCategory 분류:**
 
-| TypeId | Category | Renderer |
+| Entity Tag | Category | Renderer |
 |---|---|---|
-| Unit, Building | Actor | FHktActorRenderer |
-| Projectile | MassEntity | FHktMassEntityRenderer (TODO) |
+| Entity.Character.*, Entity.NPC.*, Entity.Building.* | Actor | FHktActorRenderer |
+| Entity.Projectile.* | MassEntity | FHktMassEntityRenderer (TODO) |
 | 기타 | None | — |
 
 ---

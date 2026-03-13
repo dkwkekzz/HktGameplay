@@ -11,8 +11,8 @@ namespace HktStoryNPCLifecycle
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle, "Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
 
-	// Anim — 태그 계층에 레이어 포함
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death animation.");
+	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death state tag.");
 
 	// Loot
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_NPCLoot, "Entity.Item.NPCLoot", "Generic NPC loot drop.");
@@ -49,7 +49,7 @@ namespace HktStoryNPCLifecycle
 				.Log(TEXT("NPC died"))
 
 				// 전리품 드랍
-				.SpawnEntity(HktType::Equipment, Entity_Item_NPCLoot)
+				.SpawnEntity(Entity_Item_NPCLoot)
 				.LoadConst(R2, 0)
 				.SaveEntityProperty(Spawned, PropertyId::ItemState, R2)      // Ground
 				.LoadConst(R2, 201)
@@ -60,8 +60,8 @@ namespace HktStoryNPCLifecycle
 				.SetPosition(Spawned, R3)                                    // NPC 위치에 드랍
 				.AddTag(Spawned, Tag_Item_Material)
 
-				// 죽음 연출
-				.PlayAnim(Self, Anim_FullBody_Action_Death)
+				// 죽음 상태 태그 추가 → AnimInstance가 태그를 감지하여 죽음 애니메이션 자동 재생
+				.AddTag(Self, Tag_Anim_FullBody_Action_Death)
 				.WaitSeconds(3.0f)
 				.DestroyEntity(Self)
 				.Halt()

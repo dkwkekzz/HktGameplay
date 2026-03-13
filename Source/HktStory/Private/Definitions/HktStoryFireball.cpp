@@ -14,8 +14,8 @@ namespace HktStoryFireball
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Projectile_Fireball, "Entity.Projectile.Fireball", "Fireball projectile entity.");
 
-	// Anim — 태그 계층에 레이어 포함
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_UpperBody_Cast_Fireball, "Anim.UpperBody.Cast.Fireball", "Fireball cast animation.");
+	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_UpperBody_Cast_Fireball, "Anim.UpperBody.Cast.Fireball", "Fireball cast state tag.");
 
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_FireballLaunch, "Sound.FireballLaunch", "Fireball launch sound.");
@@ -33,10 +33,11 @@ namespace HktStoryFireball
 	 * 파이어볼 스킬 Flow
 	 *
 	 * 자연어로 읽으면:
-	 * "상체에 시전 애니메이션을 재생하고 1초 기다린다.
-	 *  파이어볼을 생성하여 앞으로 날린다.
+	 * "시전 상태 태그를 추가하면 AnimInstance가 자동으로 시전 애니메이션을 재생한다.
+	 *  1초 대기 후 파이어볼을 생성하여 앞으로 날린다.
 	 *  충돌하면 파이어볼을 제거하고 직격 대상에게 100 피해를 준다.
-	 *  주변 300 범위 내 대상들에게 각각 50 피해와 화상을 입힌다."
+	 *  주변 300 범위 내 대상들에게 각각 50 피해와 화상을 입힌다.
+	 *  완료 시 시전 상태 태그를 제거한다."
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
@@ -46,12 +47,12 @@ namespace HktStoryFireball
 		Story(Story_Fireball)
 			// === 시전 시작 ===
 			.Log(TEXT("Fireball: 시전 시작"))
-			.PlayAnim(Self, Anim_UpperBody_Cast_Fireball)
+			.AddTag(Self, Tag_Anim_UpperBody_Cast_Fireball)
 			.WaitSeconds(1.0f)                          // 1초 대기
 
 			// === 파이어볼 생성 및 발사 ===
 			.Log(TEXT("Fireball: 투사체 생성"))
-			.SpawnEntity(HktType::Projectile, Entity_Projectile_Fireball)
+			.SpawnEntity(Entity_Projectile_Fireball)
 
 			// 파이어볼 위치를 시전자 위치로 설정
 			.GetPosition(R0, Self)                      // R0,R1,R2 = 시전자 위치
@@ -91,8 +92,8 @@ namespace HktStoryFireball
 				.ApplyEffect(Target, Effect_Burn)
 			.EndForEach()
 
-			// 상체 애니메이션 초기화
-			.StopAnim(Self, Anim_UpperBody_Cast_Fireball)
+			// 시전 상태 태그 제거
+			.RemoveTag(Self, Tag_Anim_UpperBody_Cast_Fireball)
 
 			.Log(TEXT("Fireball: 완료"))
 			.Halt()

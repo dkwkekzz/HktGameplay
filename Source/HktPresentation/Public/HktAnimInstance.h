@@ -36,13 +36,14 @@ struct FHktAnimMappingEntry
 /**
  * UHktAnimInstance
  *
- * Flow VM의 AnimTag를 UE5 애니메이션 시스템에 전달.
- * SetAnimTag() 하나로 태그를 받으면 매핑 테이블에서 에셋을 찾아 자동 재생.
+ * Entity의 TagContainer에서 Anim.* 태그를 읽어 애니메이션을 자동 재생.
+ * Story에서 애니메이션 명령을 직접 내리지 않고, 상태 태그만 추가/제거하면
+ * AnimInstance가 태그 변화를 감지하여 적절한 애니메이션을 재생한다.
  *
  * 태그 계층 기반 애니메이션 관리:
- * - AnimTag에서 부모 태그를 추출하여 자동 분류: Anim.FullBody.* / Anim.UpperBody.*
- * - AnimLayerTags: 부모 태그 → 현재 AnimTag 맵 (AnimBP에서 직접 읽기)
- * - AnimStateTag: FullBody 편의 프로퍼티 (하위호환)
+ * - Anim.FullBody.*  → Locomotion (Property 참조, 그래프 노드에서 처리)
+ * - Anim.UpperBody.* → DefaultSlot (몽타주/시퀀스 실행)
+ * - Anim.Montage.*   → DefaultSlot (원샷 몽타주 실행)
  *
  * 매핑 테이블은 AnimBP 클래스 기본값에서 직접 설정합니다.
  */
@@ -90,8 +91,12 @@ public:
 
 	// ========== 제어 API ==========
 
-	/** 애니메이션 태그 설정 — 매핑 테이블에서 에셋을 찾아 자동 재생 */
-	void SetAnimTag(const FGameplayTag& AnimTag);
+	/**
+	 * Entity의 TagContainer를 받아 Anim.* 태그 변화를 감지하고 애니메이션을 갱신.
+	 * 새로 추가된 Anim 태그 → 해당 애니메이션 재생
+	 * 제거된 Anim 태그 → 해당 애니메이션 중지
+	 */
+	void SyncFromTagContainer(const FGameplayTagContainer& EntityTags);
 
 	/** 특정 부모 태그의 애니메이션 상태 태그 조회 */
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
@@ -102,7 +107,12 @@ public:
 	bool IsPlayingMontageAnim() const;
 
 private:
-	static FGameplayTag ExtractLayerParent(const FGameplayTag& AnimTag);
+	void ApplyAnimTag(const FGameplayTag& AnimTag);
+	void RemoveAnimTag(const FGameplayTag& AnimTag);
 
+	static FGameplayTag ExtractLayerParent(const FGameplayTag& AnimTag);
 	const FHktAnimMappingEntry* FindMapping(const FGameplayTag& Tag) const;
+
+	/** 이전 프레임의 Anim 태그 (변화 감지용) */
+	FGameplayTagContainer PrevAnimTags;
 };

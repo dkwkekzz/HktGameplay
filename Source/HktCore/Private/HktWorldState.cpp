@@ -139,9 +139,8 @@ void FHktWorldState::Initialize()
     OwnerUids.Reserve(ReserveCount);
 }
 
-FHktEntityId FHktWorldState::AllocateEntity(FHktTypeId TypeId)
+FHktEntityId FHktWorldState::AllocateEntity()
 {
-    check(TypeId > HktType::None && TypeId < HktType::MaxTypes);
     FHktEntityId NewId = NextEntityId++;
     if (NewId >= EntitySlots.Num())
     {
@@ -152,7 +151,6 @@ FHktEntityId FHktWorldState::AllocateEntity(FHktTypeId TypeId)
     }
     int32 Slot = AllocateSlot(NewId);
     EntitySlots[NewId] = Slot;
-    Set(Slot, PropertyId::EntityType, TypeId);
     return NewId;
 }
 
@@ -178,7 +176,6 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
     S.EntityId = Id;
     if (!IsValidEntity(Id)) return S;
     int32 Slot = EntitySlots[Id];
-    S.TypeId = static_cast<FHktTypeId>(Get(Slot, PropertyId::EntityType));
 
     // Hot + Cold를 단일 배열로 복원
     S.Data.SetNumZeroed(PropertyId::MaxCount);
@@ -208,7 +205,7 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
 
 FHktEntityId FHktWorldState::ImportEntityState(const FHktEntityState& InState)
 {
-    FHktEntityId Id = AllocateEntity(InState.TypeId);
+    FHktEntityId Id = AllocateEntity();
     int32 Slot = EntitySlots[Id];
 
     // Hot 영역 복사
@@ -323,8 +320,6 @@ bool FHktWorldState::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bO
         ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
             Ar << Id;
-            uint8 TypeByte = static_cast<uint8>(Get(Slot, PropertyId::EntityType));
-            Ar << TypeByte;
 
             // Hot properties
             for (int32 P = 0; P < HotStride; ++P)
@@ -379,7 +374,6 @@ bool FHktWorldState::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bO
         for (int32 i = 0; i < TotalEntities; ++i)
         {
             FHktEntityId Id; Ar << Id;
-            uint8 TypeByte;  Ar << TypeByte;
 
             if (Id >= EntitySlots.Num())
             {

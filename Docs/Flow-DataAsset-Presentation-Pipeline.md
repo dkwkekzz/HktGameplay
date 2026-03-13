@@ -76,10 +76,10 @@ namespace HktStoryCharacterSpawn
     HKT_REGISTER_STORY_BODY()
     {
         Story(Story_CharacterSpawn)
-            .SpawnEntity(HktType::Unit, Entity_Character_Player)  // → EntitySpawnTag(22)에 기록
+            .SpawnEntity(Entity_Character_Player)                 // → ClassTag 영구 부여 + EntitySpawnTag에 기록
             .PlayVFXAttached(Self, VFX_SpawnEffect)               // → 엔티티에 VFX 태그 추가
-            .PlayAnim(Self, Anim_Spawn)                           // → AnimState(40)에 기록
-            .PlayAnimMontage(Self, Anim_Montage_Intro)            // → VisualState(41)에 기록
+            .AddTag(Self, Tag_Anim_FullBody_Action_Spawn)         // → 태그 기반 애니메이션 자동 재생
+            .AddTag(Self, Tag_Anim_Montage_Intro)                 // → 태그 기반 몽타주 자동 재생
             .SpawnEquipment(Self, 0, Equipment_Weapon_Sword)      // → 장비 엔티티 생성
             .Halt()
             .BuildAndRegister();

@@ -5,11 +5,17 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 
+namespace
+{
+	/** Anim.* 태그 필터 — Entity 태그 중 Anim 계열만 추출 */
+	static const FGameplayTag AnimRootTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim")), false);
+}
+
 FGameplayTag UHktAnimInstance::ExtractLayerParent(const FGameplayTag& AnimTag)
 {
 	// Anim.FullBody.Locomotion.Run → Anim.FullBody
 	// Anim.UpperBody.Combat.Attack → Anim.UpperBody
-	// 태그 이름에서 두 번째 레벨까지 추출
+	// Anim.Montage.Attack → Anim.Montage
 	FString TagStr = AnimTag.ToString();
 	int32 FirstDot = INDEX_NONE;
 	int32 SecondDot = INDEX_NONE;
@@ -23,11 +29,36 @@ FGameplayTag UHktAnimInstance::ExtractLayerParent(const FGameplayTag& AnimTag)
 		FString ParentStr = TagStr.Left(SecondDot);
 		return FGameplayTag::RequestGameplayTag(FName(*ParentStr), false);
 	}
-	// 2레벨 이하의 태그는 그대로 반환
 	return AnimTag;
 }
 
-void UHktAnimInstance::SetAnimTag(const FGameplayTag& AnimTag)
+void UHktAnimInstance::SyncFromTagContainer(const FGameplayTagContainer& EntityTags)
+{
+	// Entity 태그 중 Anim.* 계열만 필터링
+	FGameplayTagContainer CurrentAnimTags = EntityTags.Filter(FGameplayTagContainer(AnimRootTag));
+
+	// 새로 추가된 태그 감지 → 애니메이션 재생
+	for (const FGameplayTag& Tag : CurrentAnimTags)
+	{
+		if (!PrevAnimTags.HasTagExact(Tag))
+		{
+			ApplyAnimTag(Tag);
+		}
+	}
+
+	// 제거된 태그 감지 → 애니메이션 중지
+	for (const FGameplayTag& Tag : PrevAnimTags)
+	{
+		if (!CurrentAnimTags.HasTagExact(Tag))
+		{
+			RemoveAnimTag(Tag);
+		}
+	}
+
+	PrevAnimTags = CurrentAnimTags;
+}
+
+void UHktAnimInstance::ApplyAnimTag(const FGameplayTag& AnimTag)
 {
 	if (!AnimTag.IsValid())
 	{
@@ -37,11 +68,6 @@ void UHktAnimInstance::SetAnimTag(const FGameplayTag& AnimTag)
 	FGameplayTag LayerParent = ExtractLayerParent(AnimTag);
 
 	FGameplayTag& Current = AnimLayerTags.FindOrAdd(LayerParent);
-	if (Current == AnimTag)
-	{
-		return;
-	}
-
 	Current = AnimTag;
 
 	// FullBody는 AnimStateTag와 동기화 (하위호환)
@@ -75,7 +101,50 @@ void UHktAnimInstance::SetAnimTag(const FGameplayTag& AnimTag)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] SetAnimTag: Parent=%s Anim=%s on %s"),
+	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] ApplyAnimTag: Parent=%s Anim=%s on %s"),
+		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName());
+}
+
+void UHktAnimInstance::RemoveAnimTag(const FGameplayTag& AnimTag)
+{
+	if (!AnimTag.IsValid())
+	{
+		return;
+	}
+
+	FGameplayTag LayerParent = ExtractLayerParent(AnimTag);
+
+	// 해당 레이어의 현재 태그가 제거되는 태그와 일치하면 클리어
+	if (FGameplayTag* Current = AnimLayerTags.Find(LayerParent))
+	{
+		if (Current->MatchesTagExact(AnimTag))
+		{
+			AnimLayerTags.Remove(LayerParent);
+		}
+	}
+
+	// FullBody는 AnimStateTag와 동기화
+	static const FGameplayTag FullBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.FullBody")), false);
+	if (LayerParent.MatchesTagExact(FullBodyParent) && AnimStateTag.MatchesTagExact(AnimTag))
+	{
+		AnimStateTag = FGameplayTag();
+	}
+
+	// 몽타주 계열 태그가 제거되면 몽타주 중지
+	static const FGameplayTag MontageParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.Montage")), false);
+	static const FGameplayTag UpperBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.UpperBody")), false);
+	if (LayerParent.MatchesTagExact(MontageParent) || LayerParent.MatchesTagExact(UpperBodyParent))
+	{
+		if (const FHktAnimMappingEntry* Entry = FindMapping(AnimTag))
+		{
+			if (Entry->Montage && IsPlayingMontageAnim())
+			{
+				Montage_Stop(0.25f, Entry->Montage);
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] RemoveAnimTag: Parent=%s Anim=%s on %s"),
 		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName());
 }
 

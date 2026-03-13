@@ -50,7 +50,7 @@ namespace HktStoryNPCSpawnerGoblinCamp
 				.JumpIf(Flag, TEXT("wait"))
 
 				// NPC 생성 — 스탯을 Flow에서 직접 설정
-				.SpawnEntity(HktType::Unit, Entity_NPC_Goblin)
+				.SpawnEntity(Entity_NPC_Goblin)
 				.LoadConst(R2, 1)
 				.SaveEntityProperty(Spawned, PropertyId::IsNPC, R2)
 				.LoadConst(R2, 80)

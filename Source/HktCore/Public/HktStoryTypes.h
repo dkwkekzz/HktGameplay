@@ -90,9 +90,9 @@ namespace Reg
     X(ApplyDamage)      \
     X(ApplyEffect)      \
     X(RemoveEffect)     \
-    X(PlayAnim)         \
-    X(PlayAnimMontage)  \
-    X(StopAnim)         \
+    X(PlayAnim_DEPRECATED)  \
+    X(PlayAnimMontage_DEPRECATED) \
+    X(StopAnim_DEPRECATED) \
     X(PlayVFX)          \
     X(PlayVFXAttached)  \
     X(PlaySound)        \
