@@ -14,7 +14,9 @@ void FHktVMWorldStateProxy::Initialize(const FHktWorldState& WS)
     DirtySlots.Reserve(256);
     TagsDirtyMask.Reserve(Reserve);
     TagsDirtySlots.Reserve(256);
-    PreFrameData.Reserve(Reserve * FHktWorldState::Stride);
+    PreFrameHotData.Reserve(Reserve * FHktWorldState::HotStride);
+    PreFrameWarmData.Reserve(Reserve * FHktWorldState::WarmCapacity);
+    PreFrameOverflowData.Reserve(Reserve);
     PreFrameTagContainers.Reserve(Reserve);
     PreFrameOwnerUids.Reserve(Reserve);
     OwnerDirtyMask.Reserve(Reserve);
@@ -35,7 +37,9 @@ void FHktVMWorldStateProxy::ResetDirtyIndices(const FHktWorldState& WS)
 
     if (WS.ActiveCount > 0)
     {
-        PreFrameData = WS.Data;
+        PreFrameHotData = WS.HotData;
+        PreFrameWarmData = WS.WarmData;
+        PreFrameOverflowData = WS.OverflowData;
         PreFrameTagContainers = WS.TagContainers;
         PreFrameOwnerUids = WS.OwnerUids;
     }
@@ -53,4 +57,29 @@ void FHktVMWorldStateProxy::SetOwnerUid(FHktWorldState& WS, FHktEntityId Entity,
     if (!WS.IsValidEntity(Entity)) return;
     int32 Slot = WS.GetSlot(Entity);
     SetOwnerDirty(WS, Slot, Uid);
+}
+
+int32 FHktVMWorldStateProxy::GetPreFrameValue(int32 Slot, uint16 PropId) const
+{
+    if (PropId < FHktWorldState::HotStride)
+    {
+        return PreFrameHotData[Slot * FHktWorldState::HotStride + PropId];
+    }
+
+    // Warm 탐색
+    const FHktPropertyPair* Base = &PreFrameWarmData[Slot * FHktWorldState::WarmCapacity];
+    for (int32 i = 0; i < FHktWorldState::WarmCapacity; ++i)
+    {
+        if (Base[i].PropId == PropId) return Base[i].Value;
+        if (Base[i].IsEmpty()) break;
+    }
+
+    // Overflow 탐색
+    if (PreFrameOverflowData.IsValidIndex(Slot))
+    {
+        for (const FHktPropertyPair& P : PreFrameOverflowData[Slot])
+            if (P.PropId == PropId) return P.Value;
+    }
+
+    return 0;
 }

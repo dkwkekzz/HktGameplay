@@ -5,13 +5,16 @@
 #include "CoreMinimal.h"
 
 /**
- * PropertyId - 엔티티 속성 ID
+ * PropertyId - 엔티티 속성 ID (3-Tier Storage)
  *
- * Dense enum: HKT_PROPERTY(Name) 매크로 하나로 인덱스+이름 자동 생성.
- * PropertyId 자체가 SOA 배열 오프셋 — LocalIndex 매핑 불필요.
+ * Hot 프로퍼티: 직접 인덱싱 (O(1)) — 매 프레임 접근하는 핵심 속성
+ * Cold 프로퍼티: {PropId, Value} 페어 배열 순회 — 공간 절약
+ *
+ * PropertyId 자체가 0..MaxCount-1 범위의 dense enum.
+ * PropId < HotMaxCount 이면 Hot, 아니면 Cold.
  */
 
-#define HKT_PROPERTY_LIST(X) \
+#define HKT_HOT_PROPERTY_LIST(X) \
     /* 위치/이동 */           \
     X(PosX)                   \
     X(PosY)                   \
@@ -34,7 +37,9 @@
     /* 소유/타입 */           \
     X(OwnerEntity)            \
     X(EntityType)             \
-    X(EntitySpawnTag)         \
+    X(EntitySpawnTag)
+
+#define HKT_COLD_PROPERTY_LIST(X) \
     /* 이벤트 파라미터 */     \
     X(TargetPosX)             \
     X(TargetPosY)             \
@@ -62,15 +67,27 @@
     X(IsNPC)                  \
     X(SpawnFlowTag)
 
+#define HKT_PROPERTY_LIST(X) \
+    HKT_HOT_PROPERTY_LIST(X) \
+    HKT_COLD_PROPERTY_LIST(X)
+
 namespace PropertyId
 {
     enum : uint16
     {
         #define HKT_PROP_ENUM(Name) Name,
-        HKT_PROPERTY_LIST(HKT_PROP_ENUM)
+        HKT_HOT_PROPERTY_LIST(HKT_PROP_ENUM)
+        #undef HKT_PROP_ENUM
+        HotMaxCount,
+
+        #define HKT_PROP_ENUM(Name) Name,
+        HKT_COLD_PROPERTY_LIST(HKT_PROP_ENUM)
         #undef HKT_PROP_ENUM
         MaxCount
     };
+
+    // Cold enum의 시작 오프셋 (HotMaxCount 바로 다음)
+    // 첫 번째 Cold 프로퍼티 ID == HotMaxCount
 }
 
 /** PropertyId -> 이름 문자열 (디버그/인사이트용) */
