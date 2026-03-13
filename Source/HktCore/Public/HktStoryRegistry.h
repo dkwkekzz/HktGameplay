@@ -6,7 +6,7 @@
  * Story 자가 등록 시스템
  * * 중앙 헤더 수정 없이 각 cpp 파일에서 스스로를 등록할 수 있게 합니다.
  */
-class FHktStoryRegistry
+class HKTCORE_API FHktStoryRegistry
 {
 public:
     using FStoryRegisterFunc = TFunction<void()>;
@@ -26,7 +26,7 @@ private:
  * 자가 등록 헬퍼 구조체
  * * 이 구조체의 정적 인스턴스를 생성하면 생성자에서 자동으로 레지스트리에 등록됩니다.
  */
-struct FHktAutoRegisterStory
+struct HKTCORE_API FHktAutoRegisterStory
 {
     FHktAutoRegisterStory(FHktStoryRegistry::FStoryRegisterFunc InitFunc)
     {
