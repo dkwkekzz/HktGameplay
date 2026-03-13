@@ -1,15 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowMoveTo
+namespace HktStoryMoveTo
 {
-	// Flow Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_MoveTo, "Action.Move.ToLocation", "Move to location action flow.");
+	// Story Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_MoveTo, "Action.Move.ToLocation", "Move to location action flow.");
 
 	// Anim — 태그 계층에 레이어 포함
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Locomotion_Run, "Anim.FullBody.Locomotion.Run", "Run locomotion animation.");
@@ -26,11 +26,11 @@ namespace HktFlowMoveTo
 	 * "목표 위치로 이동하고, 도착하면 정지한다."
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Flow_MoveTo)
+		Story(Story_MoveTo)
 			.CancelOnDuplicate()
 			.Log(TEXT("MoveTo: 이동 시작"))
 

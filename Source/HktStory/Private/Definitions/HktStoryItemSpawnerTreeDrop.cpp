@@ -1,15 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowItemSpawnerTreeDrop
+namespace HktStoryItemSpawnerTreeDrop
 {
-	// Flow Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_Spawner_Item_TreeDrop, "Flow.Spawner.Item.TreeDrop", "Natural item spawner - tree drops.");
+	// Story Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_Item_TreeDrop, "Flow.Spawner.Item.TreeDrop", "Natural item spawner - tree drops.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_Wood, "Entity.Item.Wood", "Wood material item.");
@@ -30,11 +30,11 @@ namespace HktFlowItemSpawnerTreeDrop
 	 * Param0 = SpawnPosX, Param1 = SpawnPosY
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Flow_Spawner_Item_TreeDrop)
+		Story(Story_Spawner_Item_TreeDrop)
 			.Log(TEXT("TreeDrop spawner: activated"))
 
 			.Label(TEXT("loop"))

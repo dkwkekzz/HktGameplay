@@ -1,15 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowNPCSpawnerGoblinCamp
+namespace HktStoryNPCSpawnerGoblinCamp
 {
-	// Flow Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_Spawner_GoblinCamp, "Flow.Spawner.GoblinCamp", "Periodic goblin camp spawner flow.");
+	// Story Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_GoblinCamp, "Flow.Spawner.GoblinCamp", "Periodic goblin camp spawner flow.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Goblin, "Entity.NPC.Goblin", "Goblin NPC entity.");
@@ -31,11 +31,11 @@ namespace HktFlowNPCSpawnerGoblinCamp
 	 * Param0 = SpawnPosX, Param1 = SpawnPosY
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Flow_Spawner_GoblinCamp)
+		Story(Story_Spawner_GoblinCamp)
 			.Log(TEXT("GoblinCamp spawner: activated"))
 
 			.Label(TEXT("loop"))

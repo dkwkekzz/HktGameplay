@@ -1,14 +1,14 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowItemEquip
+namespace HktStoryItemEquip
 {
-	// Flow Name
+	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Equip, "Event.Item.Equip", "Item equip intent event.");
 
 	/**
@@ -21,11 +21,11 @@ namespace HktFlowItemEquip
 	 * Self = 유닛, Target = 장착할 아이템(InBag)
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Event_Item_Equip)
+		Story(Event_Item_Equip)
 			// InBag 상태 확인
 			.LoadEntityProperty(R0, Target, PropertyId::ItemState)
 			.LoadConst(R1, 1)                                           // InBag = 1

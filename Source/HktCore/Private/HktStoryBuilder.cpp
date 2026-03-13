@@ -1,36 +1,36 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
 #include "VM/HktVMProgram.h"
 #include "GameplayTagsManager.h"
 
 // ============================================================================
-// FHktFlowBuilder - Construction
+// FHktStoryBuilder - Construction
 // ============================================================================
 
-FHktFlowBuilder FHktFlowBuilder::Create(const FGameplayTag& Tag)
+FHktStoryBuilder FHktStoryBuilder::Create(const FGameplayTag& Tag)
 {
-    return FHktFlowBuilder(Tag);
+    return FHktStoryBuilder(Tag);
 }
 
-FHktFlowBuilder FHktFlowBuilder::Create(const FName& TagName)
+FHktStoryBuilder FHktStoryBuilder::Create(const FName& TagName)
 {
-    return FHktFlowBuilder(FGameplayTag::RequestGameplayTag(TagName));
+    return FHktStoryBuilder(FGameplayTag::RequestGameplayTag(TagName));
 }
 
-FHktFlowBuilder::FHktFlowBuilder(const FGameplayTag& Tag)
+FHktStoryBuilder::FHktStoryBuilder(const FGameplayTag& Tag)
     : Program(MakeShared<FHktVMProgram>())
 {
     Program->Tag = Tag;
 }
 
-void FHktFlowBuilder::Emit(FInstruction Inst)
+void FHktStoryBuilder::Emit(FInstruction Inst)
 {
     Program->Code.Add(Inst);
 }
 
-int32 FHktFlowBuilder::AddString(const FString& Str)
+int32 FHktStoryBuilder::AddString(const FString& Str)
 {
     int32 Index = Program->Strings.IndexOfByKey(Str);
     if (Index == INDEX_NONE)
@@ -41,7 +41,7 @@ int32 FHktFlowBuilder::AddString(const FString& Str)
     return Index;
 }
 
-int32 FHktFlowBuilder::AddConstant(int32 Value)
+int32 FHktStoryBuilder::AddConstant(int32 Value)
 {
     int32 Index = Program->Constants.IndexOfByKey(Value);
     if (Index == INDEX_NONE)
@@ -52,7 +52,7 @@ int32 FHktFlowBuilder::AddConstant(int32 Value)
     return Index;
 }
 
-int32 FHktFlowBuilder::TagToInt(const FGameplayTag& Tag)
+int32 FHktStoryBuilder::TagToInt(const FGameplayTag& Tag)
 {
     if (Tag.IsValid())
     {
@@ -62,7 +62,7 @@ int32 FHktFlowBuilder::TagToInt(const FGameplayTag& Tag)
     return 0;
 }
 
-uint16 FHktFlowBuilder::AnimTagToPropertyId(const FGameplayTag& AnimTag)
+uint16 FHktStoryBuilder::AnimTagToPropertyId(const FGameplayTag& AnimTag)
 {
     static const FGameplayTag UpperBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.UpperBody")), false);
     if (AnimTag.MatchesTag(UpperBodyParent))
@@ -76,7 +76,7 @@ uint16 FHktFlowBuilder::AnimTagToPropertyId(const FGameplayTag& AnimTag)
 // Flow Policy
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::CancelOnDuplicate()
+FHktStoryBuilder& FHktStoryBuilder::CancelOnDuplicate()
 {
     Program->bCancelOnDuplicate = true;
     return *this;
@@ -86,47 +86,47 @@ FHktFlowBuilder& FHktFlowBuilder::CancelOnDuplicate()
 // Control Flow
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::Label(const FString& Name)
+FHktStoryBuilder& FHktStoryBuilder::Label(const FString& Name)
 {
     Labels.Add(Name, Program->Code.Num());
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::Jump(const FString& LabelName)
+FHktStoryBuilder& FHktStoryBuilder::Jump(const FString& LabelName)
 {
     Fixups.Add({Program->Code.Num(), LabelName});
     Emit(FInstruction::MakeImm(EOpCode::Jump, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::JumpIf(RegisterIndex Cond, const FString& LabelName)
+FHktStoryBuilder& FHktStoryBuilder::JumpIf(RegisterIndex Cond, const FString& LabelName)
 {
     Fixups.Add({Program->Code.Num(), LabelName});
     Emit(FInstruction::Make(EOpCode::JumpIf, 0, Cond, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::JumpIfNot(RegisterIndex Cond, const FString& LabelName)
+FHktStoryBuilder& FHktStoryBuilder::JumpIfNot(RegisterIndex Cond, const FString& LabelName)
 {
     Fixups.Add({Program->Code.Num(), LabelName});
     Emit(FInstruction::Make(EOpCode::JumpIfNot, 0, Cond, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::Yield(int32 Frames)
+FHktStoryBuilder& FHktStoryBuilder::Yield(int32 Frames)
 {
     Emit(FInstruction::Make(EOpCode::Yield, 0, 0, 0, FMath::Max(1, Frames)));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::WaitSeconds(float Seconds)
+FHktStoryBuilder& FHktStoryBuilder::WaitSeconds(float Seconds)
 {
     int32 DeciMillis = FMath::RoundToInt(Seconds * 100.0f);
     Emit(FInstruction::MakeImm(EOpCode::YieldSeconds, 0, DeciMillis));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::Halt()
+FHktStoryBuilder& FHktStoryBuilder::Halt()
 {
     Emit(FInstruction::Make(EOpCode::Halt));
     return *this;
@@ -136,20 +136,20 @@ FHktFlowBuilder& FHktFlowBuilder::Halt()
 // Event Wait
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::WaitCollision(RegisterIndex WatchEntity)
+FHktStoryBuilder& FHktStoryBuilder::WaitCollision(RegisterIndex WatchEntity)
 {
     Emit(FInstruction::Make(EOpCode::WaitCollision, Reg::Hit, WatchEntity, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::WaitAnimEnd(RegisterIndex Entity)
+FHktStoryBuilder& FHktStoryBuilder::WaitAnimEnd(RegisterIndex Entity)
 {
     // 구현: 프레임 대기로 대체 (향후 AnimEnd 이벤트 도입 가능)
     Yield(1);
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::WaitMoveEnd(RegisterIndex Entity)
+FHktStoryBuilder& FHktStoryBuilder::WaitMoveEnd(RegisterIndex Entity)
 {
     Emit(FInstruction::Make(EOpCode::WaitMoveEnd, 0, Entity, 0, 0));
     return *this;
@@ -159,7 +159,7 @@ FHktFlowBuilder& FHktFlowBuilder::WaitMoveEnd(RegisterIndex Entity)
 // Data Operations
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::LoadConst(RegisterIndex Dst, int32 Value)
+FHktStoryBuilder& FHktStoryBuilder::LoadConst(RegisterIndex Dst, int32 Value)
 {
     if (Value >= -524288 && Value <= 524287)
     {
@@ -173,31 +173,31 @@ FHktFlowBuilder& FHktFlowBuilder::LoadConst(RegisterIndex Dst, int32 Value)
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::LoadStore(RegisterIndex Dst, uint16 PropertyId)
+FHktStoryBuilder& FHktStoryBuilder::LoadStore(RegisterIndex Dst, uint16 PropertyId)
 {
     Emit(FInstruction::Make(EOpCode::LoadStore, Dst, 0, 0, PropertyId));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::LoadEntityProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
+FHktStoryBuilder& FHktStoryBuilder::LoadEntityProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
 {
     Emit(FInstruction::Make(EOpCode::LoadStoreEntity, Dst, Entity, 0, PropertyId));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::SaveStore(uint16 PropertyId, RegisterIndex Src)
+FHktStoryBuilder& FHktStoryBuilder::SaveStore(uint16 PropertyId, RegisterIndex Src)
 {
     Emit(FInstruction::Make(EOpCode::SaveStore, 0, Src, 0, PropertyId));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::SaveEntityProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
+FHktStoryBuilder& FHktStoryBuilder::SaveEntityProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
 {
     Emit(FInstruction::Make(EOpCode::SaveStoreEntity, 0, Entity, Src, PropertyId));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::Move(RegisterIndex Dst, RegisterIndex Src)
+FHktStoryBuilder& FHktStoryBuilder::Move(RegisterIndex Dst, RegisterIndex Src)
 {
     Emit(FInstruction::Make(EOpCode::Move, Dst, Src, 0, 0));
     return *this;
@@ -207,31 +207,31 @@ FHktFlowBuilder& FHktFlowBuilder::Move(RegisterIndex Dst, RegisterIndex Src)
 // Arithmetic
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::Add(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
+FHktStoryBuilder& FHktStoryBuilder::Add(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Emit(FInstruction::Make(EOpCode::Add, Dst, Src1, Src2, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::Sub(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
+FHktStoryBuilder& FHktStoryBuilder::Sub(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Emit(FInstruction::Make(EOpCode::Sub, Dst, Src1, Src2, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::Mul(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
+FHktStoryBuilder& FHktStoryBuilder::Mul(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Emit(FInstruction::Make(EOpCode::Mul, Dst, Src1, Src2, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::Div(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
+FHktStoryBuilder& FHktStoryBuilder::Div(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Emit(FInstruction::Make(EOpCode::Div, Dst, Src1, Src2, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::AddImm(RegisterIndex Dst, RegisterIndex Src, int32 Imm)
+FHktStoryBuilder& FHktStoryBuilder::AddImm(RegisterIndex Dst, RegisterIndex Src, int32 Imm)
 {
     Emit(FInstruction::Make(EOpCode::AddImm, Dst, Src, 0, Imm & 0xFFF));
     return *this;
@@ -241,37 +241,37 @@ FHktFlowBuilder& FHktFlowBuilder::AddImm(RegisterIndex Dst, RegisterIndex Src, i
 // Comparison
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::CmpEq(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
+FHktStoryBuilder& FHktStoryBuilder::CmpEq(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Emit(FInstruction::Make(EOpCode::CmpEq, Dst, Src1, Src2, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::CmpNe(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
+FHktStoryBuilder& FHktStoryBuilder::CmpNe(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Emit(FInstruction::Make(EOpCode::CmpNe, Dst, Src1, Src2, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::CmpLt(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
+FHktStoryBuilder& FHktStoryBuilder::CmpLt(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Emit(FInstruction::Make(EOpCode::CmpLt, Dst, Src1, Src2, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::CmpLe(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
+FHktStoryBuilder& FHktStoryBuilder::CmpLe(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Emit(FInstruction::Make(EOpCode::CmpLe, Dst, Src1, Src2, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::CmpGt(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
+FHktStoryBuilder& FHktStoryBuilder::CmpGt(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Emit(FInstruction::Make(EOpCode::CmpGt, Dst, Src1, Src2, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::CmpGe(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
+FHktStoryBuilder& FHktStoryBuilder::CmpGe(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Emit(FInstruction::Make(EOpCode::CmpGe, Dst, Src1, Src2, 0));
     return *this;
@@ -281,14 +281,14 @@ FHktFlowBuilder& FHktFlowBuilder::CmpGe(RegisterIndex Dst, RegisterIndex Src1, R
 // Entity Management
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::SpawnEntity(FHktTypeId TypeId, const FGameplayTag& ClassTag)
+FHktStoryBuilder& FHktStoryBuilder::SpawnEntity(FHktTypeId TypeId, const FGameplayTag& ClassTag)
 {
     int32 TagIdx = TagToInt(ClassTag);
     Emit(FInstruction::Make(EOpCode::SpawnEntity, TypeId, 0, 0, TagIdx & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::DestroyEntity(RegisterIndex Entity)
+FHktStoryBuilder& FHktStoryBuilder::DestroyEntity(RegisterIndex Entity)
 {
     Emit(FInstruction::Make(EOpCode::DestroyEntity, 0, Entity, 0, 0));
     return *this;
@@ -298,37 +298,37 @@ FHktFlowBuilder& FHktFlowBuilder::DestroyEntity(RegisterIndex Entity)
 // Position & Movement
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::GetPosition(RegisterIndex DstBase, RegisterIndex Entity)
+FHktStoryBuilder& FHktStoryBuilder::GetPosition(RegisterIndex DstBase, RegisterIndex Entity)
 {
     Emit(FInstruction::Make(EOpCode::GetPosition, DstBase, Entity, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::SetPosition(RegisterIndex Entity, RegisterIndex SrcBase)
+FHktStoryBuilder& FHktStoryBuilder::SetPosition(RegisterIndex Entity, RegisterIndex SrcBase)
 {
     Emit(FInstruction::Make(EOpCode::SetPosition, Entity, SrcBase, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::MoveToward(RegisterIndex Entity, RegisterIndex TargetPosBase, int32 Speed)
+FHktStoryBuilder& FHktStoryBuilder::MoveToward(RegisterIndex Entity, RegisterIndex TargetPosBase, int32 Speed)
 {
     Emit(FInstruction::Make(EOpCode::MoveToward, Entity, TargetPosBase, 0, Speed & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::MoveForward(RegisterIndex Entity, int32 Speed)
+FHktStoryBuilder& FHktStoryBuilder::MoveForward(RegisterIndex Entity, int32 Speed)
 {
     Emit(FInstruction::Make(EOpCode::MoveForward, 0, Entity, 0, Speed & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::StopMovement(RegisterIndex Entity)
+FHktStoryBuilder& FHktStoryBuilder::StopMovement(RegisterIndex Entity)
 {
     Emit(FInstruction::Make(EOpCode::StopMovement, 0, Entity, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::GetDistance(RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2)
+FHktStoryBuilder& FHktStoryBuilder::GetDistance(RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2)
 {
     Emit(FInstruction::Make(EOpCode::GetDistance, Dst, Entity1, Entity2, 0));
     return *this;
@@ -338,19 +338,19 @@ FHktFlowBuilder& FHktFlowBuilder::GetDistance(RegisterIndex Dst, RegisterIndex E
 // Spatial Query
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::FindInRadius(RegisterIndex CenterEntity, int32 RadiusCm)
+FHktStoryBuilder& FHktStoryBuilder::FindInRadius(RegisterIndex CenterEntity, int32 RadiusCm)
 {
     Emit(FInstruction::Make(EOpCode::FindInRadius, Reg::Count, CenterEntity, 0, RadiusCm & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::NextFound()
+FHktStoryBuilder& FHktStoryBuilder::NextFound()
 {
     Emit(FInstruction::Make(EOpCode::NextFound, Reg::Iter, 0, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::ForEachInRadius(RegisterIndex CenterEntity, int32 RadiusCm)
+FHktStoryBuilder& FHktStoryBuilder::ForEachInRadius(RegisterIndex CenterEntity, int32 RadiusCm)
 {
     FForEachContext Ctx;
     Ctx.LoopLabel = FString::Printf(TEXT("__foreach_%d_loop"), ForEachCounter);
@@ -366,7 +366,7 @@ FHktFlowBuilder& FHktFlowBuilder::ForEachInRadius(RegisterIndex CenterEntity, in
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::EndForEach()
+FHktStoryBuilder& FHktStoryBuilder::EndForEach()
 {
     check(ForEachStack.Num() > 0);
     FForEachContext Ctx = ForEachStack.Pop();
@@ -381,27 +381,27 @@ FHktFlowBuilder& FHktFlowBuilder::EndForEach()
 // Combat
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::ApplyDamage(RegisterIndex Target, RegisterIndex Amount)
+FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(RegisterIndex Target, RegisterIndex Amount)
 {
     Emit(FInstruction::Make(EOpCode::ApplyDamage, 0, Target, Amount, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::ApplyDamageConst(RegisterIndex Target, int32 Amount)
+FHktStoryBuilder& FHktStoryBuilder::ApplyDamageConst(RegisterIndex Target, int32 Amount)
 {
     LoadConst(Reg::Temp, Amount);
     ApplyDamage(Target, Reg::Temp);
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::ApplyEffect(RegisterIndex Target, const FGameplayTag& EffectTag)
+FHktStoryBuilder& FHktStoryBuilder::ApplyEffect(RegisterIndex Target, const FGameplayTag& EffectTag)
 {
     int32 TagIdx = TagToInt(EffectTag);
     Emit(FInstruction::Make(EOpCode::ApplyEffect, 0, Target, 0, TagIdx & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::RemoveEffect(RegisterIndex Target, const FGameplayTag& EffectTag)
+FHktStoryBuilder& FHktStoryBuilder::RemoveEffect(RegisterIndex Target, const FGameplayTag& EffectTag)
 {
     int32 TagIdx = TagToInt(EffectTag);
     Emit(FInstruction::Make(EOpCode::RemoveEffect, 0, Target, 0, TagIdx & 0xFFF));
@@ -412,7 +412,7 @@ FHktFlowBuilder& FHktFlowBuilder::RemoveEffect(RegisterIndex Target, const FGame
 // Animation & VFX
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
+FHktStoryBuilder& FHktStoryBuilder::PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
 {
     uint16 PropId = AnimTagToPropertyId(AnimTag);
     int32 TagIdx = TagToInt(AnimTag);
@@ -420,28 +420,28 @@ FHktFlowBuilder& FHktFlowBuilder::PlayAnim(RegisterIndex Entity, const FGameplay
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::PlayAnimMontage(RegisterIndex Entity, const FGameplayTag& MontageTag)
+FHktStoryBuilder& FHktStoryBuilder::PlayAnimMontage(RegisterIndex Entity, const FGameplayTag& MontageTag)
 {
     int32 TagIdx = TagToInt(MontageTag);
     Emit(FInstruction::Make(EOpCode::PlayAnimMontage, 0, Entity, 0, TagIdx & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::StopAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
+FHktStoryBuilder& FHktStoryBuilder::StopAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
 {
     uint16 PropId = AnimTagToPropertyId(AnimTag);
     Emit(FInstruction::Make(EOpCode::StopAnim, PropId - PropertyId::AnimState, Entity, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag)
+FHktStoryBuilder& FHktStoryBuilder::PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag)
 {
     int32 TagIdx = TagToInt(VFXTag);
     Emit(FInstruction::Make(EOpCode::PlayVFX, 0, PosBase, 0, TagIdx & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::PlayVFXAttached(RegisterIndex Entity, const FGameplayTag& VFXTag)
+FHktStoryBuilder& FHktStoryBuilder::PlayVFXAttached(RegisterIndex Entity, const FGameplayTag& VFXTag)
 {
     int32 TagIdx = TagToInt(VFXTag);
     Emit(FInstruction::Make(EOpCode::PlayVFXAttached, 0, Entity, 0, TagIdx & 0xFFF));
@@ -452,14 +452,14 @@ FHktFlowBuilder& FHktFlowBuilder::PlayVFXAttached(RegisterIndex Entity, const FG
 // Audio
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::PlaySound(const FGameplayTag& SoundTag)
+FHktStoryBuilder& FHktStoryBuilder::PlaySound(const FGameplayTag& SoundTag)
 {
     int32 TagIdx = TagToInt(SoundTag);
     Emit(FInstruction::MakeImm(EOpCode::PlaySound, 0, TagIdx));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::PlaySoundAtLocation(RegisterIndex PosBase, const FGameplayTag& SoundTag)
+FHktStoryBuilder& FHktStoryBuilder::PlaySoundAtLocation(RegisterIndex PosBase, const FGameplayTag& SoundTag)
 {
     int32 TagIdx = TagToInt(SoundTag);
     Emit(FInstruction::Make(EOpCode::PlaySoundAtLocation, 0, PosBase, 0, TagIdx & 0xFFF));
@@ -470,7 +470,7 @@ FHktFlowBuilder& FHktFlowBuilder::PlaySoundAtLocation(RegisterIndex PosBase, con
 // Equipment
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::SpawnEquipment(RegisterIndex Owner, int32 Slot, const FGameplayTag& EquipTag)
+FHktStoryBuilder& FHktStoryBuilder::SpawnEquipment(RegisterIndex Owner, int32 Slot, const FGameplayTag& EquipTag)
 {
     int32 TagIdx = TagToInt(EquipTag);
     Emit(FInstruction::Make(EOpCode::SpawnEquipment, Reg::Spawned, Owner, Slot & 0xF, TagIdx & 0xFFF));
@@ -481,21 +481,21 @@ FHktFlowBuilder& FHktFlowBuilder::SpawnEquipment(RegisterIndex Owner, int32 Slot
 // Tags
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::AddTag(RegisterIndex Entity, const FGameplayTag& Tag)
+FHktStoryBuilder& FHktStoryBuilder::AddTag(RegisterIndex Entity, const FGameplayTag& Tag)
 {
     int32 StrIdx = AddString(Tag.ToString());
     Emit(FInstruction::Make(EOpCode::AddTag, 0, Entity, 0, StrIdx & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::RemoveTag(RegisterIndex Entity, const FGameplayTag& Tag)
+FHktStoryBuilder& FHktStoryBuilder::RemoveTag(RegisterIndex Entity, const FGameplayTag& Tag)
 {
     int32 StrIdx = AddString(Tag.ToString());
     Emit(FInstruction::Make(EOpCode::RemoveTag, 0, Entity, 0, StrIdx & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::HasTag(RegisterIndex Dst, RegisterIndex Entity, const FGameplayTag& Tag)
+FHktStoryBuilder& FHktStoryBuilder::HasTag(RegisterIndex Dst, RegisterIndex Entity, const FGameplayTag& Tag)
 {
     int32 StrIdx = AddString(Tag.ToString());
     Emit(FInstruction::Make(EOpCode::HasTag, Dst, Entity, 0, StrIdx & 0xFFF));
@@ -506,26 +506,26 @@ FHktFlowBuilder& FHktFlowBuilder::HasTag(RegisterIndex Dst, RegisterIndex Entity
 // NPC Spawning
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::CountByTag(RegisterIndex Dst, const FGameplayTag& Tag)
+FHktStoryBuilder& FHktStoryBuilder::CountByTag(RegisterIndex Dst, const FGameplayTag& Tag)
 {
     int32 StrIdx = AddString(Tag.ToString());
     Emit(FInstruction::Make(EOpCode::CountByTag, Dst, 0, 0, StrIdx & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::GetWorldTime(RegisterIndex Dst)
+FHktStoryBuilder& FHktStoryBuilder::GetWorldTime(RegisterIndex Dst)
 {
     Emit(FInstruction::Make(EOpCode::GetWorldTime, Dst, 0, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::RandomInt(RegisterIndex Dst, RegisterIndex ModulusReg)
+FHktStoryBuilder& FHktStoryBuilder::RandomInt(RegisterIndex Dst, RegisterIndex ModulusReg)
 {
     Emit(FInstruction::Make(EOpCode::RandomInt, Dst, ModulusReg, 0, 0));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::HasPlayerInGroup(RegisterIndex Dst)
+FHktStoryBuilder& FHktStoryBuilder::HasPlayerInGroup(RegisterIndex Dst)
 {
     Emit(FInstruction::Make(EOpCode::HasPlayerInGroup, Dst, 0, 0, 0));
     return *this;
@@ -535,13 +535,13 @@ FHktFlowBuilder& FHktFlowBuilder::HasPlayerInGroup(RegisterIndex Dst)
 // Item System
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId)
+FHktStoryBuilder& FHktStoryBuilder::CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, FHktTypeId TypeId)
 {
     Emit(FInstruction::Make(EOpCode::CountByOwner, Dst, OwnerEntity, 0, TypeId & 0xFFF));
     return *this;
 }
 
-FHktFlowBuilder& FHktFlowBuilder::FindByOwner(RegisterIndex OwnerEntity, FHktTypeId TypeId)
+FHktStoryBuilder& FHktStoryBuilder::FindByOwner(RegisterIndex OwnerEntity, FHktTypeId TypeId)
 {
     Emit(FInstruction::Make(EOpCode::FindByOwner, Reg::Count, OwnerEntity, 0, TypeId & 0xFFF));
     return *this;
@@ -551,7 +551,7 @@ FHktFlowBuilder& FHktFlowBuilder::FindByOwner(RegisterIndex OwnerEntity, FHktTyp
 // Utility
 // ============================================================================
 
-FHktFlowBuilder& FHktFlowBuilder::Log(const FString& Message)
+FHktStoryBuilder& FHktStoryBuilder::Log(const FString& Message)
 {
     int32 StrIdx = AddString(Message);
     Emit(FInstruction::MakeImm(EOpCode::Log, 0, StrIdx));
@@ -562,7 +562,7 @@ FHktFlowBuilder& FHktFlowBuilder::Log(const FString& Message)
 // Build
 // ============================================================================
 
-void FHktFlowBuilder::ResolveLabels()
+void FHktStoryBuilder::ResolveLabels()
 {
     for (const auto& Fixup : Fixups)
     {
@@ -593,7 +593,7 @@ void FHktFlowBuilder::ResolveLabels()
     }
 }
 
-TSharedRef<FHktVMProgram> FHktFlowBuilder::Build()
+TSharedRef<FHktVMProgram> FHktStoryBuilder::Build()
 {
     if (Program->Code.Num() == 0 || Program->Code.Last().GetOpCode() != EOpCode::Halt)
     {
@@ -604,7 +604,7 @@ TSharedRef<FHktVMProgram> FHktFlowBuilder::Build()
     return Program;
 }
 
-void FHktFlowBuilder::BuildAndRegister()
+void FHktStoryBuilder::BuildAndRegister()
 {
     FHktVMProgramRegistry::Get().RegisterProgram(Build());
 }

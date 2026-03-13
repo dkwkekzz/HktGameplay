@@ -1,15 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowFireball
+namespace HktStoryFireball
 {
-	// Flow Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_Fireball, "Ability.Skill.Fireball", "Fireball skill flow.");
+	// Story Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Fireball, "Ability.Skill.Fireball", "Fireball skill flow.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Projectile_Fireball, "Entity.Projectile.Fireball", "Fireball projectile entity.");
@@ -39,11 +39,11 @@ namespace HktFlowFireball
 	 *  주변 300 범위 내 대상들에게 각각 50 피해와 화상을 입힌다."
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Flow_Fireball)
+		Story(Story_Fireball)
 			// === 시전 시작 ===
 			.Log(TEXT("Fireball: 시전 시작"))
 			.PlayAnim(Self, Anim_UpperBody_Cast_Fireball)

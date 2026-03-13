@@ -1,15 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowBasicAttack
+namespace HktStoryBasicAttack
 {
-	// Flow Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_BasicAttack, "Ability.Attack.Basic", "Basic attack ability flow.");
+	// Story Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_BasicAttack, "Ability.Attack.Basic", "Basic attack ability flow.");
 
 	// Anim — 태그 계층에 레이어 포함
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Montage_Attack, "Anim.Montage.Attack", "Basic attack montage.");
@@ -31,11 +31,11 @@ namespace HktFlowBasicAttack
 	 *  완료 후 상체 애니메이션을 초기화한다."
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Flow_BasicAttack)
+		Story(Story_BasicAttack)
 			.Log(TEXT("BasicAttack: 공격 시작"))
 
 			// 타겟 로드 (IntentEvent에서)

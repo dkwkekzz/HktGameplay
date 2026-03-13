@@ -1,14 +1,14 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowItemPickup
+namespace HktStoryItemPickup
 {
-	// Flow Name
+	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Pickup, "Event.Item.Pickup", "Item pickup intent event.");
 
 	/**
@@ -23,11 +23,11 @@ namespace HktFlowItemPickup
 	 * Self = 줍는 유닛, Target = 줍을 아이템 엔티티
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Event_Item_Pickup)
+		Story(Event_Item_Pickup)
 			// Ground 상태 확인
 			.LoadEntityProperty(R0, Target, PropertyId::ItemState)
 			.LoadConst(R1, 0)                                           // Ground = 0

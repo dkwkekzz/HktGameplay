@@ -1,15 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowHeal
+namespace HktStoryHeal
 {
-	// Flow Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_Heal, "Ability.Skill.Heal", "Heal skill ability flow.");
+	// Story Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Heal, "Ability.Skill.Heal", "Heal skill ability flow.");
 
 	// Anim — 태그 계층에 레이어 포함
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_UpperBody_Cast_Heal, "Anim.UpperBody.Cast.Heal", "Heal cast animation.");
@@ -30,11 +30,11 @@ namespace HktFlowHeal
 	 *  체력이 최대치를 넘지 않도록 한다."
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Flow_Heal)
+		Story(Story_Heal)
 			.Log(TEXT("Heal: 시전 시작"))
 
 			// 상체에 시전 애니메이션 (하체 이동 유지) — 태그 계층에서 레이어 자동 감지
