@@ -7,59 +7,31 @@
 #include "HktCoreProperties.h"
 
 // ============================================================================
-// FHktEntityPool — 단일 Flat AOS 저장소
+// FHktWorldState — 단일 Flat AOS 기반 순수 게임 상태
 //
 // Uniform Stride: Data[Slot * Stride + PropId]
 // 타입 구분 없이 모든 엔티티를 하나의 배열에 저장.
 // EntityType은 PropertyId::EntityType property로 조회.
 // ============================================================================
 
-struct HKTCORE_API FHktEntityPool
+struct HKTCORE_API FHktWorldState
 {
     static constexpr int32 Stride = PropertyId::MaxCount;
 
-    TArray<int32> Data;
-    TArray<FHktEntityId> SlotToEntity;
-    TArray<int32> FreeSlots;
-    int32 ActiveCount = 0;
-
-    TArray<FGameplayTagContainer> TagContainers;
-    TArray<int64> OwnerUids;
-
-    void Initialize(int32 ReserveCount);
-    int32 AllocateSlot(FHktEntityId EntityId);
-    void FreeSlot(int32 Slot);
-
-    FORCEINLINE int32* EntityData(int32 Slot) { return Data.GetData() + Slot * Stride; }
-    FORCEINLINE const int32* EntityData(int32 Slot) const { return Data.GetData() + Slot * Stride; }
-    FORCEINLINE int32 Get(int32 Slot, uint16 PropId) const { return Data[Slot * Stride + PropId]; }
-    FORCEINLINE void Set(int32 Slot, uint16 PropId, int32 V) { Data[Slot * Stride + PropId] = V; }
-
-    FORCEINLINE void AddTag(int32 Slot, const FGameplayTag& Tag)     { TagContainers[Slot].AddTag(Tag); }
-    FORCEINLINE void RemoveTag(int32 Slot, const FGameplayTag& Tag)  { TagContainers[Slot].RemoveTag(Tag); }
-    FORCEINLINE bool HasTag(int32 Slot, const FGameplayTag& Tag) const      { return TagContainers[Slot].HasTag(Tag); }
-    FORCEINLINE bool HasTagExact(int32 Slot, const FGameplayTag& Tag) const { return TagContainers[Slot].HasTagExact(Tag); }
-    FORCEINLINE const FGameplayTagContainer& GetTags(int32 Slot) const      { return TagContainers[Slot]; }
-
-    template<typename F> void ForEachEntity(F&& Cb) const
-    {
-        for (int32 S = 0; S < SlotToEntity.Num(); ++S)
-            if (SlotToEntity[S] != InvalidEntityId) Cb(SlotToEntity[S], S);
-    }
-};
-
-// ============================================================================
-// FHktWorldState — 단일 Pool 기반 (순수 게임 상태)
-// ============================================================================
-
-struct HKTCORE_API FHktWorldState
-{
+    // --- Frame State ---
     int64 FrameNumber = 0;
     int32 RandomSeed = 0;
     FHktEntityId NextEntityId = 0;
 
-    TArray<int32> EntitySlots;   // EntityId → Pool Slot (-1 = invalid)
-    FHktEntityPool Pool;
+    // --- Entity Storage (Flat AOS) ---
+    TArray<int32> EntitySlots;           // EntityId → Slot (-1 = invalid)
+    TArray<int32> Data;                  // Flat property storage: Data[Slot * Stride + PropId]
+    TArray<FHktEntityId> SlotToEntity;   // Slot → EntityId reverse mapping
+    TArray<int32> FreeSlots;             // Free slot stack for reuse
+    int32 ActiveCount = 0;
+
+    TArray<FGameplayTagContainer> TagContainers;
+    TArray<int64> OwnerUids;
     TArray<FHktEvent> ActiveEvents;
 
     // --- Lifecycle ---
@@ -75,39 +47,48 @@ struct HKTCORE_API FHktWorldState
     FORCEINLINE FHktTypeId GetEntityType(FHktEntityId Id) const
     {
         if (!IsValidEntity(Id)) return HktType::None;
-        return static_cast<FHktTypeId>(Pool.Get(EntitySlots[Id], PropertyId::EntityType));
+        return static_cast<FHktTypeId>(Get(EntitySlots[Id], PropertyId::EntityType));
     }
 
-    // --- Property Access (직접 접근, 매핑 없음) ---
+    // --- Slot-level Access (내부/시스템용) ---
+    FORCEINLINE int32* EntityData(int32 Slot) { return Data.GetData() + Slot * Stride; }
+    FORCEINLINE const int32* EntityData(int32 Slot) const { return Data.GetData() + Slot * Stride; }
+    FORCEINLINE int32 Get(int32 Slot, uint16 PropId) const { return Data[Slot * Stride + PropId]; }
+    FORCEINLINE void Set(int32 Slot, uint16 PropId, int32 V) { Data[Slot * Stride + PropId] = V; }
+
+    // --- Property Access (EntityId 기반) ---
     FORCEINLINE int32 GetProperty(FHktEntityId Entity, uint16 PropId) const
     {
         if (!ensure(IsValidEntity(Entity))) return 0;
-        return Pool.Get(EntitySlots[Entity], PropId);
+        return Get(EntitySlots[Entity], PropId);
     }
 
     FORCEINLINE void SetProperty(FHktEntityId Entity, uint16 PropId, int32 Value)
     {
         if (!ensure(IsValidEntity(Entity))) return;
-        Pool.Set(EntitySlots[Entity], PropId, Value);
+        Set(EntitySlots[Entity], PropId, Value);
     }
 
-    // --- Tag Access ---
+    // --- Tag Access (EntityId 기반) ---
     const FGameplayTagContainer& GetTags(FHktEntityId Entity) const;
     void AddTag(FHktEntityId Entity, const FGameplayTag& Tag);
     void RemoveTag(FHktEntityId Entity, const FGameplayTag& Tag);
     bool HasTag(FHktEntityId Entity, const FGameplayTag& Tag) const;
 
+    // --- Tag Access (Slot 기반, 내부용) ---
+    FORCEINLINE const FGameplayTagContainer& GetTagsBySlot(int32 Slot) const { return TagContainers[Slot]; }
+
     // --- Owner Access ---
     FORCEINLINE int64 GetOwnerUid(FHktEntityId Entity) const
     {
         if (!ensure(IsValidEntity(Entity))) return 0;
-        return Pool.OwnerUids[EntitySlots[Entity]];
+        return OwnerUids[EntitySlots[Entity]];
     }
 
     FORCEINLINE void SetOwnerUid(FHktEntityId Entity, int64 Uid)
     {
         if (!ensure(IsValidEntity(Entity))) return;
-        Pool.OwnerUids[EntitySlots[Entity]] = Uid;
+        OwnerUids[EntitySlots[Entity]] = Uid;
     }
 
     // --- Position shortcuts ---
@@ -131,34 +112,31 @@ struct HKTCORE_API FHktWorldState
         SetPosition(Entity, Pos.X, Pos.Y, Pos.Z);
     }
 
-    // --- Pool Access ---
-    FORCEINLINE FHktEntityPool& GetPool() { return Pool; }
-    FORCEINLINE const FHktEntityPool& GetPool() const { return Pool; }
-
     // --- Slot Access (내부 사용) ---
     FORCEINLINE int32 GetSlot(FHktEntityId Id) const { return EntitySlots[Id]; }
 
     // --- Iteration ---
     template<typename F> void ForEachEntity(F&& Cb) const
     {
-        Pool.ForEachEntity(Forward<F>(Cb));
+        for (int32 S = 0; S < SlotToEntity.Num(); ++S)
+            if (SlotToEntity[S] != InvalidEntityId) Cb(SlotToEntity[S], S);
     }
 
     template<typename F> void ForEachEntityByType(FHktTypeId TypeId, F&& Cb) const
     {
-        Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
+        ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
-            if (Pool.Get(Slot, PropertyId::EntityType) == TypeId)
+            if (Get(Slot, PropertyId::EntityType) == TypeId)
                 Cb(Id, Slot);
         });
     }
 
     template<typename F> void ForEachEntityByOwner(int64 OwnerUid, F&& Cb) const
     {
-        if (Pool.ActiveCount == 0) return;
-        Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
+        if (ActiveCount == 0) return;
+        ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
-            if (Pool.OwnerUids[Slot] == OwnerUid)
+            if (OwnerUids[Slot] == OwnerUid)
                 Cb(Id, Slot);
         });
     }
@@ -179,6 +157,10 @@ struct HKTCORE_API FHktWorldState
 
     // --- Serialization ---
     bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+
+private:
+    int32 AllocateSlot(FHktEntityId EntityId);
+    void FreeSlot(int32 Slot);
 };
 
 template<>

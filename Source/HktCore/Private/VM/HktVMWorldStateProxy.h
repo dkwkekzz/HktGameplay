@@ -6,13 +6,13 @@
 #include "HktCoreProperties.h"
 
 // ============================================================================
-// FHktVMEntityPoolProxy — 단일 풀 VM 중간 데이터 (CorePrivate 전용)
+// FHktVMWorldStateProxy — VM dirty-aware 뮤테이션 API (CorePrivate 전용)
 //
 // DirtyMask / DirtySlots — 프레임 내 변경 추적
 // PreFrameData — 프레임 시작 스냅샷 (UndoDiff OldValue 조회)
 // ============================================================================
 
-struct FHktVMEntityPoolProxy
+struct FHktVMWorldStateProxy
 {
     TArray<uint64> DirtyMask;
     TArray<int32>  DirtySlots;
@@ -25,11 +25,13 @@ struct FHktVMEntityPoolProxy
     TArray<int32>  OwnerDirtySlots;
     TArray<uint8>  OwnerDirtyMask;
 
-    void Initialize(int32 Reserve);
+    void Initialize(const FHktWorldState& WS);
+    void ResetDirtyIndices(const FHktWorldState& WS);
 
-    FORCEINLINE void SetDirty(FHktEntityPool& Pool, int32 Slot, uint16 PropId, int32 V)
+    // --- Property Dirty ---
+    FORCEINLINE void SetDirty(FHktWorldState& WS, int32 Slot, uint16 PropId, int32 V)
     {
-        Pool.Data[Slot * FHktEntityPool::Stride + PropId] = V;
+        WS.Data[Slot * FHktWorldState::Stride + PropId] = V;
         if (Slot >= DirtyMask.Num())
         {
             DirtyMask.SetNum(Slot + 1, EAllowShrinking::No);
@@ -39,6 +41,9 @@ struct FHktVMEntityPoolProxy
         DirtyMask[Slot] |= (1ULL << PropId);
     }
 
+    void SetPropertyDirty(FHktWorldState& WS, FHktEntityId Entity, uint16 PropId, int32 Value);
+
+    // --- Tag Dirty ---
     FORCEINLINE void SetTagsDirty(int32 Slot)
     {
         if (Slot >= TagsDirtyMask.Num())
@@ -46,93 +51,34 @@ struct FHktVMEntityPoolProxy
         if (!TagsDirtyMask[Slot]) { TagsDirtySlots.Add(Slot); TagsDirtyMask[Slot] = 1; }
     }
 
-    FORCEINLINE void AddTag(FHktEntityPool& Pool, int32 Slot, const FGameplayTag& Tag)
+    FORCEINLINE void AddTag(FHktWorldState& WS, FHktEntityId Entity, const FGameplayTag& Tag)
     {
-        Pool.TagContainers[Slot].AddTag(Tag);
+        if (!WS.IsValidEntity(Entity)) return;
+        int32 Slot = WS.GetSlot(Entity);
+        WS.TagContainers[Slot].AddTag(Tag);
         SetTagsDirty(Slot);
     }
 
-    FORCEINLINE void RemoveTag(FHktEntityPool& Pool, int32 Slot, const FGameplayTag& Tag)
+    FORCEINLINE void RemoveTag(FHktWorldState& WS, FHktEntityId Entity, const FGameplayTag& Tag)
     {
-        Pool.TagContainers[Slot].RemoveTag(Tag);
+        if (!WS.IsValidEntity(Entity)) return;
+        int32 Slot = WS.GetSlot(Entity);
+        WS.TagContainers[Slot].RemoveTag(Tag);
         SetTagsDirty(Slot);
     }
 
-    FORCEINLINE void SetOwnerDirty(FHktEntityPool& Pool, int32 Slot, int64 Uid)
+    // --- Owner Dirty ---
+    FORCEINLINE void SetOwnerDirty(FHktWorldState& WS, int32 Slot, int64 Uid)
     {
-        Pool.OwnerUids[Slot] = Uid;
+        WS.OwnerUids[Slot] = Uid;
         if (Slot >= OwnerDirtyMask.Num())
             OwnerDirtyMask.SetNum(Slot + 1, EAllowShrinking::No);
         if (!OwnerDirtyMask[Slot]) { OwnerDirtySlots.Add(Slot); OwnerDirtyMask[Slot] = 1; }
     }
 
-    FORCEINLINE int64 GetPreFrameOwnerUid(int32 Slot) const
-    {
-        return (Slot < PreFrameOwnerUids.Num()) ? PreFrameOwnerUids[Slot] : 0;
-    }
-
-    template<typename F>
-    void ForEachOwnerDirtyEntity(const FHktEntityPool& Pool, F&& Cb) const
-    {
-        for (int32 S : OwnerDirtySlots)
-        {
-            if (!Pool.SlotToEntity.IsValidIndex(S)) continue;
-            FHktEntityId Id = Pool.SlotToEntity[S];
-            if (Id != InvalidEntityId) Cb(Id, S);
-        }
-    }
-
-    void ResetDirty(const FHktEntityPool& Pool);
-
-    template<typename F>
-    void ForEachDirtyEntity(const FHktEntityPool& Pool, F&& Cb) const
-    {
-        for (int32 S : DirtySlots)
-        {
-            if (!Pool.SlotToEntity.IsValidIndex(S)) continue;
-            FHktEntityId Id = Pool.SlotToEntity[S];
-            if (Id != InvalidEntityId) Cb(Id, S, DirtyMask[S]);
-        }
-    }
-
-    template<typename F>
-    void ForEachTagDirtyEntity(const FHktEntityPool& Pool, F&& Cb) const
-    {
-        for (int32 S : TagsDirtySlots)
-        {
-            if (!Pool.SlotToEntity.IsValidIndex(S)) continue;
-            FHktEntityId Id = Pool.SlotToEntity[S];
-            if (Id != InvalidEntityId) Cb(Id, S);
-        }
-    }
-
-    FORCEINLINE int32 GetPreFrameValue(int32 Slot, uint16 PropId) const
-    {
-        return PreFrameData[Slot * FHktEntityPool::Stride + PropId];
-    }
-
-    FORCEINLINE const FGameplayTagContainer& GetPreFrameTags(int32 Slot) const
-    {
-        return PreFrameTagContainers[Slot];
-    }
-};
-
-// ============================================================================
-// FHktVMWorldStateProxy — VM dirty-aware 뮤테이션 API (CorePrivate 전용)
-// ============================================================================
-
-struct FHktVMWorldStateProxy
-{
-    FHktVMEntityPoolProxy PoolProxy;
-
-    void Initialize(const FHktWorldState& WS);
-    void ResetDirtyIndices(const FHktWorldState& WS);
-
-    void SetPropertyDirty(FHktWorldState& WS, FHktEntityId Entity, uint16 PropId, int32 Value);
     void SetOwnerUid(FHktWorldState& WS, FHktEntityId Entity, int64 Uid);
-    void AddTag(FHktWorldState& WS, FHktEntityId Entity, const FGameplayTag& Tag);
-    void RemoveTag(FHktWorldState& WS, FHktEntityId Entity, const FGameplayTag& Tag);
 
+    // --- Position ---
     FORCEINLINE void SetPosition(FHktWorldState& WS, FHktEntityId Entity, int32 X, int32 Y, int32 Z)
     {
         SetPropertyDirty(WS, Entity, PropertyId::PosX, X);
@@ -145,6 +91,53 @@ struct FHktVMWorldStateProxy
         SetPosition(WS, Entity, Pos.X, Pos.Y, Pos.Z);
     }
 
-    FORCEINLINE FHktVMEntityPoolProxy& GetProxy() { return PoolProxy; }
-    FORCEINLINE const FHktVMEntityPoolProxy& GetProxy() const { return PoolProxy; }
+    // --- PreFrame Access ---
+    FORCEINLINE int32 GetPreFrameValue(int32 Slot, uint16 PropId) const
+    {
+        return PreFrameData[Slot * FHktWorldState::Stride + PropId];
+    }
+
+    FORCEINLINE const FGameplayTagContainer& GetPreFrameTags(int32 Slot) const
+    {
+        return PreFrameTagContainers[Slot];
+    }
+
+    FORCEINLINE int64 GetPreFrameOwnerUid(int32 Slot) const
+    {
+        return (Slot < PreFrameOwnerUids.Num()) ? PreFrameOwnerUids[Slot] : 0;
+    }
+
+    // --- Dirty Iteration ---
+    template<typename F>
+    void ForEachDirtyEntity(const FHktWorldState& WS, F&& Cb) const
+    {
+        for (int32 S : DirtySlots)
+        {
+            if (!WS.SlotToEntity.IsValidIndex(S)) continue;
+            FHktEntityId Id = WS.SlotToEntity[S];
+            if (Id != InvalidEntityId) Cb(Id, S, DirtyMask[S]);
+        }
+    }
+
+    template<typename F>
+    void ForEachTagDirtyEntity(const FHktWorldState& WS, F&& Cb) const
+    {
+        for (int32 S : TagsDirtySlots)
+        {
+            if (!WS.SlotToEntity.IsValidIndex(S)) continue;
+            FHktEntityId Id = WS.SlotToEntity[S];
+            if (Id != InvalidEntityId) Cb(Id, S);
+        }
+    }
+
+    template<typename F>
+    void ForEachOwnerDirtyEntity(const FHktWorldState& WS, F&& Cb) const
+    {
+        for (int32 S : OwnerDirtySlots)
+        {
+            if (!WS.SlotToEntity.IsValidIndex(S)) continue;
+            FHktEntityId Id = WS.SlotToEntity[S];
+            if (Id != InvalidEntityId) Cb(Id, S);
+        }
+    }
 };
