@@ -35,7 +35,7 @@ static TAutoConsoleVariable<float> CVarMoveMinSpeed(
 
 #if ENABLE_HKT_INSIGHTS
 #include "HktCoreDataCollector.h"
-#include "HktFlowTypes.h"
+#include "HktStoryTypes.h"
 
 static FString VMStatusToString(EVMStatus Status)
 {

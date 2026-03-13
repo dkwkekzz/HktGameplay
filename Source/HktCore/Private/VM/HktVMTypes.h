@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "HktFlowTypes.h"
+#include "HktStoryTypes.h"
 #include "HktCoreDefs.h"
 
 // ============================================================================

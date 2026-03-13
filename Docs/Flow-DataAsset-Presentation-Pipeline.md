@@ -8,7 +8,7 @@ Flow에서 정의한 태그가 DataAsset을 거쳐 Presentation에서 시각화�
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  1. Flow 정의 (HktFlow)                                         │
+│  1. Story 정의 (HktStory)                                         │
 │     Flow에서 사용할 태그를 UE_DEFINE_GAMEPLAY_TAG로 선언          │
 │     ex) Entity.Character.Player, Anim.Montage.Attack, VFX.Spawn │
 └──────────────────────────┬──────────────────────────────────────┘
@@ -48,7 +48,7 @@ Flow에서 정의한 태그가 DataAsset을 거쳐 Presentation에서 시각화�
 
 ## 1단계: Flow 정의에서 태그 선언
 
-Flow 정의 파일(`HktFlow/Private/Definitions/*.cpp`)에서 GameplayTag를 선언하고 Flow 바이트코드에서 사용한다.
+Flow 정의 파일(`HktStory/Private/Definitions/*.cpp`)에서 GameplayTag를 선언하고 Flow 바이트코드에서 사용한다.
 
 ### 태그 카테고리별 역할
 
@@ -61,10 +61,10 @@ Flow 정의 파일(`HktFlow/Private/Definitions/*.cpp`)에서 GameplayTag를 선
 | `Sound.*` | 사운드 | `.PlaySound(Tag)` | (TODO) |
 | `Equipment.*` | 장비 | `.SpawnEquipment(Owner, Slot, Tag)` | (TODO) |
 
-### 예시: HktFlowCharacterSpawn.cpp
+### 예시: HktStoryCharacterSpawn.cpp
 
 ```cpp
-namespace HktFlowCharacterSpawn
+namespace HktStoryCharacterSpawn
 {
     // 태그 선언 — 이 태그들이 DataAsset의 IdentifierTag와 1:1 매칭
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "...");
@@ -73,9 +73,9 @@ namespace HktFlowCharacterSpawn
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect,        "VFX.SpawnEffect",         "...");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Equipment_Weapon_Sword, "Equipment.Weapon.Sword",  "...");
 
-    HKT_REGISTER_FLOW_BODY()
+    HKT_REGISTER_STORY_BODY()
     {
-        Flow(Flow_CharacterSpawn)
+        Story(Story_CharacterSpawn)
             .SpawnEntity(HktType::Unit, Entity_Character_Player)  // → EntitySpawnTag(22)에 기록
             .PlayVFXAttached(Self, VFX_SpawnEffect)               // → 엔티티에 VFX 태그 추가
             .PlayAnim(Self, Anim_Spawn)                           // → AnimState(40)에 기록
@@ -293,7 +293,7 @@ Flow에서 새로운 태그를 사용할 때, Presentation에서 올바르게 �
 
 | 계층 | 파일 | 역할 |
 |---|---|---|
-| **Flow** | `HktFlow/Private/Definitions/*.cpp` | 태그 선언 + Flow 바이트코드 정의 |
+|  **Story** | `HktStory/Private/Definitions/*.cpp` | 태그 선언 + Flow 바이트코드 정의 |
 | **DataAsset** | `HktAsset/Public/HktTagDataAsset.h` | 태그 기반 에셋 베이스 클래스 |
 | **DataAsset** | `HktAsset/Public/HktAssetSubsystem.h` | 태그 → 에셋 매핑 및 로딩 |
 | **DataAsset** | `HktPresentation/Private/DataAssets/HktActorVisualDataAsset.h` | 엔티티 시각화 에셋 |

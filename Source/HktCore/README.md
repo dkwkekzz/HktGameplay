@@ -280,8 +280,8 @@ HktCore/
 │   ├── HktCoreEvents.h        // FHktEvent, FHktEntityState, FHktSimulationEvent, FHktSimulationDiff, FHktPlayerState
 │   ├── HktCoreProperties.h    // PropertyId 네임스페이스 (uint16 상수)
 │   ├── HktCoreSimulator.h     // IHktAuthoritySimulator 인터페이스
-│   ├── HktFlowTypes.h         // RegisterIndex, Reg, EOpCode, FInstruction (Flow 빌더 공개)
-│   ├── HktFlowBuilder.h
+│   ├── HktStoryTypes.h        // RegisterIndex, Reg, EOpCode, FInstruction (Story 빌더 공개)
+│   ├── HktStoryBuilder.h
 │   ├── HktWorldState.h
 │   └── HktWorldView.h
 ├── Private/

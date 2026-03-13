@@ -1,15 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowNPCLifecycle
+namespace HktStoryNPCLifecycle
 {
-	// Flow Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_NPC_Lifecycle, "Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
+	// Story Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle, "Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
 
 	// Anim — 태그 계층에 레이어 포함
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death animation.");
@@ -32,11 +32,11 @@ namespace HktFlowNPCLifecycle
 	 * Self = NPC 엔티티
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Flow_NPC_Lifecycle)
+		Story(Story_NPC_Lifecycle)
 			.Label(TEXT("check"))
 				.LoadEntityProperty(R0, Self, PropertyId::Health)
 				.LoadConst(R1, 0)

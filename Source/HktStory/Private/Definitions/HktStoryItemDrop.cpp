@@ -1,14 +1,14 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowItemDrop
+namespace HktStoryItemDrop
 {
-	// Flow Name
+	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Drop, "Event.Item.Drop", "Item drop intent event.");
 
 	/**
@@ -22,11 +22,11 @@ namespace HktFlowItemDrop
 	 * Self = 유닛, Target = 드랍할 아이템
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Event_Item_Drop)
+		Story(Event_Item_Drop)
 			// 소유자 확인
 			.LoadEntityProperty(R0, Target, PropertyId::OwnerEntity)
 			.CmpNe(Flag, R0, Self)

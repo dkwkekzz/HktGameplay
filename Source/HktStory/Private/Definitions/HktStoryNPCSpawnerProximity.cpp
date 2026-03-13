@@ -1,15 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowNPCSpawnerProximity
+namespace HktStoryNPCSpawnerProximity
 {
-	// Flow Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_Spawner_DungeonEntrance, "Flow.Spawner.DungeonEntrance", "Proximity-triggered dungeon entrance spawner.");
+	// Story Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_DungeonEntrance, "Flow.Spawner.DungeonEntrance", "Proximity-triggered dungeon entrance spawner.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Skeleton, "Entity.NPC.Skeleton", "Skeleton NPC entity.");
@@ -31,11 +31,11 @@ namespace HktFlowNPCSpawnerProximity
 	 * Self = zone 앵커 엔티티 (위치만 있는 Unit)
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Flow_Spawner_DungeonEntrance)
+		Story(Story_Spawner_DungeonEntrance)
 			.Log(TEXT("DungeonEntrance proximity spawner: monitoring"))
 
 			.Label(TEXT("check"))

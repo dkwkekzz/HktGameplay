@@ -1,15 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowCharacterSpawn
+namespace HktStoryCharacterSpawn
 {
-	// Flow Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_CharacterSpawn, "Event.Character.Spawn", "Character spawn event flow.");
+	// Story Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_CharacterSpawn, "Event.Character.Spawn", "Character spawn event flow.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "Player character entity.");
@@ -39,11 +39,11 @@ namespace HktFlowCharacterSpawn
 	 *  0.5초 후 장비를 생성하고 인트로 애니메이션을 재생한다."
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Flow_CharacterSpawn)
+		Story(Story_CharacterSpawn)
 			.Log(TEXT("CharacterSpawn: 캐릭터 생성"))
 
 			// 캐릭터 스폰

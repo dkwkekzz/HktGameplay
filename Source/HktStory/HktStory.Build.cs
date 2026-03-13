@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class HktFlow : ModuleRules
+public class HktStory : ModuleRules
 {
-	public HktFlow(ReadOnlyTargetRules Target) : base(Target)
+	public HktStory(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		

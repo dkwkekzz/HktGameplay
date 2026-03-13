@@ -5,7 +5,7 @@
 
 namespace HktGameplayTags
 {
-    // Flow IDs - HktFlowDefinitions.h에서 사용되는 Flow 식별자
+    // Story IDs - HktStoryDefinitions.h에서 사용되는 Story 식별자
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Skill_Fireball);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Action_Move_ToLocation);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Character_Spawn);

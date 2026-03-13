@@ -1,15 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "HktFlowBuilder.h"
+#include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
-#include "HktFlowRegistry.h"
+#include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
-namespace HktFlowPlayerInWorld
+namespace HktStoryPlayerInWorld
 {
-	// Flow Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_PlayerInWorld, "State.Player.InWorld", "Player in world state flow.");
+	// Story Name
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_PlayerInWorld, "State.Player.InWorld", "Player in world state flow.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "Player character entity.");
@@ -38,11 +38,11 @@ namespace HktFlowPlayerInWorld
 	 *  캐릭터가 파괴되기 전까지 이 상태를 유지한다."
 	 * ================================================================
 	 */
-	HKT_REGISTER_FLOW_BODY()
+	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Flow(Flow_PlayerInWorld)
+		Story(Story_PlayerInWorld)
 			.Log(TEXT("PlayerInWorld: 플레이어 캐릭터 생성"))
 
 			// 캐릭터 엔티티 생성
