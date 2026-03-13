@@ -73,9 +73,9 @@ namespace HktStoryCharacterSpawn
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect,        "VFX.SpawnEffect",         "...");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Equipment_Weapon_Sword, "Equipment.Weapon.Sword",  "...");
 
-    HKT_REGISTER_FLOW_BODY()
+    HKT_REGISTER_STORY_BODY()
     {
-        Flow(Flow_CharacterSpawn)
+        Story(Story_CharacterSpawn)
             .SpawnEntity(HktType::Unit, Entity_Character_Player)  // → EntitySpawnTag(22)에 기록
             .PlayVFXAttached(Self, VFX_SpawnEffect)               // → 엔티티에 VFX 태그 추가
             .PlayAnim(Self, Anim_Spawn)                           // → AnimState(40)에 기록
