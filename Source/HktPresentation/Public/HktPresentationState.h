@@ -33,6 +33,10 @@ struct FHktEntityPresentation
 	FHktVM_Animation Animation;
 	FHktVM_Visualization Visualization;
 
+	/** Entity의 GameplayTag 컨테이너 (AnimInstance 태그 동기화용) */
+	FGameplayTagContainer Tags;
+	int64 TagsDirtyFrame = -1;
+
 	void InitFromWorldState(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
 	void ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);
 	void ApplyOwnerDelta(int64 NewOwnerUid, int64 Frame);
@@ -61,6 +65,7 @@ struct FHktPresentationState
 	void RemoveEntity(FHktEntityId Id);
 	void ApplyDelta(FHktEntityId Id, uint16 PropId, int32 NewValue);
 	void ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid);
+	void ApplyTagDelta(FHktEntityId Id, const FGameplayTagContainer& NewTags);
 
 	bool IsValid(FHktEntityId Id) const;
 	const FHktEntityPresentation* Get(FHktEntityId Id) const;

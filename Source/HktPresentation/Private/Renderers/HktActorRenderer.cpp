@@ -209,22 +209,11 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
 	}
 
-	// FullBody 애니메이션 상태 (Anim.FullBody.Locomotion.Run 등)
-	if (Entity.Animation.AnimState.IsDirty(Frame))
+	// Entity TagContainer 기반 애니메이션 동기화
+	// Story에서 AddTag/RemoveTag로 상태를 변경하면 AnimInstance가 태그 변화를 감지하여 애니메이션을 자동 재생
+	if (Entity.TagsDirtyFrame == Frame)
 	{
-		HktAnim->SetAnimTag(Entity.Animation.AnimState.Get());
-	}
-
-	// UpperBody 애니메이션 상태 (Anim.UpperBody.Combat.Attack 등)
-	if (Entity.Animation.AnimStateUpper.IsDirty(Frame))
-	{
-		HktAnim->SetAnimTag(Entity.Animation.AnimStateUpper.Get());
-	}
-
-	// 몽타주 상태 (VisualState 경유)
-	if (Entity.Animation.MontageState.IsDirty(Frame))
-	{
-		HktAnim->SetAnimTag(Entity.Animation.MontageState.Get());
+		HktAnim->SyncFromTagContainer(Entity.Tags);
 	}
 }
 

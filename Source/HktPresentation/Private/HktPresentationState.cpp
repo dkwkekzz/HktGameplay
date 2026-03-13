@@ -12,7 +12,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	RenderCategory = DetermineRenderCategory(TypeId);
 	SpawnedFrame = Frame;
 	RemovedFrame = 0;
-	LastDirtyFrame = Frame; // ���� ������ ������ Dirty ����
+	LastDirtyFrame = Frame;
 	Transform.Apply(WS, Id, Frame);
 	Movement.Apply(WS, Id, Frame);
 	Vitals.Apply(WS, Id, Frame);
@@ -20,6 +20,8 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	Ownership.Apply(WS, Id, Frame);
 	Animation.Apply(WS, Id, Frame);
 	Visualization.Apply(WS, Id, Frame);
+	Tags = WS.GetTags(Id);
+	TagsDirtyFrame = Frame;
 }
 
 void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
@@ -177,6 +179,21 @@ void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
 	}
 
 	E.ApplyOwnerDelta(NewOwnerUid, CurrentFrame);
+}
+
+void FHktPresentationState::ApplyTagDelta(FHktEntityId Id, const FGameplayTagContainer& NewTags)
+{
+	if (Id >= Entities.Num() || !ValidMask[Id]) return;
+	FHktEntityPresentation& E = Entities[Id];
+
+	if (E.LastDirtyFrame != CurrentFrame)
+	{
+		E.LastDirtyFrame = CurrentFrame;
+		DirtyThisFrame.Add(Id);
+	}
+
+	E.Tags = NewTags;
+	E.TagsDirtyFrame = CurrentFrame;
 }
 
 bool FHktPresentationState::IsValid(FHktEntityId Id) const

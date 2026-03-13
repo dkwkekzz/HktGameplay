@@ -62,16 +62,6 @@ int32 FHktStoryBuilder::TagToInt(const FGameplayTag& Tag)
     return 0;
 }
 
-uint16 FHktStoryBuilder::AnimTagToPropertyId(const FGameplayTag& AnimTag)
-{
-    static const FGameplayTag UpperBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.UpperBody")), false);
-    if (AnimTag.MatchesTag(UpperBodyParent))
-    {
-        return PropertyId::AnimStateUpper;
-    }
-    return PropertyId::AnimState;
-}
-
 // ============================================================================
 // Flow Policy
 // ============================================================================
@@ -409,30 +399,8 @@ FHktStoryBuilder& FHktStoryBuilder::RemoveEffect(RegisterIndex Target, const FGa
 }
 
 // ============================================================================
-// Animation & VFX
+// VFX
 // ============================================================================
-
-FHktStoryBuilder& FHktStoryBuilder::PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
-{
-    uint16 PropId = AnimTagToPropertyId(AnimTag);
-    int32 TagIdx = TagToInt(AnimTag);
-    Emit(FInstruction::Make(EOpCode::PlayAnim, PropId - PropertyId::AnimState, Entity, 0, TagIdx & 0xFFF));
-    return *this;
-}
-
-FHktStoryBuilder& FHktStoryBuilder::PlayAnimMontage(RegisterIndex Entity, const FGameplayTag& MontageTag)
-{
-    int32 TagIdx = TagToInt(MontageTag);
-    Emit(FInstruction::Make(EOpCode::PlayAnimMontage, 0, Entity, 0, TagIdx & 0xFFF));
-    return *this;
-}
-
-FHktStoryBuilder& FHktStoryBuilder::StopAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
-{
-    uint16 PropId = AnimTagToPropertyId(AnimTag);
-    Emit(FInstruction::Make(EOpCode::StopAnim, PropId - PropertyId::AnimState, Entity, 0, 0));
-    return *this;
-}
 
 FHktStoryBuilder& FHktStoryBuilder::PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag)
 {
