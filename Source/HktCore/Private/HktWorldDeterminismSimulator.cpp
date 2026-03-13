@@ -107,41 +107,37 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         if (WorldState.IsValidEntity(Id))
             Diff.SpawnedEntities.Add(WorldState.ExtractEntityState(Id));
 
+    VMProxy.ForEachDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot, uint64 Mask)
     {
-        const FHktEntityPool& Pool = WorldState.GetPool();
-        const FHktVMEntityPoolProxy& Proxy = VMProxy.GetProxy();
-        Proxy.ForEachDirtyEntity(Pool, [&](FHktEntityId Id, int32 Slot, uint64 Mask)
+        if (Id >= PrevNext) return;
+        const int32* ED = WorldState.EntityData(Slot);
+        uint64 M = Mask;
+        while (M)
         {
-            if (Id >= PrevNext) return;
-            const int32* ED = Pool.EntityData(Slot);
-            uint64 M = Mask;
-            while (M)
-            {
-                uint16 PropId = static_cast<uint16>(FMath::CountTrailingZeros64(M));
-                int32 OldVal = Proxy.GetPreFrameValue(Slot, PropId);
-                Diff.PropertyDeltas.Add({ Id, PropId, ED[PropId], OldVal });
-                M &= M - 1;
-            }
-        });
-        Proxy.ForEachTagDirtyEntity(Pool, [&](FHktEntityId Id, int32 Slot)
-        {
-            if (Id >= PrevNext) return;
-            FHktTagDelta Delta;
-            Delta.EntityId = Id;
-            Delta.Tags = Pool.GetTags(Slot);
-            Delta.OldTags = Proxy.GetPreFrameTags(Slot);
-            Diff.TagDeltas.Add(MoveTemp(Delta));
-        });
-        Proxy.ForEachOwnerDirtyEntity(Pool, [&](FHktEntityId Id, int32 Slot)
-        {
-            if (Id >= PrevNext) return;
-            FHktOwnerDelta Delta;
-            Delta.EntityId = Id;
-            Delta.NewOwnerUid = Pool.OwnerUids[Slot];
-            Delta.OldOwnerUid = Proxy.GetPreFrameOwnerUid(Slot);
-            Diff.OwnerDeltas.Add(Delta);
-        });
-    }
+            uint16 PropId = static_cast<uint16>(FMath::CountTrailingZeros64(M));
+            int32 OldVal = VMProxy.GetPreFrameValue(Slot, PropId);
+            Diff.PropertyDeltas.Add({ Id, PropId, ED[PropId], OldVal });
+            M &= M - 1;
+        }
+    });
+    VMProxy.ForEachTagDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot)
+    {
+        if (Id >= PrevNext) return;
+        FHktTagDelta Delta;
+        Delta.EntityId = Id;
+        Delta.Tags = WorldState.GetTagsBySlot(Slot);
+        Delta.OldTags = VMProxy.GetPreFrameTags(Slot);
+        Diff.TagDeltas.Add(MoveTemp(Delta));
+    });
+    VMProxy.ForEachOwnerDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot)
+    {
+        if (Id >= PrevNext) return;
+        FHktOwnerDelta Delta;
+        Delta.EntityId = Id;
+        Delta.NewOwnerUid = WorldState.OwnerUids[Slot];
+        Delta.OldOwnerUid = VMProxy.GetPreFrameOwnerUid(Slot);
+        Diff.OwnerDeltas.Add(Delta);
+    });
 
 #if ENABLE_HKT_INSIGHTS
     if (!SourceName.IsEmpty())
@@ -157,10 +153,9 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             FString::FromInt(WorldState.GetEntityCount()));
 
         // 엔티티별 속성 요약
-        const FHktEntityPool& Pool = WorldState.GetPool();
-        Pool.ForEachEntity([&](FHktEntityId Id, int32 Slot)
+        WorldState.ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
-            const TCHAR* TypeName = GetTypeName(static_cast<FHktTypeId>(Pool.Get(Slot, PropertyId::EntityType)));
+            const TCHAR* TypeName = GetTypeName(static_cast<FHktTypeId>(WorldState.Get(Slot, PropertyId::EntityType)));
 
             FString PropSummary;
             PropSummary += FString::Printf(TEXT("Type=%s"), TypeName ? TypeName : TEXT("Unknown"));
@@ -169,7 +164,7 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             {
                 const TCHAR* PropName = GetPropertyName(PropId);
                 if (!PropName) continue;
-                int32 Val = Pool.Get(Slot, PropId);
+                int32 Val = WorldState.Get(Slot, PropId);
                 if (Val == 0) continue;
                 PropSummary += FString::Printf(TEXT(" | %s=%d"), PropName, Val);
             }
