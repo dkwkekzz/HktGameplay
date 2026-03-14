@@ -1,7 +1,7 @@
 HktCore 시뮬레이션 모듈 아키텍처 설계서
 
 작성일: 2026년 2월 11일
-최종 수정: 2026년 2월 14일 (SOA 리팩토링 반영)
+최종 수정: 2026년 3월 14일 (GGPO 동기화 및 예외처리 문서화)
 대상: HktCore 모듈 구현 담당자
 플랫폼: Unreal Engine 5.6 (C++ Module)
 
@@ -297,3 +297,192 @@ HktCore/
 │       ├── HktVMInterpreter.cpp
 │       ├── HktVMInterpreterActions.cpp
 │       └── HktVMProgram.h     // FHktVMProgram, FHktVMProgramRegistry
+
+9. GGPO 동기화 모델 (GGPO Synchronization Model)
+
+9.1 개요
+
+서버와 클라이언트 모두 동일한 IHktDeterminismSimulator를 사용하여 30Hz 고정 타임스텝으로 시뮬레이션한다.
+결정론적 실행이 보장되므로, 동일한 초기 상태 + 동일한 입력 = 동일한 결과가 성립한다.
+
+    서버: 권위(Authority) 시뮬레이터. 매 프레임 AdvanceFrame()으로 확정된 Diff를 생성하여 클라이언트로 전송.
+    클라: 프록시(Proxy) 시뮬레이터 (UHktProxySimulatorComponent). 로컬 예측 + 서버 배치 수신 시 롤백/재실행.
+
+핵심 인터페이스 (HktCoreSimulator.h):
+
+    AdvanceFrame(InEvent) → FHktSimulationDiff   // 1프레임 전진, 변경점 반환
+    UndoDiff(Diff)                                // Diff 역적용으로 프레임 되돌리기
+    RestoreWorldState(InState)                    // 전체 상태 덮어쓰기 (초기 합류용)
+
+9.2 Diff 구조 (FHktSimulationDiff)
+
+프레임별 변경점을 양방향(적용/되돌리기)으로 기록하는 구조체:
+
+    FrameNumber (int64): 이 Diff가 발생한 프레임
+    PrevNextEntityId: 프레임 실행 전 NextEntityId (UndoDiff 시 복원)
+
+    SpawnedEntities (TArray<FHktEntityState>):
+        이번 프레임에 생성된 엔티티 전체 상태
+        UndoDiff 시 → RemoveEntity()로 제거
+
+    RemovedEntities / RemovedEntityStates:
+        제거된 엔티티 ID 목록 + 제거 전 전체 상태 스냅샷
+        UndoDiff 시 → ImportEntityStateWithId()로 복원
+
+    PropertyDeltas (TArray<FHktPropertyDelta>):
+        {EntityId, PropertyId, NewValue, OldValue}
+        UndoDiff 시 → OldValue로 복원
+
+    TagDeltas / OwnerDeltas:
+        태그·소유권 변경도 Old/New 쌍으로 기록
+
+9.3 UndoDiff 동작 (HktWorldState.cpp)
+
+Diff를 역순으로 적용하여 프레임을 되돌린다:
+
+    1. SpawnedEntities에 기록된 엔티티를 RemoveEntity()
+    2. PrevNextEntityId로 NextEntityId 복원
+    3. RemovedEntityStates로 삭제되었던 엔티티를 ImportEntityStateWithId()
+    4. PropertyDeltas의 OldValue로 프로퍼티 복원
+    5. OwnerDeltas의 OldOwnerUid로 소유권 복원
+    6. TagDeltas의 OldTags로 태그 복원
+    7. FrameNumber = Diff.FrameNumber - 1
+
+9.4 클라이언트 동기화 흐름 (UHktProxySimulatorComponent)
+
+고정 타임스텝 (30Hz) 틱 루프:
+
+    TickComponent(DeltaTime):
+        FrameAccumulator += DeltaTime
+        while (FrameAccumulator >= 1/30):
+            if 서버 Batch 큐에 데이터 있음:
+                ProcessPendingServerBatches()    // 롤백 + 서버 권위 재실행
+            else:
+                AdvanceLocalFrame()              // 로컬 예측
+
+로컬 예측 (AdvanceLocalFrame):
+
+    1. LocalFrame++
+    2. BuildLocalBatch(LocalFrame) → 빈 이벤트 + 결정론적 시드
+    3. Simulator->AdvanceFrame(LocalBatch) → Diff 생성
+    4. DiffHistory에 Diff 추가 (나중에 롤백할 수 있도록)
+    5. PendingDiff에 누적 (렌더링 갱신용)
+
+서버 Batch 처리 (ProcessPendingServerBatches):
+
+    1. PendingServerBatches를 FrameNumber 기준 오름차순 정렬
+    2. 각 서버 Batch에 대해:
+       a. [롤백] DiffHistory를 뒤에서부터 UndoDiff() — ServerFrame 직전까지
+       b. [빨리감기] 현재 프레임 ~ ServerFrame 사이 빈 Batch 실행 (클라 느린 경우)
+       c. [권위 실행] 서버 Batch로 AdvanceFrame() 실행
+       d. DiffHistory 초기화, LocalFrame = max(LocalFrame, ServerFrame)
+
+9.5 예외 상황 처리
+
+Case 1: 클라이언트가 서버보다 빠른 경우 (Rollback)
+
+    상황: 클라가 프레임 N+1, N+2, N+3까지 예측 실행.
+          서버 Batch(프레임 N+1)가 도착.
+
+    처리:
+        1. DiffHistory에서 N+3, N+2, N+1 순으로 UndoDiff() → 프레임 N 상태로 복원
+        2. 서버 Batch(N+1)로 AdvanceFrame() 실행 → 서버 권위 상태 확정
+        3. DiffHistory 초기화
+        4. 이후 틱에서 N+2부터 다시 로컬 예측 시작
+
+    시퀀스:
+
+        클라 타임라인:  [N] → [N+1 예측] → [N+2 예측] → [N+3 예측]
+                                                            ↓ 서버 Batch N+1 수신
+        롤백:          [N+3] ← UndoDiff ← [N+2] ← UndoDiff ← [N+1] ← UndoDiff → [N]
+        재실행:        [N] → [N+1 서버 권위] → [N+2 로컬 예측 재시작] → ...
+
+Case 2: 클라이언트가 서버보다 느린 경우 (Fast-Forward)
+
+    상황: 클라가 프레임 K에 있는데, 서버 Batch(프레임 M, M > K+1)가 도착.
+
+    처리:
+        1. DiffHistory에서 K까지 UndoDiff() (예측분 있으면)
+        2. 프레임 K+1 ~ M-1까지 빈 Batch로 빨리감기 실행
+        3. 서버 Batch(M)로 AdvanceFrame() 실행
+        4. LocalFrame = M으로 보정
+
+    시퀀스:
+
+        클라 타임라인:  [K]
+                         ↓ 서버 Batch M 수신 (M > K+1)
+        빨리감기:      [K] → [K+1 빈] → [K+2 빈] → ... → [M-1 빈] → [M 서버 권위]
+
+Case 3: 서버 Batch 순서 역전 (Network Reordering)
+
+    상황: 네트워크 지연으로 Batch M+1이 M보다 먼저 도착.
+
+    처리:
+        ProcessPendingServerBatches()에서 FrameNumber 기준 오름차순 정렬 후 처리.
+        → M 먼저 처리, 이후 M+1 처리. 결과적으로 올바른 순서 보장.
+
+Case 4: DiffHistory 오버플로 (장시간 서버 미응답)
+
+    상황: 서버 Batch 없이 로컬 예측만 300프레임(10초@30Hz) 이상 누적.
+
+    처리:
+        MaxHistoryFrames(300) 초과 시 DiffHistory.Empty()
+        → 이전 예측 프레임을 개별 롤백할 수 없게 됨.
+        → 다음 서버 Batch 수신 시, 롤백 없이 서버 상태로 직접 전진.
+        → 순간적 시각 지터(jitter) 가능하지만 상태 일관성은 보장.
+
+Case 5: 중간 합류 (Mid-Join)
+
+    상황: 새 플레이어가 진행 중인 세션에 합류.
+
+    처리:
+        1. 서버가 Client_ReceiveInitialState(FHktWorldState) RPC 전송
+        2. 클라이언트에서 RestoreState(InState) 호출:
+           - Simulator->RestoreWorldState(InState)으로 전체 상태 덮어쓰기
+           - LocalFrame = InState.FrameNumber
+           - DiffHistory, PendingServerBatches 초기화
+        3. 이후부터 정상 예측/롤백 루프 진입
+
+9.6 서버-클라 전체 동기화 시퀀스
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │                          SERVER (30Hz)                              │
+    │                                                                     │
+    │  GameMode::Tick                                                     │
+    │    └─ While FrameAccumulator >= 1/30:                               │
+    │         ├─ Rule->OnEvent_GameModeTick()                             │
+    │         │   └─ 그룹별 Simulator->AdvanceFrame(ServerBatch)          │
+    │         │       └─ FHktSimulationDiff 생성                          │
+    │         └─ 각 그룹 플레이어에게 RPC 전송:                            │
+    │             ├─ 신규 진입: Client_ReceiveInitialState(WorldState)     │
+    │             └─ 기존 참여: Client_ReceiveFrameBatch(ServerBatch)      │
+    └────────────────────────────────┬─────────────────────────────────────┘
+                                     │ Network (Reliable RPC)
+    ┌────────────────────────────────▼─────────────────────────────────────┐
+    │                         CLIENT (30Hz)                                │
+    │                                                                      │
+    │  UHktProxySimulatorComponent::TickComponent                          │
+    │    └─ While FrameAccumulator >= 1/30:                                │
+    │         ├─ [서버 Batch 있음] ProcessPendingServerBatches()            │
+    │         │   ├─ DiffHistory 역적용 (UndoDiff) → 롤백                  │
+    │         │   ├─ 빈 Batch 빨리감기 (클라 느린 경우)                      │
+    │         │   ├─ 서버 Batch AdvanceFrame() → 권위 Diff                  │
+    │         │   └─ DiffHistory 초기화, LocalFrame 보정                    │
+    │         └─ [서버 Batch 없음] AdvanceLocalFrame()                      │
+    │             ├─ BuildLocalBatch() → 빈 로컬 Batch                     │
+    │             ├─ AdvanceFrame() → 예측 Diff                            │
+    │             └─ DiffHistory에 추가                                    │
+    └──────────────────────────────────────────────────────────────────────┘
+
+    유저 입력 흐름 (별도):
+    Enhanced Input → IHktClientRule → IHktIntentBuilder::Submit()
+        → Server_ReceiveIntent(Event) [C2S Reliable RPC]
+        → GameMode::PushIntent() → 서버 Batch의 NewEvents에 포함
+
+9.7 설계 보증 (Guarantees)
+
+    결정론성: 동일 WorldState + 동일 SimulationEvent = 동일 결과. 롤백 후 재실행 가능.
+    서버 권위: 클라이언트 예측은 항상 서버 Batch로 덮어써짐. 클라가 결과를 조작할 수 없음.
+    롤백 한계: MaxHistoryFrames(300) = 10초@30Hz. 초과 시 히스토리 폐기, 다음 서버 Batch로 하드 리싱크.
+    상태 완전성: UndoDiff는 Property, Tag, Owner, Entity 생성/삭제 모두 되돌림. 누락 없음.
+    순서 보장: 서버 Batch는 FrameNumber 정렬 후 처리. 네트워크 순서 역전에 안전.
