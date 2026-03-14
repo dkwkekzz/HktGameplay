@@ -371,11 +371,13 @@ Diff를 역순으로 적용하여 프레임을 되돌린다:
 서버 Batch 처리 (ProcessPendingServerBatches):
 
     1. PendingServerBatches를 FrameNumber 기준 오름차순 정렬
-    2. 각 서버 Batch에 대해:
+    2. 롤백으로 이전 예측 무효화 → PendingDiff 초기화
+    3. 각 서버 Batch에 대해:
        a. [롤백] DiffHistory를 뒤에서부터 UndoDiff() — ServerFrame 직전까지
-       b. [빨리감기] 현재 프레임 ~ ServerFrame 사이 빈 Batch 실행 (클라 느린 경우)
-       c. [권위 실행] 서버 Batch로 AdvanceFrame() 실행
-       d. DiffHistory 초기화, LocalFrame = max(LocalFrame, ServerFrame)
+       b. [빨리감기] 현재 프레임 ~ ServerFrame 사이 빈 Batch 실행 (Diff 누적)
+       c. [권위 실행] 서버 Batch로 AdvanceFrame() 실행 (Diff 누적)
+       d. DiffHistory 초기화, LocalFrame = ServerFrame
+          → 이후 틱에서 ServerFrame+1부터 재예측
 
 9.5 예외 상황 처리
 

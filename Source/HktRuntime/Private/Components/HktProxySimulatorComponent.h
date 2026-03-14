@@ -42,6 +42,9 @@ private:
     /** 서버 Batch 큐 처리 — Diff 역적용으로 롤백(클라 빠름) / 빨리감기(클라 느림) */
     void ProcessPendingServerBatches();
 
+    /** Diff를 PendingDiff에 누적 (Presentation 전달용) */
+    void AccumulateDiff(FHktSimulationDiff& InDiff);
+
     // --- 코어 시뮬레이터 ---
     TUniquePtr<IHktDeterminismSimulator> Simulator;
     bool bInitialized = false;
