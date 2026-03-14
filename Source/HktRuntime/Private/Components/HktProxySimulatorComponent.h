@@ -9,6 +9,8 @@
 
 #include "HktProxySimulatorComponent.generated.h"
 
+DECLARE_MULTICAST_DELEGATE(FOnHktProxySimulatorTimeout);
+
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktProxySimulatorComponent : public UActorComponent, public IHktProxySimulator
 {
@@ -17,8 +19,11 @@ class HKTRUNTIME_API UHktProxySimulatorComponent : public UActorComponent, publi
 public:
 	UHktProxySimulatorComponent();
 
+    /** 서버 응답 없이 MaxHistoryFrames 초과 시 브로드캐스트 (연결 끊김 판정) */
+    FOnHktProxySimulatorTimeout OnTimeout;
+
     // === IHktProxySimulator ===
-    virtual void RestoreState(const FHktWorldState& InState) override;
+    virtual void RestoreState(const FHktWorldState& InState, int32 InGroupIndex) override;
     virtual const FHktWorldState& GetWorldState() const override;
     virtual bool IsInitialized() const override;
     virtual void AdvanceLocalFrame(float DeltaSeconds) override;
@@ -56,6 +61,9 @@ private:
     int64 LocalFrame = 0;
 
     static constexpr float FixedDeltaTime = 1.0f / 30.0f;
+
+    // --- 그룹 인덱스 (결정론적 시드 생성용) ---
+    int32 CachedGroupIndex = 0;
 
     // --- 히스토리 보호: 서버 미확인 최대 프레임 수 ---
     static constexpr int32 MaxHistoryFrames = 300; // 10초 @ 30Hz

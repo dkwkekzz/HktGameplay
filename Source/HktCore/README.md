@@ -426,10 +426,10 @@ Case 4: DiffHistory 오버플로 (장시간 서버 미응답)
     상황: 서버 Batch 없이 로컬 예측만 300프레임(10초@30Hz) 이상 누적.
 
     처리:
-        MaxHistoryFrames(300) 초과 시 DiffHistory.Empty()
-        → 이전 예측 프레임을 개별 롤백할 수 없게 됨.
-        → 다음 서버 Batch 수신 시, 롤백 없이 서버 상태로 직접 전진.
-        → 순간적 시각 지터(jitter) 가능하지만 상태 일관성은 보장.
+        MaxHistoryFrames(300) 초과 시 연결 끊김으로 판정.
+        → DiffHistory.Empty() 후 bInitialized = false로 시뮬레이션 중단.
+        → OnTimeout 델리게이트 브로드캐스트 → 클라이언트 연결 해제(logout).
+        → 10초간 서버 응답 없음 = 네트워크 단절. 클라 재접속이 필요.
 
 Case 5: 중간 합류 (Mid-Join)
 
@@ -483,6 +483,7 @@ Case 5: 중간 합류 (Mid-Join)
 
     결정론성: 동일 WorldState + 동일 SimulationEvent = 동일 결과. 롤백 후 재실행 가능.
     서버 권위: 클라이언트 예측은 항상 서버 Batch로 덮어써짐. 클라가 결과를 조작할 수 없음.
-    롤백 한계: MaxHistoryFrames(300) = 10초@30Hz. 초과 시 히스토리 폐기, 다음 서버 Batch로 하드 리싱크.
+    시드 일치: 클라이언트는 InitialState 수신 시 GroupIndex를 전달받아 서버와 동일한 RandomSeed = Hash(Frame, GroupIndex)를 생성.
+    타임아웃: MaxHistoryFrames(300) = 10초@30Hz. 초과 시 연결 끊김 판정, OnTimeout 브로드캐스트 → 클라 연결 해제.
     상태 완전성: UndoDiff는 Property, Tag, Owner, Entity 생성/삭제 모두 되돌림. 누락 없음.
     순서 보장: 서버 Batch는 FrameNumber 정렬 후 처리. 네트워크 순서 역전에 안전.

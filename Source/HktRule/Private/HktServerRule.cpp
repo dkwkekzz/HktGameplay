@@ -86,7 +86,7 @@ void FHktDefaultServerRule::OnEvent_GameModePostLogin(const IHktWorldPlayer& InP
 	{
 		if (Record.IsValid())
 		{
-			PendingLoginResults.Enqueue({ WeakPlayer, &Record });
+			PendingLoginResults.Enqueue({ WeakPlayer, Record });
 		}
 	});
 }
@@ -150,7 +150,7 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		IHktWorldPlayer* NewPlayer = LoginResult.WeakPlayer.Get();
 		if (!NewPlayer) continue;
 
-		const int32 GroupIdx  = Graph.CalculateRelevancyGroupIndex(LoginResult.Record->LastPosition);
+		const int32 GroupIdx  = Graph.CalculateRelevancyGroupIndex(LoginResult.Record.LastPosition);
 		FGroupEventSend& GroupEventSend = Result.EventSends[GroupIdx];
 		GroupEventSend.Entered.Add(NewPlayer);
 	}

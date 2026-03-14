@@ -20,7 +20,7 @@ class HKTRULE_API IHktProxySimulator
 {
 	GENERATED_BODY()
 public:
-	virtual void RestoreState(const FHktWorldState& InState) = 0;
+	virtual void RestoreState(const FHktWorldState& InState, int32 InGroupIndex) = 0;
 	virtual const FHktWorldState& GetWorldState() const = 0;
 	virtual bool IsInitialized() const = 0;
 	virtual void AdvanceLocalFrame(float DeltaSeconds) = 0;
@@ -109,7 +109,7 @@ public:
 	virtual void OnUserEvent_ZoomInputAction(float InDelta) {}
 
 	/** 내부 캐싱된 Simulator 사용 */
-	virtual void OnReceived_InitialState(const FHktWorldState& InState) {}
+	virtual void OnReceived_InitialState(const FHktWorldState& InState, int32 InGroupIndex) {}
 	virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) {}
 };
 

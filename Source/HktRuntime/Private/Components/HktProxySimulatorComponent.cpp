@@ -83,10 +83,13 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     PendingDiff.OwnerDeltas.Append(MoveTemp(Diff.OwnerDeltas));
     bHasPendingDiff = true;
 
-    // 메모리 보호: 오래된 히스토리 제거
+    // 서버 미응답 타임아웃: MaxHistoryFrames(10초) 초과 시 연결 끊김으로 판정
     if (DiffHistory.Num() > MaxHistoryFrames)
     {
+        UE_LOG(LogTemp, Error, TEXT("[ProxySimulator] Server batch timeout — %d frames without response. Disconnecting."), DiffHistory.Num());
         DiffHistory.Empty();
+        bInitialized = false;
+        OnTimeout.Broadcast();
     }
 }
 
@@ -96,7 +99,7 @@ FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
     FHktSimulationEvent Batch;
     Batch.FrameNumber = Frame;
     Batch.DeltaSeconds = DeltaSeconds;
-    Batch.RandomSeed = HktRuntimeCommon::HashCombineHelper(Frame, 0);
+    Batch.RandomSeed = HktRuntimeCommon::HashCombineHelper(Frame, CachedGroupIndex);
     return Batch;
 }
 
@@ -175,10 +178,11 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
 // InitialState 수신 (그룹 진입 시)
 // ============================================================================
 
-void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState)
+void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, int32 InGroupIndex)
 {
     Simulator->RestoreWorldState(InState);
 
+    CachedGroupIndex = InGroupIndex;
     LocalFrame = InState.FrameNumber;
     DiffHistory.Empty();
     PendingServerBatches.Empty();

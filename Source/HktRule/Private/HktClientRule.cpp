@@ -72,11 +72,11 @@ void FHktDefaultClientRule::OnUserEvent_ZoomInputAction(float InDelta)
 // 수신 이벤트 (내부 캐싱된 Simulator 사용)
 // ============================================================================
 
-void FHktDefaultClientRule::OnReceived_InitialState(const FHktWorldState& InState)
+void FHktDefaultClientRule::OnReceived_InitialState(const FHktWorldState& InState, int32 InGroupIndex)
 {
 	if (!CachedSimulator) return;
 
-	CachedSimulator->RestoreState(InState);
+	CachedSimulator->RestoreState(InState, InGroupIndex);
 
 	// 초기화 전 도착한 서버 Batch를 큐에 적재 (틱에서 처리)
 	for (const FHktSimulationEvent& B : PendingBatches)
