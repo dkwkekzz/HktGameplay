@@ -106,6 +106,24 @@ public:
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
 	bool IsPlayingMontageAnim() const;
 
+	// ========== 동적 매핑 등록 API (Generator 연동) ==========
+
+	/**
+	 * 런타임에 AnimMapping 엔트리를 동적 등록.
+	 * AnimBP 리컴파일 불필요 — Generator가 생성한 에셋을 즉시 매핑.
+	 * 이미 존재하는 태그에 대한 매핑은 덮어씁니다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|Animation")
+	void RegisterAnimMapping(FGameplayTag AnimTag, UAnimMontage* Montage = nullptr, UAnimSequence* Sequence = nullptr, UBlendSpace* InBlendSpace = nullptr);
+
+	/** 동적 등록된 매핑 해제 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|Animation")
+	void UnregisterAnimMapping(FGameplayTag AnimTag);
+
+	/** 특정 태그에 매핑이 있는지 */
+	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
+	bool HasAnimMapping(FGameplayTag AnimTag) const;
+
 private:
 	void ApplyAnimTag(const FGameplayTag& AnimTag);
 	void RemoveAnimTag(const FGameplayTag& AnimTag);

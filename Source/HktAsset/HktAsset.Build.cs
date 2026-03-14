@@ -32,6 +32,7 @@ public class HktAsset : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"DeveloperSettings",
 			}
 		);
 		

@@ -84,18 +84,40 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		Location.Z = GroundZ;
 	}
 
-	AssetSubsystem->LoadAssetAsync(VisualTag, [this, VisualTag, EntityId, Location, Rotation, bIsMoving, World](UHktTagDataAsset* LoadedAsset)
+	AssetSubsystem->LoadAssetAsync(VisualTag, [this, VisualTag, EntityId, Location, Rotation, bIsMoving, World, AssetSubsystem](UHktTagDataAsset* LoadedAsset)
 	{
+		TSubclassOf<AActor> ActorClass;
+
+		// Path 1: DataAsset 기반 (기존 방식)
 		UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset);
-		if (!VisualAsset || !VisualAsset->ActorClass)
+		if (VisualAsset && VisualAsset->ActorClass)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: No UHktActorVisualDataAsset or ActorClass for tag %s"), *VisualTag.ToString());
+			ActorClass = VisualAsset->ActorClass;
+		}
+
+		// Path 2: Convention Path fallback (DataAsset 없이 Blueprint 직접 로드)
+		if (!ActorClass)
+		{
+			UObject* ConventionObj = AssetSubsystem->LoadByConventionSync(VisualTag);
+			if (UBlueprint* BP = Cast<UBlueprint>(ConventionObj))
+			{
+				ActorClass = *BP->GeneratedClass;
+			}
+			else if (UClass* Class = Cast<UClass>(ConventionObj))
+			{
+				ActorClass = Class;
+			}
+		}
+
+		if (!ActorClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: No ActorClass for tag %s (neither DataAsset nor Convention)"), *VisualTag.ToString());
 			return;
 		}
 
 		// 캡슐 반높이 오프셋 계산
 		float HalfHeight = 0.0f;
-		if (AActor* CDO = VisualAsset->ActorClass->GetDefaultObject<AActor>())
+		if (AActor* CDO = ActorClass->GetDefaultObject<AActor>())
 		{
 			if (UCapsuleComponent* Capsule = CDO->FindComponentByClass<UCapsuleComponent>())
 			{
@@ -107,7 +129,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		SpawnLocation.Z += HalfHeight;
 
 		FActorSpawnParameters SpawnParams;
-		AActor* SpawnedActor = World->SpawnActor<AActor>(VisualAsset->ActorClass, SpawnLocation, Rotation, SpawnParams);
+		AActor* SpawnedActor = World->SpawnActor<AActor>(ActorClass, SpawnLocation, Rotation, SpawnParams);
 		if (SpawnedActor)
 		{
 			SpawnedActor->SetActorEnableCollision(false);

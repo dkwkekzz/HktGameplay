@@ -173,3 +173,52 @@ const FHktAnimMappingEntry* UHktAnimInstance::FindMapping(const FGameplayTag& Ta
 	}
 	return nullptr;
 }
+
+// ============================================================================
+// 동적 매핑 등록 API
+// ============================================================================
+
+void UHktAnimInstance::RegisterAnimMapping(FGameplayTag AnimTag, UAnimMontage* Montage, UAnimSequence* Sequence, UBlendSpace* InBlendSpace)
+{
+	if (!AnimTag.IsValid()) return;
+
+	// 기존 매핑이 있으면 덮어쓰기
+	for (FHktAnimMappingEntry& Entry : AnimMappings)
+	{
+		if (Entry.AnimTag.MatchesTagExact(AnimTag))
+		{
+			Entry.Montage = Montage;
+			Entry.Sequence = Sequence;
+			Entry.BlendSpace = InBlendSpace;
+			UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] Updated mapping: %s"), *AnimTag.ToString());
+			return;
+		}
+	}
+
+	// 새 매핑 추가
+	FHktAnimMappingEntry NewEntry;
+	NewEntry.AnimTag = AnimTag;
+	NewEntry.Montage = Montage;
+	NewEntry.Sequence = Sequence;
+	NewEntry.BlendSpace = InBlendSpace;
+	AnimMappings.Add(NewEntry);
+
+	UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] Registered mapping: %s (Montage=%s, Sequence=%s, BlendSpace=%s)"),
+		*AnimTag.ToString(),
+		Montage ? *Montage->GetName() : TEXT("none"),
+		Sequence ? *Sequence->GetName() : TEXT("none"),
+		InBlendSpace ? *InBlendSpace->GetName() : TEXT("none"));
+}
+
+void UHktAnimInstance::UnregisterAnimMapping(FGameplayTag AnimTag)
+{
+	AnimMappings.RemoveAll([&AnimTag](const FHktAnimMappingEntry& Entry)
+	{
+		return Entry.AnimTag.MatchesTagExact(AnimTag);
+	});
+}
+
+bool UHktAnimInstance::HasAnimMapping(FGameplayTag AnimTag) const
+{
+	return FindMapping(AnimTag) != nullptr;
+}
