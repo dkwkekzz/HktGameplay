@@ -31,7 +31,7 @@ public:
 
     // === S2C RPC ===
     UFUNCTION(Client, Reliable)
-    void Client_ReceiveInitialState(const FHktRuntimeSimulationState& State);
+    void Client_ReceiveInitialState(const FHktRuntimeSimulationState& State, int32 GroupIndex);
 
     UFUNCTION(Client, Reliable)
     void Client_ReceiveFrameBatch(const FHktRuntimeBatch& Batch);

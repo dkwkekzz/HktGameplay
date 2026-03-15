@@ -63,6 +63,18 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
 #endif
 }
 
+void UHktProxySimulatorComponent::AccumulateDiff(FHktSimulationDiff& InDiff)
+{
+    PendingDiff.FrameNumber = InDiff.FrameNumber;
+    PendingDiff.SpawnedEntities.Append(MoveTemp(InDiff.SpawnedEntities));
+    PendingDiff.RemovedEntities.Append(MoveTemp(InDiff.RemovedEntities));
+    PendingDiff.RemovedEntityStates.Append(MoveTemp(InDiff.RemovedEntityStates));
+    PendingDiff.PropertyDeltas.Append(MoveTemp(InDiff.PropertyDeltas));
+    PendingDiff.TagDeltas.Append(MoveTemp(InDiff.TagDeltas));
+    PendingDiff.OwnerDeltas.Append(MoveTemp(InDiff.OwnerDeltas));
+    bHasPendingDiff = true;
+}
+
 void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
 {
     LocalFrame++;
@@ -70,23 +82,19 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     FHktSimulationEvent LocalBatch = BuildLocalBatch(LocalFrame, DeltaSeconds);
     FHktSimulationDiff Diff = Simulator->AdvanceFrame(LocalBatch);
 
-    // Diff 히스토리에 기록 (역적용 롤백용) — 복사 후 원본에서 PendingDiff로 이동
+    // Diff 히스토리에 기록 (역적용 롤백용)
     DiffHistory.Add(Diff);
 
     // PendingDiff에 누적 (PlayerController Tick에서 소비 → WorldViewUpdated 전달)
-    PendingDiff.FrameNumber = Diff.FrameNumber;
-    PendingDiff.SpawnedEntities.Append(MoveTemp(Diff.SpawnedEntities));
-    PendingDiff.RemovedEntities.Append(MoveTemp(Diff.RemovedEntities));
-    PendingDiff.RemovedEntityStates.Append(MoveTemp(Diff.RemovedEntityStates));
-    PendingDiff.PropertyDeltas.Append(MoveTemp(Diff.PropertyDeltas));
-    PendingDiff.TagDeltas.Append(MoveTemp(Diff.TagDeltas));
-    PendingDiff.OwnerDeltas.Append(MoveTemp(Diff.OwnerDeltas));
-    bHasPendingDiff = true;
+    AccumulateDiff(Diff);
 
-    // 메모리 보호: 오래된 히스토리 제거
+    // 서버 미응답 타임아웃: MaxHistoryFrames(10초) 초과 시 연결 끊김으로 판정
     if (DiffHistory.Num() > MaxHistoryFrames)
     {
+        UE_LOG(LogTemp, Error, TEXT("[ProxySimulator] Server batch timeout — %d frames without response. Disconnecting."), DiffHistory.Num());
         DiffHistory.Empty();
+        bInitialized = false;
+        OnTimeout.Broadcast();
     }
 }
 
@@ -96,7 +104,7 @@ FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
     FHktSimulationEvent Batch;
     Batch.FrameNumber = Frame;
     Batch.DeltaSeconds = DeltaSeconds;
-    Batch.RandomSeed = HktRuntimeCommon::HashCombineHelper(Frame, 0);
+    Batch.RandomSeed = HktRuntimeCommon::HashCombineHelper(Frame, CachedGroupIndex);
     return Batch;
 }
 
@@ -129,8 +137,9 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
         return A.FrameNumber < B.FrameNumber;
     });
 
-    FHktSimulationDiff LastDiff;
-    bool bProducedDiff = false;
+    // 롤백으로 이전 예측이 무효화되므로 PendingDiff 초기화
+    PendingDiff = FHktSimulationDiff();
+    bHasPendingDiff = false;
 
     for (const FHktSimulationEvent& ServerBatch : PendingServerBatches)
     {
@@ -145,40 +154,37 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
             DiffHistory.Pop();
         }
 
-        // --- 2. 클라가 느린 경우: 빈 Batch로 빨리감기 ---
+        // --- 2. 클라가 느린 경우: 빈 Batch로 빨리감기 (Diff 누적) ---
         int64 CurrentFrame = Simulator->GetWorldState().FrameNumber;
         for (int64 F = CurrentFrame + 1; F < ServerFrame; ++F)
         {
             FHktSimulationEvent GapBatch = BuildLocalBatch(F, FixedDeltaTime);
-            Simulator->AdvanceFrame(GapBatch);
+            FHktSimulationDiff GapDiff = Simulator->AdvanceFrame(GapBatch);
+            AccumulateDiff(GapDiff);
         }
 
-        // --- 3. 서버 권위 Batch로 해당 프레임 실행 → Diff 획득 ---
-        LastDiff = Simulator->AdvanceFrame(ServerBatch);
-        bProducedDiff = true;
+        // --- 3. 서버 권위 Batch로 해당 프레임 실행 (Diff 누적) ---
+        FHktSimulationDiff ServerDiff = Simulator->AdvanceFrame(ServerBatch);
+        AccumulateDiff(ServerDiff);
 
-        // --- 4. 기록 초기화 & LocalFrame 보정 ---
+        // --- 4. 기록 초기화 & LocalFrame을 서버 프레임으로 보정 ---
+        //     이후 틱에서 ServerFrame+1부터 다시 로컬 예측 시작
         DiffHistory.Empty();
-        LocalFrame = FMath::Max(LocalFrame, ServerFrame);
+        LocalFrame = ServerFrame;
     }
 
     PendingServerBatches.Reset();
-
-    if (bProducedDiff)
-    {
-        PendingDiff = MoveTemp(LastDiff);
-        bHasPendingDiff = true;
-    }
 }
 
 // ============================================================================
 // InitialState 수신 (그룹 진입 시)
 // ============================================================================
 
-void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState)
+void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, int32 InGroupIndex)
 {
     Simulator->RestoreWorldState(InState);
 
+    CachedGroupIndex = InGroupIndex;
     LocalFrame = InState.FrameNumber;
     DiffHistory.Empty();
     PendingServerBatches.Empty();

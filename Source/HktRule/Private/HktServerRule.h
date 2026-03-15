@@ -38,7 +38,7 @@ private:
     struct FPendingLoginResult
     {
         TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer;
-        const FHktPlayerRecord* Record;
+        FHktPlayerRecord Record;
     };
 
     TQueue<FPendingLoginResult, EQueueMode::Mpsc> PendingLoginResults;

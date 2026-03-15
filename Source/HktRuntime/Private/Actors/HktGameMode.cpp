@@ -130,7 +130,8 @@ void AHktGameMode::SimulationTick()
         {
             if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Newbie->GetOwnerActor()))
             {
-                PC->Client_ReceiveInitialState(HktRuntimeConverter::ConvertWorldState(*GroupSend.NewState));
+                const int32 GroupIdx = CachedRelevancyGraph->GetRelevancyGroupIndex(Newbie->GetPlayerUid());
+                PC->Client_ReceiveInitialState(HktRuntimeConverter::ConvertWorldState(*GroupSend.NewState), GroupIdx);
             }
         }
     }

@@ -233,7 +233,7 @@ void AHktIngamePlayerController::OnZoom(const FInputActionValue& Value)
 // S2C RPC
 // ============================================================================
 
-void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State)
+void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const FHktRuntimeSimulationState& State, int32 GroupIndex)
 {
 #if ENABLE_HKT_INSIGHTS
     InsightReceivedInitialStateCount++;
@@ -244,7 +244,7 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
     IHktClientRule* Rule = GetClientRule();
     if (Rule)
     {
-        Rule->OnReceived_InitialState(HktRuntimeConverter::ConvertToWorldState(State));
+        Rule->OnReceived_InitialState(HktRuntimeConverter::ConvertToWorldState(State), GroupIndex);
     }
 }
 
