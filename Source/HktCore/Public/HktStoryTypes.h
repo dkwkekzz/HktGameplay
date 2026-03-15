@@ -97,7 +97,6 @@ namespace Reg
     X(PlayVFXAttached)  \
     X(PlaySound)        \
     X(PlaySoundAtLocation) \
-    X(SpawnEquipment_DEPRECATED) \
     X(AddTag)           \
     X(RemoveTag)        \
     X(HasTag)           \
