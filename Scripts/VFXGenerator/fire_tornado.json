@@ -1,0 +1,186 @@
+{
+  "meta": {
+    "name": "NS_FireTornado",
+    "save_path": "/Game/HktGameplay/Generated/FireTornado",
+    "description": "Fire tornado VFX - 4 emitters with vortex forces",
+    "intent": {
+      "event_type": "AreaEffect",
+      "element": "Fire",
+      "intensity": 0.8,
+      "radius": 500,
+      "duration": 0,
+      "style_keywords": ["tornado", "vortex", "dramatic"]
+    }
+  },
+  "pipeline": [
+    {
+      "step": 1,
+      "action": "create_system",
+      "params": {
+        "save_path": "/Game/HktGameplay/Generated/FireTornado",
+        "asset_name": "NS_FireTornado"
+      }
+    },
+    {
+      "step": 2,
+      "action": "add_emitter",
+      "params": {
+        "emitter_asset": "/Game/NiagaraExamples/FX_Smoke/Emitters/NE_Smoke",
+        "name": "FireCore"
+      }
+    },
+    {
+      "step": 3,
+      "action": "add_emitter",
+      "params": {
+        "emitter_asset": "/Game/NiagaraExamples/FX_Smoke/Emitters/NE_Smoke",
+        "name": "Smoke"
+      }
+    },
+    {
+      "step": 4,
+      "action": "add_emitter",
+      "params": {
+        "emitter_asset": "/Game/NiagaraExamples/FX_Sparks/Emitters/NE_Sparks",
+        "name": "Embers"
+      }
+    },
+    {
+      "step": 5,
+      "action": "add_emitter",
+      "params": {
+        "emitter_asset": "/Game/NiagaraExamples/FX_Explosions/Emitters/NE_Core",
+        "name": "InnerGlow"
+      }
+    },
+    {
+      "step": 6,
+      "action": "set_renderer_material",
+      "params": {
+        "emitter": "FireCore",
+        "renderer_index": 0,
+        "material": "/Game/NiagaraExamples/Materials/MI_Flames"
+      }
+    },
+    {
+      "step": 7,
+      "action": "set_renderer_material",
+      "params": {
+        "emitter": "InnerGlow",
+        "renderer_index": 0,
+        "material": "/Game/NiagaraExamples/Materials/MI_SmokePuffLight_8x8_Emissive"
+      }
+    },
+    {
+      "step": 8,
+      "action": "add_module",
+      "params": {
+        "emitter": "FireCore",
+        "usage": "Update",
+        "module_script": "/Niagara/Modules/Update/Forces/VortexForce.VortexForce",
+        "index": 4
+      }
+    },
+    {
+      "step": 9,
+      "action": "add_module",
+      "params": {
+        "emitter": "Smoke",
+        "usage": "Update",
+        "module_script": "/Niagara/Modules/Update/Forces/VortexForce.VortexForce",
+        "index": 4
+      }
+    },
+    {
+      "step": 10,
+      "action": "add_module",
+      "params": {
+        "emitter": "Embers",
+        "usage": "Update",
+        "module_script": "/Niagara/Modules/Update/Forces/VortexForce.VortexForce",
+        "index": 1
+      }
+    },
+    {
+      "step": 11,
+      "action": "set_module_enabled",
+      "params": {
+        "emitter": "Embers",
+        "module_node": "SpawnRate",
+        "enabled": true
+      }
+    },
+    {
+      "step": 12,
+      "action": "set_module_enabled",
+      "params": {
+        "emitter": "Embers",
+        "module_node": "SpawnBurst_Instantaneous",
+        "enabled": false
+      }
+    },
+    {
+      "step": 13,
+      "action": "request_compile",
+      "params": {}
+    }
+  ],
+  "manual_overrides": {
+    "FireCore": {
+      "SpawnRate": 60,
+      "InitializeParticle": {
+        "Color": [1.0, 0.4, 0.05, 1.0],
+        "Lifetime": {"min": 1.0, "max": 2.5},
+        "SpriteSize": {"min": 30, "max": 80}
+      },
+      "LinearForce": {"Force": [0, 0, 400]},
+      "VortexForce": {
+        "Amount": 800,
+        "Axis": [0, 0, 1],
+        "OriginPull": 200,
+        "FalloffRadius": 500
+      },
+      "ShapeLocation": {
+        "Shape": "Cylinder",
+        "Radius": 60,
+        "Height": 20
+      }
+    },
+    "Smoke": {
+      "SpawnRate": 25,
+      "InitializeParticle": {
+        "Color": [0.15, 0.08, 0.03, 0.6],
+        "Lifetime": {"min": 2.0, "max": 4.0},
+        "SpriteSize": {"min": 60, "max": 120}
+      },
+      "LinearForce": {"Force": [0, 0, 200]},
+      "VortexForce": {
+        "Amount": 400,
+        "OriginPull": 100
+      }
+    },
+    "Embers": {
+      "SpawnRate": 40,
+      "InitializeParticle": {
+        "Color": [5.0, 2.0, 0.2, 1.0],
+        "ColorHDR": true,
+        "Lifetime": {"min": 1.0, "max": 3.0},
+        "SpriteSize": {"min": 2, "max": 8}
+      },
+      "AddVelocity": {"Velocity": [0, 0, 400]},
+      "VortexForce": {
+        "Amount": 600,
+        "OriginPull": 150
+      }
+    },
+    "InnerGlow": {
+      "SpawnRate": 15,
+      "InitializeParticle": {
+        "Color": [8.0, 4.0, 0.5, 0.8],
+        "ColorHDR": true,
+        "Lifetime": {"min": 0.5, "max": 1.0},
+        "SpriteSize": {"min": 100, "max": 200}
+      }
+    }
+  }
+}
