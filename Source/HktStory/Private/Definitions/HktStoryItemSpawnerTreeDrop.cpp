@@ -47,7 +47,7 @@ namespace HktStoryItemSpawnerTreeDrop
 				.CmpGe(Flag, R0, R1)
 				.JumpIf(Flag, TEXT("wait"))
 
-				// 아이템 생성 (Equipment 엔티티)
+				// 아이템 엔티티 생성
 				.SpawnEntity(Entity_Item_Wood)
 				.LoadConst(R2, 0)
 				.SaveEntityProperty(Spawned, PropertyId::ItemState, R2)     // Ground

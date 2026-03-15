@@ -91,7 +91,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::PlayVFXAttached: Op_PlayVFXAttached(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::PlaySound: Op_PlaySound(Runtime, Inst.GetSignedImm20()); break;
     case EOpCode::PlaySoundAtLocation: Op_PlaySoundAtLocation(Runtime, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::SpawnEquipment: Op_SpawnEquipment(Runtime, Inst.Src1, Inst.Src2, Inst.Imm12); break;
+    case EOpCode::SpawnEquipment_DEPRECATED: break;
     case EOpCode::AddTag:    Op_AddTag(Runtime, Inst.Src1, Inst.Imm12);            break;
     case EOpCode::RemoveTag: Op_RemoveTag(Runtime, Inst.Src1, Inst.Imm12);         break;
     case EOpCode::HasTag:    Op_HasTag(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;

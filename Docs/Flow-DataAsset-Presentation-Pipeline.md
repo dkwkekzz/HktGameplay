@@ -59,7 +59,7 @@ Flow 정의 파일(`HktStory/Private/Definitions/*.cpp`)에서 GameplayTag를 �
 | `Anim.Montage.*` | 원샷 몽타주 | `.PlayAnimMontage(Entity, Tag)` | `UHktAnimInstance::PlayMontageByTag()` |
 | `VFX.*` | 이펙트 | `.PlayVFXAttached(Entity, Tag)` | `FHktVFXRenderer::PlayVFXAtLocation()` |
 | `Sound.*` | 사운드 | `.PlaySound(Tag)` | (TODO) |
-| `Equipment.*` | 장비 | `.SpawnEquipment(Owner, Slot, Tag)` | (TODO) |
+| `Entity.Item.*` | 아이템/장비 | `.SpawnEntity(Tag)` + ActionSlot 프로퍼티 | Actor 렌더링 |
 
 ### 예시: HktStoryCharacterSpawn.cpp
 
@@ -71,7 +71,7 @@ namespace HktStoryCharacterSpawn
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Spawn,             "Anim.Spawn",              "...");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Montage_Intro,     "Anim.Montage.Intro",      "...");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect,        "VFX.SpawnEffect",         "...");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Equipment_Weapon_Sword, "Equipment.Weapon.Sword",  "...");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_Sword,      "Entity.Item.Sword",       "...");
 
     HKT_REGISTER_STORY_BODY()
     {
@@ -80,7 +80,7 @@ namespace HktStoryCharacterSpawn
             .PlayVFXAttached(Self, VFX_SpawnEffect)               // → 엔티티에 VFX 태그 추가
             .AddTag(Self, Tag_Anim_FullBody_Action_Spawn)         // → 태그 기반 애니메이션 자동 재생
             .AddTag(Self, Tag_Anim_Montage_Intro)                 // → 태그 기반 몽타주 자동 재생
-            .SpawnEquipment(Self, 0, Equipment_Weapon_Sword)      // → 장비 엔티티 생성
+            .SpawnEntity(Entity_Item_Sword)                        // → 아이템 엔티티 생성 (Entity로 통합)
             .Halt()
             .BuildAndRegister();
     }
@@ -283,9 +283,17 @@ Flow에서 새로운 태그를 사용할 때, Presentation에서 올바르게 �
   - [ ] `IdentifierTag` = `"VFX.XXX"`
   - [ ] `NiagaraSystem` = 재생할 Niagara 시스템 지정
 
-### Sound 태그 / Equipment 태그
+### Sound 태그
 
 - [ ] 현재 TODO 상태 — VM에서 Log만 출력, Presentation 소비 미구현
+
+### Item 태그 (Entity.Item.*)
+
+- [ ] Flow 정의 파일에 `UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_XXX, "Entity.Item.XXX", "...")` 선언
+- [ ] UE 에디터에서 `UHktActorVisualDataAsset` 생성
+  - [ ] `IdentifierTag` = `"Entity.Item.XXX"` (Flow 태그와 정확히 일치)
+  - [ ] `ActorClass` = 스폰할 블루프린트/액터 클래스 지정
+- [ ] Flow에서 `SpawnEntity(Entity_Item_XXX)` 사용, ActionSlot 등은 프로퍼티로 설정
 
 ---
 

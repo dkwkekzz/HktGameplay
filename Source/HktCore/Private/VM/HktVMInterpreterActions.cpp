@@ -297,32 +297,6 @@ void FHktVMInterpreter::Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterI
 }
 
 // ============================================================================
-// Equipment
-// ============================================================================
-
-void FHktVMInterpreter::Op_SpawnEquipment(FHktVMRuntime& Runtime, RegisterIndex Owner, int32 Slot, int32 StringIndex)
-{
-    FHktEntityId OwnerEntity = Runtime.GetRegEntity(Owner);
-    const FString& EquipClass = GetString(Runtime, StringIndex);
-
-    UE_LOG(LogTemp, Log, TEXT("[VM] SpawnEquipment: Owner %d, Slot %d, Class %s"), OwnerEntity, Slot, *EquipClass);
-
-    if (WorldState && Runtime.Context)
-    {
-        FHktEntityId NewEquip = WorldState->AllocateEntity();
-        Runtime.Context->WriteEntity(NewEquip, PropertyId::OwnerEntity, OwnerEntity);
-        Runtime.SetRegEntity(Reg::Spawned, NewEquip);
-
-        // EquipTag를 영구 태그로 부여
-        FGameplayTag EquipTag = FGameplayTag::RequestGameplayTag(FName(*EquipClass), false);
-        if (EquipTag.IsValid() && VMProxy)
-        {
-            VMProxy->AddTag(*WorldState, NewEquip, EquipTag);
-        }
-    }
-}
-
-// ============================================================================
 // Tags
 // ============================================================================
 

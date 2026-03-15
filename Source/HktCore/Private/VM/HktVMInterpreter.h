@@ -96,9 +96,6 @@ private:
     void Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex);
     void Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex);
 
-    // ===== Equipment =====
-    void Op_SpawnEquipment(FHktVMRuntime& Runtime, RegisterIndex Owner, int32 Slot, int32 StringIndex);
-
     // ===== Tags =====
     void Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
     void Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);

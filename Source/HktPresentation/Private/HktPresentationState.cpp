@@ -107,11 +107,14 @@ EHktRenderCategory FHktEntityPresentation::DetermineRenderCategory(const FGamepl
 	static const FGameplayTag NPCTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.NPC")), false);
 	static const FGameplayTag BuildingTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Building")), false);
 	static const FGameplayTag ProjectileTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Projectile")), false);
+	static const FGameplayTag ItemTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Item")), false);
 
 	if (Tags.HasTag(CharacterTag) || Tags.HasTag(NPCTag) || Tags.HasTag(BuildingTag))
 		return EHktRenderCategory::Actor;
 	if (Tags.HasTag(ProjectileTag))
 		return EHktRenderCategory::MassEntity;
+	if (Tags.HasTag(ItemTag))
+		return EHktRenderCategory::Actor;
 	return EHktRenderCategory::None;
 }
 

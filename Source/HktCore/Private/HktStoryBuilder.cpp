@@ -435,17 +435,6 @@ FHktStoryBuilder& FHktStoryBuilder::PlaySoundAtLocation(RegisterIndex PosBase, c
 }
 
 // ============================================================================
-// Equipment
-// ============================================================================
-
-FHktStoryBuilder& FHktStoryBuilder::SpawnEquipment(RegisterIndex Owner, int32 Slot, const FGameplayTag& EquipTag)
-{
-    int32 StrIdx = AddString(EquipTag.ToString());
-    Emit(FInstruction::Make(EOpCode::SpawnEquipment, Reg::Spawned, Owner, Slot & 0xF, StrIdx & 0xFFF));
-    return *this;
-}
-
-// ============================================================================
 // Tags
 // ============================================================================
 

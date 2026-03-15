@@ -9,14 +9,14 @@ UHktAssetSettings::UHktAssetSettings()
 		// Entity.Character.{Name} → {Root}/Characters/{Name}/BP_{Name}
 		{ TEXT("Entity.Character."), TEXT("{Root}/Characters/{Leaf}/BP_{Leaf}") },
 
-		// Entity.{Type}.{Name} → {Root}/Entities/{Name}/BP_{Name}
+		// Entity.Item.{Name} → {Root}/Items/{Name}/SM_{Leaf}
+		{ TEXT("Entity.Item."), TEXT("{Root}/Items/{Leaf}/SM_{Leaf}") },
+
+		// Entity.{Type}.{Name} → {Root}/Entities/{Name}/BP_{Name}  (fallback)
 		{ TEXT("Entity."), TEXT("{Root}/Entities/{Leaf}/BP_{Leaf}") },
 
 		// VFX.{...} → {Root}/VFX/{TagPath}
 		{ TEXT("VFX."), TEXT("{Root}/VFX/{TagPath}") },
-
-		// Equipment.{Category}.{SubType} → {Root}/Items/{Category}/SM_{Leaf}
-		{ TEXT("Equipment."), TEXT("{Root}/Items/{Category}/SM_{Leaf}") },
 
 		// Anim.{...} → {Root}/Animations/{TagPath}
 		{ TEXT("Anim."), TEXT("{Root}/Animations/{TagPath}") },
