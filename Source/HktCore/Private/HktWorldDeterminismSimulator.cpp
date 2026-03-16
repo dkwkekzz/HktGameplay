@@ -156,6 +156,16 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         WorldState.ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
             FString PropSummary;
+
+#if !UE_BUILD_SHIPPING
+            // 엔티티 디버그 이름 (비-Shipping 전용)
+            const FHktWorldState::FHktEntityDebugInfo* DebugInfo = WorldState.GetEntityDebugInfo(Id);
+            if (DebugInfo && !DebugInfo->DebugName.IsEmpty())
+            {
+                PropSummary += FString::Printf(TEXT("[%s] "), *DebugInfo->DebugName);
+            }
+#endif
+
             const FGameplayTagContainer& SlotTags = WorldState.GetTagsBySlot(Slot);
             PropSummary += FString::Printf(TEXT("Tags=%s"), *SlotTags.ToStringSimple());
             PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
