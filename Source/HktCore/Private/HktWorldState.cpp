@@ -488,9 +488,15 @@ void FHktWorldState::SetEntityDebugInfo(int32 Slot, const FString& StoryTag, con
         Info.StoryTag = StoryTag;
         Info.ClassTag = ClassTag;
         Info.CreationFrame = Frame;
-        // 간결한 디버그 이름 생성: "ClassTag@StoryTag:F{Frame}"
-        // 예: "Entity.Item.Sword@Event.Character.Spawn:F42"
-        Info.DebugName = FString::Printf(TEXT("%s@%s:F%lld"), *ClassTag, *StoryTag, Frame);
+
+        // 간결한 디버그 이름: 태그의 마지막 노드만 사용
+        // 예: "Entity.Item.Sword" → "Sword", "State.Player.InWorld" → "InWorld"
+        auto LeafName = [](const FString& Tag) -> FString
+        {
+            int32 Idx;
+            return Tag.FindLastChar(TEXT('.'), Idx) ? Tag.Mid(Idx + 1) : Tag;
+        };
+        Info.DebugName = FString::Printf(TEXT("%s@%s:F%lld"), *LeafName(ClassTag), *LeafName(StoryTag), Frame);
     }
 }
 
