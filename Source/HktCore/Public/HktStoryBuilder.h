@@ -166,11 +166,6 @@ public:
     FHktStoryBuilder& PlaySound(const FGameplayTag& SoundTag);
     FHktStoryBuilder& PlaySoundAtLocation(RegisterIndex PosBase, const FGameplayTag& SoundTag);
 
-    // ========== Equipment ==========
-
-    /** 장비 스폰 및 부착 */
-    FHktStoryBuilder& SpawnEquipment(RegisterIndex Owner, int32 Slot, const FGameplayTag& EquipTag);
-
     // ========== Tags ==========
 
     /** 엔티티에 태그 추가 */

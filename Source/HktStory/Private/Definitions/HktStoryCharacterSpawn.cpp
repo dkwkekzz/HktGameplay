@@ -21,14 +21,14 @@ namespace HktStoryCharacterSpawn
 
 	// VFX
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect, "VFX.SpawnEffect", "Character spawn VFX.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_EquipGlow, "VFX.EquipGlow", "Equipment glow VFX.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_EquipGlow, "VFX.EquipGlow", "Item equip glow VFX.");
 
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Spawn, "Sound.Spawn", "Character spawn sound.");
 
-	// Equipment
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Equipment_Weapon_Sword, "Equipment.Weapon.Sword", "Sword weapon equipment.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Equipment_Shield, "Equipment.Shield", "Shield equipment.");
+	// Item (장비 아이템)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_Sword, "Entity.Item.Sword", "Sword weapon item entity.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_Shield, "Entity.Item.Shield", "Shield item entity.");
 
 	/**
 	 * ================================================================
@@ -67,15 +67,19 @@ namespace HktStoryCharacterSpawn
 			// 0.5초 대기
 			.WaitSeconds(0.5f)
 
-			// === 장비 생성 ===
-			.Log(TEXT("CharacterSpawn: 장비 생성"))
+			// === 장비 아이템 생성 (Entity로 통합) ===
+			.Log(TEXT("CharacterSpawn: 장비 아이템 생성"))
 
 			// 메인 무기 (슬롯 0)
-			.SpawnEquipment(Self, 0, Equipment_Weapon_Sword)
+			.SpawnEntity(Entity_Item_Sword)
+			.LoadConst(R3, 0)
+			.SaveEntityProperty(Spawned, PropertyId::ActionSlot, R3)
 			.PlayVFXAttached(Spawned, VFX_EquipGlow)
 
 			// 보조 장비 (슬롯 1)
-			.SpawnEquipment(Self, 1, Equipment_Shield)
+			.SpawnEntity(Entity_Item_Shield)
+			.LoadConst(R3, 1)
+			.SaveEntityProperty(Spawned, PropertyId::ActionSlot, R3)
 
 			// 인트로 몽타주 상태 태그 추가
 			.AddTag(Self, Tag_Anim_Montage_Intro)
