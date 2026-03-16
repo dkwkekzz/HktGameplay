@@ -57,6 +57,31 @@ struct HKTCORE_API FHktWorldState
     TArray<int64> OwnerUids;
     TArray<FHktEvent> ActiveEvents;
 
+#if ENABLE_HKT_INSIGHTS
+    /**
+     * FHktEntityDebugInfo — 엔티티 디버그 정보 (Insights 전용)
+     * 엔티티 생성 시점의 컨텍스트를 기록하여 디버깅 시각화에 활용.
+     */
+    struct FHktEntityDebugInfo
+    {
+        FString DebugName;      // 예: "Fireball@CharacterSpawn:F42"
+        FString StoryTag;       // 생성 원인 Story 태그 (예: "Event.Character.Spawn")
+        FString ClassTag;       // 엔티티 ClassTag (예: "Entity.Item.Sword")
+        int64 CreationFrame = 0;// 생성 프레임
+    };
+
+    TArray<FHktEntityDebugInfo> EntityDebugInfos;  // Slot 기반 인덱싱
+
+    /** 엔티티에 디버그 정보 설정 (Slot 기반) */
+    void SetEntityDebugInfo(int32 Slot, const FString& StoryTag, const FString& ClassTag, int64 Frame);
+
+    /** 엔티티 디버그 이름 조회 (EntityId 기반) */
+    const FString& GetEntityDebugName(FHktEntityId Id) const;
+
+    /** 엔티티 디버그 정보 전체 조회 (EntityId 기반) */
+    const FHktEntityDebugInfo* GetEntityDebugInfo(FHktEntityId Id) const;
+#endif // ENABLE_HKT_INSIGHTS
+
     // --- Lifecycle ---
     void Initialize();
     FHktEntityId AllocateEntity();

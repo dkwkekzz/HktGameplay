@@ -94,6 +94,12 @@ int32 FHktWorldState::AllocateSlot(FHktEntityId EntityId)
         SlotToEntity[Slot] = EntityId;
         TagContainers[Slot].Reset();
         OwnerUids[Slot] = 0;
+#if ENABLE_HKT_INSIGHTS
+        if (Slot < EntityDebugInfos.Num())
+        {
+            EntityDebugInfos[Slot] = FHktEntityDebugInfo();
+        }
+#endif
     }
     else
     {
@@ -104,6 +110,9 @@ int32 FHktWorldState::AllocateSlot(FHktEntityId EntityId)
         OverflowData.AddDefaulted(1);
         TagContainers.Add({});
         OwnerUids.Add(0);
+#if ENABLE_HKT_INSIGHTS
+        EntityDebugInfos.AddDefaulted(1);
+#endif
     }
     FMemory::Memzero(HotData.GetData() + Slot * HotStride, HotStride * sizeof(int32));
     ClearSlotWarm(Slot);
@@ -137,6 +146,9 @@ void FHktWorldState::Initialize()
     SlotToEntity.Reserve(ReserveCount);
     TagContainers.Reserve(ReserveCount);
     OwnerUids.Reserve(ReserveCount);
+#if ENABLE_HKT_INSIGHTS
+    EntityDebugInfos.Reserve(ReserveCount);
+#endif
 }
 
 FHktEntityId FHktWorldState::AllocateEntity()
@@ -302,6 +314,10 @@ void FHktWorldState::CopyFrom(const FHktWorldState& Other)
     ActiveCount = Other.ActiveCount;
     TagContainers = Other.TagContainers;
     OwnerUids = Other.OwnerUids;
+
+#if ENABLE_HKT_INSIGHTS
+    EntityDebugInfos = Other.EntityDebugInfos;
+#endif
 }
 
 // ============================================================================
@@ -369,6 +385,9 @@ bool FHktWorldState::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bO
         TagContainers.Reset();
         OwnerUids.Reset();
         ActiveCount = 0;
+#if ENABLE_HKT_INSIGHTS
+        EntityDebugInfos.Reset();
+#endif
 
         int32 TotalEntities; Ar << TotalEntities;
         for (int32 i = 0; i < TotalEntities; ++i)
@@ -454,3 +473,48 @@ bool FHktWorldState::HasTag(FHktEntityId Entity, const FGameplayTag& Tag) const
     if (!IsValidEntity(Entity)) return false;
     return TagContainers[EntitySlots[Entity]].HasTag(Tag);
 }
+
+// ============================================================================
+// Entity Debug Info (Insights)
+// ============================================================================
+
+#if ENABLE_HKT_INSIGHTS
+
+void FHktWorldState::SetEntityDebugInfo(int32 Slot, const FString& StoryTag, const FString& ClassTag, int64 Frame)
+{
+    if (Slot >= 0 && Slot < EntityDebugInfos.Num())
+    {
+        FHktEntityDebugInfo& Info = EntityDebugInfos[Slot];
+        Info.StoryTag = StoryTag;
+        Info.ClassTag = ClassTag;
+        Info.CreationFrame = Frame;
+        // 간결한 디버그 이름 생성: "ClassTag@StoryTag:F{Frame}"
+        // 예: "Entity.Item.Sword@Event.Character.Spawn:F42"
+        Info.DebugName = FString::Printf(TEXT("%s@%s:F%lld"), *ClassTag, *StoryTag, Frame);
+    }
+}
+
+const FString& FHktWorldState::GetEntityDebugName(FHktEntityId Id) const
+{
+    static FString Empty;
+    if (!IsValidEntity(Id)) return Empty;
+    int32 Slot = EntitySlots[Id];
+    if (Slot >= 0 && Slot < EntityDebugInfos.Num())
+    {
+        return EntityDebugInfos[Slot].DebugName;
+    }
+    return Empty;
+}
+
+const FHktWorldState::FHktEntityDebugInfo* FHktWorldState::GetEntityDebugInfo(FHktEntityId Id) const
+{
+    if (!IsValidEntity(Id)) return nullptr;
+    int32 Slot = EntitySlots[Id];
+    if (Slot >= 0 && Slot < EntityDebugInfos.Num())
+    {
+        return &EntityDebugInfos[Slot];
+    }
+    return nullptr;
+}
+
+#endif

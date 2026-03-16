@@ -37,6 +37,15 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex
             VMProxy->AddTag(*WorldState, NewEntity, ClassTag);
         }
 
+#if ENABLE_HKT_INSIGHTS
+        // 엔티티 디버그 정보 기록: 어떤 Story에서 어떤 ClassTag로 생성되었는지
+        {
+            FString StoryTag = Runtime.Program ? Runtime.Program->Tag.ToString() : TEXT("Unknown");
+            int32 Slot = WorldState->GetSlot(NewEntity);
+            WorldState->SetEntityDebugInfo(Slot, StoryTag, TagName, WorldState->FrameNumber);
+        }
+#endif
+
         if (Runtime.Context)
         {
             Runtime.Context->WriteEntity(NewEntity, PropertyId::OwnerEntity, Runtime.GetRegEntity(Reg::Self));
