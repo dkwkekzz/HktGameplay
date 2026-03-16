@@ -162,12 +162,12 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             const FHktWorldState::FHktEntityDebugInfo* DebugInfo = WorldState.GetEntityDebugInfo(Id);
             if (DebugInfo && !DebugInfo->DebugName.IsEmpty())
             {
-                PropSummary += FString::Printf(TEXT("[%s] "), *DebugInfo->DebugName);
+                PropSummary += FString::Printf(TEXT("DebugName=%s"), *DebugInfo->DebugName);
             }
 #endif
 
             const FGameplayTagContainer& SlotTags = WorldState.GetTagsBySlot(Slot);
-            PropSummary += FString::Printf(TEXT("Tags=%s"), *SlotTags.ToStringSimple());
+            PropSummary += FString::Printf(TEXT(" | Tags=%s"), *SlotTags.ToStringSimple());
             PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
             for (uint16 PropId = 0; PropId < PropertyId::MaxCount; ++PropId)
             {
