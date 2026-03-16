@@ -5,10 +5,6 @@
 #include "VM/HktVMProgram.h"
 #include "GameplayTagsManager.h"
 
-#if ENABLE_HKT_INSIGHTS
-#include "HktCoreDataCollector.h"
-#endif
-
 // ============================================================================
 // FHktStoryBuilder - Construction
 // ============================================================================
@@ -278,12 +274,6 @@ FHktStoryBuilder& FHktStoryBuilder::CmpGe(RegisterIndex Dst, RegisterIndex Src1,
 FHktStoryBuilder& FHktStoryBuilder::SpawnEntity(const FGameplayTag& ClassTag)
 {
     int32 StrIdx = AddString(ClassTag.ToString());
-#if !UE_BUILD_SHIPPING
-    FHktVMProgram::FHktSpawnMetadata Meta;
-    Meta.ClassTag = ClassTag.ToString();
-    Meta.CodeIndex = Program->Code.Num();
-    Program->SpawnMetadataList.Add(MoveTemp(Meta));
-#endif
     Emit(FInstruction::Make(EOpCode::SpawnEntity, 0, 0, 0, StrIdx & 0xFFF));
     return *this;
 }
@@ -575,21 +565,5 @@ TSharedRef<FHktVMProgram> FHktStoryBuilder::Build()
 
 void FHktStoryBuilder::BuildAndRegister()
 {
-    TSharedRef<FHktVMProgram> BuiltProgram = Build();
-
-#if ENABLE_HKT_INSIGHTS
-    // Story 빌드 시 스폰 메타데이터를 HktInsights에 제공
-    if (BuiltProgram->SpawnMetadataList.Num() > 0)
-    {
-        FString StoryTag = BuiltProgram->Tag.ToString();
-        for (const FHktVMProgram::FHktSpawnMetadata& Meta : BuiltProgram->SpawnMetadataList)
-        {
-            FString Key = FString::Printf(TEXT("%s:Spawn[%d]"), *StoryTag, Meta.CodeIndex);
-            HKT_INSIGHT_COLLECT(TEXT("Story.EntitySpawns"), Key,
-                FString::Printf(TEXT("ClassTag=%s | CodeIdx=%d"), *Meta.ClassTag, Meta.CodeIndex));
-        }
-    }
-#endif
-
-    FHktVMProgramRegistry::Get().RegisterProgram(BuiltProgram);
+    FHktVMProgramRegistry::Get().RegisterProgram(Build());
 }

@@ -20,16 +20,6 @@ struct HKTCORE_API FHktVMProgram
     /** 같은 SourceEntity에 동일 EventTag VM이 이미 있으면 기존 것을 취소 */
     bool bCancelOnDuplicate = false;
 
-#if !UE_BUILD_SHIPPING
-    /** Story 내 SpawnEntity 호출 목록 (디버그/인사이트용) */
-    struct FHktSpawnMetadata
-    {
-        FString ClassTag;   // SpawnEntity에 전달된 ClassTag 이름
-        int32 CodeIndex;    // SpawnEntity 명령어의 코드 위치
-    };
-    TArray<FHktSpawnMetadata> SpawnMetadataList;
-#endif
-
     bool IsValid() const { return Code.Num() > 0; }
     int32 CodeSize() const { return Code.Num(); }
 };
