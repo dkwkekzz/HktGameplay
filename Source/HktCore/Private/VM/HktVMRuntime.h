@@ -96,7 +96,7 @@ struct HKTCORE_API FHktVMRuntime
     /** 공간 검색 결과 (FindInRadius) */
     FSpatialQueryResult SpatialQuery;
 
-#if !UE_BUILD_SHIPPING
+#if ENABLE_HKT_INSIGHTS
     /** 디버그용: 이 VM을 생성한 이벤트 태그 */
     int32 SourceEventId = 0;
 #endif

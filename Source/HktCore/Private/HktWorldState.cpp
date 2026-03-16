@@ -94,7 +94,7 @@ int32 FHktWorldState::AllocateSlot(FHktEntityId EntityId)
         SlotToEntity[Slot] = EntityId;
         TagContainers[Slot].Reset();
         OwnerUids[Slot] = 0;
-#if !UE_BUILD_SHIPPING
+#if ENABLE_HKT_INSIGHTS
         if (Slot < EntityDebugInfos.Num())
         {
             EntityDebugInfos[Slot] = FHktEntityDebugInfo();
@@ -110,7 +110,7 @@ int32 FHktWorldState::AllocateSlot(FHktEntityId EntityId)
         OverflowData.AddDefaulted(1);
         TagContainers.Add({});
         OwnerUids.Add(0);
-#if !UE_BUILD_SHIPPING
+#if ENABLE_HKT_INSIGHTS
         EntityDebugInfos.AddDefaulted(1);
 #endif
     }
@@ -146,7 +146,7 @@ void FHktWorldState::Initialize()
     SlotToEntity.Reserve(ReserveCount);
     TagContainers.Reserve(ReserveCount);
     OwnerUids.Reserve(ReserveCount);
-#if !UE_BUILD_SHIPPING
+#if ENABLE_HKT_INSIGHTS
     EntityDebugInfos.Reserve(ReserveCount);
 #endif
 }
@@ -315,7 +315,7 @@ void FHktWorldState::CopyFrom(const FHktWorldState& Other)
     TagContainers = Other.TagContainers;
     OwnerUids = Other.OwnerUids;
 
-#if !UE_BUILD_SHIPPING
+#if ENABLE_HKT_INSIGHTS
     EntityDebugInfos = Other.EntityDebugInfos;
 #endif
 }
@@ -385,7 +385,7 @@ bool FHktWorldState::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bO
         TagContainers.Reset();
         OwnerUids.Reset();
         ActiveCount = 0;
-#if !UE_BUILD_SHIPPING
+#if ENABLE_HKT_INSIGHTS
         EntityDebugInfos.Reset();
 #endif
 
@@ -475,10 +475,10 @@ bool FHktWorldState::HasTag(FHktEntityId Entity, const FGameplayTag& Tag) const
 }
 
 // ============================================================================
-// Entity Debug Info (non-Shipping)
+// Entity Debug Info (Insights)
 // ============================================================================
 
-#if !UE_BUILD_SHIPPING
+#if ENABLE_HKT_INSIGHTS
 
 void FHktWorldState::SetEntityDebugInfo(int32 Slot, const FString& StoryTag, const FString& ClassTag, int64 Frame)
 {

@@ -157,8 +157,8 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         {
             FString PropSummary;
 
-#if !UE_BUILD_SHIPPING
-            // 엔티티 디버그 이름 (비-Shipping 전용)
+#if ENABLE_HKT_INSIGHTS
+            // 엔티티 디버그 이름
             const FHktWorldState::FHktEntityDebugInfo* DebugInfo = WorldState.GetEntityDebugInfo(Id);
             if (DebugInfo && !DebugInfo->DebugName.IsEmpty())
             {

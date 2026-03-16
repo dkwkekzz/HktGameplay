@@ -57,11 +57,10 @@ struct HKTCORE_API FHktWorldState
     TArray<int64> OwnerUids;
     TArray<FHktEvent> ActiveEvents;
 
-#if !UE_BUILD_SHIPPING
+#if ENABLE_HKT_INSIGHTS
     /**
-     * FHktEntityDebugInfo — 엔티티 디버그 정보 (비-Shipping 전용)
+     * FHktEntityDebugInfo — 엔티티 디버그 정보 (Insights 전용)
      * 엔티티 생성 시점의 컨텍스트를 기록하여 디버깅 시각화에 활용.
-     * 런타임 부하 최소화: Shipping 빌드에서 완전 제거.
      */
     struct FHktEntityDebugInfo
     {
@@ -81,7 +80,7 @@ struct HKTCORE_API FHktWorldState
 
     /** 엔티티 디버그 정보 전체 조회 (EntityId 기반) */
     const FHktEntityDebugInfo* GetEntityDebugInfo(FHktEntityId Id) const;
-#endif
+#endif // ENABLE_HKT_INSIGHTS
 
     // --- Lifecycle ---
     void Initialize();
