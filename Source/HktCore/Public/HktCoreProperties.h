@@ -36,7 +36,9 @@
     X(MaxMana)                \
     /* 소유 */                \
     X(OwnerEntity)            \
-    X(EntitySpawnTag)
+    X(EntitySpawnTag)         \
+    /* 스탠스 */              \
+    X(Stance)
 
 #define HKT_COLD_PROPERTY_LIST(X) \
     /* 이벤트 파라미터 */     \

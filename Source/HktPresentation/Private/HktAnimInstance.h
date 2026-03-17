@@ -71,6 +71,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	float MoveSpeed = 0.0f;
 
+	/** 현재 Stance ID */
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
+	int32 Stance = 0;
+
 	/** 현재 활성 블렌드스페이스 */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	TObjectPtr<UBlendSpace> ActiveBlendSpace;
@@ -89,6 +93,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "HKT|Animation")
 	TArray<FHktAnimMappingEntry> AnimMappings;
 
+	/** Stance ID → Stance AnimBP 클래스 매핑 (AnimBP 기본값에서 설정) */
+	UPROPERTY(EditDefaultsOnly, Category = "HKT|Stance")
+	TMap<int32, TSubclassOf<UAnimInstance>> StanceAnimClassMap;
+
 	// ========== 제어 API ==========
 
 	/**
@@ -97,6 +105,12 @@ public:
 	 * 제거된 Anim 태그 → 해당 애니메이션 중지
 	 */
 	void SyncFromTagContainer(const FGameplayTagContainer& EntityTags);
+
+	/**
+	 * Stance 변경 시 AnimBP 레이어를 교체.
+	 * StanceAnimClassMap에서 해당 Stance의 AnimClass를 찾아 LinkAnimClassLayers 호출.
+	 */
+	void SyncStance(int32 NewStance);
 
 	/** 특정 부모 태그의 애니메이션 상태 태그 조회 */
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
@@ -133,4 +147,7 @@ private:
 
 	/** 이전 프레임의 Anim 태그 (변화 감지용) */
 	FGameplayTagContainer PrevAnimTags;
+
+	/** 현재 링크된 Stance AnimBP 클래스 (중복 Link 방지) */
+	TSubclassOf<UAnimInstance> CurrentLinkedStanceClass;
 };

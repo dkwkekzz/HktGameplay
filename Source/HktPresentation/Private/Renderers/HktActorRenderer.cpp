@@ -231,6 +231,12 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
 	}
 
+	// Stance 동기화 — Stance AnimBP 레이어 교체
+	if (Entity.Animation.Stance.IsDirty(Frame))
+	{
+		HktAnim->SyncStance(Entity.Animation.Stance.Get());
+	}
+
 	// Entity TagContainer 기반 애니메이션 동기화
 	// Story에서 AddTag/RemoveTag로 상태를 변경하면 AnimInstance가 태그 변화를 감지하여 애니메이션을 자동 재생
 	if (Entity.TagsDirtyFrame == Frame)

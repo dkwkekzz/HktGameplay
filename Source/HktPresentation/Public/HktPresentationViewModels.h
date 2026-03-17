@@ -75,6 +75,9 @@ struct FHktVM_Animation
 	/** UpperBody 애니메이션 상태 태그 (Anim.UpperBody.Combat.Attack 등) */
 	THktVisualField<FGameplayTag> AnimStateUpper;
 
+	/** 현재 Stance (HktStance::Unarmed, Spear, Sword1H 등) */
+	THktVisualField<int32> Stance;
+
 	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
 	bool TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);
 };

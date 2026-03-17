@@ -141,6 +141,7 @@ void FHktVM_Animation::Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Fr
 	AnimState.Set(IndexToTag(WS.GetProperty(Id, PropertyId::AnimState)), Frame);
 	MontageState.Set(IndexToTag(WS.GetProperty(Id, PropertyId::VisualState)), Frame);
 	AnimStateUpper.Set(IndexToTag(WS.GetProperty(Id, PropertyId::AnimStateUpper)), Frame);
+	Stance.Set(WS.GetProperty(Id, PropertyId::Stance), Frame);
 }
 
 bool FHktVM_Animation::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
@@ -150,6 +151,7 @@ bool FHktVM_Animation::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
 	case PropertyId::AnimState:      AnimState.Set(IndexToTag(NewValue), Frame); return true;
 	case PropertyId::VisualState:    MontageState.Set(IndexToTag(NewValue), Frame); return true;
 	case PropertyId::AnimStateUpper: AnimStateUpper.Set(IndexToTag(NewValue), Frame); return true;
+	case PropertyId::Stance:         Stance.Set(NewValue, Frame); return true;
 	default: return false;
 	}
 }

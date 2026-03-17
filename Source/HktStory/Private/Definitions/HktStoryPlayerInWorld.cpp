@@ -81,6 +81,8 @@ namespace HktStoryPlayerInWorld
 			.SaveEntityProperty(Spawned, PropertyId::ActionSlot, R3)     // 미등록
 			.LoadConst(R3, 5)
 			.SaveEntityProperty(Spawned, PropertyId::AttackPower, R3)    // 공격력 5
+			.LoadConst(R3, HktStance::Spear)
+			.SaveEntityProperty(Spawned, PropertyId::Stance, R3)		 // Stance Spear
 			.AddTag(Spawned, Tag_Weapon_Sword)
 
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))

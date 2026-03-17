@@ -222,3 +222,46 @@ bool UHktAnimInstance::HasAnimMapping(FGameplayTag AnimTag) const
 {
 	return FindMapping(AnimTag) != nullptr;
 }
+
+// ============================================================================
+// Stance — AnimBP 레이어 교체
+// ============================================================================
+
+void UHktAnimInstance::SyncStance(int32 NewStance)
+{
+	if (Stance == NewStance)
+	{
+		return;
+	}
+
+	int32 OldStance = Stance;
+	Stance = NewStance;
+
+	// StanceAnimClassMap에서 새 Stance에 해당하는 AnimClass 조회
+	TSubclassOf<UAnimInstance>* FoundClass = StanceAnimClassMap.Find(NewStance);
+	TSubclassOf<UAnimInstance> NewStanceClass = FoundClass ? *FoundClass : nullptr;
+
+	// 같은 클래스면 스킵
+	if (NewStanceClass == CurrentLinkedStanceClass)
+	{
+		return;
+	}
+
+	// 기존 레이어 해제
+	if (CurrentLinkedStanceClass)
+	{
+		UnlinkAnimClassLayers(CurrentLinkedStanceClass);
+		UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] UnlinkStanceLayer: %s (Stance %d)"),
+			*CurrentLinkedStanceClass->GetName(), OldStance);
+	}
+
+	// 새 레이어 연결
+	if (NewStanceClass)
+	{
+		LinkAnimClassLayers(NewStanceClass);
+		UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] LinkStanceLayer: %s (Stance %d)"),
+			*NewStanceClass->GetName(), NewStance);
+	}
+
+	CurrentLinkedStanceClass = NewStanceClass;
+}
