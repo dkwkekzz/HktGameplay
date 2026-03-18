@@ -54,10 +54,8 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::WaitMoveEnd: return Op_WaitMoveEnd(Runtime, Inst.Src1);
     case EOpCode::LoadConst: Op_LoadConst(Runtime, Inst._Dst, Inst.GetSignedImm20()); break;
     case EOpCode::LoadConstHigh: Op_LoadConstHigh(Runtime, Inst.Dst, Inst.Imm12); break;
-    case EOpCode::LoadStore_DEPRECATED: Op_GetProperty(Runtime, Inst.Dst, Reg::Self, Inst.Imm12); break;
-    case EOpCode::LoadStoreEntity_DEPRECATED: Op_GetProperty(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::SaveStore_DEPRECATED: Op_SetProperty(Runtime, Reg::Self, Inst.Imm12, Inst.Src1); break;
-    case EOpCode::SaveStoreEntity_DEPRECATED: Op_SetProperty(Runtime, Inst.Src1, Inst.Imm12, Inst.Src2); break;
+    case EOpCode::GetProperty: Op_GetProperty(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::SetProperty: Op_SetProperty(Runtime, Inst.Src1, Inst.Imm12, Inst.Src2); break;
     case EOpCode::Move: Op_Move(Runtime, Inst.Dst, Inst.Src1); break;
     case EOpCode::Add: Op_Add(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     case EOpCode::Sub: Op_Sub(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
@@ -101,8 +99,6 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::HasPlayerInGroup: Op_HasPlayerInGroup(Runtime, Inst.Dst); break;
     case EOpCode::CountByOwner: Op_CountByOwner(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
     case EOpCode::FindByOwner: Op_FindByOwner(Runtime, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::GetProperty: Op_GetProperty(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::SetProperty: Op_SetProperty(Runtime, Inst.Src1, Inst.Imm12, Inst.Src2); break;
     default: return EVMStatus::Failed;
     }
     return EVMStatus::Running;
