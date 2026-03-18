@@ -72,12 +72,12 @@ namespace HktStoryCharacterSpawn
 
 			// 메인 무기 (슬롯 0)
 			.SpawnEntity(Entity_Item_Sword)
-			.SaveConst(Spawned, PropertyId::ActionSlot, 0)
+			.SaveConstEntity(Spawned, PropertyId::ActionSlot, 0)
 			.PlayVFXAttached(Spawned, VFX_EquipGlow)
 
 			// 보조 장비 (슬롯 1)
 			.SpawnEntity(Entity_Item_Shield)
-			.SaveConst(Spawned, PropertyId::ActionSlot, 1)
+			.SaveConstEntity(Spawned, PropertyId::ActionSlot, 1)
 
 			// 인트로 몽타주 상태 태그 추가
 			.AddTag(Self, Tag_Anim_Montage_Intro)

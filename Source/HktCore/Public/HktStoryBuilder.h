@@ -104,11 +104,11 @@ public:
     FHktStoryBuilder& SaveEntityProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
     { return SaveStoreEntity(Entity, PropertyId, Src); }
 
-    /** 상수 값을 엔티티 프로퍼티에 직접 저장 (LoadConst + SaveStoreEntity 조합) — Reg::Temp 클로버 */
-    FHktStoryBuilder& SaveConst(RegisterIndex Entity, uint16 PropertyId, int32 Value);
+    /** 상수 값을 SourceEntity 프로퍼티에 직접 저장 (LoadConst + SaveStore 조합) — Reg::Temp 클로버 */
+    FHktStoryBuilder& SaveConst(uint16 PropertyId, int32 Value);
 
-    /** 상수 값을 SourceEntity 프로퍼티에 직접 저장 — Reg::Temp 클로버 */
-    FHktStoryBuilder& SaveConstStore(uint16 PropertyId, int32 Value);
+    /** 상수 값을 임의 엔티티 프로퍼티에 직접 저장 (LoadConst + SaveStoreEntity 조합) — Reg::Temp 클로버 */
+    FHktStoryBuilder& SaveConstEntity(RegisterIndex Entity, uint16 PropertyId, int32 Value);
 
     FHktStoryBuilder& Move(RegisterIndex Dst, RegisterIndex Src);
 

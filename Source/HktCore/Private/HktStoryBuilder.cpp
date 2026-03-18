@@ -191,17 +191,17 @@ FHktStoryBuilder& FHktStoryBuilder::SaveStoreEntity(RegisterIndex Entity, uint16
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::SaveConst(RegisterIndex Entity, uint16 PropertyId, int32 Value)
-{
-    LoadConst(Reg::Temp, Value);
-    SaveStoreEntity(Entity, PropertyId, Reg::Temp);
-    return *this;
-}
-
-FHktStoryBuilder& FHktStoryBuilder::SaveConstStore(uint16 PropertyId, int32 Value)
+FHktStoryBuilder& FHktStoryBuilder::SaveConst(uint16 PropertyId, int32 Value)
 {
     LoadConst(Reg::Temp, Value);
     SaveStore(PropertyId, Reg::Temp);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SaveConstEntity(RegisterIndex Entity, uint16 PropertyId, int32 Value)
+{
+    LoadConst(Reg::Temp, Value);
+    SaveStoreEntity(Entity, PropertyId, Reg::Temp);
     return *this;
 }
 
@@ -327,24 +327,24 @@ FHktStoryBuilder& FHktStoryBuilder::MoveToward(RegisterIndex Entity, RegisterInd
     SaveStoreEntity(Entity, PropertyId::MoveTargetX, TargetPosBase);
     SaveStoreEntity(Entity, PropertyId::MoveTargetY, TargetPosBase + 1);
     SaveStoreEntity(Entity, PropertyId::MoveTargetZ, TargetPosBase + 2);
-    SaveConst(Entity, PropertyId::MoveForce, Force);
-    SaveConst(Entity, PropertyId::IsMoving, 1);
+    SaveConstEntity(Entity, PropertyId::MoveForce, Force);
+    SaveConstEntity(Entity, PropertyId::IsMoving, 1);
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::MoveForward(RegisterIndex Entity, int32 Force)
 {
-    SaveConst(Entity, PropertyId::MoveForce, Force);
-    SaveConst(Entity, PropertyId::IsMoving, 1);
+    SaveConstEntity(Entity, PropertyId::MoveForce, Force);
+    SaveConstEntity(Entity, PropertyId::IsMoving, 1);
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::StopMovement(RegisterIndex Entity)
 {
-    SaveConst(Entity, PropertyId::IsMoving, 0);
-    SaveConst(Entity, PropertyId::VelX, 0);
-    SaveConst(Entity, PropertyId::VelY, 0);
-    SaveConst(Entity, PropertyId::VelZ, 0);
+    SaveConstEntity(Entity, PropertyId::IsMoving, 0);
+    SaveConstEntity(Entity, PropertyId::VelX, 0);
+    SaveConstEntity(Entity, PropertyId::VelY, 0);
+    SaveConstEntity(Entity, PropertyId::VelZ, 0);
     return *this;
 }
 
@@ -568,7 +568,7 @@ FHktStoryBuilder& FHktStoryBuilder::FindByOwner(RegisterIndex OwnerEntity, const
 FHktStoryBuilder& FHktStoryBuilder::SetStance(RegisterIndex Entity, const FGameplayTag& StanceTag)
 {
     int32 TagIdx = TagToInt(StanceTag);
-    SaveConst(Entity, PropertyId::Stance, TagIdx);
+    SaveConstEntity(Entity, PropertyId::Stance, TagIdx);
     return *this;
 }
 

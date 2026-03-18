@@ -56,13 +56,13 @@ namespace HktStoryNPCSpawnerProximity
 
 				// 스켈레톤 NPC 직접 생성
 				.SpawnEntity(Entity_NPC_Skeleton)
-				.SaveConst(Spawned, PropertyId::IsNPC, 1)
-				.SaveConst(Spawned, PropertyId::Health, 60)
-				.SaveConst(Spawned, PropertyId::MaxHealth, 60)
-				.SaveConst(Spawned, PropertyId::AttackPower, 20)
-				.SaveConst(Spawned, PropertyId::Defense, 2)
-				.SaveConst(Spawned, PropertyId::MaxSpeed, 100)
-				.SaveConst(Spawned, PropertyId::Team, 0)
+				.SaveConstEntity(Spawned, PropertyId::IsNPC, 1)
+				.SaveConstEntity(Spawned, PropertyId::Health, 60)
+				.SaveConstEntity(Spawned, PropertyId::MaxHealth, 60)
+				.SaveConstEntity(Spawned, PropertyId::AttackPower, 20)
+				.SaveConstEntity(Spawned, PropertyId::Defense, 2)
+				.SaveConstEntity(Spawned, PropertyId::MaxSpeed, 100)
+				.SaveConstEntity(Spawned, PropertyId::Team, 0)
 
 				// 태그 부여
 				.AddTag(Spawned, Tag_Entity_NPC)

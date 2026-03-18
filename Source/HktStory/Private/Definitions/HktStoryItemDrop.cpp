@@ -33,10 +33,10 @@ namespace HktStoryItemDrop
 			.JumpIf(Flag, TEXT("fail"))
 
 			// Ground로 전환
-			.SaveConst(Target, PropertyId::ItemState, 0)                // Ground
-			.SaveConst(Target, PropertyId::OwnerEntity, 0)              // 소유자 해제
-			.SaveConst(Target, PropertyId::BagSlot, 0)                  // 슬롯 초기화
-			.SaveConst(Target, PropertyId::ActionSlot, -1)              // 액션 해제
+			.SaveConstEntity(Target, PropertyId::ItemState, 0)                // Ground
+			.SaveConstEntity(Target, PropertyId::OwnerEntity, 0)              // 소유자 해제
+			.SaveConstEntity(Target, PropertyId::BagSlot, 0)                  // 슬롯 초기화
+			.SaveConstEntity(Target, PropertyId::ActionSlot, -1)              // 액션 해제
 
 			// 유닛 위치에 드랍
 			.GetPosition(R3, Self)
