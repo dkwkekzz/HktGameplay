@@ -221,7 +221,7 @@ public:
 
     // ========== Stance ==========
 
-    /** Stance 태그 설정 (SetPropertyConst 편의 래퍼) */
+    /** Stance 태그 설정 */
     FHktStoryBuilder& SetStance(RegisterIndex Entity, const FGameplayTag& StanceTag);
 
     // ========== Utility ==========
