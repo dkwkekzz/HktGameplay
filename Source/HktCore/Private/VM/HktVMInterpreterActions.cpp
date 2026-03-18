@@ -19,7 +19,7 @@ const FString& FHktVMInterpreter::GetString(FHktVMRuntime& Runtime, int32 Index)
 }
 
 // ============================================================================
-// Entity Management
+// Entity
 // ============================================================================
 
 void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex)
@@ -81,30 +81,8 @@ void FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex E
 }
 
 // ============================================================================
-// Position & Movement
+// Spatial Query
 // ============================================================================
-
-void FHktVMInterpreter::Op_GetPosition(FHktVMRuntime& Runtime, RegisterIndex DstBase, RegisterIndex Entity)
-{
-    if (Runtime.Context)
-    {
-        FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.SetReg(DstBase, Runtime.Context->ReadEntity(E, PropertyId::PosX));
-        Runtime.SetReg(DstBase + 1, Runtime.Context->ReadEntity(E, PropertyId::PosY));
-        Runtime.SetReg(DstBase + 2, Runtime.Context->ReadEntity(E, PropertyId::PosZ));
-    }
-}
-
-void FHktVMInterpreter::Op_SetPosition(FHktVMRuntime& Runtime, RegisterIndex Entity, RegisterIndex SrcBase)
-{
-    if (Runtime.Context)
-    {
-        FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.Context->WriteEntity(E, PropertyId::PosX, Runtime.GetReg(SrcBase));
-        Runtime.Context->WriteEntity(E, PropertyId::PosY, Runtime.GetReg(SrcBase + 1));
-        Runtime.Context->WriteEntity(E, PropertyId::PosZ, Runtime.GetReg(SrcBase + 2));
-    }
-}
 
 void FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2)
 {
@@ -130,52 +108,6 @@ void FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst
     }
 }
 
-void FHktVMInterpreter::Op_MoveToward(FHktVMRuntime& Runtime, RegisterIndex Entity, RegisterIndex TargetBase, int32 Speed)
-{
-    if (Runtime.Context)
-    {
-        FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.Context->WriteEntity(E, PropertyId::MoveTargetX, Runtime.GetReg(TargetBase));
-        Runtime.Context->WriteEntity(E, PropertyId::MoveTargetY, Runtime.GetReg(TargetBase + 1));
-        Runtime.Context->WriteEntity(E, PropertyId::MoveTargetZ, Runtime.GetReg(TargetBase + 2));
-        Runtime.Context->WriteEntity(E, PropertyId::MoveForce, Speed);
-
-        // 관성 유지: 기존의 속도 초기화 코드를 제거했습니다. 
-        // 이동 중에 새로운 타겟이 주어져도 현재 속도를 유지하며 부드럽게 선회합니다.
-        Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 1);
-    }
-    UE_LOG(LogTemp, Log, TEXT("[VM] MoveToward: Entity %d, Force %d"), Runtime.GetRegEntity(Entity), Speed);
-}
-
-void FHktVMInterpreter::Op_MoveForward(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 Speed)
-{
-    if (Runtime.Context)
-    {
-        FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.Context->WriteEntity(E, PropertyId::MoveForce, Speed);
-        // 여기서도 연속적인 이동 명령을 위해 속도를 강제 초기화하지 않는 것이 좋습니다.
-        Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 1);
-    }
-    UE_LOG(LogTemp, Log, TEXT("[VM] MoveForward: Entity %d, Force %d"), Runtime.GetRegEntity(Entity), Speed);
-}
-
-void FHktVMInterpreter::Op_StopMovement(FHktVMRuntime& Runtime, RegisterIndex Entity)
-{
-    if (Runtime.Context)
-    {
-        FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.Context->WriteEntity(E, PropertyId::IsMoving, 0);
-        Runtime.Context->WriteEntity(E, PropertyId::VelX, 0);
-        Runtime.Context->WriteEntity(E, PropertyId::VelY, 0);
-        Runtime.Context->WriteEntity(E, PropertyId::VelZ, 0);
-    }
-    UE_LOG(LogTemp, Log, TEXT("[VM] StopMovement: Entity %d"), Runtime.GetRegEntity(Entity));
-}
-
-// ============================================================================
-// Spatial Query
-// ============================================================================
-
 void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm)
 {
     Runtime.SpatialQuery.Reset();
@@ -184,7 +116,6 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
     {
         FHktEntityId Center = Runtime.GetRegEntity(CenterEntity);
 
-        // 중심 위치는 Store에서 읽기 (현재 VM의 로컬 캐시 반영)
         int32 CX = Runtime.Context->ReadEntity(Center, PropertyId::PosX);
         int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
         int32 CZ = Runtime.Context->ReadEntity(Center, PropertyId::PosZ);
@@ -192,7 +123,6 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
 
         int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
 
-        // WorldState 순회
         WorldState->ForEachEntity([&](FHktEntityId E, int32 /*SlotIndex*/)
         {
             if (E == Center)
@@ -212,7 +142,6 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
-    UE_LOG(LogTemp, Log, TEXT("[VM] FindInRadius: Found %d entities"), Runtime.SpatialQuery.Entities.Num());
 }
 
 void FHktVMInterpreter::Op_NextFound(FHktVMRuntime& Runtime)
@@ -230,27 +159,8 @@ void FHktVMInterpreter::Op_NextFound(FHktVMRuntime& Runtime)
 }
 
 // ============================================================================
-// Combat
+// Presentation
 // ============================================================================
-
-void FHktVMInterpreter::Op_ApplyDamage(FHktVMRuntime& Runtime, RegisterIndex Target, RegisterIndex Amount)
-{
-    FHktEntityId E = Runtime.GetRegEntity(Target);
-    int32 Dmg = Runtime.GetReg(Amount);
-
-    UE_LOG(LogTemp, Log, TEXT("[VM] ApplyDamage: Entity %d takes %d damage"), E, Dmg);
-
-    if (Runtime.Context && WorldState && WorldState->IsValidEntity(E))
-    {
-        int32 Health = Runtime.Context->ReadEntity(E, PropertyId::Health);
-        int32 Defense = Runtime.Context->ReadEntity(E, PropertyId::Defense);
-
-        int32 ActualDmg = FMath::Max(1, Dmg - Defense);
-        int32 NewHealth = FMath::Max(0, Health - ActualDmg);
-
-        Runtime.Context->WriteEntity(E, PropertyId::Health, NewHealth);
-    }
-}
 
 void FHktVMInterpreter::Op_ApplyEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex)
 {
@@ -265,10 +175,6 @@ void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Ta
     const FString& Effect = GetString(Runtime, StringIndex);
     UE_LOG(LogTemp, Log, TEXT("[VM] RemoveEffect: Entity %d, Effect %s"), E, *Effect);
 }
-
-// ============================================================================
-// VFX
-// ============================================================================
 
 void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)
 {
@@ -288,10 +194,6 @@ void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex
     }
     UE_LOG(LogTemp, Log, TEXT("[VM] PlayVFXAttached: Entity %d, VFX %s"), Runtime.GetRegEntity(Entity), *VFXName);
 }
-
-// ============================================================================
-// Audio
-// ============================================================================
 
 void FHktVMInterpreter::Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex)
 {
@@ -384,7 +286,6 @@ void FHktVMInterpreter::Op_RandomInt(FHktVMRuntime& Runtime, RegisterIndex Dst, 
         return;
     }
 
-    // 결정론적 해시: seed + frame + PC → 같은 상태에서 항상 같은 결과
     int32 Hash = static_cast<int32>(WorldState->FrameNumber * 2654435761) ^ (WorldState->RandomSeed + Runtime.PC);
     Hash = (Hash < 0) ? -Hash : Hash;
     Runtime.SetReg(Dst, Hash % Modulus);
@@ -392,7 +293,6 @@ void FHktVMInterpreter::Op_RandomInt(FHktVMRuntime& Runtime, RegisterIndex Dst, 
 
 void FHktVMInterpreter::Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterIndex Dst)
 {
-    // OwnerUid가 0이 아닌 캐릭터 엔티티가 있는지 확인
     static const FGameplayTag CharacterTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Character")), false);
     bool bHasPlayer = false;
     if (WorldState)

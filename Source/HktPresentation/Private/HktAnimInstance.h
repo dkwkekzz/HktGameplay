@@ -71,9 +71,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	float MoveSpeed = 0.0f;
 
-	/** 현재 Stance ID */
+	/** 현재 Stance Tag */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
-	int32 Stance = 0;
+	FGameplayTag StanceTag;
 
 	/** 현재 활성 블렌드스페이스 */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
@@ -93,9 +93,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "HKT|Animation")
 	TArray<FHktAnimMappingEntry> AnimMappings;
 
-	/** Stance ID → Stance AnimBP 클래스 매핑 (AnimBP 기본값에서 설정) */
+	/** Stance Tag → Stance AnimBP 클래스 매핑 (AnimBP 기본값에서 설정) */
 	UPROPERTY(EditDefaultsOnly, Category = "HKT|Stance")
-	TMap<int32, TSubclassOf<UAnimInstance>> StanceAnimClassMap;
+	TMap<FGameplayTag, TSubclassOf<UAnimInstance>> StanceAnimClassMap;
 
 	// ========== 제어 API ==========
 
@@ -108,9 +108,10 @@ public:
 
 	/**
 	 * Stance 변경 시 AnimBP 레이어를 교체.
-	 * StanceAnimClassMap에서 해당 Stance의 AnimClass를 찾아 LinkAnimClassLayers 호출.
+	 * StanceAnimClassMap에서 해당 Stance Tag의 AnimClass를 찾아 LinkAnimClassLayers 호출.
+	 * @param StanceNetIndex WorldState에 저장된 FGameplayTagNetIndex 값
 	 */
-	void SyncStance(int32 NewStance);
+	void SyncStance(int32 StanceNetIndex);
 
 	/** 특정 부모 태그의 애니메이션 상태 태그 조회 */
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")

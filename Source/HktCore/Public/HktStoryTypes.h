@@ -49,6 +49,7 @@ namespace Reg
 // ============================================================================
 
 #define HKT_OPCODE_LIST(X) \
+    /* Control Flow */      \
     X(Nop)              \
     X(Halt)             \
     X(Yield)            \
@@ -56,8 +57,10 @@ namespace Reg
     X(Jump)             \
     X(JumpIf)           \
     X(JumpIfNot)        \
+    /* Event Wait */        \
     X(WaitCollision)    \
     X(WaitMoveEnd)      \
+    /* Data Operations */   \
     X(LoadConst)        \
     X(LoadConstHigh)    \
     X(LoadStore)        \
@@ -65,50 +68,48 @@ namespace Reg
     X(SaveStore)        \
     X(SaveStoreEntity)  \
     X(Move)             \
+    /* Arithmetic */        \
     X(Add)              \
     X(Sub)              \
     X(Mul)              \
     X(Div)              \
     X(Mod)              \
     X(AddImm)           \
+    /* Comparison */        \
     X(CmpEq)            \
     X(CmpNe)            \
     X(CmpLt)            \
     X(CmpLe)            \
     X(CmpGt)            \
     X(CmpGe)            \
+    /* Entity */            \
     X(SpawnEntity)      \
     X(DestroyEntity)    \
-    X(GetPosition)      \
-    X(SetPosition)      \
+    /* Spatial Query */     \
     X(GetDistance)       \
-    X(MoveToward)       \
-    X(MoveForward)      \
-    X(StopMovement)     \
     X(FindInRadius)     \
     X(NextFound)        \
-    X(ApplyDamage)      \
+    /* Presentation */      \
     X(ApplyEffect)      \
     X(RemoveEffect)     \
-    X(PlayAnim_DEPRECATED)  \
-    X(PlayAnimMontage_DEPRECATED) \
-    X(StopAnim_DEPRECATED) \
     X(PlayVFX)          \
     X(PlayVFXAttached)  \
     X(PlaySound)        \
     X(PlaySoundAtLocation) \
+    /* Tags */              \
     X(AddTag)           \
     X(RemoveTag)        \
     X(HasTag)           \
-    X(Log)              \
-    /* NPC Spawning */  \
+    /* NPC Spawning */      \
     X(CountByTag)       \
     X(GetWorldTime)     \
     X(RandomInt)        \
     X(HasPlayerInGroup) \
-    /* Item System */   \
+    /* Item System */       \
     X(CountByOwner)     \
-    X(FindByOwner)
+    X(FindByOwner)      \
+    /* Utility */           \
+    X(Log)
 
 enum class EOpCode : uint8
 {

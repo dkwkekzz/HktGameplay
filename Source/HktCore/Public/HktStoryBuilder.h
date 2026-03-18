@@ -15,15 +15,20 @@ struct FHktVMProgram;
 
 /**
  * FHktStoryBuilder - 자연어처럼 읽히는 Flow 정의
- * 
- * Public 헤더: 외부 모듈에서 #include "HktStoryBuilder.h" 로 Flow 정의 가능
- * 
+ *
+ * VM은 근본 연산만 opcode로 제공:
+ *  - Entity 생성/파괴
+ *  - Entity Property 읽기/쓰기 (LoadStore, SaveStore 등)
+ *  - Entity Tag 추가/제거
+ *
+ * 조합 연산(Position, Movement, Damage 등)은 이 Builder에서 기본 opcode를 조합하여 구현.
+ *
  * 사용 예:
  *   Story(TEXT("Ability.Skill.Fireball"))
  *       .AddTag(Self, TAG_Anim_UpperBody_Cast_Fireball)
  *       .WaitSeconds(1.0f)
- *       .SpawnEntity(TAG_Entity_Fireball).MoveForward(500)
- *       .OnCollision()
+ *       .SpawnEntity(TAG_Entity_Fireball).MoveForward(Spawned, 500)
+ *       .WaitCollision()
  *           .DestroyEntity(Spawned)
  *           .ApplyDamageConst(Hit, 100)
  *           .ForEachInRadius(Hit, 300)
@@ -75,13 +80,33 @@ public:
     /** 이동 완료 대기 */
     FHktStoryBuilder& WaitMoveEnd(RegisterIndex Entity = Reg::Self);
 
-    // ========== Data Operations ==========
+    // ========== Data Operations (근본 opcode 래퍼) ==========
 
     FHktStoryBuilder& LoadConst(RegisterIndex Dst, int32 Value);
+
+    /** SourceEntity 프로퍼티 읽기 → Dst */
     FHktStoryBuilder& LoadStore(RegisterIndex Dst, uint16 PropertyId);
-    FHktStoryBuilder& LoadEntityProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId);
+
+    /** 임의 Entity 프로퍼티 읽기 → Dst */
+    FHktStoryBuilder& LoadStoreEntity(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId);
+
+    /** Src → SourceEntity 프로퍼티 쓰기 */
     FHktStoryBuilder& SaveStore(uint16 PropertyId, RegisterIndex Src);
-    FHktStoryBuilder& SaveEntityProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
+
+    /** Src → 임의 Entity 프로퍼티 쓰기 */
+    FHktStoryBuilder& SaveStoreEntity(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
+
+    /** 프로퍼티에 상수값 직접 쓰기 (LoadConst + SaveStoreEntity 조합) */
+    FHktStoryBuilder& SetPropertyConst(RegisterIndex Entity, uint16 PropertyId, int32 Value);
+
+    /** LoadStoreEntity 별칭 */
+    FHktStoryBuilder& LoadEntityProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
+    { return LoadStoreEntity(Dst, Entity, PropertyId); }
+
+    /** SaveStoreEntity 별칭 */
+    FHktStoryBuilder& SaveEntityProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
+    { return SaveStoreEntity(Entity, PropertyId, Src); }
+
     FHktStoryBuilder& Move(RegisterIndex Dst, RegisterIndex Src);
 
     // ========== Arithmetic ==========
@@ -109,7 +134,7 @@ public:
     /** 엔티티 제거 */
     FHktStoryBuilder& DestroyEntity(RegisterIndex Entity);
 
-    // ========== Position & Movement ==========
+    // ========== Position & Movement (조합 연산) ==========
 
     /** 위치 가져오기: (Dst, Dst+1, Dst+2) = Position */
     FHktStoryBuilder& GetPosition(RegisterIndex DstBase, RegisterIndex Entity);
@@ -126,7 +151,7 @@ public:
     /** 이동 중지 */
     FHktStoryBuilder& StopMovement(RegisterIndex Entity);
 
-    /** 거리 계산 */
+    /** 거리 계산 (VM opcode — sqrt 필요) */
     FHktStoryBuilder& GetDistance(RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2);
 
     // ========== Spatial Query ==========
@@ -141,30 +166,11 @@ public:
     FHktStoryBuilder& ForEachInRadius(RegisterIndex CenterEntity, int32 RadiusCm);
     FHktStoryBuilder& EndForEach();
 
-    // ========== Combat ==========
+    // ========== Combat (조합 연산) ==========
 
-    /** 데미지 적용 */
+    /** 데미지 적용 (R7-R9 클로버) */
     FHktStoryBuilder& ApplyDamage(RegisterIndex Target, RegisterIndex Amount);
     FHktStoryBuilder& ApplyDamageConst(RegisterIndex Target, int32 Amount);
-
-    /** 이펙트 적용 (버프/디버프) */
-    FHktStoryBuilder& ApplyEffect(RegisterIndex Target, const FGameplayTag& EffectTag);
-
-    /** 이펙트 제거 */
-    FHktStoryBuilder& RemoveEffect(RegisterIndex Target, const FGameplayTag& EffectTag);
-
-    // ========== VFX ==========
-
-    /** VFX 재생 (위치) */
-    FHktStoryBuilder& PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag);
-
-    /** VFX 재생 (엔티티에 부착) */
-    FHktStoryBuilder& PlayVFXAttached(RegisterIndex Entity, const FGameplayTag& VFXTag);
-
-    // ========== Audio ==========
-
-    FHktStoryBuilder& PlaySound(const FGameplayTag& SoundTag);
-    FHktStoryBuilder& PlaySoundAtLocation(RegisterIndex PosBase, const FGameplayTag& SoundTag);
 
     // ========== Tags ==========
 
@@ -176,6 +182,23 @@ public:
 
     /** 엔티티가 태그를 가지고 있는지 확인 → Dst (1/0) */
     FHktStoryBuilder& HasTag(RegisterIndex Dst, RegisterIndex Entity, const FGameplayTag& Tag);
+
+    // ========== Presentation ==========
+
+    /** 이펙트 적용 (버프/디버프) */
+    FHktStoryBuilder& ApplyEffect(RegisterIndex Target, const FGameplayTag& EffectTag);
+
+    /** 이펙트 제거 */
+    FHktStoryBuilder& RemoveEffect(RegisterIndex Target, const FGameplayTag& EffectTag);
+
+    /** VFX 재생 (위치) */
+    FHktStoryBuilder& PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag);
+
+    /** VFX 재생 (엔티티에 부착) */
+    FHktStoryBuilder& PlayVFXAttached(RegisterIndex Entity, const FGameplayTag& VFXTag);
+
+    FHktStoryBuilder& PlaySound(const FGameplayTag& SoundTag);
+    FHktStoryBuilder& PlaySoundAtLocation(RegisterIndex PosBase, const FGameplayTag& SoundTag);
 
     // ========== NPC Spawning ==========
 
@@ -199,6 +222,11 @@ public:
     /** 특정 엔티티가 소유한 Tag 매칭 엔티티 검색 → NextFound()로 순회 */
     FHktStoryBuilder& FindByOwner(RegisterIndex OwnerEntity, const FGameplayTag& Tag);
 
+    // ========== Stance ==========
+
+    /** Stance 태그 설정 (SetPropertyConst 편의 래퍼) */
+    FHktStoryBuilder& SetStance(RegisterIndex Entity, const FGameplayTag& StanceTag);
+
     // ========== Utility ==========
 
     FHktStoryBuilder& Log(const FString& Message);
@@ -217,6 +245,9 @@ private:
     int32 TagToInt(const FGameplayTag& Tag);
     void ResolveLabels();
 
+    /** 내부 라벨용 고유 카운터 */
+    FString MakeInternalLabel(const TCHAR* Prefix);
+
 private:
     TSharedRef<FHktVMProgram> Program;
     TMap<FString, int32> Labels;
@@ -230,6 +261,7 @@ private:
     };
     TArray<FForEachContext> ForEachStack;
     int32 ForEachCounter = 0;
+    int32 InternalLabelCounter = 0;
 };
 
 // ============================================================================
