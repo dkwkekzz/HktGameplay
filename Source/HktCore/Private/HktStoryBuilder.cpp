@@ -398,29 +398,31 @@ FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(RegisterIndex Target, RegisterIn
 {
     // ActualDmg = Max(1, Amount - Defense)
     // NewHealth = Max(0, Health - ActualDmg)
-    // 사용 레지스터: R7(scratch), R8(scratch), R9(Temp)
+    // 사용 레지스터: R7(scratch), R8(scratch), R9(Temp), Flag
+    // 주의: Amount가 R7/R8/R9일 경우를 위해 첫 번째 연산에서 즉시 소비
 
-    LoadStoreEntity(Reg::R8, Target, PropertyId::Defense);  // R8 = Defense
-    Sub(Reg::Temp, Amount, Reg::R8);                         // Temp = Dmg - Defense
+    Move(Reg::R7, Amount);                                    // R7 = Amount (즉시 복사하여 안전)
+    LoadStoreEntity(Reg::R8, Target, PropertyId::Defense);    // R8 = Defense
+    Sub(Reg::R7, Reg::R7, Reg::R8);                           // R7 = Dmg - Defense
 
     // Clamp to min 1
     LoadConst(Reg::R8, 1);
-    CmpLt(Reg::Flag, Reg::Temp, Reg::R8);                   // Flag = (Temp < 1)
+    CmpLt(Reg::Flag, Reg::R7, Reg::R8);                     // Flag = (R7 < 1)
     FString skipClamp1 = MakeInternalLabel(TEXT("dmg"));
     JumpIfNot(Reg::Flag, skipClamp1);
-    Move(Reg::Temp, Reg::R8);                                // Temp = 1
+    Move(Reg::R7, Reg::R8);                                  // R7 = 1
     Label(skipClamp1);
 
     // NewHealth = Health - ActualDmg
     LoadStoreEntity(Reg::R8, Target, PropertyId::Health);    // R8 = Health
-    Sub(Reg::R8, Reg::R8, Reg::Temp);                        // R8 = Health - ActualDmg
+    Sub(Reg::R8, Reg::R8, Reg::R7);                          // R8 = Health - ActualDmg
 
     // Clamp to min 0
-    LoadConst(Reg::R7, 0);
-    CmpLt(Reg::Flag, Reg::R8, Reg::R7);                     // Flag = (R8 < 0)
+    LoadConst(Reg::Temp, 0);
+    CmpLt(Reg::Flag, Reg::R8, Reg::Temp);                   // Flag = (R8 < 0)
     FString skipClamp2 = MakeInternalLabel(TEXT("dmg"));
     JumpIfNot(Reg::Flag, skipClamp2);
-    Move(Reg::R8, Reg::R7);                                  // R8 = 0
+    Move(Reg::R8, Reg::Temp);                                // R8 = 0
     Label(skipClamp2);
 
     SaveStoreEntity(Target, PropertyId::Health, Reg::R8);    // Health = NewHealth

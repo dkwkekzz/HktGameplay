@@ -18,7 +18,7 @@ struct FHktVMContext
     FHktWorldState* WorldState = nullptr;
     FHktVMWorldStateProxy* VMProxy = nullptr;
 
-    /** 이벤트 파라미터 로컬 저장 — SourceEntity 없이도 GetProperty로 읽기 가능 */
+    /** 이벤트 파라미터 로컬 저장 — SourceEntity 없이도 LoadStore로 읽기 가능 */
     int32 EventTargetPosX = 0;
     int32 EventTargetPosY = 0;
     int32 EventTargetPosZ = 0;
