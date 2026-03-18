@@ -30,7 +30,19 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
 
     if (!bInitialized) return;
 
-    // 서버 Batch 없을 때만 고정 타임스텝 로컬 예측 실행
+    // --- 서버 미응답 타임아웃: 실제 벽시계 시간 기반 판정 ---
+    // EnqueueServerBatch() 호출 시 리셋되므로, 여기서는 실제 DeltaTime만 누적
+    TimeSinceLastServerBatch += DeltaTime;
+    if (TimeSinceLastServerBatch > ServerTimeoutSeconds)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ProxySimulator] Server batch timeout — %.1fs without response. Disconnecting."), TimeSinceLastServerBatch);
+        DiffHistory.Empty();
+        bInitialized = false;
+        OnTimeout.Broadcast();
+        return;
+    }
+
+    // --- 고정 타임스텝 로컬 시뮬레이션 ---
     FrameAccumulator += DeltaTime;
     while (FrameAccumulator >= FixedDeltaTime)
     {
@@ -87,16 +99,6 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
 
     // PendingDiff에 누적 (PlayerController Tick에서 소비 → WorldViewUpdated 전달)
     AccumulateDiff(Diff);
-
-    // 서버 미응답 타임아웃: 실제 경과 시간 기반 판정
-    TimeSinceLastServerBatch += DeltaSeconds;
-    if (TimeSinceLastServerBatch > ServerTimeoutSeconds)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[ProxySimulator] Server batch timeout — %.1fs without response. Disconnecting."), TimeSinceLastServerBatch);
-        DiffHistory.Empty();
-        bInitialized = false;
-        OnTimeout.Broadcast();
-    }
 }
 
 FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
