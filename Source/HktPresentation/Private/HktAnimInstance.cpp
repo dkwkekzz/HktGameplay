@@ -234,7 +234,8 @@ void UHktAnimInstance::SyncStance(int32 StanceNetIndex)
 	FGameplayTag NewStanceTag;
 	if (StanceNetIndex > 0)
 	{
-		NewStanceTag = UGameplayTagsManager::Get().GetTagFromNetIndex(FGameplayTagNetIndex(StanceNetIndex));
+		UGameplayTagsManager& TagManager = UGameplayTagsManager::Get();
+		NewStanceTag = TagManager.RequestGameplayTag(TagManager.GetTagNameFromNetIndex(FGameplayTagNetIndex(StanceNetIndex)));
 	}
 
 	if (StanceTag == NewStanceTag)
