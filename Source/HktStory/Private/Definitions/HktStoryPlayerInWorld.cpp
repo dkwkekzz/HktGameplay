@@ -59,13 +59,8 @@ namespace HktStoryPlayerInWorld
 			.PlayVFXAttached(Self, VFX_SpawnEffect)
 			.PlaySound(Sound_Spawn)
 
-			// 스폰 상태 태그 추가 → AnimInstance가 태그를 감지하여 스폰 애니메이션 자동 재생
-			.AddTag(Self, Tag_Anim_FullBody_Action_Spawn)
-			.WaitSeconds(0.5f)
-
-			// Idle 상태 태그로 전환
-			.RemoveTag(Self, Tag_Anim_FullBody_Action_Spawn)
-			.AddTag(Self, Tag_Anim_FullBody_Locomotion_Idle)
+			// 플레이어 Stance 설정
+			.SetStance(Self, HktStance::Spear)                          
 
 			// === 초기 아이템: 목검 ===
 			.Log(TEXT("PlayerInWorld: 목검 지급"))
@@ -76,7 +71,6 @@ namespace HktStoryPlayerInWorld
 			.LoadConst(Temp, 0).SaveStoreEntity(Spawned, PropertyId::BagSlot, Temp)         // 가방 슬롯 0
 			.LoadConst(Temp, -1).SaveStoreEntity(Spawned, PropertyId::ActionSlot, Temp)     // 미등록
 			.LoadConst(Temp, 5).SaveStoreEntity(Spawned, PropertyId::AttackPower, Temp)     // 공격력 5
-			.SetStance(Self, HktStance::Spear)                          // 플레이어 Stance 설정
 			.AddTag(Spawned, Tag_Weapon_Sword)
 
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))
