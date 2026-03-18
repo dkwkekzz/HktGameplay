@@ -109,11 +109,8 @@ void AHktGameMode::SimulationTick()
     for (const FGroupEventSend& GroupSend : TickResult.EventSends)
     {
         const FHktSimulationEvent& Batch = GroupSend.Batch;
-        const bool bHasContent = Batch.NewEvents.Num() > 0
-            || Batch.NewEntityStates.Num() > 0
-            || Batch.RemovedOwnerIds.Num() > 0;
-
-        if (bHasContent)
+        // 컨텐츠 유무와 관계없이 매 틱 Batch 전송
+        // — 빈 Batch라도 FrameNumber 동기화가 필요 (클라 DiffHistory 정리 + 타임아웃 방지)
         {
             const TArray<IHktWorldPlayer*>& Existing = *GroupSend.Existing;
             for (IHktWorldPlayer* Player : Existing)
