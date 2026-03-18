@@ -32,6 +32,17 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		DestroyActor(Id);
 	}
 
+	// --- 비동기 스폰 완료 후 최초 동기화 ---
+	for (auto It = PendingInitSync.CreateIterator(); It; ++It)
+	{
+		FHktEntityId Id = *It;
+		const FHktEntityPresentation* E = State.Get(Id);
+		if (!E || !ActorMap.Contains(Id)) { It.RemoveCurrent(); continue; }
+		UpdateMotionTarget(Id, *E, E->SpawnedFrame);
+		UpdateAnimation(Id, *E, E->SpawnedFrame);
+		It.RemoveCurrent();
+	}
+
 	// --- Dirty 엔티티 타겟 갱신 ---
 	for (FHktEntityId Id : State.DirtyThisFrame)
 	{
@@ -52,6 +63,7 @@ void FHktActorRenderer::Teardown()
 {
 	ActorMap.Empty();
 	MotionStates.Empty();
+	PendingInitSync.Empty();
 }
 
 AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
@@ -134,6 +146,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		{
 			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
+			PendingInitSync.Add(EntityId);
 
 			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
 			Motion.TargetLocation = SpawnLocation;
@@ -153,6 +166,7 @@ void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 		ActorMap.Remove(Id);
 	}
 	MotionStates.Remove(Id);
+	PendingInitSync.Remove(Id);
 }
 
 void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame)
