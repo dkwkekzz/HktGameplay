@@ -37,6 +37,7 @@ private:
 
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
 	TMap<FHktEntityId, FHktActorMotionState> MotionStates;
+	TSet<FHktEntityId> PendingInitSync;
 	ULocalPlayer* LocalPlayer = nullptr;
 
 	static constexpr float LerpAlpha = 0.5f;          // 매 프레임 50% 접근 → ~2틱에 도달

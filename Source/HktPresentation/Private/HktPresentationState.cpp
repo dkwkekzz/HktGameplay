@@ -71,6 +71,7 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	case PropertyId::AnimState:
 	case PropertyId::VisualState:
 	case PropertyId::AnimStateUpper:
+	case PropertyId::Stance:
 		Animation.TryApplyDelta(PropId, NewValue, Frame);
 		break;
 
