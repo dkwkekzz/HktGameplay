@@ -31,7 +31,8 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
     if (!bInitialized) return;
 
     // 서버 Batch 없을 때만 고정 타임스텝 로컬 예측 실행
-    FrameAccumulator += DeltaTime;
+    // 프레임 스파이크(히치) 시 과도한 로컬 예측 방지 — MaxCatchUpFrames 이상 누적되지 않도록 클램프
+    FrameAccumulator = FMath::Min(FrameAccumulator + DeltaTime, MaxCatchUpFrames * FixedDeltaTime);
     while (FrameAccumulator >= FixedDeltaTime)
     {
         FrameAccumulator -= FixedDeltaTime;
