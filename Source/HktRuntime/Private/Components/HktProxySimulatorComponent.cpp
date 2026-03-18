@@ -31,8 +31,7 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
     if (!bInitialized) return;
 
     // 서버 Batch 없을 때만 고정 타임스텝 로컬 예측 실행
-    // 프레임 스파이크(히치) 시 과도한 로컬 예측 방지 — MaxCatchUpFrames 이상 누적되지 않도록 클램프
-    FrameAccumulator = FMath::Min(FrameAccumulator + DeltaTime, MaxCatchUpFrames * FixedDeltaTime);
+    FrameAccumulator += DeltaTime;
     while (FrameAccumulator >= FixedDeltaTime)
     {
         FrameAccumulator -= FixedDeltaTime;
@@ -89,10 +88,11 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     // PendingDiff에 누적 (PlayerController Tick에서 소비 → WorldViewUpdated 전달)
     AccumulateDiff(Diff);
 
-    // 서버 미응답 타임아웃: MaxHistoryFrames(10초) 초과 시 연결 끊김으로 판정
-    if (DiffHistory.Num() > MaxHistoryFrames)
+    // 서버 미응답 타임아웃: 실제 경과 시간 기반 판정
+    TimeSinceLastServerBatch += DeltaSeconds;
+    if (TimeSinceLastServerBatch > ServerTimeoutSeconds)
     {
-        UE_LOG(LogTemp, Error, TEXT("[ProxySimulator] Server batch timeout — %d frames without response. Disconnecting."), DiffHistory.Num());
+        UE_LOG(LogTemp, Error, TEXT("[ProxySimulator] Server batch timeout — %.1fs without response. Disconnecting."), TimeSinceLastServerBatch);
         DiffHistory.Empty();
         bInitialized = false;
         OnTimeout.Broadcast();
@@ -116,6 +116,7 @@ FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
 void UHktProxySimulatorComponent::EnqueueServerBatch(const FHktSimulationEvent& InBatch)
 {
     PendingServerBatches.Add(InBatch);
+    TimeSinceLastServerBatch = 0.0f;
 }
 
 bool UHktProxySimulatorComponent::ConsumePendingDiff(FHktSimulationDiff& OutDiff)
@@ -191,6 +192,7 @@ void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, in
     PendingServerBatches.Empty();
     bHasPendingDiff = false;
     FrameAccumulator = 0.0f;
+    TimeSinceLastServerBatch = 0.0f;
 
     bInitialized = true;
 }

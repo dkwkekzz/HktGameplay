@@ -68,9 +68,7 @@ private:
     // --- 그룹 인덱스 (결정론적 시드 생성용) ---
     int32 CachedGroupIndex = 0;
 
-    // --- 히스토리 보호: 서버 미확인 최대 프레임 수 ---
-    static constexpr int32 MaxHistoryFrames = 300; // 10초 @ 30Hz
-
-    // --- 한 틱에서 허용하는 최대 캐치업 프레임 수 (프레임 스파이크 방지) ---
-    static constexpr int32 MaxCatchUpFrames = 4;
+    // --- 서버 미응답 타임아웃 (실제 경과 시간 기반) ---
+    float TimeSinceLastServerBatch = 0.0f;
+    static constexpr float ServerTimeoutSeconds = 10.0f;
 };
