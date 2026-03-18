@@ -49,12 +49,9 @@ namespace HktStoryItemSpawnerTreeDrop
 
 				// 아이템 엔티티 생성
 				.SpawnEntity(Entity_Item_Wood)
-				.LoadConst(R2, 0)
-				.SaveEntityProperty(Spawned, PropertyId::ItemState, R2)     // Ground
-				.LoadConst(R2, 101)
-				.SaveEntityProperty(Spawned, PropertyId::ItemId, R2)        // Wood = 101
-				.LoadConst(R2, -1)
-				.SaveEntityProperty(Spawned, PropertyId::ActionSlot, R2)    // 미등록
+				.SaveConst(Spawned, PropertyId::ItemState, 0)               // Ground
+				.SaveConst(Spawned, PropertyId::ItemId, 101)                // Wood = 101
+				.SaveConst(Spawned, PropertyId::ActionSlot, -1)             // 미등록
 				.AddTag(Spawned, Tag_Item_Material)
 				.AddTag(Spawned, Tag_Item_Wood)
 

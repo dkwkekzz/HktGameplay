@@ -30,8 +30,8 @@ namespace Reg
     constexpr RegisterIndex R6 = 6;
     constexpr RegisterIndex R7 = 7;
     constexpr RegisterIndex R8 = 8;
-    constexpr RegisterIndex R9 = 9;
-    constexpr RegisterIndex Temp = 9;       // 임시 레지스터 (R9 별칭)
+    // R9는 Builder 내부 헬퍼(SaveConst, MoveToward 등)가 Temp로 사용 — 직접 사용 금지
+    constexpr RegisterIndex Temp = 9;
 
     // 특수 목적 레지스터
     constexpr RegisterIndex Self = 10;      // 현재 엔티티 (Event.SourceEntity)

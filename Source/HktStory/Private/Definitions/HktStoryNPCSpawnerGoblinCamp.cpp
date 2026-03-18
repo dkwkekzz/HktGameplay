@@ -51,19 +51,13 @@ namespace HktStoryNPCSpawnerGoblinCamp
 
 				// NPC 생성 — 스탯을 Flow에서 직접 설정
 				.SpawnEntity(Entity_NPC_Goblin)
-				.LoadConst(R2, 1)
-				.SaveEntityProperty(Spawned, PropertyId::IsNPC, R2)
-				.LoadConst(R2, 80)
-				.SaveEntityProperty(Spawned, PropertyId::Health, R2)
-				.SaveEntityProperty(Spawned, PropertyId::MaxHealth, R2)
-				.LoadConst(R2, 15)
-				.SaveEntityProperty(Spawned, PropertyId::AttackPower, R2)
-				.LoadConst(R2, 3)
-				.SaveEntityProperty(Spawned, PropertyId::Defense, R2)
-				.LoadConst(R2, 120)
-				.SaveEntityProperty(Spawned, PropertyId::MaxSpeed, R2)
-				.LoadConst(R2, 0)
-				.SaveEntityProperty(Spawned, PropertyId::Team, R2)
+				.SaveConst(Spawned, PropertyId::IsNPC, 1)
+				.SaveConst(Spawned, PropertyId::Health, 80)
+				.SaveConst(Spawned, PropertyId::MaxHealth, 80)
+				.SaveConst(Spawned, PropertyId::AttackPower, 15)
+				.SaveConst(Spawned, PropertyId::Defense, 3)
+				.SaveConst(Spawned, PropertyId::MaxSpeed, 120)
+				.SaveConst(Spawned, PropertyId::Team, 0)
 
 				// 태그 부여
 				.AddTag(Spawned, Tag_Entity_NPC)

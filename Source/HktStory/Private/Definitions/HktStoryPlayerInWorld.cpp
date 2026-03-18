@@ -65,12 +65,12 @@ namespace HktStoryPlayerInWorld
 			// === 초기 아이템: 목검 ===
 			.Log(TEXT("PlayerInWorld: 목검 지급"))
 			.SpawnEntity(Entity_Item_WoodenSword)
-			.SaveStoreEntity(Spawned, PropertyId::OwnerEntity, Self)     // 소유자 = 플레이어
-			.LoadConst(Temp, 1).SaveStoreEntity(Spawned, PropertyId::ItemState, Temp)       // InBag
-			.LoadConst(Temp, 100).SaveStoreEntity(Spawned, PropertyId::ItemId, Temp)        // 목검 ID
-			.LoadConst(Temp, 0).SaveStoreEntity(Spawned, PropertyId::BagSlot, Temp)         // 가방 슬롯 0
-			.LoadConst(Temp, -1).SaveStoreEntity(Spawned, PropertyId::ActionSlot, Temp)     // 미등록
-			.LoadConst(Temp, 5).SaveStoreEntity(Spawned, PropertyId::AttackPower, Temp)     // 공격력 5
+			.SaveEntityProperty(Spawned, PropertyId::OwnerEntity, Self)  // 소유자 = 플레이어
+			.SaveConst(Spawned, PropertyId::ItemState, 1)                // InBag
+			.SaveConst(Spawned, PropertyId::ItemId, 100)                 // 목검 ID
+			.SaveConst(Spawned, PropertyId::BagSlot, 0)                  // 가방 슬롯 0
+			.SaveConst(Spawned, PropertyId::ActionSlot, -1)              // 미등록
+			.SaveConst(Spawned, PropertyId::AttackPower, 5)              // 공격력 5
 			.AddTag(Spawned, Tag_Weapon_Sword)
 
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))
