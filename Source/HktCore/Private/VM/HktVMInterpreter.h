@@ -13,9 +13,15 @@ struct FHktVMWorldStateProxy;
 
 /**
  * FHktVMInterpreter - 바이트코드 인터프리터 (Pure C++)
- * 
+ *
  * 단일 VM을 yield 또는 종료까지 실행합니다.
  * UObject/UWorld 참조 없음 - HktCore의 순수성 유지
+ *
+ * 근본 연산만 opcode로 제공:
+ *  - Entity 생성/파괴
+ *  - Entity Property 읽기/쓰기
+ *  - Entity Tag 추가/제거
+ * 조합 연산(Position, Movement, Damage 등)은 StoryBuilder에서 기본 opcode 조합으로 구현.
  */
 class HKTCORE_API FHktVMInterpreter
 {
@@ -45,8 +51,10 @@ private:
     // ===== Data Operations =====
     void Op_LoadConst(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 Value);
     void Op_LoadConstHigh(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 HighBits);
-    void Op_GetProperty(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId);
-    void Op_SetProperty(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
+    void Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, uint16 PropertyId);
+    void Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId);
+    void Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropertyId, RegisterIndex Src);
+    void Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
     void Op_Move(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src);
 
     // ===== Arithmetic =====
@@ -65,32 +73,20 @@ private:
     void Op_CmpGt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
     void Op_CmpGe(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
 
-    // ===== Entity Management =====
+    // ===== Entity =====
     void Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex);
     void Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
-    // ===== Position & Movement =====
-    void Op_GetPosition(FHktVMRuntime& Runtime, RegisterIndex DstBase, RegisterIndex Entity);
-    void Op_SetPosition(FHktVMRuntime& Runtime, RegisterIndex Entity, RegisterIndex SrcBase);
-    void Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2);
-    void Op_MoveToward(FHktVMRuntime& Runtime, RegisterIndex Entity, RegisterIndex TargetBase, int32 Speed);
-    void Op_MoveForward(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 Speed);
-    void Op_StopMovement(FHktVMRuntime& Runtime, RegisterIndex Entity);
-
     // ===== Spatial Query =====
+    void Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2);
     void Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm);
     void Op_NextFound(FHktVMRuntime& Runtime);
 
-    // ===== Combat =====
-    void Op_ApplyDamage(FHktVMRuntime& Runtime, RegisterIndex Target, RegisterIndex Amount);
+    // ===== Presentation =====
     void Op_ApplyEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex);
     void Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex);
-
-    // ===== VFX =====
     void Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex);
     void Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
-
-    // ===== Audio =====
     void Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex);
     void Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex);
 

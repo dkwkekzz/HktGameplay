@@ -62,6 +62,11 @@ int32 FHktStoryBuilder::TagToInt(const FGameplayTag& Tag)
     return 0;
 }
 
+FString FHktStoryBuilder::MakeInternalLabel(const TCHAR* Prefix)
+{
+    return FString::Printf(TEXT("__%s_%d"), Prefix, InternalLabelCounter++);
+}
+
 // ============================================================================
 // Flow Policy
 // ============================================================================
@@ -134,7 +139,6 @@ FHktStoryBuilder& FHktStoryBuilder::WaitCollision(RegisterIndex WatchEntity)
 
 FHktStoryBuilder& FHktStoryBuilder::WaitAnimEnd(RegisterIndex Entity)
 {
-    // 구현: 프레임 대기로 대체 (향후 AnimEnd 이벤트 도입 가능)
     Yield(1);
     return *this;
 }
@@ -146,7 +150,7 @@ FHktStoryBuilder& FHktStoryBuilder::WaitMoveEnd(RegisterIndex Entity)
 }
 
 // ============================================================================
-// Data Operations
+// Data Operations (근본 opcode 래퍼)
 // ============================================================================
 
 FHktStoryBuilder& FHktStoryBuilder::LoadConst(RegisterIndex Dst, int32 Value)
@@ -163,43 +167,35 @@ FHktStoryBuilder& FHktStoryBuilder::LoadConst(RegisterIndex Dst, int32 Value)
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::GetProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
+FHktStoryBuilder& FHktStoryBuilder::LoadStore(RegisterIndex Dst, uint16 PropertyId)
 {
-    Emit(FInstruction::Make(EOpCode::GetProperty, Dst, Entity, 0, PropertyId));
+    Emit(FInstruction::Make(EOpCode::LoadStore, Dst, 0, 0, PropertyId));
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::SetProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
+FHktStoryBuilder& FHktStoryBuilder::LoadStoreEntity(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
 {
-    Emit(FInstruction::Make(EOpCode::SetProperty, 0, Entity, Src, PropertyId));
+    Emit(FInstruction::Make(EOpCode::LoadStoreEntity, Dst, Entity, 0, PropertyId));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SaveStore(uint16 PropertyId, RegisterIndex Src)
+{
+    Emit(FInstruction::Make(EOpCode::SaveStore, 0, Src, 0, PropertyId));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SaveStoreEntity(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
+{
+    Emit(FInstruction::Make(EOpCode::SaveStoreEntity, 0, Entity, Src, PropertyId));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::SetPropertyConst(RegisterIndex Entity, uint16 PropertyId, int32 Value)
 {
     LoadConst(Reg::Temp, Value);
-    SetProperty(Entity, PropertyId, Reg::Temp);
+    SaveStoreEntity(Entity, PropertyId, Reg::Temp);
     return *this;
-}
-
-FHktStoryBuilder& FHktStoryBuilder::LoadStore(RegisterIndex Dst, uint16 PropertyId)
-{
-    return GetProperty(Dst, Reg::Self, PropertyId);
-}
-
-FHktStoryBuilder& FHktStoryBuilder::LoadEntityProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
-{
-    return GetProperty(Dst, Entity, PropertyId);
-}
-
-FHktStoryBuilder& FHktStoryBuilder::SaveStore(uint16 PropertyId, RegisterIndex Src)
-{
-    return SetProperty(Reg::Self, PropertyId, Src);
-}
-
-FHktStoryBuilder& FHktStoryBuilder::SaveEntityProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
-{
-    return SetProperty(Entity, PropertyId, Src);
 }
 
 FHktStoryBuilder& FHktStoryBuilder::Move(RegisterIndex Dst, RegisterIndex Src)
@@ -300,36 +296,48 @@ FHktStoryBuilder& FHktStoryBuilder::DestroyEntity(RegisterIndex Entity)
 }
 
 // ============================================================================
-// Position & Movement
+// Position & Movement (조합 연산 — 기본 opcode로 분해)
 // ============================================================================
 
 FHktStoryBuilder& FHktStoryBuilder::GetPosition(RegisterIndex DstBase, RegisterIndex Entity)
 {
-    Emit(FInstruction::Make(EOpCode::GetPosition, DstBase, Entity, 0, 0));
+    LoadStoreEntity(DstBase,     Entity, PropertyId::PosX);
+    LoadStoreEntity(DstBase + 1, Entity, PropertyId::PosY);
+    LoadStoreEntity(DstBase + 2, Entity, PropertyId::PosZ);
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::SetPosition(RegisterIndex Entity, RegisterIndex SrcBase)
 {
-    Emit(FInstruction::Make(EOpCode::SetPosition, Entity, SrcBase, 0, 0));
+    SaveStoreEntity(Entity, PropertyId::PosX, SrcBase);
+    SaveStoreEntity(Entity, PropertyId::PosY, SrcBase + 1);
+    SaveStoreEntity(Entity, PropertyId::PosZ, SrcBase + 2);
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::MoveToward(RegisterIndex Entity, RegisterIndex TargetPosBase, int32 Speed)
+FHktStoryBuilder& FHktStoryBuilder::MoveToward(RegisterIndex Entity, RegisterIndex TargetPosBase, int32 Force)
 {
-    Emit(FInstruction::Make(EOpCode::MoveToward, Entity, TargetPosBase, 0, Speed & 0xFFF));
+    SaveStoreEntity(Entity, PropertyId::MoveTargetX, TargetPosBase);
+    SaveStoreEntity(Entity, PropertyId::MoveTargetY, TargetPosBase + 1);
+    SaveStoreEntity(Entity, PropertyId::MoveTargetZ, TargetPosBase + 2);
+    SetPropertyConst(Entity, PropertyId::MoveForce, Force);
+    SetPropertyConst(Entity, PropertyId::IsMoving, 1);
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::MoveForward(RegisterIndex Entity, int32 Speed)
+FHktStoryBuilder& FHktStoryBuilder::MoveForward(RegisterIndex Entity, int32 Force)
 {
-    Emit(FInstruction::Make(EOpCode::MoveForward, 0, Entity, 0, Speed & 0xFFF));
+    SetPropertyConst(Entity, PropertyId::MoveForce, Force);
+    SetPropertyConst(Entity, PropertyId::IsMoving, 1);
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::StopMovement(RegisterIndex Entity)
 {
-    Emit(FInstruction::Make(EOpCode::StopMovement, 0, Entity, 0, 0));
+    SetPropertyConst(Entity, PropertyId::IsMoving, 0);
+    SetPropertyConst(Entity, PropertyId::VelX, 0);
+    SetPropertyConst(Entity, PropertyId::VelY, 0);
+    SetPropertyConst(Entity, PropertyId::VelZ, 0);
     return *this;
 }
 
@@ -383,12 +391,39 @@ FHktStoryBuilder& FHktStoryBuilder::EndForEach()
 }
 
 // ============================================================================
-// Combat
+// Combat (조합 연산 — R7,R8,R9 사용)
 // ============================================================================
 
 FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(RegisterIndex Target, RegisterIndex Amount)
 {
-    Emit(FInstruction::Make(EOpCode::ApplyDamage, 0, Target, Amount, 0));
+    // ActualDmg = Max(1, Amount - Defense)
+    // NewHealth = Max(0, Health - ActualDmg)
+    // 사용 레지스터: R7(scratch), R8(scratch), R9(Temp)
+
+    LoadStoreEntity(Reg::R8, Target, PropertyId::Defense);  // R8 = Defense
+    Sub(Reg::Temp, Amount, Reg::R8);                         // Temp = Dmg - Defense
+
+    // Clamp to min 1
+    LoadConst(Reg::R8, 1);
+    CmpLt(Reg::Flag, Reg::Temp, Reg::R8);                   // Flag = (Temp < 1)
+    FString skipClamp1 = MakeInternalLabel(TEXT("dmg"));
+    JumpIfNot(Reg::Flag, skipClamp1);
+    Move(Reg::Temp, Reg::R8);                                // Temp = 1
+    Label(skipClamp1);
+
+    // NewHealth = Health - ActualDmg
+    LoadStoreEntity(Reg::R8, Target, PropertyId::Health);    // R8 = Health
+    Sub(Reg::R8, Reg::R8, Reg::Temp);                        // R8 = Health - ActualDmg
+
+    // Clamp to min 0
+    LoadConst(Reg::R7, 0);
+    CmpLt(Reg::Flag, Reg::R8, Reg::R7);                     // Flag = (R8 < 0)
+    FString skipClamp2 = MakeInternalLabel(TEXT("dmg"));
+    JumpIfNot(Reg::Flag, skipClamp2);
+    Move(Reg::R8, Reg::R7);                                  // R8 = 0
+    Label(skipClamp2);
+
+    SaveStoreEntity(Target, PropertyId::Health, Reg::R8);    // Health = NewHealth
     return *this;
 }
 
@@ -398,6 +433,10 @@ FHktStoryBuilder& FHktStoryBuilder::ApplyDamageConst(RegisterIndex Target, int32
     ApplyDamage(Target, Reg::Temp);
     return *this;
 }
+
+// ============================================================================
+// Presentation
+// ============================================================================
 
 FHktStoryBuilder& FHktStoryBuilder::ApplyEffect(RegisterIndex Target, const FGameplayTag& EffectTag)
 {
@@ -413,10 +452,6 @@ FHktStoryBuilder& FHktStoryBuilder::RemoveEffect(RegisterIndex Target, const FGa
     return *this;
 }
 
-// ============================================================================
-// VFX
-// ============================================================================
-
 FHktStoryBuilder& FHktStoryBuilder::PlayVFX(RegisterIndex PosBase, const FGameplayTag& VFXTag)
 {
     int32 TagIdx = TagToInt(VFXTag);
@@ -430,10 +465,6 @@ FHktStoryBuilder& FHktStoryBuilder::PlayVFXAttached(RegisterIndex Entity, const 
     Emit(FInstruction::Make(EOpCode::PlayVFXAttached, 0, Entity, 0, TagIdx & 0xFFF));
     return *this;
 }
-
-// ============================================================================
-// Audio
-// ============================================================================
 
 FHktStoryBuilder& FHktStoryBuilder::PlaySound(const FGameplayTag& SoundTag)
 {
