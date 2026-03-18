@@ -191,13 +191,6 @@ FHktStoryBuilder& FHktStoryBuilder::SaveStoreEntity(RegisterIndex Entity, uint16
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::SetPropertyConst(RegisterIndex Entity, uint16 PropertyId, int32 Value)
-{
-    LoadConst(Reg::Temp, Value);
-    SaveStoreEntity(Entity, PropertyId, Reg::Temp);
-    return *this;
-}
-
 FHktStoryBuilder& FHktStoryBuilder::Move(RegisterIndex Dst, RegisterIndex Src)
 {
     Emit(FInstruction::Make(EOpCode::Move, Dst, Src, 0, 0));
@@ -561,7 +554,9 @@ FHktStoryBuilder& FHktStoryBuilder::FindByOwner(RegisterIndex OwnerEntity, const
 FHktStoryBuilder& FHktStoryBuilder::SetStance(RegisterIndex Entity, const FGameplayTag& StanceTag)
 {
     int32 TagIdx = TagToInt(StanceTag);
-    return SetPropertyConst(Entity, PropertyId::Stance, TagIdx);
+    LoadConst(Reg::Temp, TagIdx);
+    SaveStoreEntity(Entity, PropertyId::Stance, Reg::Temp);
+    return *this;
 }
 
 // ============================================================================

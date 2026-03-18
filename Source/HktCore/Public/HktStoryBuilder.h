@@ -96,9 +96,6 @@ public:
     /** Src → 임의 Entity 프로퍼티 쓰기 */
     FHktStoryBuilder& SaveStoreEntity(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
 
-    /** 프로퍼티에 상수값 직접 쓰기 (LoadConst + SaveStoreEntity 조합) */
-    FHktStoryBuilder& SetPropertyConst(RegisterIndex Entity, uint16 PropertyId, int32 Value);
-
     /** LoadStoreEntity 별칭 */
     FHktStoryBuilder& LoadEntityProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
     { return LoadStoreEntity(Dst, Entity, PropertyId); }
