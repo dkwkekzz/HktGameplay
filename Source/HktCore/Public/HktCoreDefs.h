@@ -18,8 +18,8 @@ constexpr FHktEntityId InvalidEntityId = -1;
 
 namespace HktStance
 {
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Unarmed);  // Stance.Unarmed
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Spear);    // Stance.Spear
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Gun);      // Stance.Gun
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Sword1H);  // Stance.Sword1H
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Unarmed);  // Stance.Unarmed
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Spear);    // Stance.Spear
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Gun);      // Stance.Gun
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Sword1H);  // Stance.Sword1H
 }
