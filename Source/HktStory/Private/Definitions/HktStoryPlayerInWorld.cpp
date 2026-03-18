@@ -76,7 +76,7 @@ namespace HktStoryPlayerInWorld
 			.LoadConst(Temp, 0).SaveStoreEntity(Spawned, PropertyId::BagSlot, Temp)         // 가방 슬롯 0
 			.LoadConst(Temp, -1).SaveStoreEntity(Spawned, PropertyId::ActionSlot, Temp)     // 미등록
 			.LoadConst(Temp, 5).SaveStoreEntity(Spawned, PropertyId::AttackPower, Temp)     // 공격력 5
-			.SetStance(Spawned, HktStance::Spear)                       // Stance Spear
+			.SetStance(Self, HktStance::Spear)                          // 플레이어 Stance 설정
 			.AddTag(Spawned, Tag_Weapon_Sword)
 
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))
