@@ -313,24 +313,29 @@ FHktStoryBuilder& FHktStoryBuilder::MoveToward(RegisterIndex Entity, RegisterInd
     SaveStoreEntity(Entity, PropertyId::MoveTargetX, TargetPosBase);
     SaveStoreEntity(Entity, PropertyId::MoveTargetY, TargetPosBase + 1);
     SaveStoreEntity(Entity, PropertyId::MoveTargetZ, TargetPosBase + 2);
-    SetPropertyConst(Entity, PropertyId::MoveForce, Force);
-    SetPropertyConst(Entity, PropertyId::IsMoving, 1);
+    LoadConst(Reg::Temp, Force);
+    SaveStoreEntity(Entity, PropertyId::MoveForce, Reg::Temp);
+    LoadConst(Reg::Temp, 1);
+    SaveStoreEntity(Entity, PropertyId::IsMoving, Reg::Temp);
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::MoveForward(RegisterIndex Entity, int32 Force)
 {
-    SetPropertyConst(Entity, PropertyId::MoveForce, Force);
-    SetPropertyConst(Entity, PropertyId::IsMoving, 1);
+    LoadConst(Reg::Temp, Force);
+    SaveStoreEntity(Entity, PropertyId::MoveForce, Reg::Temp);
+    LoadConst(Reg::Temp, 1);
+    SaveStoreEntity(Entity, PropertyId::IsMoving, Reg::Temp);
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::StopMovement(RegisterIndex Entity)
 {
-    SetPropertyConst(Entity, PropertyId::IsMoving, 0);
-    SetPropertyConst(Entity, PropertyId::VelX, 0);
-    SetPropertyConst(Entity, PropertyId::VelY, 0);
-    SetPropertyConst(Entity, PropertyId::VelZ, 0);
+    LoadConst(Reg::Temp, 0);
+    SaveStoreEntity(Entity, PropertyId::IsMoving, Reg::Temp);
+    SaveStoreEntity(Entity, PropertyId::VelX, Reg::Temp);
+    SaveStoreEntity(Entity, PropertyId::VelY, Reg::Temp);
+    SaveStoreEntity(Entity, PropertyId::VelZ, Reg::Temp);
     return *this;
 }
 
