@@ -70,19 +70,13 @@ namespace HktStoryPlayerInWorld
 			// === 초기 아이템: 목검 ===
 			.Log(TEXT("PlayerInWorld: 목검 지급"))
 			.SpawnEntity(Entity_Item_WoodenSword)
-			.SaveEntityProperty(Spawned, PropertyId::OwnerEntity, Self)  // 소유자 = 플레이어
-			.LoadConst(R3, 1)
-			.SaveEntityProperty(Spawned, PropertyId::ItemState, R3)      // InBag
-			.LoadConst(R3, 100)
-			.SaveEntityProperty(Spawned, PropertyId::ItemId, R3)         // 목검 ID
-			.LoadConst(R3, 0)
-			.SaveEntityProperty(Spawned, PropertyId::BagSlot, R3)        // 가방 슬롯 0
-			.LoadConst(R3, -1)
-			.SaveEntityProperty(Spawned, PropertyId::ActionSlot, R3)     // 미등록
-			.LoadConst(R3, 5)
-			.SaveEntityProperty(Spawned, PropertyId::AttackPower, R3)    // 공격력 5
-			.LoadConst(R3, HktStance::Spear)
-			.SaveEntityProperty(Spawned, PropertyId::Stance, R3)		 // Stance Spear
+			.SetProperty(Spawned, PropertyId::OwnerEntity, Self)        // 소유자 = 플레이어
+			.SetPropertyConst(Spawned, PropertyId::ItemState, 1)        // InBag
+			.SetPropertyConst(Spawned, PropertyId::ItemId, 100)         // 목검 ID
+			.SetPropertyConst(Spawned, PropertyId::BagSlot, 0)          // 가방 슬롯 0
+			.SetPropertyConst(Spawned, PropertyId::ActionSlot, -1)      // 미등록
+			.SetPropertyConst(Spawned, PropertyId::AttackPower, 5)      // 공격력 5
+			.SetStance(Spawned, HktStance::Spear)                       // Stance Spear
 			.AddTag(Spawned, Tag_Weapon_Sword)
 
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))

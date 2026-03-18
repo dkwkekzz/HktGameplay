@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
+#include "GameplayTagContainer.h"
 #include "HktStanceAnimInstance.generated.h"
 
 class UHktAnimInstance;
@@ -41,7 +42,7 @@ public:
 	float MoveSpeed = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Stance")
-	int32 Stance = 0;
+	FGameplayTag StanceTag;
 
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Stance")
 	TObjectPtr<UBlendSpace> ActiveBlendSpace;

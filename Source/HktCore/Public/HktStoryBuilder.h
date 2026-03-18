@@ -78,10 +78,22 @@ public:
     // ========== Data Operations ==========
 
     FHktStoryBuilder& LoadConst(RegisterIndex Dst, int32 Value);
+
+    /** 프로퍼티 읽기: Entity의 PropertyId → Dst 레지스터 */
+    FHktStoryBuilder& GetProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId);
+
+    /** 프로퍼티 쓰기: Src 레지스터 → Entity의 PropertyId */
+    FHktStoryBuilder& SetProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
+
+    /** 프로퍼티에 상수값 직접 쓰기 (LoadConst + SetProperty 편의 메서드) */
+    FHktStoryBuilder& SetPropertyConst(RegisterIndex Entity, uint16 PropertyId, int32 Value);
+
+    // 하위호환 래퍼
     FHktStoryBuilder& LoadStore(RegisterIndex Dst, uint16 PropertyId);
     FHktStoryBuilder& LoadEntityProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId);
     FHktStoryBuilder& SaveStore(uint16 PropertyId, RegisterIndex Src);
     FHktStoryBuilder& SaveEntityProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
+
     FHktStoryBuilder& Move(RegisterIndex Dst, RegisterIndex Src);
 
     // ========== Arithmetic ==========
@@ -198,6 +210,11 @@ public:
 
     /** 특정 엔티티가 소유한 Tag 매칭 엔티티 검색 → NextFound()로 순회 */
     FHktStoryBuilder& FindByOwner(RegisterIndex OwnerEntity, const FGameplayTag& Tag);
+
+    // ========== Stance ==========
+
+    /** Stance 태그 설정 (SetPropertyConst 편의 래퍼) */
+    FHktStoryBuilder& SetStance(RegisterIndex Entity, const FGameplayTag& StanceTag);
 
     // ========== Utility ==========
 

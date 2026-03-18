@@ -45,10 +45,8 @@ private:
     // ===== Data Operations =====
     void Op_LoadConst(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 Value);
     void Op_LoadConstHigh(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 HighBits);
-    void Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, uint16 PropertyId);
-    void Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId);
-    void Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropertyId, RegisterIndex Src);
-    void Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
+    void Op_GetProperty(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId);
+    void Op_SetProperty(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
     void Op_Move(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src);
 
     // ===== Arithmetic =====

@@ -163,28 +163,43 @@ FHktStoryBuilder& FHktStoryBuilder::LoadConst(RegisterIndex Dst, int32 Value)
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::GetProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
+{
+    Emit(FInstruction::Make(EOpCode::GetProperty, Dst, Entity, 0, PropertyId));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SetProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
+{
+    Emit(FInstruction::Make(EOpCode::SetProperty, 0, Entity, Src, PropertyId));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SetPropertyConst(RegisterIndex Entity, uint16 PropertyId, int32 Value)
+{
+    LoadConst(Reg::Temp, Value);
+    SetProperty(Entity, PropertyId, Reg::Temp);
+    return *this;
+}
+
 FHktStoryBuilder& FHktStoryBuilder::LoadStore(RegisterIndex Dst, uint16 PropertyId)
 {
-    Emit(FInstruction::Make(EOpCode::LoadStore, Dst, 0, 0, PropertyId));
-    return *this;
+    return GetProperty(Dst, Reg::Self, PropertyId);
 }
 
 FHktStoryBuilder& FHktStoryBuilder::LoadEntityProperty(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
 {
-    Emit(FInstruction::Make(EOpCode::LoadStoreEntity, Dst, Entity, 0, PropertyId));
-    return *this;
+    return GetProperty(Dst, Entity, PropertyId);
 }
 
 FHktStoryBuilder& FHktStoryBuilder::SaveStore(uint16 PropertyId, RegisterIndex Src)
 {
-    Emit(FInstruction::Make(EOpCode::SaveStore, 0, Src, 0, PropertyId));
-    return *this;
+    return SetProperty(Reg::Self, PropertyId, Src);
 }
 
 FHktStoryBuilder& FHktStoryBuilder::SaveEntityProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
 {
-    Emit(FInstruction::Make(EOpCode::SaveStoreEntity, 0, Entity, Src, PropertyId));
-    return *this;
+    return SetProperty(Entity, PropertyId, Src);
 }
 
 FHktStoryBuilder& FHktStoryBuilder::Move(RegisterIndex Dst, RegisterIndex Src)
@@ -504,6 +519,16 @@ FHktStoryBuilder& FHktStoryBuilder::FindByOwner(RegisterIndex OwnerEntity, const
     int32 StrIdx = AddString(Tag.ToString());
     Emit(FInstruction::Make(EOpCode::FindByOwner, Reg::Count, OwnerEntity, 0, StrIdx & 0xFFF));
     return *this;
+}
+
+// ============================================================================
+// Stance
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::SetStance(RegisterIndex Entity, const FGameplayTag& StanceTag)
+{
+    int32 TagIdx = TagToInt(StanceTag);
+    return SetPropertyConst(Entity, PropertyId::Stance, TagIdx);
 }
 
 // ============================================================================

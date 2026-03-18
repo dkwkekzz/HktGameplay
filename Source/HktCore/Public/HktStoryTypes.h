@@ -60,10 +60,10 @@ namespace Reg
     X(WaitMoveEnd)      \
     X(LoadConst)        \
     X(LoadConstHigh)    \
-    X(LoadStore)        \
-    X(LoadStoreEntity)  \
-    X(SaveStore)        \
-    X(SaveStoreEntity)  \
+    X(LoadStore_DEPRECATED)        \
+    X(LoadStoreEntity_DEPRECATED)  \
+    X(SaveStore_DEPRECATED)        \
+    X(SaveStoreEntity_DEPRECATED)  \
     X(Move)             \
     X(Add)              \
     X(Sub)              \
@@ -108,7 +108,10 @@ namespace Reg
     X(HasPlayerInGroup) \
     /* Item System */   \
     X(CountByOwner)     \
-    X(FindByOwner)
+    X(FindByOwner)      \
+    /* Property unified */ \
+    X(GetProperty)      \
+    X(SetProperty)
 
 enum class EOpCode : uint8
 {

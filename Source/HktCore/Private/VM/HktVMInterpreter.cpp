@@ -54,10 +54,10 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::WaitMoveEnd: return Op_WaitMoveEnd(Runtime, Inst.Src1);
     case EOpCode::LoadConst: Op_LoadConst(Runtime, Inst._Dst, Inst.GetSignedImm20()); break;
     case EOpCode::LoadConstHigh: Op_LoadConstHigh(Runtime, Inst.Dst, Inst.Imm12); break;
-    case EOpCode::LoadStore: Op_LoadStore(Runtime, Inst.Dst, Inst.Imm12); break;
-    case EOpCode::LoadStoreEntity: Op_LoadStoreEntity(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::SaveStore: Op_SaveStore(Runtime, Inst.Imm12, Inst.Src1); break;
-    case EOpCode::SaveStoreEntity: Op_SaveStoreEntity(Runtime, Inst.Src1, Inst.Imm12, Inst.Src2); break;
+    case EOpCode::LoadStore_DEPRECATED: Op_GetProperty(Runtime, Inst.Dst, Reg::Self, Inst.Imm12); break;
+    case EOpCode::LoadStoreEntity_DEPRECATED: Op_GetProperty(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::SaveStore_DEPRECATED: Op_SetProperty(Runtime, Reg::Self, Inst.Imm12, Inst.Src1); break;
+    case EOpCode::SaveStoreEntity_DEPRECATED: Op_SetProperty(Runtime, Inst.Src1, Inst.Imm12, Inst.Src2); break;
     case EOpCode::Move: Op_Move(Runtime, Inst.Dst, Inst.Src1); break;
     case EOpCode::Add: Op_Add(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     case EOpCode::Sub: Op_Sub(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
@@ -101,6 +101,8 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::HasPlayerInGroup: Op_HasPlayerInGroup(Runtime, Inst.Dst); break;
     case EOpCode::CountByOwner: Op_CountByOwner(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
     case EOpCode::FindByOwner: Op_FindByOwner(Runtime, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::GetProperty: Op_GetProperty(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::SetProperty: Op_SetProperty(Runtime, Inst.Src1, Inst.Imm12, Inst.Src2); break;
     default: return EVMStatus::Failed;
     }
     return EVMStatus::Running;
@@ -171,29 +173,27 @@ void FHktVMInterpreter::Op_LoadConstHigh(FHktVMRuntime& Runtime, RegisterIndex D
     Runtime.SetReg(Dst, (Runtime.GetReg(Dst) & 0xFFFFF) | (HighBits << 20));
 }
 
-void FHktVMInterpreter::Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, uint16 PropertyId)
-{
-    if (Runtime.Context)
-        Runtime.SetReg(Dst, Runtime.Context->Read(PropertyId));
-}
-
-void FHktVMInterpreter::Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
-{
-    if (Runtime.Context)
-        Runtime.SetReg(Dst, Runtime.Context->ReadEntity(Runtime.GetRegEntity(Entity), PropertyId));
-}
-
-void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropertyId, RegisterIndex Src)
-{
-    if (Runtime.Context)
-        Runtime.Context->Write(PropertyId, Runtime.GetReg(Src));
-}
-
-void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
+void FHktVMInterpreter::Op_GetProperty(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
 {
     if (Runtime.Context)
     {
-        Runtime.Context->WriteEntity(Runtime.GetRegEntity(Entity), PropertyId, Runtime.GetReg(Src));
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        if (E == Runtime.Context->SourceEntity)
+            Runtime.SetReg(Dst, Runtime.Context->Read(PropertyId));
+        else
+            Runtime.SetReg(Dst, Runtime.Context->ReadEntity(E, PropertyId));
+    }
+}
+
+void FHktVMInterpreter::Op_SetProperty(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
+{
+    if (Runtime.Context)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        if (E == Runtime.Context->SourceEntity)
+            Runtime.Context->Write(PropertyId, Runtime.GetReg(Src));
+        else
+            Runtime.Context->WriteEntity(E, PropertyId, Runtime.GetReg(Src));
     }
 }
 

@@ -36,7 +36,7 @@ void UHktStanceAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	// 부모 UHktAnimInstance에서 데이터 동기화
 	bIsMoving = ParentAnimInstance->bIsMoving;
 	MoveSpeed = ParentAnimInstance->MoveSpeed;
-	Stance = ParentAnimInstance->Stance;
+	StanceTag = ParentAnimInstance->StanceTag;
 	ActiveBlendSpace = ParentAnimInstance->ActiveBlendSpace;
 	BlendSpaceX = ParentAnimInstance->BlendSpaceX;
 	BlendSpaceY = ParentAnimInstance->BlendSpaceY;

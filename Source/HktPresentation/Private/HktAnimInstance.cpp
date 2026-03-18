@@ -4,6 +4,7 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
+#include "GameplayTagsManager.h"
 
 namespace
 {
@@ -227,18 +228,25 @@ bool UHktAnimInstance::HasAnimMapping(FGameplayTag AnimTag) const
 // Stance — AnimBP 레이어 교체
 // ============================================================================
 
-void UHktAnimInstance::SyncStance(int32 NewStance)
+void UHktAnimInstance::SyncStance(int32 StanceNetIndex)
 {
-	if (Stance == NewStance)
+	// NetIndex → FGameplayTag 변환
+	FGameplayTag NewStanceTag;
+	if (StanceNetIndex > 0)
+	{
+		NewStanceTag = UGameplayTagsManager::Get().GetTagFromNetIndex(FGameplayTagNetIndex(StanceNetIndex));
+	}
+
+	if (StanceTag == NewStanceTag)
 	{
 		return;
 	}
 
-	int32 OldStance = Stance;
-	Stance = NewStance;
+	FGameplayTag OldTag = StanceTag;
+	StanceTag = NewStanceTag;
 
-	// StanceAnimClassMap에서 새 Stance에 해당하는 AnimClass 조회
-	TSubclassOf<UAnimInstance>* FoundClass = StanceAnimClassMap.Find(NewStance);
+	// StanceAnimClassMap에서 새 Stance Tag에 해당하는 AnimClass 조회
+	TSubclassOf<UAnimInstance>* FoundClass = StanceAnimClassMap.Find(NewStanceTag);
 	TSubclassOf<UAnimInstance> NewStanceClass = FoundClass ? *FoundClass : nullptr;
 
 	// 같은 클래스면 스킵
@@ -251,16 +259,16 @@ void UHktAnimInstance::SyncStance(int32 NewStance)
 	if (CurrentLinkedStanceClass)
 	{
 		UnlinkAnimClassLayers(CurrentLinkedStanceClass);
-		UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] UnlinkStanceLayer: %s (Stance %d)"),
-			*CurrentLinkedStanceClass->GetName(), OldStance);
+		UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] UnlinkStanceLayer: %s (Stance %s)"),
+			*CurrentLinkedStanceClass->GetName(), *OldTag.ToString());
 	}
 
 	// 새 레이어 연결
 	if (NewStanceClass)
 	{
 		LinkAnimClassLayers(NewStanceClass);
-		UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] LinkStanceLayer: %s (Stance %d)"),
-			*NewStanceClass->GetName(), NewStance);
+		UE_LOG(LogTemp, Log, TEXT("[HktAnimInst] LinkStanceLayer: %s (Stance %s)"),
+			*NewStanceClass->GetName(), *NewStanceTag.ToString());
 	}
 
 	CurrentLinkedStanceClass = NewStanceClass;
