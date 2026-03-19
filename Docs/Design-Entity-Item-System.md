@@ -36,7 +36,7 @@ Story(VM 프로그램)를 식별하는 태그. 접두사로 호출 출처를 구
 | 패턴 | 용도 | 예시 |
 |------|------|------|
 | `Anim.{Layer}.{Category}.{Name}` | 애니메이션 상태 태그 | `Anim.FullBody.Locomotion.Idle`, `Anim.UpperBody.Combat.Attack` |
-| `VFX.{Name}` | VFX 식별자 | `VFX.SpawnEffect`, `VFX.HitSpark` |
+| `VFX.Niagara.{Name}` | VFX 식별자 (Niagara) | `VFX.Niagara.SpawnEffect`, `VFX.Niagara.HitSpark` |
 | `Sound.{Name}` | 사운드 식별자 | `Sound.Spawn`, `Sound.Hit` |
 | `Widget.{Name}` | UI 위젯 식별자 | `Widget.IngameHud` |
 

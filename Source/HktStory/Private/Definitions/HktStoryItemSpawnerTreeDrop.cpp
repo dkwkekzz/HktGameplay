@@ -4,10 +4,13 @@
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryItemSpawnerTreeDrop
 {
+	using namespace HktStoryTags;
+
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_Item_TreeDrop, "Story.Flow.Spawner.Item.TreeDrop", "Natural item spawner - tree drops.");
 
@@ -15,7 +18,6 @@ namespace HktStoryItemSpawnerTreeDrop
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_Wood, "Entity.Item.Wood", "Wood material item.");
 
 	// Tags
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Material, "Entity.Attr.Item.Material", "Material item category.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Wood, "Entity.Attr.Item.Wood", "Wood item tag.");
 
 	/**

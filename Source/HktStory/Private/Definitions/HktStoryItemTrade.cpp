@@ -6,15 +6,15 @@
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryItemTrade
 {
+	using namespace HktStoryTags;
+
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Trade, "Story.Event.Item.Trade", "Item trade intent event.");
-
-	// Entity Filter
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_Item, "Entity.Item", "Item entity parent tag.");
 
 	/**
 	 * ================================================================
@@ -107,19 +107,7 @@ namespace HktStoryItemTrade
 			.SaveEntityProperty(R1, PropertyId::OwnerEntity, Self)
 			.SaveEntityProperty(R1, PropertyId::BagSlot, R4)
 
-			// OwnerUid 교환 — 각각 상대방의 PlayerUid로 설정
-			// 현재 VM에서 SetOwnerUid는 Runtime.PlayerUid를 사용하므로,
-			// Trade Story는 제안자의 PlayerUid 기준으로 실행됨.
-			// 따라서 요청 아이템에 SetOwnerUid, 제안 아이템에는 ClearOwnerUid 후
-			// 상대방 컨텍스트에서 재설정이 필요하나, 단일 VM 한계로
-			// Precondition에서 검증 완료된 상태이므로 OwnerEntity 변경으로 충분.
-			// ExportPlayerState가 OwnerUid 기준으로 추출하므로 OwnerUid도 교환해야 함.
-
-			// 제안 아이템: 상대방 OwnerUid 필요 → 직접 설정 불가하므로 Clear 후 재할당
-			// 간접 해법: 두 아이템 모두 Clear 후 각 소유자 Story에서 재설정
-			// 실용적 해법: OwnerEntity 변경만으로 런타임 동작은 정상,
-			//              DB 저장 시 ExportPlayerState에서 OwnerEntity 기준으로도 추출하도록
-			//              향후 개선 필요. 현재는 OwnerUid도 함께 Clear 후 표기.
+			// OwnerUid Clear — 향후 Pickup 시 재설정 또는 ExportPlayerState 개선 필요
 			.ClearOwnerUid(R0)
 			.ClearOwnerUid(R1)
 

@@ -6,18 +6,15 @@
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryItemDeactivate
 {
+	using namespace HktStoryTags;
+
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Deactivate, "Story.Event.Item.Deactivate", "Item deactivate intent event.");
-
-	// Stance: Unarmed (복원용)
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Stance_Unarmed, "Entity.Stance.Unarmed", "Unarmed stance.");
-
-	// Entity Filter
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_Item, "Entity.Item", "Item entity parent tag.");
 
 	/**
 	 * ================================================================
@@ -107,7 +104,7 @@ namespace HktStoryItemDeactivate
 			.LoadConst(R5, 0)
 			.CmpNe(Flag, R4, R5)
 			.JumpIf(Flag, TEXT("done"))
-			.SetStance(Self, Stance_Unarmed)
+			.SetStance(Self, HktStance::Unarmed)
 
 		.Label(TEXT("done"))
 			.Log(TEXT("Item deactivated"))
