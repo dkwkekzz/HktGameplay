@@ -70,7 +70,7 @@ namespace HktStoryCharacterSpawn
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "...");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Spawn,             "Anim.Spawn",              "...");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Montage_Intro,     "Anim.Montage.Intro",      "...");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect,        "VFX.SpawnEffect",         "...");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect,        "VFX.Niagara.SpawnEffect", "...");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_Sword,      "Entity.Item.Sword",       "...");
 
     HKT_REGISTER_STORY_BODY()

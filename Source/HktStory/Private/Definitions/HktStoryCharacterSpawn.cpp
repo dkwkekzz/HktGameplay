@@ -5,27 +5,21 @@
 #include "HktCoreDefs.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryCharacterSpawn
 {
+	using namespace HktStoryTags;
+
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_CharacterSpawn, "Story.Flow.Character.Spawn", "Character spawn event flow.");
 
-	// Entity
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "Player character entity.");
-
-	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Spawn, "Anim.FullBody.Action.Spawn", "Spawn intro state tag.");
+	// State Tags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_Montage_Intro, "Anim.Montage.Intro", "Character intro montage state tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Locomotion_Idle, "Anim.FullBody.Locomotion.Idle", "Idle state tag.");
 
 	// VFX
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect, "VFX.SpawnEffect", "Character spawn VFX.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_ActivateGlow, "VFX.ActivateGlow", "Item activate glow VFX.");
-
-	// Sound
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Spawn, "Sound.Spawn", "Character spawn sound.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_ActivateGlow, "VFX.Niagara.ActivateGlow", "Item activate glow VFX.");
 
 	// Item (장비 아이템)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_Sword, "Entity.Item.Sword", "Sword weapon item entity.");
@@ -38,7 +32,7 @@ namespace HktStoryCharacterSpawn
 	 * 자연어로 읽으면:
 	 * "캐릭터를 생성하고 스폰 상태 태그를 추가한다.
 	 *  0.5초 후 장비를 생성하고 인트로 몽타주 태그를 추가한다.
-	 *  완료 후 Idle 상태 태그로 전환한다."
+	 *  완료 후 스폰/인트로 태그를 제거한다."
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
@@ -85,10 +79,9 @@ namespace HktStoryCharacterSpawn
 			.AddTag(Self, Tag_Anim_Montage_Intro)
 			.WaitAnimEnd(Self)
 
-			// 준비 완료 - 스폰/인트로 태그 제거, Idle 상태 태그로 전환
+			// 준비 완료 - 스폰/인트로 태그 제거
 			.RemoveTag(Self, Tag_Anim_FullBody_Action_Spawn)
 			.RemoveTag(Self, Tag_Anim_Montage_Intro)
-			.AddTag(Self, Tag_Anim_FullBody_Locomotion_Idle)
 
 			.Log(TEXT("CharacterSpawn: 준비 완료"))
 			.Halt()

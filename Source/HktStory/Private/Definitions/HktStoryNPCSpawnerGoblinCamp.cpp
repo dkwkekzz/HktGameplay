@@ -4,19 +4,15 @@
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryNPCSpawnerGoblinCamp
 {
+	using namespace HktStoryTags;
+
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_GoblinCamp, "Story.Flow.Spawner.GoblinCamp", "Periodic goblin camp spawner flow.");
-
-	// Entity
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Goblin, "Entity.NPC.Goblin", "Goblin NPC entity.");
-
-	// Tags
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_NPC, "Entity.NPC", "Generic NPC tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile, "Entity.Attr.NPC.Hostile", "Hostile NPC tag.");
 
 	/**
 	 * ================================================================

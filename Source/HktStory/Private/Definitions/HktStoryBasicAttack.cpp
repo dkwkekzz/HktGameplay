@@ -16,7 +16,7 @@ namespace HktStoryBasicAttack
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_Montage_Attack, "Anim.Montage.Attack", "Basic attack montage state tag.");
 
 	// VFX
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HitSpark, "VFX.HitSpark", "Melee hit spark VFX.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HitSpark, "VFX.Niagara.HitSpark", "Melee hit spark VFX.");
 
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Hit, "Sound.Hit", "Melee hit sound.");

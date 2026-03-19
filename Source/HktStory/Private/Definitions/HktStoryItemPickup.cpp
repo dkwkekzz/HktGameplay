@@ -6,15 +6,15 @@
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryItemPickup
 {
+	using namespace HktStoryTags;
+
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Pickup, "Story.Event.Item.Pickup", "Item pickup intent event.");
-
-	// Entity Filter
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_Item, "Entity.Item", "Item entity parent tag.");
 
 	/**
 	 * ================================================================
@@ -121,6 +121,7 @@ namespace HktStoryItemPickup
 		.Label(TEXT("found_slot"))
 			// R3 = 빈 BagSlot, 아이템을 가방으로 이동
 			.SaveEntityProperty(Target, PropertyId::OwnerEntity, Self)
+			.SetOwnerUid(Target)                                            // 계정 소유 설정 (Gap 6)
 			.SaveConstEntity(Target, PropertyId::ItemState, 1)              // InBag
 			.SaveEntityProperty(Target, PropertyId::BagSlot, R3)
 

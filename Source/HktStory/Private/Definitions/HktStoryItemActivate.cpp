@@ -6,15 +6,15 @@
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryItemActivate
 {
+	using namespace HktStoryTags;
+
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Activate, "Story.Event.Item.Activate", "Item activate intent event.");
-
-	// Entity Filter
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_Item, "Entity.Item", "Item entity parent tag.");
 
 	/**
 	 * ================================================================
@@ -84,6 +84,17 @@ namespace HktStoryItemActivate
 			// 충돌 발견 — 기존 아이템을 InBag으로 전환
 			.SaveConstEntity(Iter, PropertyId::ItemState, 1)                // InBag
 			.SaveConstEntity(Iter, PropertyId::ActionSlot, -1)              // 액션 해제
+
+			// 기존 아이템 스탯을 캐릭터에서 차감 (Gap 4)
+			.LoadEntityProperty(R7, Iter, PropertyId::AttackPower)
+			.LoadEntityProperty(R8, Self, PropertyId::AttackPower)
+			.Sub(R8, R8, R7)
+			.SaveEntityProperty(Self, PropertyId::AttackPower, R8)
+			.LoadEntityProperty(R7, Iter, PropertyId::Defense)
+			.LoadEntityProperty(R8, Self, PropertyId::Defense)
+			.Sub(R8, R8, R7)
+			.SaveEntityProperty(Self, PropertyId::Defense, R8)
+
 			.Log(TEXT("Evicted existing item from ActionSlot"))
 			.Jump(TEXT("evict_loop"))                                       // 계속 순회 (비정상 중복 대비)
 
@@ -91,6 +102,16 @@ namespace HktStoryItemActivate
 			// Active 상태로 전환 + ActionSlot 설정
 			.SaveConstEntity(Target, PropertyId::ItemState, 2)              // Active
 			.SaveEntityProperty(Target, PropertyId::ActionSlot, R2)
+
+			// 아이템 스탯을 캐릭터에 합산 (Gap 4)
+			.LoadEntityProperty(R3, Target, PropertyId::AttackPower)
+			.LoadEntityProperty(R4, Self, PropertyId::AttackPower)
+			.Add(R4, R4, R3)
+			.SaveEntityProperty(Self, PropertyId::AttackPower, R4)
+			.LoadEntityProperty(R3, Target, PropertyId::Defense)
+			.LoadEntityProperty(R4, Self, PropertyId::Defense)
+			.Add(R4, R4, R3)
+			.SaveEntityProperty(Self, PropertyId::Defense, R4)
 
 			// 아이템의 Stance를 캐릭터에 적용
 			.LoadEntityProperty(R3, Target, PropertyId::Stance)

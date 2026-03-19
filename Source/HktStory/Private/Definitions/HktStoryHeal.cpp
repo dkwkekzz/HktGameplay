@@ -15,8 +15,8 @@ namespace HktStoryHeal
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_UpperBody_Cast_Heal, "Anim.UpperBody.Cast.Heal", "Heal cast state tag.");
 
 	// VFX
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HealCast, "VFX.HealCast", "Heal cast VFX.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HealBurst, "VFX.HealBurst", "Heal burst VFX.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HealCast, "VFX.Niagara.HealCast", "Heal cast VFX.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HealBurst, "VFX.Niagara.HealBurst", "Heal burst VFX.");
 
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Heal, "Sound.Heal", "Heal sound.");

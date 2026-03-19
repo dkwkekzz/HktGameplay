@@ -575,6 +575,18 @@ FHktStoryBuilder& FHktStoryBuilder::FindByOwner(RegisterIndex OwnerEntity, const
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::SetOwnerUid(RegisterIndex Entity)
+{
+    Emit(FInstruction::Make(EOpCode::SetOwnerUid, 0, Entity));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::ClearOwnerUid(RegisterIndex Entity)
+{
+    Emit(FInstruction::Make(EOpCode::ClearOwnerUid, 0, Entity));
+    return *this;
+}
+
 // ============================================================================
 // Stance
 // ============================================================================

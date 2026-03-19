@@ -4,19 +4,21 @@
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryNPCLifecycle
 {
+	using namespace HktStoryTags;
+
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle, "Story.Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
 
-	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
+	// State Tags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death state tag.");
 
 	// Loot
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_NPCLoot, "Entity.Item.NPCLoot", "Generic NPC loot drop.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Material, "Entity.Attr.Item.Material", "Material item tag.");
 
 	/**
 	 * ================================================================

@@ -4,20 +4,15 @@
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryNPCSpawnerWave
 {
+	using namespace HktStoryTags;
+
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_Wave_Arena, "Story.Flow.Spawner.Wave.Arena", "Wave-based arena spawner flow.");
-
-	// Entity
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Goblin, "Entity.NPC.Goblin", "Goblin NPC entity.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Skeleton, "Entity.NPC.Skeleton", "Skeleton NPC entity.");
-
-	// Tags
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_NPC, "Entity.NPC", "Generic NPC tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile, "Entity.Attr.NPC.Hostile", "Hostile NPC tag.");
 
 	/**
 	 * ================================================================

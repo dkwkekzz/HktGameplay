@@ -22,8 +22,8 @@ namespace HktStoryFireball
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Explosion, "Sound.Explosion", "Explosion sound.");
 
 	// VFX
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_DirectHit, "VFX.DirectHit", "Direct hit impact VFX.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_FireballExplosion, "VFX.FireballExplosion", "Fireball explosion VFX.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_DirectHit, "VFX.Niagara.DirectHit", "Direct hit impact VFX.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_FireballExplosion, "VFX.Niagara.FireballExplosion", "Fireball explosion VFX.");
 
 	// Effect
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Burn, "Effect.Burn", "Burn effect: fire damage over time.");

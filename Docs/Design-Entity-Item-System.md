@@ -36,7 +36,7 @@ Story(VM 프로그램)를 식별하는 태그. 접두사로 호출 출처를 구
 | 패턴 | 용도 | 예시 |
 |------|------|------|
 | `Anim.{Layer}.{Category}.{Name}` | 애니메이션 상태 태그 | `Anim.FullBody.Locomotion.Idle`, `Anim.UpperBody.Combat.Attack` |
-| `VFX.{Name}` | VFX 식별자 | `VFX.SpawnEffect`, `VFX.HitSpark` |
+| `VFX.Niagara.{Name}` | VFX 식별자 (Niagara) | `VFX.Niagara.SpawnEffect`, `VFX.Niagara.HitSpark` |
 | `Sound.{Name}` | 사운드 식별자 | `Sound.Spawn`, `Sound.Hit` |
 | `Widget.{Name}` | UI 위젯 식별자 | `Widget.IngameHud` |
 
@@ -397,30 +397,29 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 - **영향**: 두 개의 아이템이 같은 ActionSlot을 점유할 수 있다.
 - **제안**: 기존 ActionSlot 점유 아이템의 자동 해제 로직 추가.
 
-### Gap 4: 장비 스탯 캐릭터 반영 미구현 — 우선순위: 중간
+### Gap 4: 장비 스탯 캐릭터 반영 미구현 — 우선순위: 중간 ✅ 구현 완료
 - **현상**: 아이템의 AttackPower/Defense가 캐릭터의 전투 스탯에 합산되는 로직 없음.
 - **영향**: 아이템 활성화가 실질적인 전투력 변화를 일으키지 않음.
-- **제안**: Activate/Deactivate Story에서 캐릭터 스탯에 아이템 스탯을 가감산.
+- **구현**: Activate Story에서 아이템 스탯을 캐릭터에 합산, Deactivate/Drop/Evict 시 차감. `HktStoryItemActivate.cpp`, `HktStoryItemDeactivate.cpp`, `HktStoryItemDrop.cpp` 수정.
 
 ### Gap 5: 무기 메쉬 소켓 부착 시스템 부재 — 우선순위: 높음
 - **현상**: Presentation 레이어에 무기 소켓 부착 시스템이 없다. 아이템은 독립 Actor로 렌더링되며 캐릭터에 붙지 않는다.
 - **영향**: ActionSlot이 변경되어도 시각적으로 무기가 캐릭터에 표시되지 않음.
 - **제안**: 캐릭터 SkeletalMesh에 무기 소켓 정의, Activate 시 해당 아이템의 Mesh를 소켓에 Attach, HktActorRenderer에서 ActionSlot 변경 감지.
 
-### Gap 6: Drop 시 OwnerUid 미해제 — 우선순위: 높음
+### Gap 6: Drop 시 OwnerUid 미해제 — 우선순위: 높음 ✅ 구현 완료
 - **현상**: `Story.Event.Item.Drop`에서 `OwnerEntity=0`으로 초기화하지만 `OwnerUid`는 해제하지 않는다.
 - **영향**: 드롭된 아이템이 DB 상으로 여전히 원래 플레이어 소유. 로그아웃 시 드롭된 아이템도 함께 저장/추출될 수 있다. 다른 플레이어가 Pickup하면 OwnerUid 불일치 발생.
-- **원인**: VM에 `SetOwnerUid`/`ClearOwnerUid` Op이 없다. `SpawnEntity`에서만 자동 설정됨.
-- **제안**: VM에 `ClearOwnerUid` Op 추가 또는 `OwnerEntity=0` 시 자동으로 `OwnerUid=0` 전파하는 로직. Pickup에서도 새 소유자의 OwnerUid를 설정하는 로직 필요.
+- **구현**: VM에 `SetOwnerUid`/`ClearOwnerUid` Op 추가. Drop Story에서 `ClearOwnerUid`, Pickup Story에서 `SetOwnerUid` 호출. `HktStoryTypes.h`, `HktVMInterpreter.h/.cpp`, `HktVMInterpreterActions.cpp`, `HktStoryBuilder.h/.cpp`, `HktStoryItemDrop.cpp`, `HktStoryItemPickup.cpp` 수정.
 
-### Gap 7: 아이템 거래/이전 시스템 부재 — 우선순위: 낮음
+### Gap 7: 아이템 거래/이전 시스템 부재 — 우선순위: 낮음 ✅ 구현 완료
 - **현상**: 플레이어 간 직접 아이템 이전 수단 없음.
 - **영향**: Drop→Pickup으로만 거래 가능 (분실 위험, 보안 취약).
-- **제안**: `Story.Event.Item.Trade` Story 설계. 양측 동의 확인 메커니즘 (2-phase commit).
+- **구현**: `Story.Event.Item.Trade` Story 추가. Precondition에서 양측 소유권/상태 검증, 원자적으로 OwnerEntity/BagSlot 교환. Active 아이템 거래 불가. `HktStoryItemTrade.cpp` 신규.
 
-### Gap 8: 신규 vs 복귀 플레이어 분기 — 우선순위: 미정
+### Gap 8: 신규 vs 복귀 플레이어 분기 — 우선순위: 미정 ✅ 구현 완료
 - **현상**: 복귀 플레이어 재접속 시 DB에서 EntityStates가 Import된 후 `Story.State.Player.InWorld` Story가 다시 기동되면, 초기 아이템(목검)이 중복 지급될 수 있다.
-- **현재 상태**: 의도된 동작인지 미정. 추후 결정 필요.
+- **구현**: `CountByOwner`로 소유 아이템 존재 여부 확인, 있으면 초기 지급 건너뜀. `HktStoryPlayerInWorld.cpp` 수정.
 
 ---
 

@@ -382,6 +382,28 @@ void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex Own
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
 }
 
+void FHktVMInterpreter::Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity)
+{
+    if (WorldState && VMProxy && Runtime.PlayerUid != 0)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        HKT_EVENT_LOG_ENTITY("Core.VM",
+            FString::Printf(TEXT("Op_SetOwnerUid Id=%d Uid=%lld"), E, Runtime.PlayerUid), E);
+        VMProxy->SetOwnerUid(*WorldState, E, Runtime.PlayerUid);
+    }
+}
+
+void FHktVMInterpreter::Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity)
+{
+    if (WorldState && VMProxy)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        HKT_EVENT_LOG_ENTITY("Core.VM",
+            FString::Printf(TEXT("Op_ClearOwnerUid Id=%d"), E), E);
+        VMProxy->SetOwnerUid(*WorldState, E, 0);
+    }
+}
+
 // ============================================================================
 // Utility
 // ============================================================================

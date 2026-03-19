@@ -46,9 +46,27 @@ namespace HktStoryItemDrop
 			.CmpNe(Flag, R0, Self)
 			.JumpIf(Flag, TEXT("fail"))
 
+			// Active 상태였으면 캐릭터에서 스탯 차감 (Gap 4)
+			.LoadEntityProperty(R0, Target, PropertyId::ItemState)
+			.LoadConst(R1, 2)                                                 // Active = 2
+			.CmpNe(Flag, R0, R1)
+			.JumpIf(Flag, TEXT("drop_exec"))
+
+			// Active 아이템 스탯 차감
+			.LoadEntityProperty(R0, Target, PropertyId::AttackPower)
+			.LoadEntityProperty(R1, Self, PropertyId::AttackPower)
+			.Sub(R1, R1, R0)
+			.SaveEntityProperty(Self, PropertyId::AttackPower, R1)
+			.LoadEntityProperty(R0, Target, PropertyId::Defense)
+			.LoadEntityProperty(R1, Self, PropertyId::Defense)
+			.Sub(R1, R1, R0)
+			.SaveEntityProperty(Self, PropertyId::Defense, R1)
+
+		.Label(TEXT("drop_exec"))
 			// Ground로 전환
 			.SaveConstEntity(Target, PropertyId::ItemState, 0)                // Ground
 			.SaveConstEntity(Target, PropertyId::OwnerEntity, 0)              // 소유자 해제
+			.ClearOwnerUid(Target)                                            // 계정 소유 해제 (Gap 6)
 			.SaveConstEntity(Target, PropertyId::BagSlot, 0)                  // 슬롯 초기화
 			.SaveConstEntity(Target, PropertyId::ActionSlot, -1)              // 액션 해제
 

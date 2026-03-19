@@ -2,27 +2,18 @@
 
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
+#include "HktWorldState.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryPlayerInWorld
 {
+	using namespace HktStoryTags;
+
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_PlayerInWorld, "Story.State.Player.InWorld", "Player in world state flow.");
-
-	// Entity
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "Player character entity.");
-
-	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Spawn, "Anim.FullBody.Action.Spawn", "Spawn intro state tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Locomotion_Idle, "Anim.FullBody.Locomotion.Idle", "Idle state tag.");
-
-	// VFX
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect, "VFX.SpawnEffect", "Character spawn VFX.");
-
-	// Sound
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Spawn, "Sound.Spawn", "Character spawn sound.");
 
 	// Item
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_WoodenSword, "Entity.Item.WoodenSword", "Wooden sword starter item.");
@@ -63,10 +54,18 @@ namespace HktStoryPlayerInWorld
 			.SetStance(Self, HktStance::Spear)
 			.SaveConstEntity(Self, PropertyId::BagCapacity, 8)          // 가방 용량 8
 
-			// === 초기 아이템: 목검 ===
+			// === 복귀 플레이어 검사 (Gap 8) ===
+			// DB에서 복원된 엔티티가 이미 존재하면 초기 아이템 지급 건너뜀
+			.CountByOwner(R0, Self, Tag_Entity_Item)
+			.LoadConst(R1, 0)
+			.CmpNe(Flag, R0, R1)
+			.JumpIf(Flag, TEXT("skip_grant"))
+
+			// === 초기 아이템: 목검 (신규 플레이어만) ===
 			.Log(TEXT("PlayerInWorld: 목검 지급"))
 			.SpawnEntity(Entity_Item_WoodenSword)
 			.SaveEntityProperty(Spawned, PropertyId::OwnerEntity, Self)  // 소유자 = 플레이어
+			.SetOwnerUid(Spawned)                                              // 계정 소유 설정
 			.SaveConstEntity(Spawned, PropertyId::ItemState, 1)                // InBag
 			.SaveConstEntity(Spawned, PropertyId::ItemId, 100)                 // 목검 ID
 			.SaveConstEntity(Spawned, PropertyId::BagSlot, 0)                  // 가방 슬롯 0
@@ -75,6 +74,7 @@ namespace HktStoryPlayerInWorld
 			.SetStance(Spawned, HktStance::Sword1H)                            // Stance
 			.AddTag(Spawned, Tag_Weapon_Sword)
 
+		.Label(TEXT("skip_grant"))
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))
 
 			.BuildAndRegister();
