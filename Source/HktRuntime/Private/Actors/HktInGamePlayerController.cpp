@@ -351,6 +351,19 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
 
 bool AHktIngamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)
 {
+    // Gap 0: 기본 위생 검증 — 유효하지 않은 이벤트 조기 차단
+    if (!Event.Value.EventTag.IsValid())
+    {
+        UE_LOG(LogHktIngamePlayerController, Warning, TEXT("RPC Validate: Invalid EventTag"));
+        return false;
+    }
+
+    if (Event.Value.SourceEntity == InvalidEntityId)
+    {
+        UE_LOG(LogHktIngamePlayerController, Warning, TEXT("RPC Validate: Invalid SourceEntity"));
+        return false;
+    }
+
     return true;
 }
 

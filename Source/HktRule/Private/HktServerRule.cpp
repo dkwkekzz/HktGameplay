@@ -4,10 +4,16 @@
 #include "HktCoreSimulator.h"
 #include "GameplayTagsManager.h"
 #include "NativeGameplayTags.h"
+#include "HktCoreEventLog.h"
 
 namespace HktServerRuleSpawnerTags
 {
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_Spawner_GoblinCamp, "Story.Flow.Spawner.GoblinCamp", "Periodic goblin camp spawner flow.");
+}
+
+namespace HktServerRuleValidationTags
+{
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Story_Event, "Story.Event", "Client Intent event parent tag.");
 }
 
 namespace
@@ -61,14 +67,43 @@ void FHktDefaultServerRule::OnReceived_FireIntentEvent(
 {
 	if (!CachedGraph) return;
 
-	const int32 GroupIndex = CachedGraph->GetRelevancyGroupIndex(InPlayer.GetPlayerUid());
-	if (PendingGroupIntents.IsValidIndex(GroupIndex))
+	const int64 PlayerUid = InPlayer.GetPlayerUid();
+	const int32 GroupIndex = CachedGraph->GetRelevancyGroupIndex(PlayerUid);
+	if (!PendingGroupIntents.IsValidIndex(GroupIndex))
 	{
-		FHktEvent Copy = InEvent;
-		Copy.EventId = ++ServerEventSequence;
-		Copy.PlayerUid = InPlayer.GetPlayerUid();
-		PendingGroupIntents[GroupIndex].Add(Copy);
+		return;
 	}
+
+	// Gap 0: Client Intent 검증 — Story.Event.* 태그는 SourceEntity 소유권 확인 필수
+	if (InEvent.EventTag.MatchesTag(HktServerRuleValidationTags::Tag_Story_Event))
+	{
+		const IHktRelevancyGroup& Group = CachedGraph->GetRelevancyGroup(GroupIndex);
+		const FHktWorldState& WorldState = Group.GetSimulator().GetWorldState();
+
+		// SourceEntity가 월드에 존재하는지 확인
+		if (!WorldState.IsValidEntity(InEvent.SourceEntity))
+		{
+			HKT_EVENT_LOG("Rule.Validation",
+				FString::Printf(TEXT("Rejected: SourceEntity=%d not valid. PlayerUid=%lld Tag=%s"),
+					InEvent.SourceEntity, PlayerUid, *InEvent.EventTag.ToString()));
+			return;
+		}
+
+		// SourceEntity가 해당 플레이어 소유인지 확인
+		const int64 EntityOwnerUid = WorldState.GetOwnerUid(InEvent.SourceEntity);
+		if (EntityOwnerUid != PlayerUid)
+		{
+			HKT_EVENT_LOG("Rule.Validation",
+				FString::Printf(TEXT("Rejected: SourceEntity=%d OwnerUid=%lld != PlayerUid=%lld Tag=%s"),
+					InEvent.SourceEntity, EntityOwnerUid, PlayerUid, *InEvent.EventTag.ToString()));
+			return;
+		}
+	}
+
+	FHktEvent Copy = InEvent;
+	Copy.EventId = ++ServerEventSequence;
+	Copy.PlayerUid = PlayerUid;
+	PendingGroupIntents[GroupIndex].Add(Copy);
 }
 
 // ============================================================================
