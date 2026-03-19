@@ -41,7 +41,7 @@ public:
     void Server_ReceiveIntent(const FHktRuntimeEvent& Event);
 
     // === 델리게이트 ===
-    FOnHktTargetChanged& OnTargetChanged() { return TargetChangedDelegate; }
+    virtual FOnHktTargetChanged& OnTargetChanged() override { return TargetChangedDelegate; }
     FOnHktCommandChanged& OnCommandChanged() { return CommandChangedDelegate; }
 
     // === IHktPlayerInteractionInterface ===
