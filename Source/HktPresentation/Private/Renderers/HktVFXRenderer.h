@@ -16,10 +16,9 @@ enum class EHktVFXElement : uint8;
 
 /**
  * 이벤트 기반 VFX 재생기.
- * PresentationState Sync가 아닌, Intent 제출 등 즉시 이벤트에 의해 구동된다.
  *
- * 두 가지 에셋 로딩 경로:
- * - Tag 기반 (PlayVFXAtLocation): UHktAssetSubsystem → UHktVFXVisualDataAsset
+ * 에셋 로딩 경로:
+ * - Tag 기반 (PlayVFXAtLocation): Convention Path → UNiagaraSystem 직접 로드
  * - Intent 기반 (PlayVFXWithIntent): UHktVFXAssetBank → 퍼지 매칭
  */
 class FHktVFXRenderer
@@ -51,6 +50,9 @@ public:
 	void Teardown();
 
 private:
+	/** Convention Path로 NiagaraSystem을 직접 로드 (DataAsset 불필요) */
+	UNiagaraSystem* ResolveNiagaraSystem(FGameplayTag VFXTag);
+
 	void ApplyRuntimeOverrides(UNiagaraComponent* Comp, const FHktVFXIntent& Intent);
 	static FLinearColor GetElementTintColor(EHktVFXElement Element);
 
@@ -69,6 +71,9 @@ private:
 	ULocalPlayer* LocalPlayer = nullptr;
 	UHktVFXAssetBank* AssetBank = nullptr;
 	UNiagaraSystem* FallbackSystem = nullptr;
+
+	/** 태그별 NiagaraSystem 캐시 (Convention Path 로드 결과) */
+	TMap<FGameplayTag, TWeakObjectPtr<UNiagaraSystem>> NiagaraSystemCache;
 
 	/** 활성 엔터티 부착 VFX 컴포넌트 맵 */
 	TMap<FEntityVFXKey, TWeakObjectPtr<UNiagaraComponent>> EntityVFXMap;

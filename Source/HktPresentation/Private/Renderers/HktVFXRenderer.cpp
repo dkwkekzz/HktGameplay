@@ -5,7 +5,6 @@
 #include "HktVFXIntent.h"
 #include "HktAssetSubsystem.h"
 #include "HktPresentationState.h"
-#include "DataAssets/HktVFXVisualDataAsset.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
@@ -29,6 +28,49 @@ void FHktVFXRenderer::SetFallbackSystem(UNiagaraSystem* InSystem)
 	FallbackSystem = InSystem;
 }
 
+// ============================================================================
+// Convention Path → NiagaraSystem 직접 로드 (DataAsset 불필요)
+// ============================================================================
+
+UNiagaraSystem* FHktVFXRenderer::ResolveNiagaraSystem(FGameplayTag VFXTag)
+{
+	// 캐시 확인
+	if (TWeakObjectPtr<UNiagaraSystem>* Cached = NiagaraSystemCache.Find(VFXTag))
+	{
+		if (Cached->IsValid())
+		{
+			return Cached->Get();
+		}
+		NiagaraSystemCache.Remove(VFXTag);
+	}
+
+	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
+	if (!World) return nullptr;
+
+	UHktAssetSubsystem* AssetSubsystem = UHktAssetSubsystem::Get(World);
+	if (!AssetSubsystem) return nullptr;
+
+	// Convention Path로 UObject 직접 로드 → UNiagaraSystem 캐스트
+	UObject* Loaded = AssetSubsystem->LoadByConventionSync(VFXTag);
+	UNiagaraSystem* System = Cast<UNiagaraSystem>(Loaded);
+
+	if (System)
+	{
+		NiagaraSystemCache.Add(VFXTag, System);
+		UE_LOG(LogHktVFXRenderer, Verbose, TEXT("ResolveNiagaraSystem: [%s] → %s"), *VFXTag.ToString(), *System->GetPathName());
+	}
+	else
+	{
+		UE_LOG(LogHktVFXRenderer, Warning, TEXT("ResolveNiagaraSystem: Failed for tag [%s]"), *VFXTag.ToString());
+	}
+
+	return System;
+}
+
+// ============================================================================
+// Tag 기반 VFX 재생 (Convention Path → NiagaraSystem 직접)
+// ============================================================================
+
 void FHktVFXRenderer::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)
 {
 	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
@@ -38,42 +80,29 @@ void FHktVFXRenderer::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)
 		return;
 	}
 
-	UHktAssetSubsystem* AssetSubsystem = UHktAssetSubsystem::Get(World);
-	if (!AssetSubsystem)
+	UNiagaraSystem* System = ResolveNiagaraSystem(VFXTag);
+	if (!System)
 	{
-		UE_LOG(LogHktVFXRenderer, Warning, TEXT("PlayVFXAtLocation: No AssetSubsystem"));
+		UE_LOG(LogHktVFXRenderer, Warning, TEXT("PlayVFXAtLocation: No NiagaraSystem for tag [%s]"), *VFXTag.ToString());
 		return;
 	}
 
-	AssetSubsystem->LoadAssetAsync(VFXTag, [this, VFXTag, Location, World](UHktTagDataAsset* LoadedAsset)
-	{
-		UHktVFXVisualDataAsset* VFXAsset = Cast<UHktVFXVisualDataAsset>(LoadedAsset);
-		if (!VFXAsset)
-		{
-			UE_LOG(LogHktVFXRenderer, Warning, TEXT("PlayVFXAtLocation: No UHktVFXVisualDataAsset for tag [%s]"), *VFXTag.ToString());
-			return;
-		}
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		World,
+		System,
+		Location,
+		FRotator::ZeroRotator,
+		FVector::OneVector,
+		true,   // bAutoDestroy
+		true,   // bAutoActivate
+		ENCPoolMethod::AutoRelease);
 
-		UNiagaraSystem* System = VFXAsset->NiagaraSystem.LoadSynchronous();
-		if (!System)
-		{
-			UE_LOG(LogHktVFXRenderer, Warning, TEXT("PlayVFXAtLocation: NiagaraSystem not set for tag [%s]"), *VFXTag.ToString());
-			return;
-		}
-
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			World,
-			System,
-			Location,
-			FRotator::ZeroRotator,
-			FVector::OneVector,
-			true,   // bAutoDestroy
-			true,   // bAutoActivate
-			ENCPoolMethod::AutoRelease);
-
-		UE_LOG(LogHktVFXRenderer, Verbose, TEXT("PlayVFXAtLocation: [%s] at %s"), *VFXTag.ToString(), *Location.ToString());
-	});
+	UE_LOG(LogHktVFXRenderer, Verbose, TEXT("PlayVFXAtLocation: [%s] at %s"), *VFXTag.ToString(), *Location.ToString());
 }
+
+// ============================================================================
+// Intent 기반 VFX 재생 (AssetBank 퍼지 매칭)
+// ============================================================================
 
 void FHktVFXRenderer::PlayVFXWithIntent(const FHktVFXIntent& Intent)
 {
@@ -158,13 +187,14 @@ FLinearColor FHktVFXRenderer::GetElementTintColor(EHktVFXElement Element)
 	}
 }
 
+// ============================================================================
+// 엔터티 부착 지속형 VFX
+// ============================================================================
+
 void FHktVFXRenderer::AttachVFXToEntity(FGameplayTag VFXTag, FHktEntityId EntityId, FVector Location)
 {
 	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
-	if (!World)
-	{
-		return;
-	}
+	if (!World) return;
 
 	FEntityVFXKey Key{ VFXTag, EntityId };
 
@@ -178,46 +208,28 @@ void FHktVFXRenderer::AttachVFXToEntity(FGameplayTag VFXTag, FHktEntityId Entity
 		EntityVFXMap.Remove(Key);
 	}
 
-	UHktAssetSubsystem* AssetSubsystem = UHktAssetSubsystem::Get(World);
-	if (!AssetSubsystem)
+	UNiagaraSystem* System = ResolveNiagaraSystem(VFXTag);
+	if (!System)
 	{
-		UE_LOG(LogHktVFXRenderer, Warning, TEXT("AttachVFXToEntity: No AssetSubsystem"));
+		UE_LOG(LogHktVFXRenderer, Warning, TEXT("AttachVFXToEntity: No NiagaraSystem for tag [%s]"), *VFXTag.ToString());
 		return;
 	}
 
-	AssetSubsystem->LoadAssetAsync(VFXTag, [this, VFXTag, EntityId, Location, World](UHktTagDataAsset* LoadedAsset)
+	UNiagaraComponent* Comp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		World,
+		System,
+		Location,
+		FRotator::ZeroRotator,
+		FVector::OneVector,
+		false,  // bAutoDestroy — 지속형이므로 수동 관리
+		true,   // bAutoActivate
+		ENCPoolMethod::None);
+
+	if (Comp)
 	{
-		UHktVFXVisualDataAsset* VFXAsset = Cast<UHktVFXVisualDataAsset>(LoadedAsset);
-		if (!VFXAsset)
-		{
-			UE_LOG(LogHktVFXRenderer, Warning, TEXT("AttachVFXToEntity: No UHktVFXVisualDataAsset for tag [%s]"), *VFXTag.ToString());
-			return;
-		}
-
-		UNiagaraSystem* System = VFXAsset->NiagaraSystem.LoadSynchronous();
-		if (!System)
-		{
-			UE_LOG(LogHktVFXRenderer, Warning, TEXT("AttachVFXToEntity: NiagaraSystem not set for tag [%s]"), *VFXTag.ToString());
-			return;
-		}
-
-		UNiagaraComponent* Comp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			World,
-			System,
-			Location,
-			FRotator::ZeroRotator,
-			FVector::OneVector,
-			false,  // bAutoDestroy — 지속형이므로 수동 관리
-			true,   // bAutoActivate
-			ENCPoolMethod::None);
-
-		if (Comp)
-		{
-			FEntityVFXKey Key{ VFXTag, EntityId };
-			EntityVFXMap.Add(Key, Comp);
-			UE_LOG(LogHktVFXRenderer, Verbose, TEXT("AttachVFXToEntity: [%s] on Entity=%d at %s"), *VFXTag.ToString(), EntityId, *Location.ToString());
-		}
-	});
+		EntityVFXMap.Add(Key, Comp);
+		UE_LOG(LogHktVFXRenderer, Verbose, TEXT("AttachVFXToEntity: [%s] on Entity=%d at %s"), *VFXTag.ToString(), EntityId, *Location.ToString());
+	}
 }
 
 void FHktVFXRenderer::DetachVFXFromEntity(FGameplayTag VFXTag, FHktEntityId EntityId)
@@ -268,6 +280,7 @@ void FHktVFXRenderer::Teardown()
 		}
 	}
 	EntityVFXMap.Empty();
+	NiagaraSystemCache.Empty();
 
 	AssetBank = nullptr;
 	FallbackSystem = nullptr;

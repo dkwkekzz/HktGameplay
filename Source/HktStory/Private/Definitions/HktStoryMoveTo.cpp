@@ -16,7 +16,7 @@ namespace HktStoryMoveTo
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Locomotion_Idle, "Anim.FullBody.Locomotion.Idle", "Idle state tag.");
 
 	// VFX (클라이언트 즉시 재생 — PresentationSubsystem::OnIntentSubmitted에서 처리)
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_MoveIndicator, "VFX.MoveIndicator", "Move destination indicator VFX.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_MoveIndicator, "VFX.Niagara.MoveIndicator", "Move destination indicator VFX.");
 
 	/**
 	 * ================================================================

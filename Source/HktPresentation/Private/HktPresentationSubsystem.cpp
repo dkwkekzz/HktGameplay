@@ -11,9 +11,9 @@
 #include "HktCoreEventLog.h"
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Action_Move_ToLocation, "Action.Move.ToLocation");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.MoveIndicator");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.SelectionSubject");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.SelectionTarget");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.Niagara.SelectionTarget");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_Prefix, "VFX");
 
 UHktPresentationSubsystem* UHktPresentationSubsystem::Get(APlayerController* PC)
