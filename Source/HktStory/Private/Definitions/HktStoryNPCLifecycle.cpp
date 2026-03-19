@@ -9,14 +9,14 @@
 namespace HktStoryNPCLifecycle
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle, "Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle, "Story.Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
 
 	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death state tag.");
 
 	// Loot
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_NPCLoot, "Entity.Item.NPCLoot", "Generic NPC loot drop.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Material, "Tag.Item.Material", "Material item tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Material, "Entity.Attr.Item.Material", "Material item tag.");
 
 	/**
 	 * ================================================================

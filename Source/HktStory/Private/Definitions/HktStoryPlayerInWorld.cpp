@@ -9,7 +9,7 @@
 namespace HktStoryPlayerInWorld
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_PlayerInWorld, "State.Player.InWorld", "Player in world state flow.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_PlayerInWorld, "Story.State.Player.InWorld", "Player in world state flow.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "Player character entity.");
@@ -26,7 +26,7 @@ namespace HktStoryPlayerInWorld
 
 	// Item
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_WoodenSword, "Entity.Item.WoodenSword", "Wooden sword starter item.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Weapon_Sword, "Tag.Weapon.Sword", "Sword weapon tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Weapon_Sword, "Entity.Attr.Weapon.Sword", "Sword weapon tag.");
 
 	/**
 	 * ================================================================
@@ -59,8 +59,9 @@ namespace HktStoryPlayerInWorld
 			.PlayVFXAttached(Self, VFX_SpawnEffect)
 			.PlaySound(Sound_Spawn)
 
-			// 플레이어 Stance 설정
-			.SetStance(Self, HktStance::Spear)                          
+			// 플레이어 속성 설정
+			.SetStance(Self, HktStance::Spear)
+			.SaveConstEntity(Self, PropertyId::BagCapacity, 8)          // 가방 용량 8
 
 			// === 초기 아이템: 목검 ===
 			.Log(TEXT("PlayerInWorld: 목검 지급"))
@@ -71,6 +72,7 @@ namespace HktStoryPlayerInWorld
 			.SaveConstEntity(Spawned, PropertyId::BagSlot, 0)                  // 가방 슬롯 0
 			.SaveConstEntity(Spawned, PropertyId::ActionSlot, -1)              // 미등록
 			.SaveConstEntity(Spawned, PropertyId::AttackPower, 5)              // 공격력 5
+			.SetStance(Spawned, HktStance::Sword1H)                            // Stance
 			.AddTag(Spawned, Tag_Weapon_Sword)
 
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))

@@ -9,7 +9,7 @@
 namespace HktStoryMoveTo
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_MoveTo, "Action.Move.ToLocation", "Move to location action flow.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_MoveTo, "Story.Event.Move.ToLocation", "Move to location action flow.");
 
 	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Locomotion_Run, "Anim.FullBody.Locomotion.Run", "Run locomotion state tag.");

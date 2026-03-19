@@ -9,14 +9,14 @@
 namespace HktStoryNPCSpawnerGoblinCamp
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_GoblinCamp, "Flow.Spawner.GoblinCamp", "Periodic goblin camp spawner flow.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_GoblinCamp, "Story.Flow.Spawner.GoblinCamp", "Periodic goblin camp spawner flow.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Goblin, "Entity.NPC.Goblin", "Goblin NPC entity.");
 
 	// Tags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_NPC, "Entity.NPC", "Generic NPC tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile, "NPC.Hostile", "Hostile NPC tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile, "Entity.Attr.NPC.Hostile", "Hostile NPC tag.");
 
 	/**
 	 * ================================================================
@@ -27,7 +27,7 @@ namespace HktStoryNPCSpawnerGoblinCamp
 	 *  인구 상한(5마리)에 도달하면 대기한다.
 	 *  10초마다 한 마리씩 스폰한다."
 	 *
-	 * 서버가 EventTag "Flow.Spawner.GoblinCamp" 을 fire하면 실행.
+	 * 서버가 EventTag "Story.Flow.Spawner.GoblinCamp" 을 fire하면 실행.
 	 * Param0 = SpawnPosX, Param1 = SpawnPosY
 	 * ================================================================
 	 */

@@ -9,7 +9,7 @@
 namespace HktStoryNPCSpawnerWave
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_Wave_Arena, "Flow.Spawner.Wave.Arena", "Wave-based arena spawner flow.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_Wave_Arena, "Story.Flow.Spawner.Wave.Arena", "Wave-based arena spawner flow.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Goblin, "Entity.NPC.Goblin", "Goblin NPC entity.");
@@ -17,7 +17,7 @@ namespace HktStoryNPCSpawnerWave
 
 	// Tags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_NPC, "Entity.NPC", "Generic NPC tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile, "NPC.Hostile", "Hostile NPC tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile, "Entity.Attr.NPC.Hostile", "Hostile NPC tag.");
 
 	/**
 	 * ================================================================
@@ -27,7 +27,7 @@ namespace HktStoryNPCSpawnerWave
 	 * "Wave 1: 고블린 3마리 스폰 → 전멸 대기 →
 	 *  Wave 2: 스켈레톤 2마리 스폰 → 전멸 대기 → 완료."
 	 *
-	 * 서버가 EventTag "Flow.Spawner.Wave.Arena" 을 fire.
+	 * 서버가 EventTag "Story.Flow.Spawner.Wave.Arena" 을 fire.
 	 * Self = 아레나 중심 앵커 엔티티
 	 * ================================================================
 	 */

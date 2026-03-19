@@ -9,7 +9,7 @@
 namespace HktStoryItemPickup
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Pickup, "Event.Item.Pickup", "Item pickup intent event.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Pickup, "Story.Event.Item.Pickup", "Item pickup intent event.");
 
 	// Entity Filter
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_Item, "Entity.Item", "Item entity parent tag.");
@@ -45,7 +45,7 @@ namespace HktStoryItemPickup
 
 			// 가방 공간 확인
 			.CountByOwner(R0, Self, Tag_Entity_Item)
-			.LoadConst(R1, 20)                                          // 가방 용량
+			.LoadEntityProperty(R1, Self, PropertyId::BagCapacity)      // 엔티티별 가방 용량
 			.CmpGe(Flag, R0, R1)
 			.JumpIf(Flag, TEXT("fail"))
 

@@ -9,7 +9,7 @@
 namespace HktStoryItemDrop
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Drop, "Event.Item.Drop", "Item drop intent event.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Drop, "Story.Event.Item.Drop", "Item drop intent event.");
 
 	/**
 	 * ================================================================
