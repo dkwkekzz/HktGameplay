@@ -49,14 +49,21 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 	}
 
 	// --- 대기 중인 소켓 부착 재시도 (Owner Actor가 이번 프레임에 스폰되었을 수 있음) ---
-	for (auto It = PendingAttachments.CreateIterator(); It; ++It)
+	// TryAttachToOwner가 PendingAttachments를 수정하므로, 복사본으로 순회
 	{
-		FHktEntityId ItemId = *It;
-		const FHktEntityPresentation* E = State.Get(ItemId);
-		if (!E || !E->Item.IsAttached()) { It.RemoveCurrent(); continue; }
-		if (GetActor(ItemId) && GetActor(static_cast<FHktEntityId>(E->Item.OwnerEntity.Get())))
+		TSet<FHktEntityId> PendingCopy = PendingAttachments;
+		for (FHktEntityId ItemId : PendingCopy)
 		{
-			TryAttachToOwner(ItemId, State);
+			const FHktEntityPresentation* E = State.Get(ItemId);
+			if (!E || !E->Item.IsAttached())
+			{
+				PendingAttachments.Remove(ItemId);
+				continue;
+			}
+			if (GetActor(ItemId) && GetActor(static_cast<FHktEntityId>(E->Item.OwnerEntity.Get())))
+			{
+				TryAttachToOwner(ItemId, State);
+			}
 		}
 	}
 
@@ -72,10 +79,10 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		// 소켓 부착 상태 변경 감지
 		if (E->Item.OwnerEntity.IsDirty(Frame) || E->Item.ActionSlot.IsDirty(Frame))
 		{
+			// 기존 부착 해제 후 재부착 (ActionSlot 변경 시 소켓이 달라질 수 있으므로)
+			DetachFromOwner(Id);
 			if (E->Item.IsAttached())
 				TryAttachToOwner(Id, State);
-			else
-				DetachFromOwner(Id);
 		}
 	}
 
@@ -189,7 +196,21 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 {
+	// 이 엔티티 자체가 부착된 아이템이면 해제
 	DetachFromOwner(Id);
+
+	// 이 엔티티를 Owner로 가지는 부착 아이템들 해제 (캐릭터 제거 시)
+	for (auto It = AttachedItems.CreateIterator(); It; ++It)
+	{
+		// 아이템 Actor의 부모가 제거될 Actor이면 해제
+		AActor* ItemActor = GetActor(*It);
+		if (ItemActor && ItemActor->GetAttachParentActor() == GetActor(Id))
+		{
+			ItemActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+			It.RemoveCurrent();
+		}
+	}
+
 	if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
 	{
 		if (AActor* A = P->Get())
