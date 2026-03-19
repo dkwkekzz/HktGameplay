@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
+#include "HktWorldState.h"
+#include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
@@ -27,6 +29,22 @@ namespace HktStoryItemActivate
 		using namespace Reg;
 
 		Story(Event_Item_Activate)
+			.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
+			{
+				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
+					return false;
+
+				// InBag 상태 확인
+				if (WS.GetProperty(E.TargetEntity, PropertyId::ItemState) != 1)
+					return false;
+
+				// 소유자 확인
+				if (WS.GetProperty(E.TargetEntity, PropertyId::OwnerEntity) != E.SourceEntity)
+					return false;
+
+				return true;
+			})
+
 			// InBag 상태 확인
 			.LoadEntityProperty(R0, Target, PropertyId::ItemState)
 			.LoadConst(R1, 1)                                           // InBag = 1
@@ -51,7 +69,8 @@ namespace HktStoryItemActivate
 			.Halt()
 
 		.Label(TEXT("fail"))
-			.Halt()
+			.Log(TEXT("Item activate failed — precondition violation"))
+			.Fail()
 		.BuildAndRegister();
 	}
 }

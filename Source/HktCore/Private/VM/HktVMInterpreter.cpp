@@ -46,6 +46,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     // Control Flow
     case EOpCode::Nop: break;
     case EOpCode::Halt: return EVMStatus::Completed;
+    case EOpCode::Fail: return EVMStatus::Failed;
     case EOpCode::Yield: return Op_Yield(Runtime, Inst.Imm12);
     case EOpCode::YieldSeconds: return Op_YieldSeconds(Runtime, Inst.GetSignedImm20());
     case EOpCode::Jump: Op_Jump(Runtime, Inst.Imm20); break;

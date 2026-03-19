@@ -2,6 +2,8 @@
 
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
+#include "HktWorldState.h"
+#include "HktCoreEvents.h"
 #include "VM/HktVMProgram.h"
 #include "GameplayTagsManager.h"
 
@@ -77,6 +79,12 @@ FHktStoryBuilder& FHktStoryBuilder::CancelOnDuplicate()
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::SetPrecondition(FHktEventPrecondition InPrecondition)
+{
+    Program->Precondition = MoveTemp(InPrecondition);
+    return *this;
+}
+
 // ============================================================================
 // Control Flow
 // ============================================================================
@@ -124,6 +132,12 @@ FHktStoryBuilder& FHktStoryBuilder::WaitSeconds(float Seconds)
 FHktStoryBuilder& FHktStoryBuilder::Halt()
 {
     Emit(FInstruction::Make(EOpCode::Halt));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::Fail()
+{
+    Emit(FInstruction::Make(EOpCode::Fail));
     return *this;
 }
 
@@ -632,4 +646,13 @@ TSharedRef<FHktVMProgram> FHktStoryBuilder::Build()
 void FHktStoryBuilder::BuildAndRegister()
 {
     FHktVMProgramRegistry::Get().RegisterProgram(Build());
+}
+
+// ============================================================================
+// Public Query API
+// ============================================================================
+
+bool HktStory::ValidateEvent(const FHktWorldState& WorldState, const FHktEvent& Event)
+{
+    return FHktVMProgramRegistry::Get().ValidateEvent(WorldState, Event);
 }

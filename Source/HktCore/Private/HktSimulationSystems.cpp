@@ -292,6 +292,13 @@ void FHktVMProcessSystem::Process(
 
         if (Result == EVMStatus::Completed || Result == EVMStatus::Failed)
         {
+            if (Result == EVMStatus::Failed)
+            {
+                UE_LOG(LogTemp, Error, TEXT("VM FAILED: %s Src=%d PC=%d — client sent invalid intent"),
+                    Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("?"),
+                    Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId,
+                    Runtime->PC);
+            }
             HKT_EVENT_LOG_ENTITY("Core.VM",
                 FString::Printf(TEXT("VM %s: %s PC=%d"),
                     Result == EVMStatus::Completed ? TEXT("Completed") : TEXT("Failed"),

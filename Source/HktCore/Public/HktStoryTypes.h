@@ -52,6 +52,7 @@ namespace Reg
     /* Control Flow */      \
     X(Nop)              \
     X(Halt)             \
+    X(Fail)             \
     X(Yield)            \
     X(YieldSeconds)     \
     X(Jump)             \

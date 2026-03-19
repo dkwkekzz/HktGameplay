@@ -8,6 +8,17 @@
 #include "HktStoryTypes.h"
 
 struct FHktVMProgram;
+struct FHktWorldState;
+struct FHktEvent;
+
+/**
+ * FHktEventPrecondition — Story 사전조건 검증 함수
+ *
+ * 각 Story가 자신의 실행 조건을 C++ 함수로 등록한다.
+ * 클라이언트는 Proxy WorldState로 호출하여 요청 가능 여부를 사전 판단하고,
+ * 서버는 Story 바이트코드 내부 검증이 권위적 최종 검증으로 작동한다.
+ */
+using FHktEventPrecondition = TFunction<bool(const FHktWorldState& WorldState, const FHktEvent& Event)>;
 
 // ============================================================================
 // Fluent Builder API - 자연어 스타일
@@ -48,6 +59,9 @@ public:
     /** 같은 엔티티에 동일 이벤트가 중복 발생 시 기존 VM을 취소 (예: MoveTo) */
     FHktStoryBuilder& CancelOnDuplicate();
 
+    /** Story 사전조건 등록 — 클라이언트/서버 양측에서 호출 가능한 검증 함수 */
+    FHktStoryBuilder& SetPrecondition(FHktEventPrecondition InPrecondition);
+
     // ========== Control Flow ==========
 
     /** 라벨 정의 (점프 대상) */
@@ -68,6 +82,9 @@ public:
 
     /** 프로그램 종료 */
     FHktStoryBuilder& Halt();
+
+    /** 검증 실패로 프로그램 종료 — EVMStatus::Failed 반환, 에러 로그 출력 */
+    FHktStoryBuilder& Fail();
 
     // ========== Event Wait ==========
 
@@ -275,4 +292,21 @@ private:
 inline FHktStoryBuilder Story(FGameplayTag TagName)
 {
     return FHktStoryBuilder::Create(TagName);
+}
+
+// ============================================================================
+// Public Query API
+// ============================================================================
+
+namespace HktStory
+{
+    /**
+     * EventTag + WorldState로 Story 사전조건을 검증한다.
+     *
+     * 클라이언트: Proxy WorldState로 호출하여 UI 표시/요청 가능 여부 결정.
+     * 서버: Story 바이트코드 내부 검증이 권위적 최종 검증 (이 함수는 힌트).
+     *
+     * Precondition 미등록 Story는 항상 true 반환.
+     */
+    HKTCORE_API bool ValidateEvent(const FHktWorldState& WorldState, const FHktEvent& Event);
 }
