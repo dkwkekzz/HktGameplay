@@ -85,6 +85,7 @@ private:
 
 	/** PlayerUid 미확정 시 Subject를 보류하고, Uid 확정 후 재평가 */
 	FHktEntityId PendingSubjectEntityId = InvalidEntityId;
+	FHktEntityId CurrentSubjectEntityId = InvalidEntityId;
 
 	FDelegateHandle WheelInputHandle;
 	FDelegateHandle SubjectChangedHandle;

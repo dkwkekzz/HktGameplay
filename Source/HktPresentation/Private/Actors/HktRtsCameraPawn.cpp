@@ -90,6 +90,28 @@ void AHktRtsCameraPawn::Tick(float DeltaTime)
 		}
 	}
 
+	if (PendingSubjectEntityId != InvalidEntityId && CachedPlayerUid != 0)
+	{
+		CurrentSubjectEntityId = PendingSubjectEntityId;
+
+		// PlayerUid가 확정되면 보류 중인 Subject에 대해 소유권 검증 후 모드 재평가
+		if (IsOwnedEntity(PendingSubjectEntityId))
+		{
+			SetCameraMode(EHktCameraMode::SubjectFollow);
+		}
+		else
+		{
+			SetCameraMode(EHktCameraMode::RtsFree);
+		}
+
+		if (ActiveMode)
+		{
+			ActiveMode->OnSubjectChanged(this, PendingSubjectEntityId);
+		}
+
+		PendingSubjectEntityId = InvalidEntityId;
+	}
+
 	if (ActiveMode)
 	{
 		ActiveMode->TickMode(this, DeltaTime);
@@ -106,18 +128,9 @@ void AHktRtsCameraPawn::HandleZoom(float Value)
 
 void AHktRtsCameraPawn::OnSubjectChanged(FHktEntityId EntityId)
 {
-	if (EntityId != InvalidEntityId && IsOwnedEntity(EntityId))
+	if (CurrentSubjectEntityId != EntityId)
 	{
-		SetCameraMode(EHktCameraMode::SubjectFollow);
-	}
-	else
-	{
-		SetCameraMode(EHktCameraMode::RtsFree);
-	}
-
-	if (ActiveMode)
-	{
-		ActiveMode->OnSubjectChanged(this, EntityId);
+		PendingSubjectEntityId = EntityId;
 	}
 }
 
