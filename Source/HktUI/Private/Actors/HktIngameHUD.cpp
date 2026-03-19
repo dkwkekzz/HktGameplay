@@ -26,7 +26,7 @@ void AHktIngameHUD::BeginPlay()
 	if (!PC) return;
 
 	if (IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC))
-		Interaction->OnWorldViewUpdated().AddUObject(this, &AHktIngameHUD::OnWorldViewUpdated);
+		WorldViewDelegateHandle = Interaction->OnWorldViewUpdated().AddUObject(this, &AHktIngameHUD::OnWorldViewUpdated);
 
 	LoadAndCreateWidget(IngameWidgetTag, [PC](UHktUIElement* Element)
 	{
@@ -38,6 +38,30 @@ void AHktIngameHUD::BeginPlay()
 				IngameWidget->SetOwningPlayerController(PC);
 		}
 	});
+}
+
+void AHktIngameHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	UnbindWorldViewDelegate();
+
+	TrackedEntities.Empty();
+	CachedWorldState = nullptr;
+	bWorldStateValid = false;
+	bInitialSyncDone = false;
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void AHktIngameHUD::UnbindWorldViewDelegate()
+{
+	if (WorldViewDelegateHandle.IsValid())
+	{
+		if (IHktPlayerInteractionInterface* Interaction = GetPlayerInteraction())
+		{
+			Interaction->OnWorldViewUpdated().Remove(WorldViewDelegateHandle);
+		}
+		WorldViewDelegateHandle.Reset();
+	}
 }
 
 void AHktIngameHUD::OnWorldViewUpdated(const FHktWorldView& View)

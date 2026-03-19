@@ -87,7 +87,7 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 	}
 
 	// --- 모든 활성 엔티티 보간 ---
-	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
+	UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
 	float DeltaSeconds = World ? World->GetDeltaSeconds() : 0.016f;
 	InterpolateActors(DeltaSeconds);
 }
@@ -110,7 +110,7 @@ AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
 
 void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 {
-	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
+	UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
 	if (!World) return;
 
 	UHktAssetSubsystem* AssetSubsystem = UHktAssetSubsystem::Get(World);
@@ -131,8 +131,17 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		Location.Z = GroundZ;
 	}
 
-	AssetSubsystem->LoadAssetAsync(VisualTag, [this, VisualTag, EntityId, Location, Rotation, bIsMoving, World, AssetSubsystem](UHktTagDataAsset* LoadedAsset)
+	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
+	AssetSubsystem->LoadAssetAsync(VisualTag, [this, VisualTag, EntityId, Location, Rotation, bIsMoving, WeakLP](UHktTagDataAsset* LoadedAsset)
 	{
+		ULocalPlayer* LP = WeakLP.Get();
+		if (!LP) return;
+
+		UWorld* CallbackWorld = LP->GetWorld();
+		if (!CallbackWorld) return;
+
+		UHktAssetSubsystem* CallbackAssetSubsystem = UHktAssetSubsystem::Get(CallbackWorld);
+
 		TSubclassOf<AActor> ActorClass;
 
 		// Path 1: DataAsset 기반 (기존 방식)
@@ -143,9 +152,9 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		}
 
 		// Path 2: Convention Path fallback (DataAsset 없이 Blueprint 직접 로드)
-		if (!ActorClass)
+		if (!ActorClass && CallbackAssetSubsystem)
 		{
-			UObject* ConventionObj = AssetSubsystem->LoadByConventionSync(VisualTag);
+			UObject* ConventionObj = CallbackAssetSubsystem->LoadByConventionSync(VisualTag);
 			if (UBlueprint* BP = Cast<UBlueprint>(ConventionObj))
 			{
 				ActorClass = *BP->GeneratedClass;
@@ -176,7 +185,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		SpawnLocation.Z += HalfHeight;
 
 		FActorSpawnParameters SpawnParams;
-		AActor* SpawnedActor = World->SpawnActor<AActor>(ActorClass, SpawnLocation, Rotation, SpawnParams);
+		AActor* SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, Rotation, SpawnParams);
 		if (SpawnedActor)
 		{
 			HKT_EVENT_LOG_ENTITY("Presentation", FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), *VisualTag.ToString(), SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z), EntityId);
@@ -229,7 +238,7 @@ void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPres
 	{
 		FVector SimLocation = Entity.Location.Get();
 
-		UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
+		UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
 		float GroundZ = SimLocation.Z;
 		if (World && TraceGroundZ(World, SimLocation, GroundZ))
 		{
