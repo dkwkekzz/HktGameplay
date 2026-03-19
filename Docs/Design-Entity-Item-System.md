@@ -7,15 +7,67 @@ HktGameplay 모듈의 Entity 생명주기(Lifecycle)와 아이템 소유/활성�
 
 ---
 
-## 1. Entity 생명주기
+## 1. Event와 Story의 구조
 
-### 1.1 핵심 개념
+### 1.1 근본 개념
+
+**Story**는 **Event**로부터 실행되는 구조이다.
+모든 Story는 GameplayTag로 지칭되며, 클라이언트 또는 서버가 최초로 시작(fire)하는 Tag가 **Event**가 된다.
+
+구현적으로 Event와 Story는 동일하다 — 둘 다 Tag로 식별되는 VM 프로그램이다.
+차이는 **개념적**이다: Event는 최초의 트리거(진입점)이고, Story는 그로부터 파생되는 후속 로직이다.
+
+### 1.2 Event의 두 가지 출처
+
+| 출처 | 이름 | 설명 | 예시 |
+|------|------|------|------|
+| **서버** | Map Event | 서버가 자체적으로 요청하는 자연적 작용 | `Flow.Spawner.Item.TreeDrop`, `Flow.NPC.Lifecycle`, `State.Player.InWorld` |
+| **클라이언트** | Client Intent | 사용자가 요청하는 상호작용 | `Event.Item.Pickup`, `Event.Item.Equip`, `Event.Item.Drop` |
+
+### 1.3 Event와 Story의 분리
+
+핵심 구분: **Event는 최초의 트리거**이다. Story 내부에서 파생되는 로직은 Event가 아니다.
+
+```
+예시: 아이템 지급(Grant)
+
+  Event(최초 트리거)          Story(파생 로직)
+  ─────────────────          ──────────────────
+  퀘스트 완료 UI 클릭    ──►  퀘스트 보상 처리 Story
+                               └─► Grant (아이템 생성+InBag)
+  NPC 대화 선택          ──►  NPC 상점 Story
+                               └─► Grant (아이템 생성+InBag)
+```
+
+Grant 자체는 Event가 아니다. 최초의 트리거(퀘스트 UI, NPC 대화 등)가 Event이고,
+Grant는 그 Event의 Story 내부에서 수행되는 아이템 생성+소유 로직이다.
+
+반면 Pickup은 그 자체가 Event이다 — 클라이언트가 "이 아이템을 줍겠다"고 직접 요청한다.
+
+### 1.4 Event 검증 (미구현 — Gap)
+
+**최초의 Story(Event)는 검증이 필요하다.** 클라이언트가 fire하는 Client Intent는 서버에서 사전 조건을 검증해야 한다. 현재 이 검증 레이어가 빠져 있다.
+
+검증이 필요한 이유:
+- Client Intent는 클라이언트가 임의로 fire할 수 있다
+- 검증 없이 Story가 실행되면 부정 행위가 가능하다
+- Map Event는 서버 자체가 fire하므로 검증이 불필요하거나 최소화할 수 있다
+
+검증의 위치:
+- Story 내부의 조건 분기 (현재 방식: Pickup에서 거리/용량 검증)
+- Event fire 시점의 사전 검증 레이어 (미구현: Story 실행 전에 걸러내는 게이트)
+
+---
+
+## 2. Entity 생명주기
+
+### 2.1 핵심 개념
 
 모든 게임 오브젝트(캐릭터, 아이템, NPC, 이펙트)는 **Entity**이다.
 Entity는 순수 데이터이며, `FHktEntityId`(int32)로 식별된다.
 Entity의 종류는 `FGameplayTagContainer`의 태그로 구분한다 (예: `Entity.Character.Player`, `Entity.Item.Sword`).
 
-### 1.2 식별 체계
+### 2.2 식별 체계
 
 | 식별자 | 타입 | 범위 | 용도 |
 |--------|------|------|------|
@@ -24,7 +76,7 @@ Entity의 종류는 `FGameplayTagContainer`의 태그로 구분한다 (예: `Ent
 | `OwnerEntity` | int32 (Hot Property) | 그룹 내 | 엔티티-엔티티 소유 관계 (아이템→캐릭터) |
 | `EntitySpawnTag` | int32 (Hot Property) | GameplayTag 넷인덱스 | Presentation 시각 유형 |
 
-### 1.3 소유 관계의 이중 구조
+### 2.3 소유 관계의 이중 구조
 
 **계정 소유 (Account Ownership)** — `OwnerUid` (int64)
 - Entity가 어떤 플레이어 계정에 속하는지 나타낸다.
@@ -36,7 +88,7 @@ Entity의 종류는 `FGameplayTagContainer`의 태그로 구분한다 (예: `Ent
 - Pickup/Equip/Drop 등 Story 검증의 기준.
 - `Op_SpawnEntity`에서 `Reg::Self`로 자동 설정된다.
 
-### 1.4 접속에서 월드 존재까지의 전체 흐름
+### 2.4 접속에서 월드 존재까지의 전체 흐름
 
 ```
 Phase 1: 네트워크 접속 및 인증
@@ -73,7 +125,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
   5. 클라이언트에 SimulationEvent + WorldState 전송
 ```
 
-### 1.5 로그아웃 및 영구 저장 흐름
+### 2.5 로그아웃 및 영구 저장 흐름
 
 ```
   1. GameMode.Logout() → ServerRule.OnEvent_GameModeLogout()
@@ -88,7 +140,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
   4. Graph.UnregisterPlayer(PlayerUid)
 ```
 
-### 1.6 클라이언트의 자기 Entity 식별
+### 2.6 클라이언트의 자기 Entity 식별
 
 클라이언트는 자신의 `PlayerUid`를 알고 있다 (`UHktWorldPlayerComponent.GetPlayerUid()`).
 서버로부터 수신한 `FHktWorldState`에서 `ForEachEntityByOwner(PlayerUid, ...)`를 사용하거나,
@@ -96,16 +148,16 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 
 ---
 
-## 2. 아이템 소유 정책
+## 3. 아이템 소유 정책
 
-### 2.1 설계 원칙
+### 3.1 설계 원칙
 
 **"아이템은 엔티티이다."**
 
 아이템은 별도의 인벤토리 테이블이 아니라, 캐릭터와 동일한 Entity 시스템 내에 존재한다.
 소유 관계는 Property와 OwnerUid로 표현된다.
 
-### 2.2 OwnerUid 자동 전파
+### 3.2 OwnerUid 자동 전파
 
 `Op_SpawnEntity` (`HktVMInterpreterActions.cpp`)에서:
 - `OwnerEntity`는 `Reg::Self`(호출자 엔티티)로 자동 설정
@@ -113,7 +165,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 
 따라서 플레이어 Story에서 SpawnEntity로 생성된 아이템은 자동으로 해당 플레이어 계정에 귀속된다.
 
-### 2.3 소유 상태 전이 규칙
+### 3.3 소유 상태 전이 규칙
 
 ```
 [무주물 (Ground)]          [소유됨 (InBag/Active)]
@@ -128,27 +180,32 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 | 전이 | Story | 사전 조건 | 변경 속성 |
 |------|-------|-----------|-----------|
 | **Pickup** | `Event.Item.Pickup` | ItemState==0, 거리<=300cm, 가방<BagCapacity | OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
-| **Grant** | `Event.Item.Grant` | (서버 주도) 가방<BagCapacity | SpawnEntity→OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
+| **Grant** | (Story 내부 패턴) | 가방<BagCapacity | SpawnEntity→OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
 | **Equip** | `Event.Item.Equip` | ItemState==1, OwnerEntity==Self | ItemState=2 |
 | **Activate** | `Event.Item.Activate` | ItemState==2, OwnerEntity==Self | ActionSlot=Param0 |
 | **Drop** | `Event.Item.Drop` | OwnerEntity==Self | ItemState=0, OwnerEntity=0, BagSlot=0, ActionSlot=-1, 위치=Self위치 |
 
-### 2.4 아이템 획득 경로 (Acquisition Paths)
+### 3.4 아이템 획득 경로 (Acquisition Paths)
 
-아이템 획득은 경로별로 독립된 Story로 표현한다. VM에 서브루틴 호출이 없으므로, 공통 로직(용량검증+BagSlot할당)은 각 Story에 인라인으로 포함된다.
+아이템 획득은 **Event(최초 트리거)와 Story(파생 로직)의 구분**(섹션 1.3 참조)에 따라 분류된다.
 
-| 경로 | Story | 트리거 | 방식 |
-|------|-------|--------|------|
-| **바닥 줍기** | `Event.Item.Pickup` (기존) | 클라이언트 인텐트 | Ground 아이템 → InBag. 거리검증+용량검증 |
-| **직접 지급** | `Event.Item.Grant` (신규) | 서버 주도 | SpawnEntity → 바로 InBag. 퀘스트 보상, 초기 지급, 시스템 보상 |
-| **조합** | `Event.Item.Craft` (향후) | 클라이언트 인텐트 | 재료소비 → SpawnEntity → 바로 InBag |
-| **NPC 전리품** | `Flow.NPC.Lifecycle` (기존) | 서버 주도 | SpawnEntity → Ground 바닥 드롭 → 플레이어가 Pickup |
+| 경로 | 분류 | 최초 트리거 (Event) | 파생 로직 (Story) |
+|------|------|---------------------|-------------------|
+| **바닥 줍기** | Client Intent | `Event.Item.Pickup` | — (Event 자체가 획득 로직) |
+| **퀘스트 보상** | Client Intent | 퀘스트 완료 UI 등 | Story 내부에서 Grant (SpawnEntity→InBag) |
+| **NPC 상점** | Client Intent | NPC 대화/구매 선택 | Story 내부에서 Grant (SpawnEntity→InBag) |
+| **조합** | Client Intent | `Event.Item.Craft` (향후) | 재료소비 후 Grant |
+| **NPC 전리품** | Map Event | `Flow.NPC.Lifecycle` | SpawnEntity→Ground → 플레이어가 Pickup |
+| **자연 스폰** | Map Event | `Flow.Spawner.Item.TreeDrop` | SpawnEntity→Ground → 플레이어가 Pickup |
+| **초기 지급** | Map Event | `State.Player.InWorld` | Story 내부에서 직접 SpawnEntity→InBag |
 
-**Pickup vs Grant 차이점:**
-- Pickup: 이미 존재하는 Ground 아이템(Target)의 소유권을 가져온다. 거리 검증 필요.
-- Grant: 새 아이템을 SpawnEntity로 생성하여 바로 InBag에 넣는다. 거리 검증 불필요.
+**Grant는 Event가 아니다.** Grant(아이템 생성+InBag 주입)는 다양한 Event의 Story 내부에서 수행되는 공통 패턴이다. VM에 서브루틴 호출이 없으므로, Grant 로직(용량검증+BagSlot할당+SpawnEntity+속성설정)은 각 Story에 인라인으로 포함된다.
 
-### 2.4 소유 제한 사항
+**Pickup과 Grant의 차이:**
+- Pickup: 이미 존재하는 Ground 아이템(Target)의 소유권을 가져온다. 거리 검증 필요. 그 자체가 Event.
+- Grant: 새 아이템을 SpawnEntity로 생성하여 바로 InBag에 넣는다. 거리 검증 불필요. Event의 Story 내부 로직.
+
+### 3.5 소유 제한 사항
 
 | 제한 | 현재 값 | 근거 |
 |------|---------|------|
@@ -160,9 +217,9 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 
 ---
 
-## 3. 아이템 활성화 정책
+## 4. 아이템 활성화 정책
 
-### 3.1 아이템 상태 머신
+### 4.1 아이템 상태 머신
 
 ```
                     ┌──────────┐
@@ -172,7 +229,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
                     └────┬─────┘
                          │
                     Pickup│(Event.Item.Pickup)
-                         │ 조건: 거리<=3m, 가방<20
+                         │ 조건: 거리<=3m, 가방<BagCapacity
                          ▼
                     ┌──────────┐
                     │          │
@@ -202,7 +259,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
     * Drop 시: OwnerEntity=0, BagSlot=0, ActionSlot=-1, 위치=소유자위치
 ```
 
-### 3.2 슬롯 구조
+### 4.2 슬롯 구조
 
 **BagSlot (가방 슬롯)**
 - 범위: 0~(BagCapacity-1), 기본 BagCapacity=8
@@ -218,7 +275,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
   - `HktStoryCharacterSpawn.cpp`: Sword=ActionSlot 0, Shield=ActionSlot 1
   - `HktStoryPlayerInWorld.cpp`: WoodenSword=ActionSlot -1 (미등록, InBag 상태)
 
-### 3.3 Stance (전투 자세)와 아이템의 관계
+### 4.3 Stance (전투 자세)와 아이템의 관계
 
 Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 - `Stance.Unarmed` — 비무장
@@ -228,7 +285,7 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 
 현재 구현에서 Stance는 Story에서 직접 설정하며, 장착 아이템과의 자동 연동은 미구현이다.
 
-### 3.4 아이템 Property 목록
+### 4.4 아이템 Property 목록
 
 | Property | Tier | 용도 |
 |----------|------|------|
@@ -243,9 +300,9 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 
 ---
 
-## 4. 현재 구현 상태 매핑
+## 5. 현재 구현 상태 매핑
 
-### 4.1 구현 완료 항목
+### 5.1 구현 완료 항목
 
 | 기능 | 구현 파일 | 상태 |
 |------|-----------|------|
@@ -269,7 +326,7 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 | Relevancy 그룹 기반 병렬 시뮬레이션 | `HktServerRule.cpp` — `ParallelFor(NumGroups, ...)` | 완료 |
 | WorldView 읽기 뷰 | `HktWorldView.h` — Diff 기반 클라이언트 상태 전달 | 완료 |
 
-### 4.2 아이템 종류 정의
+### 5.2 아이템 종류 정의
 
 | ItemId | 태그 | 이름 | 초기 스탯 |
 |--------|------|------|-----------|
@@ -280,7 +337,12 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 
 ---
 
-## 5. Gap 분석 (미구현/불완전 항목)
+## 6. Gap 분석 (미구현/불완전 항목)
+
+### Gap 0: Event 검증 레이어 부재 — 우선순위: 높음
+- **현상**: Client Intent로 fire되는 Event(최초의 Story)에 대한 사전 검증이 없다. 현재는 Story 내부의 조건 분기(예: Pickup의 거리/용량 체크)로만 검증하고 있다.
+- **영향**: 클라이언트가 임의의 Event Tag를 fire하여 부정 행위가 가능하다. Story 내부 검증은 Story가 이미 실행된 후에 발생하므로, 실행 자체를 막지는 못한다.
+- **제안**: Event fire 시점에 사전 검증 레이어 추가. Map Event(서버 자체 fire)는 검증 최소화 또는 생략 가능. Client Intent는 Story 실행 전 게이트에서 조건을 확인.
 
 ### Gap 1: Unequip 흐름 부재 — 우선순위: 높음
 - **현상**: Active(State=2) → InBag(State=1) 전이를 담당하는 Story가 없다.
@@ -319,13 +381,13 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 
 ---
 
-## 6. 향후 확장 제안
+## 7. 향후 확장 제안
 
-### 6.1 아이템 내구도/소비 시스템
+### 7.1 아이템 내구도/소비 시스템
 - Cold Property로 `Durability` 추가.
 - 사용/전투 시 감소, 0이면 파괴(RemoveEntity).
 
-### 6.2 아이템 조합/성장 시스템
+### 7.2 아이템 조합/성장 시스템
 - CLAUDE.md에 명시된 "item attribute and combination, random growth" 컨셉.
 - **조합**: 두 아이템 엔티티를 소비하고 새 아이템 엔티티를 SpawnEntity.
 - **성장**: 아이템 Property에 Level/Experience 추가, Story에서 조건 충족 시 스탯 증가.
