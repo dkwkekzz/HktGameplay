@@ -85,6 +85,7 @@ namespace HktStoryItemActivate
 			.SaveConstEntity(Iter, PropertyId::ItemState, 1)                // InBag
 			.SaveConstEntity(Iter, PropertyId::ActionSlot, -1)              // 액션 해제
 			.Log(TEXT("Evicted existing item from ActionSlot"))
+			.Jump(TEXT("evict_loop"))                                       // 계속 순회 (비정상 중복 대비)
 
 		.Label(TEXT("evict_done"))
 			// Active 상태로 전환 + ActionSlot 설정
