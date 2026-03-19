@@ -89,7 +89,7 @@ void UHktCameraMode_RtsFree::FollowNewSpawn(AHktRtsCameraPawn* Pawn, float Delta
 		return;
 	}
 
-	FVector TargetLoc = E->Transform.Location.Get();
+	FVector TargetLoc = E->Location.Get();
 	FVector CurrentLoc = Pawn->GetActorLocation();
 	FVector NewLoc = FMath::VInterpTo(CurrentLoc, FVector(TargetLoc.X, TargetLoc.Y, CurrentLoc.Z), DeltaTime, FollowInterpSpeed);
 	Pawn->SetActorLocation(NewLoc);

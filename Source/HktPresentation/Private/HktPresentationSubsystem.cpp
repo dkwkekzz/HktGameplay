@@ -251,7 +251,7 @@ void UHktPresentationSubsystem::OnSubjectChanged(FHktEntityId NewSubject)
 	if (NewSubject != InvalidEntityId)
 	{
 		const FHktEntityPresentation* Entity = State.Get(NewSubject);
-		FVector Pos = Entity ? Entity->Transform.Location.Get() : FVector::ZeroVector;
+		FVector Pos = Entity ? Entity->Location.Get() : FVector::ZeroVector;
 		VFXRenderer->AttachVFXToEntity(Tag_VFX_SelectionSubject, NewSubject, Pos);
 
 		HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("SelectionSubject VFX attached Entity=%d"), NewSubject));
@@ -274,7 +274,7 @@ void UHktPresentationSubsystem::OnTargetChanged(FHktEntityId NewTarget)
 	if (NewTarget != InvalidEntityId)
 	{
 		const FHktEntityPresentation* Entity = State.Get(NewTarget);
-		FVector Pos = Entity ? Entity->Transform.Location.Get() : FVector::ZeroVector;
+		FVector Pos = Entity ? Entity->Location.Get() : FVector::ZeroVector;
 		VFXRenderer->AttachVFXToEntity(Tag_VFX_SelectionTarget, NewTarget, Pos);
 
 		HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("SelectionTarget VFX attached Entity=%d"), NewTarget));

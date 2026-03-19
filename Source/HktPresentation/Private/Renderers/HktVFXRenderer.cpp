@@ -264,7 +264,7 @@ void FHktVFXRenderer::UpdateEntityVFXPositions(const FHktPresentationState& Stat
 			continue;
 		}
 
-		FVector Pos = Entity->Transform.Location.Get();
+		FVector Pos = Entity->Location.Get();
 		It.Value().Get()->SetWorldLocation(Pos);
 	}
 }

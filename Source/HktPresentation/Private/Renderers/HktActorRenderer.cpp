@@ -41,7 +41,7 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		if (!E || !ActorMap.Contains(Id)) { It.RemoveCurrent(); continue; }
 		UpdateMotionTarget(Id, *E, E->SpawnedFrame);
 		UpdateAnimation(Id, *E, E->SpawnedFrame);
-		if (E->Item.IsAttached())
+		if (E->IsItemAttached())
 		{
 			TryAttachToOwner(Id, State);
 		}
@@ -55,12 +55,12 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		for (FHktEntityId ItemId : PendingCopy)
 		{
 			const FHktEntityPresentation* E = State.Get(ItemId);
-			if (!E || !E->Item.IsAttached())
+			if (!E || !E->IsItemAttached())
 			{
 				PendingAttachments.Remove(ItemId);
 				continue;
 			}
-			if (GetActor(ItemId) && GetActor(static_cast<FHktEntityId>(E->Item.OwnerEntity.Get())))
+			if (GetActor(ItemId) && GetActor(static_cast<FHktEntityId>(E->OwnerEntity.Get())))
 			{
 				TryAttachToOwner(ItemId, State);
 			}
@@ -77,11 +77,11 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		UpdateAnimation(Id, *E, Frame);
 
 		// 소켓 부착 상태 변경 감지
-		if (E->Item.OwnerEntity.IsDirty(Frame) || E->Item.ActionSlot.IsDirty(Frame))
+		if (E->OwnerEntity.IsDirty(Frame) || E->ActionSlot.IsDirty(Frame))
 		{
 			// 기존 부착 해제 후 재부착 (ActionSlot 변경 시 소켓이 달라질 수 있으므로)
 			DetachFromOwner(Id);
-			if (E->Item.IsAttached())
+			if (E->IsItemAttached())
 				TryAttachToOwner(Id, State);
 		}
 	}
@@ -116,13 +116,13 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 	UHktAssetSubsystem* AssetSubsystem = UHktAssetSubsystem::Get(World);
 	if (!AssetSubsystem) return;
 
-	FGameplayTag VisualTag = Entity.Visualization.VisualElement.Get();
+	FGameplayTag VisualTag = Entity.VisualElement.Get();
 	if (!VisualTag.IsValid()) return;
 
-	FVector Location = Entity.Transform.Location.Get();
-	FRotator Rotation = Entity.Transform.Rotation.Get();
+	FVector Location = Entity.Location.Get();
+	FRotator Rotation = Entity.Rotation.Get();
 	FHktEntityId EntityId = Entity.EntityId;
-	bool bIsMoving = Entity.Movement.bIsMoving.Get();
+	bool bIsMoving = Entity.bIsMoving.Get();
 
 	// 스폰 시 지면 높이 적용
 	float GroundZ;
@@ -225,9 +225,9 @@ void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPres
 {
 	FHktActorMotionState& Motion = MotionStates.FindOrAdd(Id);
 
-	if (Entity.Transform.Location.IsDirty(Frame))
+	if (Entity.Location.IsDirty(Frame))
 	{
-		FVector SimLocation = Entity.Transform.Location.Get();
+		FVector SimLocation = Entity.Location.Get();
 
 		UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
 		float GroundZ = SimLocation.Z;
@@ -251,14 +251,14 @@ void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPres
 		Motion.TargetLocation = SimLocation;
 	}
 
-	if (Entity.Transform.Rotation.IsDirty(Frame))
+	if (Entity.Rotation.IsDirty(Frame))
 	{
-		Motion.TargetRotation = Entity.Transform.Rotation.Get();
+		Motion.TargetRotation = Entity.Rotation.Get();
 	}
 
-	if (Entity.Movement.bIsMoving.IsDirty(Frame))
+	if (Entity.bIsMoving.IsDirty(Frame))
 	{
-		Motion.bIsMoving = Entity.Movement.bIsMoving.Get();
+		Motion.bIsMoving = Entity.bIsMoving.Get();
 	}
 }
 
@@ -284,23 +284,23 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 	}
 
 	// 이동 상태 동기화
-	if (Entity.Movement.bIsMoving.IsDirty(Frame))
+	if (Entity.bIsMoving.IsDirty(Frame))
 	{
-		HktAnim->bIsMoving = Entity.Movement.bIsMoving.Get();
+		HktAnim->bIsMoving = Entity.bIsMoving.Get();
 	}
 
 	// 속도 벡터에서 이동 속도 계산 — 블렌드스페이스 파라미터로 활용
-	if (Entity.Movement.Velocity.IsDirty(Frame))
+	if (Entity.Velocity.IsDirty(Frame))
 	{
-		FVector Vel = Entity.Movement.Velocity.Get();
+		FVector Vel = Entity.Velocity.Get();
 		HktAnim->MoveSpeed = FVector2D(Vel.X, Vel.Y).Size();
 		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
 	}
 
 	// Stance 동기화 — Stance AnimBP 레이어 교체
-	if (Entity.Animation.Stance.IsDirty(Frame))
+	if (Entity.Stance.IsDirty(Frame))
 	{
-		HktAnim->SyncStance(Entity.Animation.Stance.Get());
+		HktAnim->SyncStance(Entity.Stance.Get());
 	}
 
 	// Entity TagContainer 기반 애니메이션 동기화
@@ -363,10 +363,10 @@ FName FHktActorRenderer::GetSocketName(int32 ActionSlot)
 void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresentationState& State)
 {
 	const FHktEntityPresentation* ItemEntity = State.Get(ItemId);
-	if (!ItemEntity || !ItemEntity->Item.IsAttached()) return;
+	if (!ItemEntity || !ItemEntity->IsItemAttached()) return;
 
-	FHktEntityId OwnerId = static_cast<FHktEntityId>(ItemEntity->Item.OwnerEntity.Get());
-	int32 Slot = ItemEntity->Item.ActionSlot.Get();
+	FHktEntityId OwnerId = static_cast<FHktEntityId>(ItemEntity->OwnerEntity.Get());
+	int32 Slot = ItemEntity->ActionSlot.Get();
 
 	AActor* ItemActor = GetActor(ItemId);
 	if (!ItemActor)
