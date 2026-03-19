@@ -80,8 +80,8 @@ void FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex E
     HKT_EVENT_LOG_ENTITY("Core.VM",
         FString::Printf(TEXT("Op_DestroyEntity Id=%d"), E), E);
 
-    // 엔티티 제거는 즉시 적용 (다른 VM이 참조하지 못하게)
-    if (WorldState)
+    // 무효한 엔티티는 무시
+    if (WorldState && WorldState->IsValidEntity(E))
     {
         WorldState->RemoveEntity(E);
     }
@@ -93,10 +93,16 @@ void FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex E
 
 void FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2)
 {
-    if (Runtime.Context)
+    if (Runtime.Context && WorldState)
     {
         FHktEntityId E1 = Runtime.GetRegEntity(Entity1);
         FHktEntityId E2 = Runtime.GetRegEntity(Entity2);
+
+        if (!WorldState->IsValidEntity(E1) || !WorldState->IsValidEntity(E2))
+        {
+            Runtime.SetReg(Dst, 0);
+            return;
+        }
 
         int32 X1 = Runtime.Context->ReadEntity(E1, PropertyId::PosX);
         int32 Y1 = Runtime.Context->ReadEntity(E1, PropertyId::PosY);
@@ -122,6 +128,12 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
     if (WorldState && Runtime.Context)
     {
         FHktEntityId Center = Runtime.GetRegEntity(CenterEntity);
+
+        if (!WorldState->IsValidEntity(Center))
+        {
+            Runtime.SetReg(Reg::Count, 0);
+            return;
+        }
 
         int32 CX = Runtime.Context->ReadEntity(Center, PropertyId::PosX);
         int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
@@ -258,10 +270,14 @@ void FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, Reg
     bool bHas = false;
     if (WorldState)
     {
-        const FString& TagName = GetString(Runtime, StringIndex);
-        FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
-        if (Tag.IsValid())
-            bHas = WorldState->HasTag(Runtime.GetRegEntity(Entity), Tag);
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        if (WorldState->IsValidEntity(E))
+        {
+            const FString& TagName = GetString(Runtime, StringIndex);
+            FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
+            if (Tag.IsValid())
+                bHas = WorldState->HasTag(E, Tag);
+        }
     }
     Runtime.SetReg(Dst, bHas ? 1 : 0);
 }
@@ -387,6 +403,7 @@ void FHktVMInterpreter::Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Ent
     if (WorldState && VMProxy && Runtime.PlayerUid != 0)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
+        if (!WorldState->IsValidEntity(E)) return;
         HKT_EVENT_LOG_ENTITY("Core.VM",
             FString::Printf(TEXT("Op_SetOwnerUid Id=%d Uid=%lld"), E, Runtime.PlayerUid), E);
         VMProxy->SetOwnerUid(*WorldState, E, Runtime.PlayerUid);
@@ -398,6 +415,7 @@ void FHktVMInterpreter::Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex E
     if (WorldState && VMProxy)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
+        if (!WorldState->IsValidEntity(E)) return;
         HKT_EVENT_LOG_ENTITY("Core.VM",
             FString::Printf(TEXT("Op_ClearOwnerUid Id=%d"), E), E);
         VMProxy->SetOwnerUid(*WorldState, E, 0);
