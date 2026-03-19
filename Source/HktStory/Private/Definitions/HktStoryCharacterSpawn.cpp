@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
+#include "HktCoreDefs.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
@@ -21,7 +22,7 @@ namespace HktStoryCharacterSpawn
 
 	// VFX
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect, "VFX.SpawnEffect", "Character spawn VFX.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_EquipGlow, "VFX.ActivateGlow", "Item equip glow VFX.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_ActivateGlow, "VFX.ActivateGlow", "Item activate glow VFX.");
 
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Spawn, "Sound.Spawn", "Character spawn sound.");
@@ -73,7 +74,8 @@ namespace HktStoryCharacterSpawn
 			// 메인 무기 (슬롯 0)
 			.SpawnEntity(Entity_Item_Sword)
 			.SaveConstEntity(Spawned, PropertyId::ActionSlot, 0)
-			.PlayVFXAttached(Spawned, VFX_EquipGlow)
+			.SetStance(Spawned, HktStance::Sword1H)
+			.PlayVFXAttached(Spawned, VFX_ActivateGlow)
 
 			// 보조 장비 (슬롯 1)
 			.SpawnEntity(Entity_Item_Shield)

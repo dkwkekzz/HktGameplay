@@ -271,7 +271,7 @@ Equip 개념은 존재하지 않는다. 아이템은 **2단계**(Pickup→Activa
     (자연 스포너)    │ State=0  │
                     └────┬─────┘
                          │
-                    Pickup│(Story.Story.Event.Item.Pickup)
+                    Pickup│(Story.Event.Item.Pickup)
                          │ 조건: 거리<=3m, 가방<BagCapacity
                          ▼
                     ┌──────────┐
@@ -353,7 +353,7 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 | ExportPlayerState | `IHktDeterminismSimulator` — OwnerUid 기준 추출 | 완료 |
 | OwnerUid 자동 전파 | `HktVMInterpreterActions.cpp` — `Op_SpawnEntity` | 완료 |
 | 아이템 Pickup Flow | `HktStoryItemPickup.cpp` — 거리/용량 검증 포함 | 완료 |
-| 아이템 Activate Flow | `HktStoryItemActivate.cpp` — InBag→Active + ActionSlot + Stance | 수정 필요 |
+| 아이템 Activate Flow | `HktStoryItemActivate.cpp` — InBag→Active + ActionSlot + Stance | 완료 |
 | 아이템 Drop Flow | `HktStoryItemDrop.cpp` — 소유 해제 + 위치 이동 | 완료 |
 | 자연 아이템 스포너 | `HktStoryItemSpawnerTreeDrop.cpp` — 30초 주기 나무 스폰 | 완료 |
 | 플레이어 월드 진입 | `HktStoryPlayerInWorld.cpp` — 캐릭터 + 목검 생성 | 완료 |
@@ -407,12 +407,18 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 - **영향**: ActionSlot이 변경되어도 시각적으로 무기가 캐릭터에 표시되지 않음.
 - **제안**: 캐릭터 SkeletalMesh에 무기 소켓 정의, Activate 시 해당 아이템의 Mesh를 소켓에 Attach, HktActorRenderer에서 ActionSlot 변경 감지.
 
-### Gap 6: 아이템 거래/이전 시스템 부재 — 우선순위: 낮음
+### Gap 6: Drop 시 OwnerUid 미해제 — 우선순위: 높음
+- **현상**: `Story.Event.Item.Drop`에서 `OwnerEntity=0`으로 초기화하지만 `OwnerUid`는 해제하지 않는다.
+- **영향**: 드롭된 아이템이 DB 상으로 여전히 원래 플레이어 소유. 로그아웃 시 드롭된 아이템도 함께 저장/추출될 수 있다. 다른 플레이어가 Pickup하면 OwnerUid 불일치 발생.
+- **원인**: VM에 `SetOwnerUid`/`ClearOwnerUid` Op이 없다. `SpawnEntity`에서만 자동 설정됨.
+- **제안**: VM에 `ClearOwnerUid` Op 추가 또는 `OwnerEntity=0` 시 자동으로 `OwnerUid=0` 전파하는 로직. Pickup에서도 새 소유자의 OwnerUid를 설정하는 로직 필요.
+
+### Gap 7: 아이템 거래/이전 시스템 부재 — 우선순위: 낮음
 - **현상**: 플레이어 간 직접 아이템 이전 수단 없음.
 - **영향**: Drop→Pickup으로만 거래 가능 (분실 위험, 보안 취약).
 - **제안**: `Story.Event.Item.Trade` Story 설계. 양측 동의 확인 메커니즘 (2-phase commit).
 
-### Gap 7: 신규 vs 복귀 플레이어 분기 — 우선순위: 미정
+### Gap 8: 신규 vs 복귀 플레이어 분기 — 우선순위: 미정
 - **현상**: 복귀 플레이어 재접속 시 DB에서 EntityStates가 Import된 후 `Story.State.Player.InWorld` Story가 다시 기동되면, 초기 아이템(목검)이 중복 지급될 수 있다.
 - **현재 상태**: 의도된 동작인지 미정. 추후 결정 필요.
 
@@ -423,12 +429,12 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 ### 7.1 기본 흐름
 
 ```
-1. 서버가 플레이어 Entity 생성 (State.Player.InWorld)
+1. 서버가 플레이어 Entity 생성 (Story.State.Player.InWorld)
 2. 클라이언트가 자기 Entity를 포커싱하여 게임 진행
 3. 우클릭으로 이동
 4. PrototypeMap에 WoodSpear가 하나 스폰되어 있음
 5. 플레이어가 WoodSpear를 Pickup (Client Intent → Story.Event.Item.Pickup)
-6. Command로 Activate 실행 (Client Intent → Event.Item.Activate)
+6. Command로 Activate 실행 (Client Intent → Story.Event.Item.Activate)
    - UI 미구현이므로 Command로 대체
 7. Activate 시:
    - ItemState: 1(InBag) → 2(Active)
