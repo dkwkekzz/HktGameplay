@@ -174,7 +174,11 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
     {
         if (CachedIntentBuilder->IsReadyToSubmit() == false)
         {
+            // SetCommand가 Target을 초기화하므로 기존 Target 보존
+            const FHktEntityId SavedTarget = CachedIntentBuilder->GetTargetEntityId();
+            const FVector SavedLocation = CachedIntentBuilder->GetTargetLocation();
             CachedIntentBuilder->SetCommand(FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Move.ToLocation")), true);
+            CachedIntentBuilder->SetTarget(SavedTarget, SavedLocation);
         }
         CachedIntentBuilder->Submit();
 
@@ -283,7 +287,7 @@ void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
 
     HKT_EVENT_LOG("Runtime.Client",
         FString::Printf(TEXT("ReceiveFrameBatch Frame=%lld Events=%d"),
-            Batch.FrameNumber, Batch.NewEvents.Num()));
+            Batch.Value.FrameNumber, Batch.Value.NewEvents.Num()));
     Rule->OnReceived_FrameBatch(static_cast<const FHktSimulationEvent&>(Batch));
 }
 
@@ -312,6 +316,12 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
             View.bIsInitialSync = true;
             WorldViewUpdatedDelegate.Broadcast(View);
         }
+    }
+
+    // PlayerUid가 지연 복제되어 ResolveDefaultSubject가 실패한 경우 재시도
+    if (DefaultSubjectEntityId == InvalidEntityId && CachedProxySimulator && CachedProxySimulator->IsInitialized())
+    {
+        ResolveDefaultSubject();
     }
 
     FHktSimulationDiff Diff;

@@ -50,6 +50,7 @@ public:
 	virtual bool Submit() = 0;
 	virtual FHktEntityId GetSubjectEntityId() const = 0;
 	virtual FHktEntityId GetTargetEntityId() const = 0;
+	virtual FVector GetTargetLocation() const = 0;
 	virtual FGameplayTag GetEventTag() const = 0;
 	virtual bool HasPendingSubmit() const = 0;
 	virtual FHktEvent ConsumePendingSubmit() = 0;

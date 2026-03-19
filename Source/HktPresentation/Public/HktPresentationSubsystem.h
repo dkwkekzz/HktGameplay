@@ -40,6 +40,9 @@ public:
 
 	const FHktPresentationState& GetState() const { return State; }
 
+	/** 엔티티에 해당하는 렌더링 Actor를 반환. 없으면 nullptr. */
+	AActor* GetRenderedActor(FHktEntityId Id) const;
+
 	/** 월드 위치에 VFX 재생 (클라이언트 즉시, 서버 무관) */
 	void PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location);
 

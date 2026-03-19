@@ -6,6 +6,28 @@
 #include "NativeGameplayTags.h"
 #include "HktTempMapStoryConfig.h"
 
+// Story 태그 — .cpp 전용 static 정의
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_GoblinCamp,    "Story.Flow.Spawner.GoblinCamp");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_Item_TreeDrop, "Story.Flow.Spawner.Item.TreeDrop");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_Wave_Arena,    "Story.Flow.Spawner.Wave.Arena");
+
+TArray<FHktTempStoryEntry> HktTempMapStoryConfig::GetSpawnersForGroup(int32 GroupIndex)
+{
+	TArray<FHktTempStoryEntry> Out;
+
+	// 전역 스토리 — 모든 그룹 공통 (FHktMapData::GlobalStories 대응)
+	Out.Add({ Flow_Spawner_GoblinCamp,    1000 + GroupIndex * 500, 1000 });
+	Out.Add({ Flow_Spawner_Item_TreeDrop,  1200 + GroupIndex * 500,  800 });
+
+	// 그룹 0 전용 — Region별 스토리 (FHktMapRegion::Stories 대응)
+	if (GroupIndex == 0)
+	{
+		Out.Add({ Flow_Spawner_Wave_Arena, 2000, 2000 });
+	}
+
+	return Out;
+}
+
 namespace
 {
 	int32 HashCombineHelper(int64 A, int32 B)

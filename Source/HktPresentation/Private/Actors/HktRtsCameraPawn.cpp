@@ -132,7 +132,7 @@ bool AHktRtsCameraPawn::IsOwnedEntity(FHktEntityId EntityId) const
 	if (!Sub) return false;
 
 	const FHktEntityPresentation* E = Sub->GetState().Get(EntityId);
-	if (!E || !E->IsAlive()) return false;
+	if (!E) return false;
 
 	return E->OwnedPlayerUid.Get() == CachedPlayerUid;
 }

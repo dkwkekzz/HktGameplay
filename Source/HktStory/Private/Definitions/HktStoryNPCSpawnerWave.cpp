@@ -23,7 +23,7 @@ namespace HktStoryNPCSpawnerWave
 	 *  Wave 2: 스켈레톤 2마리 스폰 → 전멸 대기 → 완료."
 	 *
 	 * 서버가 EventTag "Story.Flow.Spawner.Wave.Arena" 을 fire.
-	 * Self = 아레나 중심 앵커 엔티티
+	 * Param0 = SpawnPosX, Param1 = SpawnPosY (Self 엔티티 없음)
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
@@ -33,6 +33,9 @@ namespace HktStoryNPCSpawnerWave
 		Story(Story_Spawner_Wave_Arena)
 			.Log(TEXT("Wave spawner: starting"))
 			.LoadConst(R0, 0)                               // R0 = zero constant
+			// 이벤트 Param0/Param1에서 스폰 위치 로드 (Self 엔티티 없음)
+			.LoadStore(R5, PropertyId::Param0)               // R5 = SpawnPosX
+			.LoadStore(R6, PropertyId::Param1)               // R6 = SpawnPosY
 
 			// === Wave 1: 고블린 3마리 ===
 			.Label(TEXT("wave1"))
@@ -53,8 +56,8 @@ namespace HktStoryNPCSpawnerWave
 				.AddTag(Spawned, Tag_Entity_NPC)
 				.AddTag(Spawned, Entity_NPC_Goblin)
 				.AddTag(Spawned, Tag_NPC_Hostile)
-				.GetPosition(R3, Self)
-				.SetPosition(Spawned, R3)
+				.SaveStoreEntity(Spawned, PropertyId::PosX, R5)
+				.SaveStoreEntity(Spawned, PropertyId::PosY, R6)
 
 				.AddImm(R2, R2, 1)
 				.Jump(TEXT("wave1_loop"))
@@ -86,8 +89,8 @@ namespace HktStoryNPCSpawnerWave
 				.AddTag(Spawned, Tag_Entity_NPC)
 				.AddTag(Spawned, Entity_NPC_Skeleton)
 				.AddTag(Spawned, Tag_NPC_Hostile)
-				.GetPosition(R3, Self)
-				.SetPosition(Spawned, R3)
+				.SaveStoreEntity(Spawned, PropertyId::PosX, R5)
+				.SaveStoreEntity(Spawned, PropertyId::PosY, R6)
 
 				.AddImm(R2, R2, 1)
 				.Jump(TEXT("wave2_loop"))

@@ -206,6 +206,11 @@ void UHktPresentationSubsystem::SyncRenderers()
 	if (VFXRenderer)        VFXRenderer->UpdateEntityVFXPositions(State);
 }
 
+AActor* UHktPresentationSubsystem::GetRenderedActor(FHktEntityId Id) const
+{
+	return ActorRenderer ? ActorRenderer->GetActor(Id) : nullptr;
+}
+
 void UHktPresentationSubsystem::OnIntentSubmitted(const FHktRuntimeEvent& Event)
 {
 	const FHktEvent& CoreEvent = Event.Value;

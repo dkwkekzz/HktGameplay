@@ -68,6 +68,11 @@ FOnHktSubjectChanged& AHktLoginPlayerController::OnSubjectChanged()
 	return SubjectChangedDelegate;
 }
 
+FOnHktTargetChanged& AHktLoginPlayerController::OnTargetChanged()
+{
+	return TargetChangedDelegate;
+}
+
 FOnHktIntentSubmitted& AHktLoginPlayerController::OnIntentSubmitted()
 {
 	return IntentSubmittedDelegate;

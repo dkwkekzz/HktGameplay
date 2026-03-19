@@ -20,7 +20,16 @@ void UHktCameraMode_SubjectFollow::OnActivate(AHktRtsCameraPawn* Pawn)
 			const FHktEntityPresentation* E = Sub->GetState().Get(SubjectEntityId);
 			if (E && E->IsAlive())
 			{
-				FVector EntityLoc = E->Location.Get();
+				FVector EntityLoc;
+				AActor* RenderedActor = Sub->GetRenderedActor(SubjectEntityId);
+				if (RenderedActor)
+				{
+					EntityLoc = RenderedActor->GetActorLocation();
+				}
+				else
+				{
+					EntityLoc = E->Location.Get();
+				}
 				FVector CameraLoc = Pawn->GetActorLocation();
 				ManualOffset = FVector(CameraLoc.X - EntityLoc.X, CameraLoc.Y - EntityLoc.Y, 0.0f);
 				return;
@@ -56,8 +65,19 @@ void UHktCameraMode_SubjectFollow::TickMode(AHktRtsCameraPawn* Pawn, float Delta
 	// 오프셋 감쇄
 	ManualOffset = FMath::VInterpTo(ManualOffset, FVector::ZeroVector, DeltaTime, OffsetDecaySpeed);
 
-	// 대상 위치 + 오프셋으로 보간 이동
-	FVector EntityLoc = E->Location.Get();
+	// 렌더링된 액터의 실제 위치를 추적 (GroundSnap + CapsuleOffset 반영)
+	// 시뮬레이션 raw 위치 대신 실제 액터 위치를 사용하여 흔들림 방지
+	FVector EntityLoc;
+	AActor* RenderedActor = Sub->GetRenderedActor(SubjectEntityId);
+	if (RenderedActor)
+	{
+		EntityLoc = RenderedActor->GetActorLocation();
+	}
+	else
+	{
+		EntityLoc = E->Location.Get();
+	}
+
 	FVector TargetLoc = FVector(EntityLoc.X + ManualOffset.X, EntityLoc.Y + ManualOffset.Y, Pawn->GetActorLocation().Z);
 	FVector CurrentLoc = Pawn->GetActorLocation();
 	FVector NewLoc = FMath::VInterpTo(CurrentLoc, TargetLoc, DeltaTime, FollowInterpSpeed);

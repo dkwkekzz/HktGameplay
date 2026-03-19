@@ -26,6 +26,7 @@ public:
 	virtual FOnHktWorldViewUpdated& OnWorldViewUpdated() override;
 	virtual FOnHktWheelInput& OnWheelInput() override;
 	virtual FOnHktSubjectChanged& OnSubjectChanged() override;
+	virtual FOnHktTargetChanged& OnTargetChanged() override;
 	virtual FOnHktIntentSubmitted& OnIntentSubmitted() override;
 
 protected:
@@ -35,5 +36,6 @@ private:
 	FOnHktWorldViewUpdated WorldViewUpdatedDelegate;
 	FOnHktWheelInput WheelInputDelegate;
 	FOnHktSubjectChanged SubjectChangedDelegate;
+	FOnHktTargetChanged TargetChangedDelegate;
 	FOnHktIntentSubmitted IntentSubmittedDelegate;
 };

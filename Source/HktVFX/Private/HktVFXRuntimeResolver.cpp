@@ -72,7 +72,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFXAttached(
     if (Comp)
     {
         ApplyRuntimeOverrides(Comp, Intent);
-        HKT_EVENT_LOG_ENTITY("VFX", FString::Printf(TEXT("PlayVFXAttached")), Intent.EntityId);
+        HKT_EVENT_LOG("VFX", FString::Printf(TEXT("PlayVFXAttached")));
     }
     return Comp;
 }

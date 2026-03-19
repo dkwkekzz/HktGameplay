@@ -3,6 +3,7 @@
 #include "HktFileDatabaseComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Paths.h"
+#include "HktStoryTags.h"
 
 // ============================================================================
 // SaveGame Custom Serialization
@@ -119,7 +120,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 			Record.PlayerUid = InPlayerUid;
 
 			// 기존 레코드에 월드 진입 이벤트가 없으면 추가 (재진입 시)
-			FGameplayTag InWorldTag = FGameplayTag::RequestGameplayTag(TEXT("State.Player.InWorld"), false);
+			const FGameplayTag InWorldTag = HktStoryTags::Story_PlayerInWorld;
 			bool bHasInWorldEvent = false;
 			for (const FHktEvent& Event : Record.ActiveEvents)
 			{
@@ -154,7 +155,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 
 			// 초기 월드 진입 이벤트 추가
 			FHktEvent EnterWorldEvent;
-			EnterWorldEvent.EventTag = FGameplayTag::RequestGameplayTag(TEXT("State.Player.InWorld"), false);
+			EnterWorldEvent.EventTag = HktStoryTags::Story_PlayerInWorld;
 			EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid);
 			EnterWorldEvent.TargetEntity = InvalidEntityId;
 			EnterWorldEvent.Location = FVector::ZeroVector;

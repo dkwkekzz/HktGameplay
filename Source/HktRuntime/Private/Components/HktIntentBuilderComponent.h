@@ -55,7 +55,7 @@ public:
 
     // === 추가 API ===
 
-    FVector GetTargetLocation() const { return TargetLocation; }
+    virtual FVector GetTargetLocation() const override { return TargetLocation; }
 
 private:
     FHktEntityId SubjectEntityId = InvalidEntityId;

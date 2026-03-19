@@ -33,4 +33,7 @@ namespace HktStoryTags
 
 	// --- Sound ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Sound_Spawn);                  // Sound.Spawn
+
+	// --- Story Flow Names (여러 모듈에서 참조) ---
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_PlayerInWorld);          // Story.State.Player.InWorld
 }

@@ -83,6 +83,9 @@ private:
 
 	int64 CachedPlayerUid = 0;
 
+	/** PlayerUid 미확정 시 Subject를 보류하고, Uid 확정 후 재평가 */
+	FHktEntityId PendingSubjectEntityId = InvalidEntityId;
+
 	FDelegateHandle WheelInputHandle;
 	FDelegateHandle SubjectChangedHandle;
 	TWeakObjectPtr<class APlayerController> BoundPlayerController;

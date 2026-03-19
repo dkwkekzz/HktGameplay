@@ -23,4 +23,7 @@ namespace HktStoryTags
 
 	// --- Sound ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Spawn,                  "Sound.Spawn",              "Character spawn sound.");
+
+	// --- Story Flow Names ---
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_PlayerInWorld,          "Story.State.Player.InWorld", "Player in world state flow.");
 }
