@@ -1,6 +1,7 @@
 #include "HktProxySimulatorComponent.h"
 #include "HktRuntimeCommon.h"
 #include "HktCoreDataCollector.h"
+#include "HktCoreEventLog.h"
 
 UHktProxySimulatorComponent::UHktProxySimulatorComponent()
 {
@@ -114,6 +115,9 @@ FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
 
 void UHktProxySimulatorComponent::EnqueueServerBatch(const FHktSimulationEvent& InBatch)
 {
+    HKT_EVENT_LOG("Runtime.Client",
+        FString::Printf(TEXT("EnqueueServerBatch Frame=%lld Events=%d"),
+            InBatch.FrameNumber, InBatch.NewEvents.Num()));
     PendingServerBatches.Add(InBatch);
 }
 

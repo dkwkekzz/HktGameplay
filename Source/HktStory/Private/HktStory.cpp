@@ -2,6 +2,7 @@
 
 #include "HktStory.h"
 #include "HktStoryRegistry.h"
+#include "HktCoreEventLog.h"
 
 IMPLEMENT_MODULE(FHktStoryModule, HktStory)
 
@@ -13,6 +14,7 @@ void FHktStoryModule::StartupModule()
 	FHktStoryRegistry::InitializeAllStories();
 
 	UE_LOG(LogTemp, Log, TEXT("[HktStory] Module started - All stories registered via self-registration"));
+	HKT_EVENT_LOG("Story", TEXT("HktStory module started"));
 }
 
 void FHktStoryModule::ShutdownModule()

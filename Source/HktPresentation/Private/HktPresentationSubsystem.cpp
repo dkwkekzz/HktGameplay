@@ -8,6 +8,7 @@
 #include "Renderers/HktUIRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
 #include "NativeGameplayTags.h"
+#include "HktCoreEventLog.h"
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Action_Move_ToLocation, "Action.Move.ToLocation");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.MoveIndicator");
@@ -104,6 +105,8 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 {
 	if (!View.WorldState) return;
 
+	HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("WorldViewUpdated Frame=%lld IsInitialSync=%s"), View.FrameNumber, View.bIsInitialSync ? TEXT("true") : TEXT("false")));
+
 	if (View.bIsInitialSync || !bInitialSyncDone)
 	{
 		ProcessInitialSync(View);
@@ -133,11 +136,20 @@ void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 {
 	State.BeginFrame(View.FrameNumber);
-	View.ForEachRemoved([this](FHktEntityId Id) { State.RemoveEntity(Id); });
-	View.ForEachSpawned([this, &View](const FHktEntityState& ES)
+
+	int32 RemovedCount = 0;
+	View.ForEachRemoved([this, &RemovedCount](FHktEntityId Id) { State.RemoveEntity(Id); ++RemovedCount; });
+	int32 SpawnedCount = 0;
+	View.ForEachSpawned([this, &View, &SpawnedCount](const FHktEntityState& ES)
 	{
 		State.AddEntity(*View.WorldState, ES.EntityId);
+		++SpawnedCount;
 	});
+
+	if (SpawnedCount > 0 || RemovedCount > 0)
+	{
+		HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("ProcessDiff Frame=%lld Spawned=%d Removed=%d"), View.FrameNumber, SpawnedCount, RemovedCount));
+	}
 	View.ForEachDelta([this](FHktEntityId Id, uint16 PropId, int32 NewValue)
 	{
 		State.ApplyDelta(Id, PropId, NewValue);
@@ -189,6 +201,8 @@ void UHktPresentationSubsystem::OnIntentSubmitted(const FHktRuntimeEvent& Event)
 
 void UHktPresentationSubsystem::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)
 {
+	HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("PlayVFXAtLocation Tag=%s Location=(%.1f, %.1f, %.1f)"), *VFXTag.ToString(), Location.X, Location.Y, Location.Z));
+
 	if (VFXRenderer)
 	{
 		VFXRenderer->PlayVFXAtLocation(VFXTag, Location);

@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktIntentBuilderComponent.h"
+#include "HktCoreEventLog.h"
 
 UHktIntentBuilderComponent::UHktIntentBuilderComponent()
 {
@@ -77,6 +78,11 @@ bool UHktIntentBuilderComponent::Submit()
 
     bHasPendingSubmit = true;
 
+    HKT_EVENT_LOG_TAG("Runtime.Intent",
+        FString::Printf(TEXT("Submit Tag=%s Subject=%d Target=%d Loc=(%.0f,%.0f,%.0f)"),
+            *EventTag.ToString(), SubjectEntityId, TargetEntityId,
+            TargetLocation.X, TargetLocation.Y, TargetLocation.Z),
+        SubjectEntityId, EventTag);
     UE_LOG(LogTemp, Log, TEXT("[IntentBuilder] Submit: EventId=%d, Tag=%s, Subject=%d, Target=%d"),
         CoreEvent.EventId, *EventTag.ToString(),
         SubjectEntityId, TargetEntityId);
