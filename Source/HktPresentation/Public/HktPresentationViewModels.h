@@ -90,3 +90,15 @@ struct FHktVM_Visualization
 	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
 	bool TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);
 };
+
+/** 아이템 소켓 부착 그룹 — OwnerEntity + ActionSlot 추적 */
+struct FHktVM_Item
+{
+	THktVisualField<int32> OwnerEntity;   // 소유 캐릭터 EntityId (0 = 없음)
+	THktVisualField<int32> ActionSlot;    // -1 = 미등록, 0+ = 장착 슬롯
+
+	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
+	bool TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);
+
+	bool IsAttached() const { return OwnerEntity.Get() > 0 && ActionSlot.Get() >= 0; }
+};

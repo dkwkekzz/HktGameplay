@@ -31,6 +31,7 @@ struct FHktEntityPresentation
 	FHktVM_Ownership Ownership;
 	FHktVM_Animation Animation;
 	FHktVM_Visualization Visualization;
+	FHktVM_Item Item;
 
 	/** Entity의 GameplayTag 컨테이너 (AnimInstance 태그 동기화용) */
 	FGameplayTagContainer Tags;
