@@ -9,7 +9,7 @@
 namespace HktStoryFireball
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Fireball, "Ability.Skill.Fireball", "Fireball skill flow.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Fireball, "Story.Event.Skill.Fireball", "Fireball skill flow.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Projectile_Fireball, "Entity.Projectile.Fireball", "Fireball projectile entity.");

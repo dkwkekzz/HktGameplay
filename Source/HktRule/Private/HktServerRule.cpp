@@ -7,7 +7,7 @@
 
 namespace HktServerRuleSpawnerTags
 {
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_Spawner_GoblinCamp, "Flow.Spawner.GoblinCamp", "Periodic goblin camp spawner flow.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_Spawner_GoblinCamp, "Story.Flow.Spawner.GoblinCamp", "Periodic goblin camp spawner flow.");
 }
 
 namespace

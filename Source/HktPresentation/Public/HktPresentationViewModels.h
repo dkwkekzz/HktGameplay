@@ -75,7 +75,7 @@ struct FHktVM_Animation
 	/** UpperBody 애니메이션 상태 태그 (Anim.UpperBody.Combat.Attack 등) */
 	THktVisualField<FGameplayTag> AnimStateUpper;
 
-	/** 현재 Stance — FGameplayTagNetIndex로 저장 (Stance.Unarmed, Stance.Spear 등) */
+	/** 현재 Stance — FGameplayTagNetIndex로 저장 (Entity.Stance.Unarmed, Entity.Stance.Spear 등) */
 	THktVisualField<int32> Stance;
 
 	void Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);

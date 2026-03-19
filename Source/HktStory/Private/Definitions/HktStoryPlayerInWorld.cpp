@@ -9,7 +9,7 @@
 namespace HktStoryPlayerInWorld
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_PlayerInWorld, "State.Player.InWorld", "Player in world state flow.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_PlayerInWorld, "Story.State.Player.InWorld", "Player in world state flow.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player, "Entity.Character.Player", "Player character entity.");
@@ -26,7 +26,7 @@ namespace HktStoryPlayerInWorld
 
 	// Item
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_WoodenSword, "Entity.Item.WoodenSword", "Wooden sword starter item.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Weapon_Sword, "Tag.Weapon.Sword", "Sword weapon tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Weapon_Sword, "Entity.Attr.Weapon.Sword", "Sword weapon tag.");
 
 	/**
 	 * ================================================================

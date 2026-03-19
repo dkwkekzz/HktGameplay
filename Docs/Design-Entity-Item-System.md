@@ -7,6 +7,47 @@ HktGameplay 모듈의 Entity 생명주기(Lifecycle)와 아이템 소유/활성�
 
 ---
 
+## 0. Tag 네이밍 컨벤션
+
+모든 GameplayTag는 아래 규칙을 따른다.
+
+### 0.1 Story Tags — `Story.{호출형태}.{카테고리}.{이름}`
+
+Story(VM 프로그램)를 식별하는 태그. 접두사로 호출 출처를 구분한다.
+
+| 접두사 | 호출 출처 | 설명 | 예시 |
+|--------|-----------|------|------|
+| `Story.Event.*` | Client Intent | 클라이언트가 최초로 fire | `Story.Event.Item.Pickup`, `Story.Event.Attack.Basic` |
+| `Story.Flow.*` | Map Event | 서버가 자체적으로 fire | `Story.Flow.Spawner.GoblinCamp`, `Story.Flow.NPC.Lifecycle` |
+| `Story.State.*` | 지속 상태 | 서버가 fire, 지속 유지 | `Story.State.Player.InWorld` |
+
+### 0.2 Entity Tags — `Entity.*`
+
+엔티티 관련 모든 태그의 루트.
+
+| 패턴 | 용도 | 예시 |
+|------|------|------|
+| `Entity.{Type}.{Name}` | 엔티티 유형 (SpawnEntity의 ClassTag) | `Entity.Character.Player`, `Entity.Item.WoodenSword`, `Entity.NPC.Goblin` |
+| `Entity.Attr.{Category}.{Name}` | 엔티티 속성 (AddTag로 부여하는 분류) | `Entity.Attr.Weapon.Sword`, `Entity.Attr.Item.Material`, `Entity.Attr.NPC.Hostile` |
+| `Entity.{PropertyName}.{Value}` | Property 값으로 사용되는 태그 | `Entity.Stance.Spear`, `Entity.Stance.Sword1H` |
+
+### 0.3 Presentation Tags
+
+| 패턴 | 용도 | 예시 |
+|------|------|------|
+| `Anim.{Layer}.{Category}.{Name}` | 애니메이션 상태 태그 | `Anim.FullBody.Locomotion.Idle`, `Anim.UpperBody.Combat.Attack` |
+| `VFX.{Name}` | VFX 식별자 | `VFX.SpawnEffect`, `VFX.HitSpark` |
+| `Sound.{Name}` | 사운드 식별자 | `Sound.Spawn`, `Sound.Hit` |
+| `Widget.{Name}` | UI 위젯 식별자 | `Widget.IngameHud` |
+
+### 0.4 System Tags
+
+| 패턴 | 용도 | 예시 |
+|------|------|------|
+| `Effect.{Name}` | 게임 이펙트 (버프/디버프) | `Effect.Burn` |
+
+---
+
 ## 1. Event와 Story의 구조
 
 ### 1.1 근본 개념
@@ -21,8 +62,8 @@ HktGameplay 모듈의 Entity 생명주기(Lifecycle)와 아이템 소유/활성�
 
 | 출처 | 이름 | 설명 | 예시 |
 |------|------|------|------|
-| **서버** | Map Event | 서버가 자체적으로 요청하는 자연적 작용 | `Flow.Spawner.Item.TreeDrop`, `Flow.NPC.Lifecycle`, `State.Player.InWorld` |
-| **클라이언트** | Client Intent | 사용자가 요청하는 상호작용 | `Event.Item.Pickup`, `Event.Item.Activate`, `Event.Item.Drop` |
+| **서버** | Map Event | 서버가 자체적으로 요청하는 자연적 작용 | `Story.Flow.Spawner.Item.TreeDrop`, `Story.Flow.NPC.Lifecycle`, `Story.State.Player.InWorld` |
+| **클라이언트** | Client Intent | 사용자가 요청하는 상호작용 | `Story.Event.Item.Pickup`, `Story.Event.Item.Activate`, `Story.Event.Item.Drop` |
 
 ### 1.3 Event와 Story의 분리
 
@@ -179,11 +220,11 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 
 | 전이 | Story | 사전 조건 | 변경 속성 |
 |------|-------|-----------|-----------|
-| **Pickup** | `Event.Item.Pickup` | ItemState==0, 거리<=300cm, 가방<BagCapacity | OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
+| **Pickup** | `Story.Event.Item.Pickup` | ItemState==0, 거리<=300cm, 가방<BagCapacity | OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
 | **Grant** | (Story 내부 패턴) | 가방<BagCapacity | SpawnEntity→OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
-| **Activate** | `Event.Item.Activate` | ItemState==1, OwnerEntity==Self | ItemState=2, ActionSlot=Param0, 캐릭터 Stance=아이템 Stance |
-| **Deactivate** | `Event.Item.Deactivate` | ItemState==2, OwnerEntity==Self | ItemState=1, ActionSlot=-1 |
-| **Drop** | `Event.Item.Drop` | OwnerEntity==Self | ItemState=0, OwnerEntity=0, BagSlot=0, ActionSlot=-1, 위치=Self위치 |
+| **Activate** | `Story.Event.Item.Activate` | ItemState==1, OwnerEntity==Self | ItemState=2, ActionSlot=Param0, 캐릭터 Stance=아이템 Stance |
+| **Deactivate** | `Story.Event.Item.Deactivate` | ItemState==2, OwnerEntity==Self | ItemState=1, ActionSlot=-1 |
+| **Drop** | `Story.Event.Item.Drop` | OwnerEntity==Self | ItemState=0, OwnerEntity=0, BagSlot=0, ActionSlot=-1, 위치=Self위치 |
 
 ### 3.4 아이템 획득 경로 (Acquisition Paths)
 
@@ -191,13 +232,13 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 
 | 경로 | 분류 | 최초 트리거 (Event) | 파생 로직 (Story) |
 |------|------|---------------------|-------------------|
-| **바닥 줍기** | Client Intent | `Event.Item.Pickup` | — (Event 자체가 획득 로직) |
+| **바닥 줍기** | Client Intent | `Story.Event.Item.Pickup` | — (Event 자체가 획득 로직) |
 | **퀘스트 보상** | Client Intent | 퀘스트 완료 UI 등 | Story 내부에서 Grant (SpawnEntity→InBag) |
 | **NPC 상점** | Client Intent | NPC 대화/구매 선택 | Story 내부에서 Grant (SpawnEntity→InBag) |
-| **조합** | Client Intent | `Event.Item.Craft` (향후) | 재료소비 후 Grant |
-| **NPC 전리품** | Map Event | `Flow.NPC.Lifecycle` | SpawnEntity→Ground → 플레이어가 Pickup |
-| **자연 스폰** | Map Event | `Flow.Spawner.Item.TreeDrop` | SpawnEntity→Ground → 플레이어가 Pickup |
-| **초기 지급** | Map Event | `State.Player.InWorld` | Story 내부에서 직접 SpawnEntity→InBag |
+| **조합** | Client Intent | `Story.Event.Item.Craft` (향후) | 재료소비 후 Grant |
+| **NPC 전리품** | Map Event | `Story.Flow.NPC.Lifecycle` | SpawnEntity→Ground → 플레이어가 Pickup |
+| **자연 스폰** | Map Event | `Story.Flow.Spawner.Item.TreeDrop` | SpawnEntity→Ground → 플레이어가 Pickup |
+| **초기 지급** | Map Event | `Story.State.Player.InWorld` | Story 내부에서 직접 SpawnEntity→InBag |
 
 **Grant는 Event가 아니다.** Grant(아이템 생성+InBag 주입)는 다양한 Event의 Story 내부에서 수행되는 공통 패턴이다. VM에 서브루틴 호출이 없으므로, Grant 로직(용량검증+BagSlot할당+SpawnEntity+속성설정)은 각 Story에 인라인으로 포함된다.
 
@@ -230,7 +271,7 @@ Equip 개념은 존재하지 않는다. 아이템은 **2단계**(Pickup→Activa
     (자연 스포너)    │ State=0  │
                     └────┬─────┘
                          │
-                    Pickup│(Event.Item.Pickup)
+                    Pickup│(Story.Story.Event.Item.Pickup)
                          │ 조건: 거리<=3m, 가방<BagCapacity
                          ▼
                     ┌──────────┐
@@ -239,13 +280,13 @@ Equip 개념은 존재하지 않는다. 아이템은 **2단계**(Pickup→Activa
                     │ State=1  │               │
                     └────┬─────┘               │
                          │                     │
-                  Activate│(Event.Item.Activate)│
+                  Activate│(Story.Event.Item.Activate)│
                          │ Param0 = ActionSlot │
                          │ + Stance 자동 변경   │
                          ▼                     │
                     ┌──────────────┐            │
                     │ Active       │────────────┘
-                    │ State=2      │ (Event.Item.Deactivate)
+                    │ State=2      │ (Story.Event.Item.Deactivate)
                     │ ActionSlot=N │
                     └──────────────┘
 
@@ -273,10 +314,10 @@ Equip 개념은 존재하지 않는다. 아이템은 **2단계**(Pickup→Activa
 ### 4.3 Stance (전투 자세)와 아이템의 관계
 
 Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
-- `Stance.Unarmed` — 비무장
-- `Stance.Spear` — 창
-- `Stance.Gun` — 총
-- `Stance.Sword1H` — 한손검
+- `Entity.Stance.Unarmed` — 비무장
+- `Entity.Stance.Spear` — 창
+- `Entity.Stance.Gun` — 총
+- `Entity.Stance.Sword1H` — 한손검
 
 아이템 엔티티는 자신의 `Stance` Property에 해당 무기의 Stance 값을 저장한다.
 Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동 변경한다.
@@ -343,7 +384,7 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 ### Gap 1: Deactivate 흐름 부재 — 우선순위: 높음
 - **현상**: Active(State=2) → InBag(State=1) 전이를 담당하는 Story가 없다.
 - **영향**: 활성 해제를 하려면 Drop 후 Pickup해야 한다 (비직관적).
-- **제안**: `Event.Item.Deactivate` Story 추가. Active→InBag 전환, ActionSlot=-1로 초기화, Stance 복원.
+- **제안**: `Story.Event.Item.Deactivate` Story 추가. Active→InBag 전환, ActionSlot=-1로 초기화, Stance 복원.
 
 ### Gap 2: BagSlot 재배치 미구현 — 우선순위: 높음
 - **현상**: Drop 시 BagSlot이 0으로 초기화되지만, 나머지 아이템의 BagSlot이 재정렬되지 않는다.
@@ -352,7 +393,7 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 - **참고**: 엔티티별 BagCapacity가 다를 수 있으므로 (이동형 창고 등), 슬롯 탐색은 해당 엔티티의 BagCapacity 범위 내에서 수행해야 한다.
 
 ### Gap 3: ActionSlot 충돌 미검증 — 우선순위: 중간
-- **현상**: `Event.Item.Activate`에서 동일 ActionSlot에 이미 다른 아이템이 할당되어 있는지 확인하지 않는다.
+- **현상**: `Story.Event.Item.Activate`에서 동일 ActionSlot에 이미 다른 아이템이 할당되어 있는지 확인하지 않는다.
 - **영향**: 두 개의 아이템이 같은 ActionSlot을 점유할 수 있다.
 - **제안**: 기존 ActionSlot 점유 아이템의 자동 해제 로직 추가.
 
@@ -369,10 +410,10 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 ### Gap 6: 아이템 거래/이전 시스템 부재 — 우선순위: 낮음
 - **현상**: 플레이어 간 직접 아이템 이전 수단 없음.
 - **영향**: Drop→Pickup으로만 거래 가능 (분실 위험, 보안 취약).
-- **제안**: `Event.Item.Trade` Story 설계. 양측 동의 확인 메커니즘 (2-phase commit).
+- **제안**: `Story.Event.Item.Trade` Story 설계. 양측 동의 확인 메커니즘 (2-phase commit).
 
 ### Gap 7: 신규 vs 복귀 플레이어 분기 — 우선순위: 미정
-- **현상**: 복귀 플레이어 재접속 시 DB에서 EntityStates가 Import된 후 `State.Player.InWorld` Story가 다시 기동되면, 초기 아이템(목검)이 중복 지급될 수 있다.
+- **현상**: 복귀 플레이어 재접속 시 DB에서 EntityStates가 Import된 후 `Story.State.Player.InWorld` Story가 다시 기동되면, 초기 아이템(목검)이 중복 지급될 수 있다.
 - **현재 상태**: 의도된 동작인지 미정. 추후 결정 필요.
 
 ---
@@ -386,7 +427,7 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 2. 클라이언트가 자기 Entity를 포커싱하여 게임 진행
 3. 우클릭으로 이동
 4. PrototypeMap에 WoodSpear가 하나 스폰되어 있음
-5. 플레이어가 WoodSpear를 Pickup (Client Intent → Event.Item.Pickup)
+5. 플레이어가 WoodSpear를 Pickup (Client Intent → Story.Event.Item.Pickup)
 6. Command로 Activate 실행 (Client Intent → Event.Item.Activate)
    - UI 미구현이므로 Command로 대체
 7. Activate 시:

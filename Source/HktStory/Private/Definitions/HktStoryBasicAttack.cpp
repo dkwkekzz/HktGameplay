@@ -9,7 +9,7 @@
 namespace HktStoryBasicAttack
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_BasicAttack, "Ability.Attack.Basic", "Basic attack ability flow.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_BasicAttack, "Story.Event.Attack.Basic", "Basic attack ability flow.");
 
 	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_UpperBody_Combat_Attack, "Anim.UpperBody.Combat.Attack", "Basic attack upper body state tag.");

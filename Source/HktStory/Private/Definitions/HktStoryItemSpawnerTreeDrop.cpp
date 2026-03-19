@@ -9,14 +9,14 @@
 namespace HktStoryItemSpawnerTreeDrop
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_Item_TreeDrop, "Flow.Spawner.Item.TreeDrop", "Natural item spawner - tree drops.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_Item_TreeDrop, "Story.Flow.Spawner.Item.TreeDrop", "Natural item spawner - tree drops.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_Wood, "Entity.Item.Wood", "Wood material item.");
 
 	// Tags
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Material, "Item.Material", "Material item category.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Wood, "Item.Wood", "Wood item tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Material, "Entity.Attr.Item.Material", "Material item category.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Wood, "Entity.Attr.Item.Wood", "Wood item tag.");
 
 	/**
 	 * ================================================================
@@ -26,7 +26,7 @@ namespace HktStoryItemSpawnerTreeDrop
 	 * "플레이어가 있을 때 30초마다 나무 아이템을 월드에 드랍한다.
 	 *  아이템 수가 상한에 도달하면 대기한다."
 	 *
-	 * 서버가 EventTag "Flow.Spawner.Item.TreeDrop" fire.
+	 * 서버가 EventTag "Story.Flow.Spawner.Item.TreeDrop" fire.
 	 * Param0 = SpawnPosX, Param1 = SpawnPosY
 	 * ================================================================
 	 */
