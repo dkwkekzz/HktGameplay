@@ -4,16 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "HktCoreDefs.h"
+#include "Camera/HktCameraModeTypes.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "HktRtsCameraPawn.generated.h"
 
 class USpringArmComponent;
 class UCameraComponent;
+class UHktCameraModeBase;
+class UHktCameraMode_RtsFree;
+class UHktCameraMode_SubjectFollow;
 
 /**
  * RTS 스타일 카메라 이동·줌을 담당하는 폰.
  * PlayerController가 이 폰을 Possess합니다.
- * 선택된 유닛이 없을 때 새로 스폰된 엔터티를 자동으로 따라갑니다.
+ * 카메라 모드 시스템을 통해 다양한 카메라 동작을 지원합니다.
  */
 UCLASS()
 class HKTPRESENTATION_API AHktRtsCameraPawn : public ASpectatorPawn
@@ -25,6 +29,19 @@ public:
 
 	/** 마우스 휠 등으로 호출할 줌 처리 */
 	void HandleZoom(float Value);
+
+	/** 카메라 모드 전환 */
+	void SetCameraMode(EHktCameraMode NewMode);
+	EHktCameraMode GetCameraMode() const { return ActiveModeType; }
+
+	// === 모드에서 사용할 접근자 ===
+	USpringArmComponent* GetSpringArm() const { return SpringArm; }
+	UCameraComponent* GetCamera() const { return Camera; }
+	APlayerController* GetBoundPC() const { return BoundPlayerController.Get(); }
+	float GetZoomSpeed() const { return ZoomSpeed; }
+	float GetMinZoom() const { return MinZoom; }
+	float GetMaxZoom() const { return MaxZoom; }
+	int64 GetCachedPlayerUid() const { return CachedPlayerUid; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -46,26 +63,25 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
 	float MaxZoom = 4000.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
-	float EdgeScrollThickness = 0.05f;
+	// === 카메라 모드 ===
+	UPROPERTY(Instanced, EditAnywhere, Category = "Camera|Modes")
+	TObjectPtr<UHktCameraMode_RtsFree> RtsFreeMode;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
-	float CameraScrollSpeed = 3000.0f;
-
-	/** 선택 없을 때 새로 스폰된 엔터티 따라가기 보간 속도 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
-	float FollowInterpSpeed = 5.0f;
+	UPROPERTY(Instanced, EditAnywhere, Category = "Camera|Modes")
+	TObjectPtr<UHktCameraMode_SubjectFollow> SubjectFollowMode;
 
 private:
-	void Zoom(float AxisValue);
-	void HandleCameraEdgeScroll(float DeltaTime);
-	void UpdateFollowTarget(float DeltaTime);
 	void OnSubjectChanged(FHktEntityId EntityId);
 
-	/** 따라갈 엔터티 ID (선택이 없을 때만 유효) */
-	FHktEntityId FollowTargetEntityId = InvalidEntityId;
-	/** true면 새로 스폰된 엔터티를 따라감 */
-	bool bFollowNewSpawn = true;
+	/** 엔티티 소유권 검증: PlayerUid가 일치하는지 확인 */
+	bool IsOwnedEntity(FHktEntityId EntityId) const;
+
+	UHktCameraModeBase* GetModeInstance(EHktCameraMode Mode) const;
+
+	UHktCameraModeBase* ActiveMode = nullptr;
+	EHktCameraMode ActiveModeType = EHktCameraMode::RtsFree;
+
+	int64 CachedPlayerUid = 0;
 
 	FDelegateHandle WheelInputHandle;
 	FDelegateHandle SubjectChangedHandle;

@@ -4,6 +4,9 @@
 #include "HktPresentationSubsystem.h"
 #include "HktPresentationState.h"
 #include "IHktPlayerInteractionInterface.h"
+#include "Camera/HktCameraModeBase.h"
+#include "Camera/HktCameraMode_RtsFree.h"
+#include "Camera/HktCameraMode_SubjectFollow.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -21,6 +24,9 @@ AHktRtsCameraPawn::AHktRtsCameraPawn()
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm);
+
+	RtsFreeMode = CreateDefaultSubobject<UHktCameraMode_RtsFree>(TEXT("RtsFreeMode"));
+	SubjectFollowMode = CreateDefaultSubobject<UHktCameraMode_SubjectFollow>(TEXT("SubjectFollowMode"));
 }
 
 void AHktRtsCameraPawn::BeginPlay()
@@ -35,7 +41,11 @@ void AHktRtsCameraPawn::BeginPlay()
 	{
 		WheelInputHandle = Interaction->OnWheelInput().AddUObject(this, &AHktRtsCameraPawn::HandleZoom);
 		SubjectChangedHandle = Interaction->OnSubjectChanged().AddUObject(this, &AHktRtsCameraPawn::OnSubjectChanged);
+		CachedPlayerUid = Interaction->GetPlayerUid();
 	}
+
+	// 기본 모드로 시작
+	SetCameraMode(EHktCameraMode::RtsFree);
 }
 
 void AHktRtsCameraPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -58,102 +68,99 @@ void AHktRtsCameraPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	BoundPlayerController.Reset();
 
+	if (ActiveMode)
+	{
+		ActiveMode->OnDeactivate(this);
+		ActiveMode = nullptr;
+	}
+
 	Super::EndPlay(EndPlayReason);
 }
 
 void AHktRtsCameraPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	HandleCameraEdgeScroll(DeltaTime);
-	UpdateFollowTarget(DeltaTime);
+
+	// PlayerUid가 지연 초기화될 수 있으므로 캐싱 재시도
+	if (CachedPlayerUid == 0)
+	{
+		if (IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(BoundPlayerController.Get()))
+		{
+			CachedPlayerUid = Interaction->GetPlayerUid();
+		}
+	}
+
+	if (ActiveMode)
+	{
+		ActiveMode->TickMode(this, DeltaTime);
+	}
 }
 
 void AHktRtsCameraPawn::HandleZoom(float Value)
 {
-	Zoom(Value);
-}
-
-void AHktRtsCameraPawn::Zoom(float AxisValue)
-{
-	if (SpringArm && AxisValue != 0.0f)
+	if (ActiveMode)
 	{
-		SpringArm->TargetArmLength = FMath::Clamp(
-			SpringArm->TargetArmLength - AxisValue * ZoomSpeed, MinZoom, MaxZoom);
-	}
-}
-
-void AHktRtsCameraPawn::HandleCameraEdgeScroll(float DeltaTime)
-{
-	APlayerController* PC = GetController<APlayerController>();
-	if (!PC) return;
-
-	int32 ViewportSizeX, ViewportSizeY;
-	PC->GetViewportSize(ViewportSizeX, ViewportSizeY);
-	if (ViewportSizeX <= 0 || ViewportSizeY <= 0) return;
-
-	float MousePosX, MousePosY;
-	if (PC->GetMousePosition(MousePosX, MousePosY))
-	{
-		FVector DirectionToMove = FVector::ZeroVector;
-		const float EdgeX = ViewportSizeX * EdgeScrollThickness;
-		const float EdgeY = ViewportSizeY * EdgeScrollThickness;
-
-		if (MousePosX <= EdgeX)           DirectionToMove.Y = -1.0f;
-		else if (MousePosX >= ViewportSizeX - EdgeX) DirectionToMove.Y = 1.0f;
-		if (MousePosY <= EdgeY)           DirectionToMove.X = 1.0f;
-		else if (MousePosY >= ViewportSizeY - EdgeY) DirectionToMove.X = -1.0f;
-
-		if (!DirectionToMove.IsZero())
-		{
-			DirectionToMove.Normalize();
-			AddActorWorldOffset(DirectionToMove * CameraScrollSpeed * DeltaTime);
-		}
+		ActiveMode->HandleZoom(this, Value);
 	}
 }
 
 void AHktRtsCameraPawn::OnSubjectChanged(FHktEntityId EntityId)
 {
-	if (EntityId == InvalidEntityId)
+	if (EntityId != InvalidEntityId && IsOwnedEntity(EntityId))
 	{
-		bFollowNewSpawn = true;
-		FollowTargetEntityId = InvalidEntityId;
+		SetCameraMode(EHktCameraMode::SubjectFollow);
 	}
 	else
 	{
-		bFollowNewSpawn = false;
-		FollowTargetEntityId = EntityId;
+		SetCameraMode(EHktCameraMode::RtsFree);
+	}
+
+	if (ActiveMode)
+	{
+		ActiveMode->OnSubjectChanged(this, EntityId);
 	}
 }
 
-void AHktRtsCameraPawn::UpdateFollowTarget(float DeltaTime)
+bool AHktRtsCameraPawn::IsOwnedEntity(FHktEntityId EntityId) const
 {
-	if (!bFollowNewSpawn) return;
+	if (CachedPlayerUid == 0) return false;
 
-	APlayerController* PC = GetController<APlayerController>();
-	if (!PC) return;
+	APlayerController* PC = BoundPlayerController.Get();
+	if (!PC) return false;
 
 	UHktPresentationSubsystem* Sub = UHktPresentationSubsystem::Get(PC);
-	if (!Sub) return;
+	if (!Sub) return false;
 
-	const FHktPresentationState& State = Sub->GetState();
+	const FHktEntityPresentation* E = Sub->GetState().Get(EntityId);
+	if (!E || !E->IsAlive()) return false;
 
-	// 이번 프레임에 새로 스폰된 엔터티가 있으면 그중 하나를 따라갈 대상으로 설정
-	if (State.SpawnedThisFrame.Num() > 0)
+	return E->Ownership.OwnedPlayerUid.Get() == CachedPlayerUid;
+}
+
+void AHktRtsCameraPawn::SetCameraMode(EHktCameraMode NewMode)
+{
+	if (ActiveModeType == NewMode && ActiveMode) return;
+
+	if (ActiveMode)
 	{
-		FollowTargetEntityId = State.SpawnedThisFrame.Last();
+		ActiveMode->OnDeactivate(this);
 	}
 
-	if (FollowTargetEntityId == InvalidEntityId) return;
+	ActiveModeType = NewMode;
+	ActiveMode = GetModeInstance(NewMode);
 
-	const FHktEntityPresentation* E = State.Get(FollowTargetEntityId);
-	if (!E || !E->IsAlive())
+	if (ActiveMode)
 	{
-		FollowTargetEntityId = InvalidEntityId;
-		return;
+		ActiveMode->OnActivate(this);
 	}
+}
 
-	FVector TargetLoc = E->Transform.Location.Get();
-	FVector CurrentLoc = GetActorLocation();
-	FVector NewLoc = FMath::VInterpTo(CurrentLoc, FVector(TargetLoc.X, TargetLoc.Y, CurrentLoc.Z), DeltaTime, FollowInterpSpeed);
-	SetActorLocation(NewLoc);
+UHktCameraModeBase* AHktRtsCameraPawn::GetModeInstance(EHktCameraMode Mode) const
+{
+	switch (Mode)
+	{
+	case EHktCameraMode::RtsFree:        return RtsFreeMode;
+	case EHktCameraMode::SubjectFollow:  return SubjectFollowMode;
+	default:                             return RtsFreeMode;
+	}
 }

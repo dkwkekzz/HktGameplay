@@ -53,7 +53,7 @@ public:
     virtual FOnHktIntentSubmitted& OnIntentSubmitted() override { return IntentSubmittedDelegate; }
 
     // === Player UID ===
-    int64 GetPlayerUid() const;
+    virtual int64 GetPlayerUid() const override;
 
 protected:
     virtual void BeginPlay() override;

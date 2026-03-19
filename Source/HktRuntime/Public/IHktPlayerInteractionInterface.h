@@ -44,4 +44,7 @@ public:
 
 	/** Intent 제출 시 브로드캐스트 (클라이언트 즉시 VFX 등에 사용). */
 	virtual FOnHktIntentSubmitted& OnIntentSubmitted() = 0;
+
+	/** 이 플레이어의 고유 UID. 소유권 검증 등에 사용. 미지원 시 0 반환. */
+	virtual int64 GetPlayerUid() const { return 0; }
 };
