@@ -8,6 +8,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Components/CapsuleComponent.h"
+#include "HktCoreEventLog.h"
 
 FHktActorRenderer::FHktActorRenderer(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
@@ -144,6 +145,8 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		AActor* SpawnedActor = World->SpawnActor<AActor>(ActorClass, SpawnLocation, Rotation, SpawnParams);
 		if (SpawnedActor)
 		{
+			HKT_EVENT_LOG_ENTITY("Presentation", FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), *VisualTag.ToString(), SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z), EntityId);
+
 			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
 			PendingInitSync.Add(EntityId);

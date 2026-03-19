@@ -3,6 +3,7 @@
 #include "HktWorldState.h"
 #include "HktCoreProperties.h"
 #include "HktSimulationLimits.h"
+#include "HktCoreEventLog.h"
 
 // ============================================================================
 // Cold (Warm + Overflow) Access Helpers
@@ -163,12 +164,16 @@ FHktEntityId FHktWorldState::AllocateEntity()
     }
     int32 Slot = AllocateSlot(NewId);
     EntitySlots[NewId] = Slot;
+    HKT_EVENT_LOG_ENTITY("Core.Entity",
+        FString::Printf(TEXT("AllocateEntity Id=%d Slot=%d"), NewId, Slot), NewId);
     return NewId;
 }
 
 void FHktWorldState::RemoveEntity(FHktEntityId Id)
 {
     if (!IsValidEntity(Id)) return;
+    HKT_EVENT_LOG_ENTITY("Core.Entity",
+        FString::Printf(TEXT("RemoveEntity Id=%d"), Id), Id);
     FreeSlot(EntitySlots[Id]);
     EntitySlots[Id] = -1;
 }
@@ -270,6 +275,9 @@ void FHktWorldState::ImportEntityStateWithId(const FHktEntityState& InState)
 
 void FHktWorldState::UndoDiff(const FHktSimulationDiff& Diff)
 {
+    HKT_EVENT_LOG("Core.Entity",
+        FString::Printf(TEXT("UndoDiff Frame=%lld Spawned=%d Removed=%d Props=%d"),
+            Diff.FrameNumber, Diff.SpawnedEntities.Num(), Diff.RemovedEntityStates.Num(), Diff.PropertyDeltas.Num()));
     for (const FHktEntityState& S : Diff.SpawnedEntities)
         RemoveEntity(S.EntityId);
 
@@ -459,12 +467,16 @@ const FGameplayTagContainer& FHktWorldState::GetTags(FHktEntityId Entity) const
 void FHktWorldState::AddTag(FHktEntityId Entity, const FGameplayTag& Tag)
 {
     if (!IsValidEntity(Entity)) return;
+    HKT_EVENT_LOG_TAG("Core.Entity",
+        FString::Printf(TEXT("AddTag Id=%d Tag=%s"), Entity, *Tag.ToString()), Entity, Tag);
     TagContainers[EntitySlots[Entity]].AddTag(Tag);
 }
 
 void FHktWorldState::RemoveTag(FHktEntityId Entity, const FGameplayTag& Tag)
 {
     if (!IsValidEntity(Entity)) return;
+    HKT_EVENT_LOG_TAG("Core.Entity",
+        FString::Printf(TEXT("RemoveTag Id=%d Tag=%s"), Entity, *Tag.ToString()), Entity, Tag);
     TagContainers[EntitySlots[Entity]].RemoveTag(Tag);
 }
 
