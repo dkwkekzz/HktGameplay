@@ -4,11 +4,7 @@
 #include "HktCoreSimulator.h"
 #include "GameplayTagsManager.h"
 #include "NativeGameplayTags.h"
-
-namespace HktServerRuleSpawnerTags
-{
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flow_Spawner_GoblinCamp, "Story.Flow.Spawner.GoblinCamp", "Periodic goblin camp spawner flow.");
-}
+#include "HktTempMapStoryConfig.h"
 
 namespace
 {
@@ -155,23 +151,23 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		GroupEventSend.Entered.Add(NewPlayer);
 	}
 
-	// --- NPC Spawner Event Injection ---
-	// Zone 데이터는 향후 Map/MCP에서 로드. 현재는 샘플 스포너 이벤트를 1회 fire.
-	// 각 그룹에 스포너를 한 번만 활성화 (VM이 루프하며 자체 관리)
+	// --- Temp Map Story Injection (TODO: MapGenerator의 FHktMapData로 교체) ---
+	// HktTempMapStoryConfig에서 테스트용 스토리 목록을 읽어 1회 fire.
+	// 향후: FHktMapData::GlobalStories + FHktMapRegion::Stories에서 읽도록 변경.
+	if (ActiveSpawnerFlows.Num() == 0)
 	{
-		using namespace HktServerRuleSpawnerTags;
-		if (!ActiveSpawnerFlows.Contains(Flow_Spawner_GoblinCamp))
+		for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
 		{
-			for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
+			for (const FHktTempStoryEntry& Entry : HktTempMapStoryConfig::GetSpawnersForGroup(GroupIndex))
 			{
 				FHktEvent SpawnerEvent;
 				SpawnerEvent.EventId = ++ServerEventSequence;
-				SpawnerEvent.EventTag = Flow_Spawner_GoblinCamp;
-				SpawnerEvent.Param0 = 1000 + GroupIndex * 500;  // SpawnPosX (샘플)
-				SpawnerEvent.Param1 = 1000;                     // SpawnPosY (샘플)
+				SpawnerEvent.EventTag = Entry.StoryTag;
+				SpawnerEvent.Param0 = Entry.SpawnPosX;
+				SpawnerEvent.Param1 = Entry.SpawnPosY;
 				PendingGroupIntents[GroupIndex].Add(SpawnerEvent);
+				ActiveSpawnerFlows.Add(Entry.StoryTag);
 			}
-			ActiveSpawnerFlows.Add(Flow_Spawner_GoblinCamp);
 		}
 	}
 
