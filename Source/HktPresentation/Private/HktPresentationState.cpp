@@ -21,6 +21,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	Ownership.Apply(WS, Id, Frame);
 	Animation.Apply(WS, Id, Frame);
 	Visualization.Apply(WS, Id, Frame);
+	Item.Apply(WS, Id, Frame);
 }
 
 void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
@@ -78,6 +79,12 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 		// Visualization
 	case PropertyId::EntitySpawnTag:
 		Visualization.TryApplyDelta(PropId, NewValue, Frame);
+		break;
+
+		// Item (소켓 부착)
+	case PropertyId::OwnerEntity:
+	case PropertyId::ActionSlot:
+		Item.TryApplyDelta(PropId, NewValue, Frame);
 		break;
 	}
 }

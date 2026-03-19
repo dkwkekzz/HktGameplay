@@ -171,3 +171,20 @@ bool FHktVM_Visualization::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Fr
 	default: return false;
 	}
 }
+
+// --------------------------------------------------------------------------- FHktVM_Item
+void FHktVM_Item::Apply(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
+{
+	OwnerEntity.Set(WS.GetProperty(Id, PropertyId::OwnerEntity), Frame);
+	ActionSlot.Set(WS.GetProperty(Id, PropertyId::ActionSlot), Frame);
+}
+
+bool FHktVM_Item::TryApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
+{
+	switch (PropId)
+	{
+	case PropertyId::OwnerEntity: OwnerEntity.Set(NewValue, Frame); return true;
+	case PropertyId::ActionSlot:  ActionSlot.Set(NewValue, Frame); return true;
+	default: return false;
+	}
+}

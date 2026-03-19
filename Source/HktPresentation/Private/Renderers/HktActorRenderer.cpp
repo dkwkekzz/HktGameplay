@@ -41,7 +41,30 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		if (!E || !ActorMap.Contains(Id)) { It.RemoveCurrent(); continue; }
 		UpdateMotionTarget(Id, *E, E->SpawnedFrame);
 		UpdateAnimation(Id, *E, E->SpawnedFrame);
+		if (E->Item.IsAttached())
+		{
+			TryAttachToOwner(Id, State);
+		}
 		It.RemoveCurrent();
+	}
+
+	// --- 대기 중인 소켓 부착 재시도 (Owner Actor가 이번 프레임에 스폰되었을 수 있음) ---
+	// TryAttachToOwner가 PendingAttachments를 수정하므로, 복사본으로 순회
+	{
+		TSet<FHktEntityId> PendingCopy = PendingAttachments;
+		for (FHktEntityId ItemId : PendingCopy)
+		{
+			const FHktEntityPresentation* E = State.Get(ItemId);
+			if (!E || !E->Item.IsAttached())
+			{
+				PendingAttachments.Remove(ItemId);
+				continue;
+			}
+			if (GetActor(ItemId) && GetActor(static_cast<FHktEntityId>(E->Item.OwnerEntity.Get())))
+			{
+				TryAttachToOwner(ItemId, State);
+			}
+		}
 	}
 
 	// --- Dirty 엔티티 타겟 갱신 ---
@@ -52,6 +75,15 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		if (!ActorMap.Contains(Id)) continue;
 		UpdateMotionTarget(Id, *E, Frame);
 		UpdateAnimation(Id, *E, Frame);
+
+		// 소켓 부착 상태 변경 감지
+		if (E->Item.OwnerEntity.IsDirty(Frame) || E->Item.ActionSlot.IsDirty(Frame))
+		{
+			// 기존 부착 해제 후 재부착 (ActionSlot 변경 시 소켓이 달라질 수 있으므로)
+			DetachFromOwner(Id);
+			if (E->Item.IsAttached())
+				TryAttachToOwner(Id, State);
+		}
 	}
 
 	// --- 모든 활성 엔티티 보간 ---
@@ -65,6 +97,8 @@ void FHktActorRenderer::Teardown()
 	ActorMap.Empty();
 	MotionStates.Empty();
 	PendingInitSync.Empty();
+	AttachedItems.Empty();
+	PendingAttachments.Empty();
 }
 
 AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
@@ -162,6 +196,21 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 {
+	// 이 엔티티 자체가 부착된 아이템이면 해제
+	DetachFromOwner(Id);
+
+	// 이 엔티티를 Owner로 가지는 부착 아이템들 해제 (캐릭터 제거 시)
+	for (auto It = AttachedItems.CreateIterator(); It; ++It)
+	{
+		// 아이템 Actor의 부모가 제거될 Actor이면 해제
+		AActor* ItemActor = GetActor(*It);
+		if (ItemActor && ItemActor->GetAttachParentActor() == GetActor(Id))
+		{
+			ItemActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+			It.RemoveCurrent();
+		}
+	}
+
 	if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
 	{
 		if (AActor* A = P->Get())
@@ -271,6 +320,10 @@ void FHktActorRenderer::InterpolateActors(float DeltaSeconds)
 		FHktEntityId Id = It.Key();
 		FHktActorMotionState& Motion = It.Value();
 
+		// 소켓에 부착된 아이템은 소켓이 위치를 결정하므로 보간 건너뜀
+		if (AttachedItems.Contains(Id))
+			continue;
+
 		TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
 		if (!WeakPtr || !WeakPtr->IsValid())
 			continue;
@@ -295,6 +348,75 @@ void FHktActorRenderer::InterpolateActors(float DeltaSeconds)
 		//Actor->SetActorLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
 		Actor->SetActorLocationAndRotation(Motion.TargetLocation, Motion.TargetRotation, false, nullptr, ETeleportType::TeleportPhysics);
 	}
+}
+
+FName FHktActorRenderer::GetSocketName(int32 ActionSlot)
+{
+	switch (ActionSlot)
+	{
+	case 0:  return FName(TEXT("weapon_r"));
+	case 1:  return FName(TEXT("shield_l"));
+	default: return FName(*FString::Printf(TEXT("slot_%d"), ActionSlot));
+	}
+}
+
+void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresentationState& State)
+{
+	const FHktEntityPresentation* ItemEntity = State.Get(ItemId);
+	if (!ItemEntity || !ItemEntity->Item.IsAttached()) return;
+
+	FHktEntityId OwnerId = static_cast<FHktEntityId>(ItemEntity->Item.OwnerEntity.Get());
+	int32 Slot = ItemEntity->Item.ActionSlot.Get();
+
+	AActor* ItemActor = GetActor(ItemId);
+	if (!ItemActor)
+	{
+		PendingAttachments.Add(ItemId);
+		return;
+	}
+
+	AActor* OwnerActor = GetActor(OwnerId);
+	if (!OwnerActor)
+	{
+		PendingAttachments.Add(ItemId);
+		return;
+	}
+
+	USkeletalMeshComponent* SkelMesh = OwnerActor->FindComponentByClass<USkeletalMeshComponent>();
+	if (!SkelMesh)
+	{
+		PendingAttachments.Add(ItemId);
+		return;
+	}
+
+	FName SocketName = GetSocketName(Slot);
+	if (!SkelMesh->DoesSocketExist(SocketName))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] Socket '%s' not found on owner %d for item %d"), *SocketName.ToString(), OwnerId, ItemId);
+		return;
+	}
+
+	ItemActor->AttachToComponent(SkelMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketName);
+	AttachedItems.Add(ItemId);
+	PendingAttachments.Remove(ItemId);
+
+	HKT_EVENT_LOG_ENTITY("Presentation", FString::Printf(TEXT("AttachItem Slot=%d Socket=%s Owner=%d"), Slot, *SocketName.ToString(), OwnerId), ItemId);
+}
+
+void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
+{
+	if (!AttachedItems.Contains(ItemId)) return;
+
+	AActor* ItemActor = GetActor(ItemId);
+	if (ItemActor)
+	{
+		ItemActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	}
+
+	AttachedItems.Remove(ItemId);
+	PendingAttachments.Remove(ItemId);
+
+	HKT_EVENT_LOG_ENTITY("Presentation", TEXT("DetachItem"), ItemId);
 }
 
 bool FHktActorRenderer::TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const
