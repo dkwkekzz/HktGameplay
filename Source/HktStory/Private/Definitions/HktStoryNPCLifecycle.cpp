@@ -50,12 +50,9 @@ namespace HktStoryNPCLifecycle
 
 				// 전리품 드랍
 				.SpawnEntity(Entity_Item_NPCLoot)
-				.LoadConst(R2, 0)
-				.SaveEntityProperty(Spawned, PropertyId::ItemState, R2)      // Ground
-				.LoadConst(R2, 201)
-				.SaveEntityProperty(Spawned, PropertyId::ItemId, R2)         // Loot ID
-				.LoadConst(R2, -1)
-				.SaveEntityProperty(Spawned, PropertyId::ActionSlot, R2)     // 미등록
+				.SaveConstEntity(Spawned, PropertyId::ItemState, 0)                // Ground
+				.SaveConstEntity(Spawned, PropertyId::ItemId, 201)                 // Loot ID
+				.SaveConstEntity(Spawned, PropertyId::ActionSlot, -1)              // 미등록
 				.GetPosition(R3, Self)
 				.SetPosition(Spawned, R3)                                    // NPC 위치에 드랍
 				.AddTag(Spawned, Tag_Item_Material)

@@ -38,8 +38,7 @@ namespace HktStoryItemEquip
 			.JumpIf(Flag, TEXT("fail"))
 
 			// Active로 전환
-			.LoadConst(R2, 2)
-			.SaveEntityProperty(Target, PropertyId::ItemState, R2)      // Active
+			.SaveConstEntity(Target, PropertyId::ItemState, 2)                // Active
 
 			.Log(TEXT("Item equipped"))
 			.Halt()

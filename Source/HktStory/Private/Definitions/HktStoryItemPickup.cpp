@@ -52,8 +52,7 @@ namespace HktStoryItemPickup
 			// 아이템을 가방으로 이동
 			.Move(R3, R0)                                               // BagSlot = 현재 카운트
 			.SaveEntityProperty(Target, PropertyId::OwnerEntity, Self)
-			.LoadConst(R2, 1)
-			.SaveEntityProperty(Target, PropertyId::ItemState, R2)      // InBag
+			.SaveConstEntity(Target, PropertyId::ItemState, 1)                // InBag
 			.SaveEntityProperty(Target, PropertyId::BagSlot, R3)
 
 			.Log(TEXT("Item picked up"))
