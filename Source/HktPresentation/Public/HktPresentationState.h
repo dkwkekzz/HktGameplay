@@ -3,8 +3,9 @@
 #pragma once
 
 #include "HktCoreDefs.h"
-#include "HktPresentationViewModels.h"
+#include "HktVisualField.h"
 #include "HktWorldState.h"
+#include "HktCoreProperties.h"
 
 /** 엔터티의 렌더 카테고리 (어떤 렌더러가 담당할지 결정) */
 enum class EHktRenderCategory : uint8
@@ -15,23 +16,53 @@ enum class EHktRenderCategory : uint8
 	FX,
 };
 
-/** 단일 엔터티의 렌더 ViewModel (Generation Counter 기반) */
+/** 단일 엔터티의 렌더 ViewModel — 모든 프레젠테이션 필드를 플랫하게 보유 */
 struct FHktEntityPresentation
 {
 	FHktEntityId EntityId = InvalidEntityId;
 	EHktRenderCategory RenderCategory = EHktRenderCategory::None;
 	int64 SpawnedFrame = 0;
 	int64 RemovedFrame = 0;
-	int64 LastDirtyFrame = -1; // 최적화: 엔티티의 최상단에서 변경 상태를 즉시 추적
+	int64 LastDirtyFrame = -1;
 
-	FHktVM_Transform Transform;
-	FHktVM_Movement Movement;
-	FHktVM_Vitals Vitals;
-	FHktVM_Combat Combat;
-	FHktVM_Ownership Ownership;
-	FHktVM_Animation Animation;
-	FHktVM_Visualization Visualization;
-	FHktVM_Item Item;
+	// --- Transform ---
+	THktVisualField<FVector> Location;
+	THktVisualField<FRotator> Rotation;
+
+	// --- Movement ---
+	THktVisualField<FVector> MoveTarget;
+	THktVisualField<float> MoveForce;
+	THktVisualField<bool> bIsMoving;
+	THktVisualField<FVector> Velocity;
+
+	// --- Vitals ---
+	THktVisualField<float> Health;
+	THktVisualField<float> MaxHealth;
+	THktVisualField<float> HealthRatio;
+	THktVisualField<float> Mana;
+	THktVisualField<float> MaxMana;
+	THktVisualField<float> ManaRatio;
+
+	// --- Combat ---
+	THktVisualField<int32> AttackPower;
+	THktVisualField<int32> Defense;
+
+	// --- Ownership ---
+	THktVisualField<int32> Team;
+	THktVisualField<int64> OwnedPlayerUid;
+
+	// --- Animation ---
+	THktVisualField<FGameplayTag> AnimState;
+	THktVisualField<FGameplayTag> MontageState;
+	THktVisualField<FGameplayTag> AnimStateUpper;
+	THktVisualField<FGameplayTag> Stance;
+
+	// --- Visualization ---
+	THktVisualField<FGameplayTag> VisualElement;
+
+	// --- Item ---
+	THktVisualField<int32> OwnerEntity;   // 소유 캐릭터 EntityId (0 = 없음)
+	THktVisualField<int32> ActionSlot;    // -1 = 미등록, 0+ = 장착 슬롯
 
 	/** Entity의 GameplayTag 컨테이너 (AnimInstance 태그 동기화용) */
 	FGameplayTagContainer Tags;
@@ -44,6 +75,7 @@ struct FHktEntityPresentation
 	bool IsAlive() const;
 	bool IsSpawnedAt(int64 Frame) const;
 	bool IsRemovedAt(int64 Frame) const;
+	bool IsItemAttached() const { return OwnerEntity.Get() > 0 && ActionSlot.Get() >= 0; }
 
 	static EHktRenderCategory DetermineRenderCategory(const FGameplayTagContainer& Tags);
 };

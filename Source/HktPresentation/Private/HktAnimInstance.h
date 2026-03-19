@@ -109,9 +109,8 @@ public:
 	/**
 	 * Stance 변경 시 AnimBP 레이어를 교체.
 	 * StanceAnimClassMap에서 해당 Stance Tag의 AnimClass를 찾아 LinkAnimClassLayers 호출.
-	 * @param StanceNetIndex WorldState에 저장된 FGameplayTagNetIndex 값
 	 */
-	void SyncStance(int32 StanceNetIndex);
+	void SyncStance(FGameplayTag NewStanceTag);
 
 	/** 특정 부모 태그의 애니메이션 상태 태그 조회 */
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")

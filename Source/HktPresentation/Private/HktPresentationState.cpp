@@ -2,7 +2,15 @@
 
 #include "HktPresentationState.h"
 #include "GameplayTagsManager.h"
-#include "HktCoreProperties.h"
+
+namespace
+{
+	static FGameplayTag IndexToTag(int32 InTagNetIndex)
+	{
+		FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(InTagNetIndex));
+		return FGameplayTag::RequestGameplayTag(TagName);
+	}
+}
 
 // --------------------------------------------------------------------------- FHktEntityPresentation
 void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEntityId Id, int64 Frame)
@@ -14,84 +22,121 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	SpawnedFrame = Frame;
 	RemovedFrame = 0;
 	LastDirtyFrame = Frame;
-	Transform.Apply(WS, Id, Frame);
-	Movement.Apply(WS, Id, Frame);
-	Vitals.Apply(WS, Id, Frame);
-	Combat.Apply(WS, Id, Frame);
-	Ownership.Apply(WS, Id, Frame);
-	Animation.Apply(WS, Id, Frame);
-	Visualization.Apply(WS, Id, Frame);
-	Item.Apply(WS, Id, Frame);
+
+	// Transform
+	FIntVector P = WS.GetPosition(Id);
+	Location.Set(FVector(static_cast<float>(P.X), static_cast<float>(P.Y), static_cast<float>(P.Z)), Frame);
+	Rotation.Set(FRotator(0.f, static_cast<float>(WS.GetProperty(Id, PropertyId::RotYaw)), 0.f), Frame);
+
+	// Movement
+	MoveTarget.Set(FVector(
+		static_cast<float>(WS.GetProperty(Id, PropertyId::MoveTargetX)),
+		static_cast<float>(WS.GetProperty(Id, PropertyId::MoveTargetY)),
+		static_cast<float>(WS.GetProperty(Id, PropertyId::MoveTargetZ))), Frame);
+	MoveForce.Set(static_cast<float>(WS.GetProperty(Id, PropertyId::MoveForce)), Frame);
+	bIsMoving.Set(WS.GetProperty(Id, PropertyId::IsMoving) != 0, Frame);
+	Velocity.Set(FVector(
+		static_cast<float>(WS.GetProperty(Id, PropertyId::VelX)),
+		static_cast<float>(WS.GetProperty(Id, PropertyId::VelY)),
+		static_cast<float>(WS.GetProperty(Id, PropertyId::VelZ))), Frame);
+
+	// Vitals
+	float H = static_cast<float>(WS.GetProperty(Id, PropertyId::Health));
+	float MH = static_cast<float>(WS.GetProperty(Id, PropertyId::MaxHealth));
+	float M = static_cast<float>(WS.GetProperty(Id, PropertyId::Mana));
+	float MM = static_cast<float>(WS.GetProperty(Id, PropertyId::MaxMana));
+	Health.Set(H, Frame);
+	MaxHealth.Set(MH, Frame);
+	HealthRatio.Set((MH > 0.f) ? H / MH : 0.f, Frame);
+	Mana.Set(M, Frame);
+	MaxMana.Set(MM, Frame);
+	ManaRatio.Set((MM > 0.f) ? M / MM : 0.f, Frame);
+
+	// Combat
+	AttackPower.Set(WS.GetProperty(Id, PropertyId::AttackPower), Frame);
+	Defense.Set(WS.GetProperty(Id, PropertyId::Defense), Frame);
+
+	// Ownership
+	Team.Set(WS.GetProperty(Id, PropertyId::Team), Frame);
+	OwnedPlayerUid.Set(WS.GetOwnerUid(Id), Frame);
+
+	// Animation
+	AnimState.Set(IndexToTag(WS.GetProperty(Id, PropertyId::AnimState)), Frame);
+	MontageState.Set(IndexToTag(WS.GetProperty(Id, PropertyId::VisualState)), Frame);
+	AnimStateUpper.Set(IndexToTag(WS.GetProperty(Id, PropertyId::AnimStateUpper)), Frame);
+	Stance.Set(IndexToTag(WS.GetProperty(Id, PropertyId::Stance)), Frame);
+
+	// Visualization
+	VisualElement.Set(IndexToTag(WS.GetProperty(Id, PropertyId::EntitySpawnTag)), Frame);
+
+	// Item
+	OwnerEntity.Set(WS.GetProperty(Id, PropertyId::OwnerEntity), Frame);
+	ActionSlot.Set(WS.GetProperty(Id, PropertyId::ActionSlot), Frame);
 }
 
 void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
 {
-	// ����ȭ: ĳ�����̵� ���(if-else ü��) ��� ���� Switch������ ���� �����
 	switch (PropId)
 	{
-		// Transform
-	case PropertyId::PosX:
-	case PropertyId::PosY:
-	case PropertyId::PosZ:
-	case PropertyId::RotYaw:
-		Transform.TryApplyDelta(PropId, NewValue, Frame, Transform.Location.Value, Transform.Rotation.Value);
-		break;
+	// Transform
+	case PropertyId::PosX:   Location.Value.X = static_cast<float>(NewValue); Location.Set(Location.Value, Frame); break;
+	case PropertyId::PosY:   Location.Value.Y = static_cast<float>(NewValue); Location.Set(Location.Value, Frame); break;
+	case PropertyId::PosZ:   Location.Value.Z = static_cast<float>(NewValue); Location.Set(Location.Value, Frame); break;
+	case PropertyId::RotYaw: Rotation.Value.Yaw = static_cast<float>(NewValue); Rotation.Set(Rotation.Value, Frame); break;
 
-		// Movement
-	case PropertyId::MoveTargetX:
-	case PropertyId::MoveTargetY:
-	case PropertyId::MoveTargetZ:
-	case PropertyId::MoveForce:
-	case PropertyId::IsMoving:
-	case PropertyId::VelX:
-	case PropertyId::VelY:
-	case PropertyId::VelZ:
-		Movement.TryApplyDelta(PropId, NewValue, Frame, Movement.MoveTarget.Value, Movement.Velocity.Value);
-		break;
+	// Movement
+	case PropertyId::MoveTargetX: MoveTarget.Value.X = static_cast<float>(NewValue); MoveTarget.Set(MoveTarget.Value, Frame); break;
+	case PropertyId::MoveTargetY: MoveTarget.Value.Y = static_cast<float>(NewValue); MoveTarget.Set(MoveTarget.Value, Frame); break;
+	case PropertyId::MoveTargetZ: MoveTarget.Value.Z = static_cast<float>(NewValue); MoveTarget.Set(MoveTarget.Value, Frame); break;
+	case PropertyId::MoveForce:   MoveForce.Set(static_cast<float>(NewValue), Frame); break;
+	case PropertyId::IsMoving:    bIsMoving.Set(NewValue != 0, Frame); break;
+	case PropertyId::VelX:        Velocity.Value.X = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); break;
+	case PropertyId::VelY:        Velocity.Value.Y = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); break;
+	case PropertyId::VelZ:        Velocity.Value.Z = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); break;
 
-		// Vitals
+	// Vitals
 	case PropertyId::Health:
+		Health.Set(static_cast<float>(NewValue), Frame);
+		HealthRatio.Set((MaxHealth.Get() > 0.f) ? static_cast<float>(NewValue) / MaxHealth.Get() : 0.f, Frame);
+		break;
 	case PropertyId::MaxHealth:
+		MaxHealth.Set(static_cast<float>(NewValue), Frame);
+		HealthRatio.Set((NewValue > 0) ? Health.Get() / static_cast<float>(NewValue) : 0.f, Frame);
+		break;
 	case PropertyId::Mana:
+		Mana.Set(static_cast<float>(NewValue), Frame);
+		ManaRatio.Set((MaxMana.Get() > 0.f) ? static_cast<float>(NewValue) / MaxMana.Get() : 0.f, Frame);
+		break;
 	case PropertyId::MaxMana:
-		Vitals.TryApplyDelta(PropId, NewValue, Frame);
+		MaxMana.Set(static_cast<float>(NewValue), Frame);
+		ManaRatio.Set((NewValue > 0) ? Mana.Get() / static_cast<float>(NewValue) : 0.f, Frame);
 		break;
 
-		// Combat
-	case PropertyId::AttackPower:
-	case PropertyId::Defense:
-		Combat.TryApplyDelta(PropId, NewValue, Frame);
-		break;
+	// Combat
+	case PropertyId::AttackPower: AttackPower.Set(NewValue, Frame); break;
+	case PropertyId::Defense:     Defense.Set(NewValue, Frame); break;
 
-		// Ownership
-	case PropertyId::Team:
-		Ownership.TryApplyDelta(PropId, NewValue, Frame);
-		break;
+	// Ownership
+	case PropertyId::Team: Team.Set(NewValue, Frame); break;
 
-		// Animation
-	case PropertyId::AnimState:
-	case PropertyId::VisualState:
-	case PropertyId::AnimStateUpper:
-	case PropertyId::Stance:
-		Animation.TryApplyDelta(PropId, NewValue, Frame);
-		break;
+	// Animation
+	case PropertyId::AnimState:      AnimState.Set(IndexToTag(NewValue), Frame); break;
+	case PropertyId::VisualState:    MontageState.Set(IndexToTag(NewValue), Frame); break;
+	case PropertyId::AnimStateUpper: AnimStateUpper.Set(IndexToTag(NewValue), Frame); break;
+	case PropertyId::Stance:         Stance.Set(IndexToTag(NewValue), Frame); break;
 
-		// Visualization
-	case PropertyId::EntitySpawnTag:
-		Visualization.TryApplyDelta(PropId, NewValue, Frame);
-		break;
+	// Visualization
+	case PropertyId::EntitySpawnTag: VisualElement.Set(IndexToTag(NewValue), Frame); break;
 
-		// Item (소켓 부착)
-	case PropertyId::OwnerEntity:
-	case PropertyId::ActionSlot:
-		Item.TryApplyDelta(PropId, NewValue, Frame);
-		break;
+	// Item
+	case PropertyId::OwnerEntity: OwnerEntity.Set(NewValue, Frame); break;
+	case PropertyId::ActionSlot:  ActionSlot.Set(NewValue, Frame); break;
 	}
 }
 
 void FHktEntityPresentation::ApplyOwnerDelta(int64 NewOwnerUid, int64 Frame)
 {
-	Ownership.OwnedPlayerUid.Set(NewOwnerUid, Frame);
+	OwnedPlayerUid.Set(NewOwnerUid, Frame);
 }
 
 bool FHktEntityPresentation::IsAlive() const
@@ -170,7 +215,6 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 	if (Id >= Entities.Num() || !ValidMask[Id]) return;
 	FHktEntityPresentation& E = Entities[Id];
 
-	// ����ȭ: �� �� ���� ���� �񱳷� Dirty ���� ���� �� �ߺ� ���� ����
 	if (E.LastDirtyFrame != CurrentFrame)
 	{
 		E.LastDirtyFrame = CurrentFrame;

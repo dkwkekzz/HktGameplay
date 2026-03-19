@@ -4,7 +4,7 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
-#include "GameplayTagsManager.h"
+
 
 namespace
 {
@@ -228,16 +228,8 @@ bool UHktAnimInstance::HasAnimMapping(FGameplayTag AnimTag) const
 // Stance — AnimBP 레이어 교체
 // ============================================================================
 
-void UHktAnimInstance::SyncStance(int32 StanceNetIndex)
+void UHktAnimInstance::SyncStance(FGameplayTag NewStanceTag)
 {
-	// NetIndex → FGameplayTag 변환
-	FGameplayTag NewStanceTag;
-	if (StanceNetIndex > 0)
-	{
-		UGameplayTagsManager& TagManager = UGameplayTagsManager::Get();
-		NewStanceTag = TagManager.RequestGameplayTag(TagManager.GetTagNameFromNetIndex(FGameplayTagNetIndex(StanceNetIndex)));
-	}
-
 	if (StanceTag == NewStanceTag)
 	{
 		return;

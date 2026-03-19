@@ -20,7 +20,7 @@ void UHktCameraMode_SubjectFollow::OnActivate(AHktRtsCameraPawn* Pawn)
 			const FHktEntityPresentation* E = Sub->GetState().Get(SubjectEntityId);
 			if (E && E->IsAlive())
 			{
-				FVector EntityLoc = E->Transform.Location.Get();
+				FVector EntityLoc = E->Location.Get();
 				FVector CameraLoc = Pawn->GetActorLocation();
 				ManualOffset = FVector(CameraLoc.X - EntityLoc.X, CameraLoc.Y - EntityLoc.Y, 0.0f);
 				return;
@@ -57,7 +57,7 @@ void UHktCameraMode_SubjectFollow::TickMode(AHktRtsCameraPawn* Pawn, float Delta
 	ManualOffset = FMath::VInterpTo(ManualOffset, FVector::ZeroVector, DeltaTime, OffsetDecaySpeed);
 
 	// 대상 위치 + 오프셋으로 보간 이동
-	FVector EntityLoc = E->Transform.Location.Get();
+	FVector EntityLoc = E->Location.Get();
 	FVector TargetLoc = FVector(EntityLoc.X + ManualOffset.X, EntityLoc.Y + ManualOffset.Y, Pawn->GetActorLocation().Z);
 	FVector CurrentLoc = Pawn->GetActorLocation();
 	FVector NewLoc = FMath::VInterpTo(CurrentLoc, TargetLoc, DeltaTime, FollowInterpSpeed);
