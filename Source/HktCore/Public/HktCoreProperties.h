@@ -64,6 +64,8 @@
     X(ItemId)                 \
     X(BagSlot)                \
     X(ActionSlot)             \
+    /* 가방 */                \
+    X(BagCapacity)            \
     /* NPC */                 \
     X(IsNPC)                  \
     X(SpawnFlowTag)

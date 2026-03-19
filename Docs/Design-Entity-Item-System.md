@@ -136,7 +136,8 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 
 | 제한 | 현재 값 | 근거 |
 |------|---------|------|
-| 가방 용량 (최대 소유 아이템) | 20개 | `HktStoryItemPickup.cpp` — `.LoadConst(R1, 20)` |
+| 가방 용량 (기본) | 8개 | 엔티티별 `BagCapacity` Cold Property. 플레이어 캐릭터 기본값 8 |
+| 가방 용량 (엔티티별 가변) | 엔티티마다 다름 | 이동형 창고 엔티티 등으로 확장 가능 |
 | 줍기 최대 거리 | 300cm (3m) | `HktStoryItemPickup.cpp` — `.LoadConst(R1, 300)` |
 | 소유권 이전 | Drop 후 Pickup만 가능 | 직접 트레이드 Story 미구현 |
 | ActionSlot 범위 | 정수, -1=미등록 | 최대 슬롯 수 미정의 |
@@ -188,7 +189,8 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 ### 3.2 슬롯 구조
 
 **BagSlot (가방 슬롯)**
-- 범위: 0~19 (용량 20)
+- 범위: 0~(BagCapacity-1), 기본 BagCapacity=8
+- 엔티티별 `BagCapacity` Property로 용량이 다를 수 있음 (이동형 창고 엔티티 등)
 - 할당 방식: Pickup 시점에 현재 소유 아이템 수(CountByOwner)를 BagSlot으로 사용
 - 용도: 인벤토리 UI에서 아이템 위치 결정
 
@@ -221,6 +223,7 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 | `ItemId` | Cold | 아이템 종류 식별자 (100=목검, 101=나무) |
 | `BagSlot` | Cold | 가방 내 위치 (0~19) |
 | `ActionSlot` | Cold | 액션 슬롯 번호 (-1=미등록) |
+| `BagCapacity` | Cold | 엔티티별 가방 용량 (기본 8, 창고 엔티티 등은 다른 값) |
 
 ---
 
@@ -272,6 +275,7 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 - **현상**: Drop 시 BagSlot이 0으로 초기화되지만, 나머지 아이템의 BagSlot이 재정렬되지 않는다.
 - **영향**: 가방 중간에 빈 슬롯이 생기고, Pickup 시 CountByOwner를 BagSlot으로 사용하므로 슬롯 충돌 가능.
 - **제안**: 빈 슬롯 탐색 로직 추가. `FindFirstEmptyBagSlot` VM 명령 또는 Story 로직으로 구현.
+- **참고**: 엔티티별 BagCapacity가 다를 수 있으므로 (이동형 창고 등), 슬롯 탐색은 해당 엔티티의 BagCapacity 범위 내에서 수행해야 한다.
 
 ### Gap 3: ActionSlot 충돌 미검증 — 우선순위: 중간
 - **현상**: `Event.Item.Activate`에서 동일 ActionSlot에 이미 다른 아이템이 할당되어 있는지 확인하지 않는다.

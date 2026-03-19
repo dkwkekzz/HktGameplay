@@ -59,8 +59,9 @@ namespace HktStoryPlayerInWorld
 			.PlayVFXAttached(Self, VFX_SpawnEffect)
 			.PlaySound(Sound_Spawn)
 
-			// 플레이어 Stance 설정
-			.SetStance(Self, HktStance::Spear)                          
+			// 플레이어 속성 설정
+			.SetStance(Self, HktStance::Spear)
+			.SaveConstEntity(Self, PropertyId::BagCapacity, 8)          // 가방 용량 8
 
 			// === 초기 아이템: 목검 ===
 			.Log(TEXT("PlayerInWorld: 목검 지급"))

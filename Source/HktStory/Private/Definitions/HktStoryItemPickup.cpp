@@ -45,7 +45,7 @@ namespace HktStoryItemPickup
 
 			// 가방 공간 확인
 			.CountByOwner(R0, Self, Tag_Entity_Item)
-			.LoadConst(R1, 20)                                          // 가방 용량
+			.LoadEntityProperty(R1, Self, PropertyId::BagCapacity)      // 엔티티별 가방 용량
 			.CmpGe(Flag, R0, R1)
 			.JumpIf(Flag, TEXT("fail"))
 
