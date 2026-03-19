@@ -92,7 +92,8 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     // 서버 미응답 타임아웃: MaxHistoryFrames(10초) 초과 시 연결 끊김으로 판정
     if (DiffHistory.Num() > MaxHistoryFrames)
     {
-        UE_LOG(LogTemp, Error, TEXT("[ProxySimulator] Server batch timeout — %d frames without response. Disconnecting."), DiffHistory.Num());
+        HKT_EVENT_LOG("Runtime.Client",
+            FString::Printf(TEXT("ServerBatchTimeout: %d frames without response"), DiffHistory.Num()));
         DiffHistory.Empty();
         bInitialized = false;
         OnTimeout.Broadcast();
@@ -135,6 +136,10 @@ bool UHktProxySimulatorComponent::ConsumePendingDiff(FHktSimulationDiff& OutDiff
 
 void UHktProxySimulatorComponent::ProcessPendingServerBatches()
 {
+    HKT_EVENT_LOG("Runtime.Client",
+        FString::Printf(TEXT("ProcessServerBatches: %d batches, rollback %d diffs"),
+            PendingServerBatches.Num(), DiffHistory.Num()));
+
     // 프레임 번호 기준 오름차순 정렬
     PendingServerBatches.Sort([](const FHktSimulationEvent& A, const FHktSimulationEvent& B)
     {
@@ -186,6 +191,9 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
 
 void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, int32 InGroupIndex)
 {
+    HKT_EVENT_LOG("Runtime.Client",
+        FString::Printf(TEXT("RestoreState Frame=%lld Entities=%d GroupIndex=%d"),
+            InState.FrameNumber, InState.GetEntityCount(), InGroupIndex));
     Simulator->RestoreWorldState(InState);
 
     CachedGroupIndex = InGroupIndex;

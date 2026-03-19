@@ -187,9 +187,10 @@ void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Ta
 
 void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)
 {
-    UE_LOG(LogTemp, Log, TEXT("[VM] PlayVFX: (%d,%d,%d), VFX %s"),
-        Runtime.GetReg(PosBase), Runtime.GetReg(PosBase + 1), Runtime.GetReg(PosBase + 2),
-        *GetString(Runtime, StringIndex));
+    HKT_EVENT_LOG("Core.VM",
+        FString::Printf(TEXT("Op_PlayVFX Pos=(%d,%d,%d) VFX=%s"),
+            Runtime.GetReg(PosBase), Runtime.GetReg(PosBase + 1), Runtime.GetReg(PosBase + 2),
+            *GetString(Runtime, StringIndex)));
 }
 
 void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
@@ -201,19 +202,23 @@ void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex
     {
         VMProxy->AddTag(*WorldState, Runtime.GetRegEntity(Entity), Tag);
     }
-    UE_LOG(LogTemp, Log, TEXT("[VM] PlayVFXAttached: Entity %d, VFX %s"), Runtime.GetRegEntity(Entity), *VFXName);
+    HKT_EVENT_LOG_ENTITY("Core.VM",
+        FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), Runtime.GetRegEntity(Entity), *VFXName),
+        Runtime.GetRegEntity(Entity));
 }
 
 void FHktVMInterpreter::Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex)
 {
-    UE_LOG(LogTemp, Log, TEXT("[VM] PlaySound: %s"), *GetString(Runtime, StringIndex));
+    HKT_EVENT_LOG("Core.VM",
+        FString::Printf(TEXT("Op_PlaySound Sound=%s"), *GetString(Runtime, StringIndex)));
 }
 
 void FHktVMInterpreter::Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)
 {
-    UE_LOG(LogTemp, Log, TEXT("[VM] PlaySoundAtLocation: (%d,%d,%d), Sound %s"),
-        Runtime.GetReg(PosBase), Runtime.GetReg(PosBase + 1), Runtime.GetReg(PosBase + 2),
-        *GetString(Runtime, StringIndex));
+    HKT_EVENT_LOG("Core.VM",
+        FString::Printf(TEXT("Op_PlaySoundAtLocation Pos=(%d,%d,%d) Sound=%s"),
+            Runtime.GetReg(PosBase), Runtime.GetReg(PosBase + 1), Runtime.GetReg(PosBase + 2),
+            *GetString(Runtime, StringIndex)));
 }
 
 // ============================================================================
@@ -226,7 +231,12 @@ void FHktVMInterpreter::Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, 
     const FString& TagName = GetString(Runtime, StringIndex);
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
     if (Tag.IsValid())
+    {
+        HKT_EVENT_LOG_TAG("Core.VM",
+            FString::Printf(TEXT("Op_AddTag Id=%d Tag=%s"), Runtime.GetRegEntity(Entity), *TagName),
+            Runtime.GetRegEntity(Entity), Tag);
         VMProxy->AddTag(*WorldState, Runtime.GetRegEntity(Entity), Tag);
+    }
 }
 
 void FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
@@ -235,7 +245,12 @@ void FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entit
     const FString& TagName = GetString(Runtime, StringIndex);
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
     if (Tag.IsValid())
+    {
+        HKT_EVENT_LOG_TAG("Core.VM",
+            FString::Printf(TEXT("Op_RemoveTag Id=%d Tag=%s"), Runtime.GetRegEntity(Entity), *TagName),
+            Runtime.GetRegEntity(Entity), Tag);
         VMProxy->RemoveTag(*WorldState, Runtime.GetRegEntity(Entity), Tag);
+    }
 }
 
 void FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 StringIndex)
@@ -373,5 +388,7 @@ void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex Own
 
 void FHktVMInterpreter::Op_Log(FHktVMRuntime& Runtime, int32 StringIndex)
 {
-    UE_LOG(LogTemp, Log, TEXT("[VM Log] %s"), *GetString(Runtime, StringIndex));
+    HKT_EVENT_LOG_ENTITY("Core.VM",
+        FString::Printf(TEXT("Op_Log: %s"), *GetString(Runtime, StringIndex)),
+        Runtime.Context ? Runtime.Context->SourceEntity : InvalidEntityId);
 }

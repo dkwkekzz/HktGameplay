@@ -211,12 +211,9 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
             FHktRuntimeEvent Event(CachedIntentBuilder->ConsumePendingSubmit());
             Server_ReceiveIntent(Event);
             IntentSubmittedDelegate.Broadcast(Event);
-            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSlotAction Submit %s"), *Event.Value.ToString());
-        }
-        else
-        {
-            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSlotAction SlotIndex=%d EventTag=%s"),
-                SlotIndex, *CachedIntentBuilder->GetEventTag().ToString());
+            HKT_EVENT_LOG_TAG("Runtime.Intent",
+                FString::Printf(TEXT("OnSlotAction Submit Slot=%d %s"), SlotIndex, *Event.Value.ToString()),
+                Event.Value.SourceEntity, Event.Value.EventTag);
         }
     }
 }
