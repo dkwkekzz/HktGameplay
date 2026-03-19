@@ -173,7 +173,7 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
     {
         if (CachedIntentBuilder->IsReadyToSubmit() == false)
         {
-            CachedIntentBuilder->SetCommand(FGameplayTag::RequestGameplayTag(TEXT("Action.Move.ToLocation")), true);
+            CachedIntentBuilder->SetCommand(FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Move.ToLocation")), true);
         }
         CachedIntentBuilder->Submit();
 

@@ -9,7 +9,7 @@
 namespace HktStoryHeal
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Heal, "Ability.Skill.Heal", "Heal skill ability flow.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Heal, "Story.Event.Skill.Heal", "Heal skill ability flow.");
 
 	// State Tags — AnimInstance가 태그를 보고 애니메이션을 자동 재생
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_UpperBody_Cast_Heal, "Anim.UpperBody.Cast.Heal", "Heal cast state tag.");

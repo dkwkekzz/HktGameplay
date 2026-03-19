@@ -9,14 +9,14 @@
 namespace HktStoryNPCSpawnerProximity
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_DungeonEntrance, "Flow.Spawner.DungeonEntrance", "Proximity-triggered dungeon entrance spawner.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_DungeonEntrance, "Story.Flow.Spawner.DungeonEntrance", "Proximity-triggered dungeon entrance spawner.");
 
 	// Entity
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Skeleton, "Entity.NPC.Skeleton", "Skeleton NPC entity.");
 
 	// Tags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_NPC, "Entity.NPC", "Generic NPC tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile, "NPC.Hostile", "Hostile NPC tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile, "Entity.Attr.NPC.Hostile", "Hostile NPC tag.");
 
 	/**
 	 * ================================================================
@@ -27,7 +27,7 @@ namespace HktStoryNPCSpawnerProximity
 	 *  스켈레톤 인구가 3마리 미만이면 스켈레톤을 생성한다.
 	 *  5초마다 체크한다."
 	 *
-	 * 서버가 EventTag "Flow.Spawner.DungeonEntrance" 을 fire.
+	 * 서버가 EventTag "Story.Flow.Spawner.DungeonEntrance" 을 fire.
 	 * Self = zone 앵커 엔티티 (위치만 있는 Unit)
 	 * ================================================================
 	 */
