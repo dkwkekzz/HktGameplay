@@ -25,7 +25,8 @@ public class HktAsset : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GameplayTags",
-				"NetCore"
+				"NetCore",
+				"HktCore"
 			}
 		);
 			
