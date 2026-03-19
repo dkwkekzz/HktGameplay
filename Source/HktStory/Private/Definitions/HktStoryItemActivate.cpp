@@ -69,7 +69,8 @@ namespace HktStoryItemActivate
 			.Halt()
 
 		.Label(TEXT("fail"))
-			.Halt()
+			.Log(TEXT("Item activate failed — precondition violation"))
+			.Fail()
 		.BuildAndRegister();
 	}
 }

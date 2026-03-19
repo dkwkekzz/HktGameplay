@@ -8,6 +8,7 @@
 #include "HktRuntimeTypes.h"
 #include "HktCoreDataCollector.h"
 #include "HktCoreEventLog.h"
+#include "HktStoryBuilder.h"
 #include "DataAssets/HktInputAction.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
@@ -182,11 +183,21 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
         if (CachedIntentBuilder->HasPendingSubmit())
         {
             FHktRuntimeEvent Event(CachedIntentBuilder->ConsumePendingSubmit());
-            Server_ReceiveIntent(Event);
-            IntentSubmittedDelegate.Broadcast(Event);
-            HKT_EVENT_LOG_TAG("Runtime.Intent",
-                FString::Printf(TEXT("OnTargetAction Submit %s"), *Event.Value.ToString()),
-                Event.Value.SourceEntity, Event.Value.EventTag);
+
+            // 클라이언트 사전 검증 — Precondition 실패 시 요청하지 않음
+            const FHktWorldState* WS = nullptr;
+            if (GetWorldState(WS) && WS && !HktStory::ValidateEvent(*WS, Event.Value))
+            {
+                UE_LOG(LogHktIngamePlayerController, Warning, TEXT("Intent blocked by precondition: %s"), *Event.Value.EventTag.ToString());
+            }
+            else
+            {
+                Server_ReceiveIntent(Event);
+                IntentSubmittedDelegate.Broadcast(Event);
+                HKT_EVENT_LOG_TAG("Runtime.Intent",
+                    FString::Printf(TEXT("OnTargetAction Submit %s"), *Event.Value.ToString()),
+                    Event.Value.SourceEntity, Event.Value.EventTag);
+            }
         }
         else
         {
@@ -209,11 +220,21 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
         if (CachedIntentBuilder->HasPendingSubmit())
         {
             FHktRuntimeEvent Event(CachedIntentBuilder->ConsumePendingSubmit());
-            Server_ReceiveIntent(Event);
-            IntentSubmittedDelegate.Broadcast(Event);
-            HKT_EVENT_LOG_TAG("Runtime.Intent",
-                FString::Printf(TEXT("OnSlotAction Submit Slot=%d %s"), SlotIndex, *Event.Value.ToString()),
-                Event.Value.SourceEntity, Event.Value.EventTag);
+
+            // 클라이언트 사전 검증 — Precondition 실패 시 요청하지 않음
+            const FHktWorldState* WS = nullptr;
+            if (GetWorldState(WS) && WS && !HktStory::ValidateEvent(*WS, Event.Value))
+            {
+                UE_LOG(LogHktIngamePlayerController, Warning, TEXT("Intent blocked by precondition: %s"), *Event.Value.EventTag.ToString());
+            }
+            else
+            {
+                Server_ReceiveIntent(Event);
+                IntentSubmittedDelegate.Broadcast(Event);
+                HKT_EVENT_LOG_TAG("Runtime.Intent",
+                    FString::Printf(TEXT("OnSlotAction Submit Slot=%d %s"), SlotIndex, *Event.Value.ToString()),
+                    Event.Value.SourceEntity, Event.Value.EventTag);
+            }
         }
     }
 }

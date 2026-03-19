@@ -83,6 +83,9 @@ public:
     /** 프로그램 종료 */
     FHktStoryBuilder& Halt();
 
+    /** 검증 실패로 프로그램 종료 — EVMStatus::Failed 반환, 에러 로그 출력 */
+    FHktStoryBuilder& Fail();
+
     // ========== Event Wait ==========
 
     /** 충돌 대기 - 충돌 시 Hit 레지스터에 대상 저장 */

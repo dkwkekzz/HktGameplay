@@ -94,8 +94,8 @@ namespace HktStoryItemPickup
 			.Halt()
 
 		.Label(TEXT("fail"))
-			.Log(TEXT("Item pickup failed"))
-			.Halt()
+			.Log(TEXT("Item pickup failed — precondition violation"))
+			.Fail()
 		.BuildAndRegister();
 	}
 }

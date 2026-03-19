@@ -60,7 +60,8 @@ namespace HktStoryItemDrop
 			.Halt()
 
 		.Label(TEXT("fail"))
-			.Halt()
+			.Log(TEXT("Item drop failed — precondition violation"))
+			.Fail()
 		.BuildAndRegister();
 	}
 }

@@ -135,6 +135,12 @@ FHktStoryBuilder& FHktStoryBuilder::Halt()
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::Fail()
+{
+    Emit(FInstruction::Make(EOpCode::Fail));
+    return *this;
+}
+
 // ============================================================================
 // Event Wait
 // ============================================================================
