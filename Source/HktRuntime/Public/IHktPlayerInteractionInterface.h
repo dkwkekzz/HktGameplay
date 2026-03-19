@@ -42,6 +42,9 @@ public:
 	/** 선택 주체(Subject) 엔터티 변경 시 브로드캐스트. InvalidEntityId면 선택 해제. */
 	virtual FOnHktSubjectChanged& OnSubjectChanged() = 0;
 
+	/** 대상(Target) 엔터티 변경 시 브로드캐스트. InvalidEntityId면 선택 해제. */
+	virtual FOnHktTargetChanged& OnTargetChanged() = 0;
+
 	/** Intent 제출 시 브로드캐스트 (클라이언트 즉시 VFX 등에 사용). */
 	virtual FOnHktIntentSubmitted& OnIntentSubmitted() = 0;
 

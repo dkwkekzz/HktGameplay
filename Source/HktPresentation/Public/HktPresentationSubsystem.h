@@ -53,6 +53,8 @@ private:
 
 	void OnWorldViewUpdated(const FHktWorldView& View);
 	void OnIntentSubmitted(const FHktRuntimeEvent& Event);
+	void OnSubjectChanged(FHktEntityId NewSubject);
+	void OnTargetChanged(FHktEntityId NewTarget);
 	void ProcessInitialSync(const FHktWorldView& View);
 	void ProcessDiff(const FHktWorldView& View);
 	void SyncRenderers();
@@ -66,5 +68,12 @@ private:
 	IHktPlayerInteractionInterface* BoundInteraction = nullptr;
 	FDelegateHandle WorldViewHandle;
 	FDelegateHandle IntentSubmittedHandle;
+	FDelegateHandle SubjectChangedHandle;
+	FDelegateHandle TargetChangedHandle;
+
+	/** 현재 선택된 Subject/Target 엔터티 (VFX 추적용) */
+	FHktEntityId CurrentSubjectEntityId = InvalidEntityId;
+	FHktEntityId CurrentTargetEntityId = InvalidEntityId;
+
 	bool bInitialSyncDone = false;
 };

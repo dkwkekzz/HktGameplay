@@ -15,8 +15,11 @@ UHktAssetSettings::UHktAssetSettings()
 		// Entity.{Type}.{Name} → {Root}/Entities/{Name}/BP_{Name}  (fallback)
 		{ TEXT("Entity."), TEXT("{Root}/Entities/{Leaf}/BP_{Leaf}") },
 
-		// VFX.{...} → {Root}/VFX/{TagPath}
-		{ TEXT("VFX."), TEXT("{Root}/VFX/{TagPath}") },
+		// VFX.Niagara.{Name} → {Root}/VFX/NS_{Leaf}  (Niagara System 직접 참조)
+		{ TEXT("VFX.Niagara."), TEXT("{Root}/VFX/NS_{Leaf}") },
+
+		// VFX.{...} → {Root}/VFX/NS_{TagPath}  (기존 VFX 태그 호환)
+		{ TEXT("VFX."), TEXT("{Root}/VFX/NS_{TagPath}") },
 
 		// Anim.{...} → {Root}/Animations/{TagPath}
 		{ TEXT("Anim."), TEXT("{Root}/Animations/{TagPath}") },

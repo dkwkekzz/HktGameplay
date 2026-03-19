@@ -10,8 +10,11 @@
 #include "NativeGameplayTags.h"
 #include "HktCoreEventLog.h"
 
+
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Action_Move_ToLocation, "Story.Event.Move.ToLocation");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.MoveIndicator");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.Niagara.SelectionTarget");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_Prefix, "VFX");
 
 UHktPresentationSubsystem* UHktPresentationSubsystem::Get(APlayerController* PC)
@@ -80,6 +83,10 @@ void UHktPresentationSubsystem::BindInteraction(IHktPlayerInteractionInterface* 
 			this, &UHktPresentationSubsystem::OnWorldViewUpdated);
 		IntentSubmittedHandle = BoundInteraction->OnIntentSubmitted().AddUObject(
 			this, &UHktPresentationSubsystem::OnIntentSubmitted);
+		SubjectChangedHandle = BoundInteraction->OnSubjectChanged().AddUObject(
+			this, &UHktPresentationSubsystem::OnSubjectChanged);
+		TargetChangedHandle = BoundInteraction->OnTargetChanged().AddUObject(
+			this, &UHktPresentationSubsystem::OnTargetChanged);
 	}
 }
 
@@ -96,6 +103,16 @@ void UHktPresentationSubsystem::UnbindInteraction()
 		{
 			BoundInteraction->OnIntentSubmitted().Remove(IntentSubmittedHandle);
 			IntentSubmittedHandle.Reset();
+		}
+		if (SubjectChangedHandle.IsValid())
+		{
+			BoundInteraction->OnSubjectChanged().Remove(SubjectChangedHandle);
+			SubjectChangedHandle.Reset();
+		}
+		if (TargetChangedHandle.IsValid())
+		{
+			BoundInteraction->OnTargetChanged().Remove(TargetChangedHandle);
+			TargetChangedHandle.Reset();
 		}
 	}
 	BoundInteraction = nullptr;
@@ -186,6 +203,7 @@ void UHktPresentationSubsystem::SyncRenderers()
 	if (ActorRenderer)      ActorRenderer->Sync(State);
 	if (MassEntityRenderer) MassEntityRenderer->Sync(State);
 	if (UIRenderer)         UIRenderer->Sync(State);
+	if (VFXRenderer)        VFXRenderer->UpdateEntityVFXPositions(State);
 }
 
 void UHktPresentationSubsystem::OnIntentSubmitted(const FHktRuntimeEvent& Event)
@@ -214,5 +232,51 @@ void UHktPresentationSubsystem::PlayVFXWithIntent(const FHktVFXIntent& Intent)
 	if (VFXRenderer)
 	{
 		VFXRenderer->PlayVFXWithIntent(Intent);
+	}
+}
+
+void UHktPresentationSubsystem::OnSubjectChanged(FHktEntityId NewSubject)
+{
+	if (!VFXRenderer) return;
+
+	// 이전 Subject VFX 제거
+	if (CurrentSubjectEntityId != InvalidEntityId)
+	{
+		VFXRenderer->DetachVFXFromEntity(Tag_VFX_SelectionSubject, CurrentSubjectEntityId);
+	}
+
+	CurrentSubjectEntityId = NewSubject;
+
+	// 새 Subject VFX 부착
+	if (NewSubject != InvalidEntityId)
+	{
+		const FHktEntityPresentation* Entity = State.Get(NewSubject);
+		FVector Pos = Entity ? Entity->Transform.Location.Get() : FVector::ZeroVector;
+		VFXRenderer->AttachVFXToEntity(Tag_VFX_SelectionSubject, NewSubject, Pos);
+
+		HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("SelectionSubject VFX attached Entity=%d"), NewSubject));
+	}
+}
+
+void UHktPresentationSubsystem::OnTargetChanged(FHktEntityId NewTarget)
+{
+	if (!VFXRenderer) return;
+
+	// 이전 Target VFX 제거
+	if (CurrentTargetEntityId != InvalidEntityId)
+	{
+		VFXRenderer->DetachVFXFromEntity(Tag_VFX_SelectionTarget, CurrentTargetEntityId);
+	}
+
+	CurrentTargetEntityId = NewTarget;
+
+	// 새 Target VFX 부착
+	if (NewTarget != InvalidEntityId)
+	{
+		const FHktEntityPresentation* Entity = State.Get(NewTarget);
+		FVector Pos = Entity ? Entity->Transform.Location.Get() : FVector::ZeroVector;
+		VFXRenderer->AttachVFXToEntity(Tag_VFX_SelectionTarget, NewTarget, Pos);
+
+		HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("SelectionTarget VFX attached Entity=%d"), NewTarget));
 	}
 }
