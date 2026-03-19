@@ -64,7 +64,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	AnimState.Set(IndexToTag(WS.GetProperty(Id, PropertyId::AnimState)), Frame);
 	MontageState.Set(IndexToTag(WS.GetProperty(Id, PropertyId::VisualState)), Frame);
 	AnimStateUpper.Set(IndexToTag(WS.GetProperty(Id, PropertyId::AnimStateUpper)), Frame);
-	Stance.Set(WS.GetProperty(Id, PropertyId::Stance), Frame);
+	Stance.Set(IndexToTag(WS.GetProperty(Id, PropertyId::Stance)), Frame);
 
 	// Visualization
 	VisualElement.Set(IndexToTag(WS.GetProperty(Id, PropertyId::EntitySpawnTag)), Frame);
@@ -123,7 +123,7 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	case PropertyId::AnimState:      AnimState.Set(IndexToTag(NewValue), Frame); break;
 	case PropertyId::VisualState:    MontageState.Set(IndexToTag(NewValue), Frame); break;
 	case PropertyId::AnimStateUpper: AnimStateUpper.Set(IndexToTag(NewValue), Frame); break;
-	case PropertyId::Stance:         Stance.Set(NewValue, Frame); break;
+	case PropertyId::Stance:         Stance.Set(IndexToTag(NewValue), Frame); break;
 
 	// Visualization
 	case PropertyId::EntitySpawnTag: VisualElement.Set(IndexToTag(NewValue), Frame); break;

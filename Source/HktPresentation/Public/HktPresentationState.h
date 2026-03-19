@@ -55,7 +55,7 @@ struct FHktEntityPresentation
 	THktVisualField<FGameplayTag> AnimState;
 	THktVisualField<FGameplayTag> MontageState;
 	THktVisualField<FGameplayTag> AnimStateUpper;
-	THktVisualField<int32> Stance;
+	THktVisualField<FGameplayTag> Stance;
 
 	// --- Visualization ---
 	THktVisualField<FGameplayTag> VisualElement;
