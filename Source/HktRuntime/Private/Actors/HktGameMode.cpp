@@ -195,7 +195,6 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
 
     HKT_EVENT_LOG("Runtime.Server",
         FString::Printf(TEXT("PostLogin PlayerUid=%lld"), WorldPlayer->GetPlayerUid()));
-    UE_LOG(LogHktGameMode, Log, TEXT("PostLogin PlayerUid=%lld"), WorldPlayer->GetPlayerUid());
 }
 
 void AHktGameMode::Logout(AController* Exiting)
@@ -212,7 +211,6 @@ void AHktGameMode::Logout(AController* Exiting)
     const int64 PlayerUid = WorldPlayer->GetPlayerUid();
     HKT_EVENT_LOG("Runtime.Server",
         FString::Printf(TEXT("Logout PlayerUid=%lld"), PlayerUid));
-    UE_LOG(LogHktGameMode, Log, TEXT("Logout PlayerUid=%lld"), PlayerUid);
 
     // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
     Rule->OnEvent_GameModeLogout(*WorldPlayer);

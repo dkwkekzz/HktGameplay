@@ -79,7 +79,6 @@ void FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex E
     FHktEntityId E = Runtime.GetRegEntity(Entity);
     HKT_EVENT_LOG_ENTITY("Core.VM",
         FString::Printf(TEXT("Op_DestroyEntity Id=%d"), E), E);
-    UE_LOG(LogTemp, Log, TEXT("[VM] DestroyEntity: %d"), E);
 
     // 엔티티 제거는 즉시 적용 (다른 VM이 참조하지 못하게)
     if (WorldState)
@@ -176,7 +175,6 @@ void FHktVMInterpreter::Op_ApplyEffect(FHktVMRuntime& Runtime, RegisterIndex Tar
     const FString& Effect = GetString(Runtime, StringIndex);
     HKT_EVENT_LOG_ENTITY("Core.VM",
         FString::Printf(TEXT("Op_ApplyEffect Id=%d Effect=%s"), E, *Effect), E);
-    UE_LOG(LogTemp, Log, TEXT("[VM] ApplyEffect: Entity %d, Effect %s"), E, *Effect);
 }
 
 void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex)
@@ -185,7 +183,6 @@ void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Ta
     const FString& Effect = GetString(Runtime, StringIndex);
     HKT_EVENT_LOG_ENTITY("Core.VM",
         FString::Printf(TEXT("Op_RemoveEffect Id=%d Effect=%s"), E, *Effect), E);
-    UE_LOG(LogTemp, Log, TEXT("[VM] RemoveEffect: Entity %d, Effect %s"), E, *Effect);
 }
 
 void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)

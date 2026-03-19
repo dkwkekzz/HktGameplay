@@ -116,8 +116,6 @@ void FHktVMBuildSystem::Process(
                         FString::Printf(TEXT("VM cancelled (duplicate): %s Entity=%d"),
                             *Event.EventTag.ToString(), Event.SourceEntity),
                         Event.SourceEntity, Event.EventTag);
-                    UE_LOG(LogTemp, Log, TEXT("VM cancelled (duplicate): %s for Entity %d"),
-                        *Event.EventTag.ToString(), Event.SourceEntity);
                 }
             }
         }
@@ -189,7 +187,6 @@ void FHktVMBuildSystem::Process(
                 *Event.EventTag.ToString(), Event.SourceEntity, Event.TargetEntity,
                 Program->CodeSize()),
             Event.SourceEntity, Event.EventTag);
-        UE_LOG(LogTemp, Log, TEXT("VM created: %s for Entity %d"), *Event.EventTag.ToString(), Event.SourceEntity);
     }
 }
 
@@ -560,8 +557,6 @@ void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRunt
                 FString::Printf(TEXT("VM finalized: %s"),
                     Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("unknown")),
                 Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId);
-            UE_LOG(LogTemp, Log, TEXT("VM finalized: %s"),
-                Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("unknown"));
 
             if (Runtime->Program && Runtime->Context)
             {

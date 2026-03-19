@@ -83,9 +83,6 @@ bool UHktIntentBuilderComponent::Submit()
             *EventTag.ToString(), SubjectEntityId, TargetEntityId,
             TargetLocation.X, TargetLocation.Y, TargetLocation.Z),
         SubjectEntityId, EventTag);
-    UE_LOG(LogTemp, Log, TEXT("[IntentBuilder] Submit: EventId=%d, Tag=%s, Subject=%d, Target=%d"),
-        CoreEvent.EventId, *EventTag.ToString(),
-        SubjectEntityId, TargetEntityId);
 
     // 커맨드 초기화 (Subject 유지)
     ResetCommand();

@@ -32,5 +32,4 @@ void FHktStoryRegistry::InitializeAllStories()
 
     HKT_EVENT_LOG("Core.Story",
         FString::Printf(TEXT("InitializeAllStories: %d stories initialized"), StoryCount));
-    UE_LOG(LogTemp, Log, TEXT("HktStoryRegistry: All Stories have been initialized."));
 }

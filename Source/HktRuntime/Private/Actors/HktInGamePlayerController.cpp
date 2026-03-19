@@ -159,7 +159,6 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
         HKT_EVENT_LOG_ENTITY("Runtime.Intent",
             FString::Printf(TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId()),
             CachedIntentBuilder->GetSubjectEntityId());
-        UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId());
     }
 }
 
@@ -188,7 +187,6 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
             HKT_EVENT_LOG_TAG("Runtime.Intent",
                 FString::Printf(TEXT("OnTargetAction Submit %s"), *Event.Value.ToString()),
                 Event.Value.SourceEntity, Event.Value.EventTag);
-            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnTargetAction Submit %s"), *Event.Value.ToString());
         }
         else
         {
