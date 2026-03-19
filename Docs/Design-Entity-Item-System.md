@@ -127,10 +127,26 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 
 | 전이 | Story | 사전 조건 | 변경 속성 |
 |------|-------|-----------|-----------|
-| **Pickup** | `Event.Item.Pickup` | ItemState==0, 거리<=300cm, 가방<20 | OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
+| **Pickup** | `Event.Item.Pickup` | ItemState==0, 거리<=300cm, 가방<BagCapacity | OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
+| **Grant** | `Event.Item.Grant` | (서버 주도) 가방<BagCapacity | SpawnEntity→OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
 | **Equip** | `Event.Item.Equip` | ItemState==1, OwnerEntity==Self | ItemState=2 |
 | **Activate** | `Event.Item.Activate` | ItemState==2, OwnerEntity==Self | ActionSlot=Param0 |
 | **Drop** | `Event.Item.Drop` | OwnerEntity==Self | ItemState=0, OwnerEntity=0, BagSlot=0, ActionSlot=-1, 위치=Self위치 |
+
+### 2.4 아이템 획득 경로 (Acquisition Paths)
+
+아이템 획득은 경로별로 독립된 Story로 표현한다. VM에 서브루틴 호출이 없으므로, 공통 로직(용량검증+BagSlot할당)은 각 Story에 인라인으로 포함된다.
+
+| 경로 | Story | 트리거 | 방식 |
+|------|-------|--------|------|
+| **바닥 줍기** | `Event.Item.Pickup` (기존) | 클라이언트 인텐트 | Ground 아이템 → InBag. 거리검증+용량검증 |
+| **직접 지급** | `Event.Item.Grant` (신규) | 서버 주도 | SpawnEntity → 바로 InBag. 퀘스트 보상, 초기 지급, 시스템 보상 |
+| **조합** | `Event.Item.Craft` (향후) | 클라이언트 인텐트 | 재료소비 → SpawnEntity → 바로 InBag |
+| **NPC 전리품** | `Flow.NPC.Lifecycle` (기존) | 서버 주도 | SpawnEntity → Ground 바닥 드롭 → 플레이어가 Pickup |
+
+**Pickup vs Grant 차이점:**
+- Pickup: 이미 존재하는 Ground 아이템(Target)의 소유권을 가져온다. 거리 검증 필요.
+- Grant: 새 아이템을 SpawnEntity로 생성하여 바로 InBag에 넣는다. 거리 검증 불필요.
 
 ### 2.4 소유 제한 사항
 
