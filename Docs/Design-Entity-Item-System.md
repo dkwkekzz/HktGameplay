@@ -22,7 +22,7 @@ HktGameplay 모듈의 Entity 생명주기(Lifecycle)와 아이템 소유/활성�
 | 출처 | 이름 | 설명 | 예시 |
 |------|------|------|------|
 | **서버** | Map Event | 서버가 자체적으로 요청하는 자연적 작용 | `Flow.Spawner.Item.TreeDrop`, `Flow.NPC.Lifecycle`, `State.Player.InWorld` |
-| **클라이언트** | Client Intent | 사용자가 요청하는 상호작용 | `Event.Item.Pickup`, `Event.Item.Equip`, `Event.Item.Drop` |
+| **클라이언트** | Client Intent | 사용자가 요청하는 상호작용 | `Event.Item.Pickup`, `Event.Item.Activate`, `Event.Item.Drop` |
 
 ### 1.3 Event와 Story의 분리
 
@@ -85,7 +85,7 @@ Entity의 종류는 `FGameplayTagContainer`의 태그로 구분한다 (예: `Ent
 
 **엔티티 소유 (Entity Ownership)** — `OwnerEntity` (int32, Hot Property)
 - 아이템이 어떤 캐릭터 엔티티에 소속되는지 나타낸다.
-- Pickup/Equip/Drop 등 Story 검증의 기준.
+- Pickup/Activate/Drop 등 Story 검증의 기준.
 - `Op_SpawnEntity`에서 `Reg::Self`로 자동 설정된다.
 
 ### 2.4 접속에서 월드 존재까지의 전체 흐름
@@ -181,8 +181,8 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 |------|-------|-----------|-----------|
 | **Pickup** | `Event.Item.Pickup` | ItemState==0, 거리<=300cm, 가방<BagCapacity | OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
 | **Grant** | (Story 내부 패턴) | 가방<BagCapacity | SpawnEntity→OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
-| **Equip** | `Event.Item.Equip` | ItemState==1, OwnerEntity==Self | ItemState=2 |
-| **Activate** | `Event.Item.Activate` | ItemState==2, OwnerEntity==Self | ActionSlot=Param0 |
+| **Activate** | `Event.Item.Activate` | ItemState==1, OwnerEntity==Self | ItemState=2, ActionSlot=Param0, 캐릭터 Stance=아이템 Stance |
+| **Deactivate** | `Event.Item.Deactivate` | ItemState==2, OwnerEntity==Self | ItemState=1, ActionSlot=-1 |
 | **Drop** | `Event.Item.Drop` | OwnerEntity==Self | ItemState=0, OwnerEntity=0, BagSlot=0, ActionSlot=-1, 위치=Self위치 |
 
 ### 3.4 아이템 획득 경로 (Acquisition Paths)
@@ -221,6 +221,8 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 
 ### 4.1 아이템 상태 머신
 
+Equip 개념은 존재하지 않는다. 아이템은 **2단계**(Pickup→Activate)로 사용된다.
+
 ```
                     ┌──────────┐
         Spawn       │          │
@@ -232,31 +234,24 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
                          │ 조건: 거리<=3m, 가방<BagCapacity
                          ▼
                     ┌──────────┐
-                    │          │
-                    │  InBag   │◄──── (미구현: Unequip)
-                    │ State=1  │
-                    └────┬─────┘
-                         │
-                    Equip│(Event.Item.Equip)
-                         │ 조건: OwnerEntity==Self
-                         ▼
-                    ┌──────────┐
-                    │          │
-                    │  Active  │
-                    │ State=2  │
-                    └────┬─────┘
-                         │
-                  Activate│(Event.Item.Activate)
-                         │ Param0 = ActionSlot 번호
-                         ▼
-                    ┌──────────────┐
-                    │ Active       │
-                    │ + ActionSlot │
-                    │   할당됨     │
+                    │          │  Deactivate
+                    │  InBag   │◄──────────────┐
+                    │ State=1  │               │
+                    └────┬─────┘               │
+                         │                     │
+                  Activate│(Event.Item.Activate)│
+                         │ Param0 = ActionSlot │
+                         │ + Stance 자동 변경   │
+                         ▼                     │
+                    ┌──────────────┐            │
+                    │ Active       │────────────┘
+                    │ State=2      │ (Event.Item.Deactivate)
+                    │ ActionSlot=N │
                     └──────────────┘
 
     * Drop은 InBag 또는 Active 어디서든 Ground로 복귀 가능
     * Drop 시: OwnerEntity=0, BagSlot=0, ActionSlot=-1, 위치=소유자위치
+    * Activate 시: 아이템의 Stance Property를 읽어 캐릭터 Stance 자동 변경
 ```
 
 ### 4.2 슬롯 구조
@@ -283,7 +278,8 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 - `Stance.Gun` — 총
 - `Stance.Sword1H` — 한손검
 
-현재 구현에서 Stance는 Story에서 직접 설정하며, 장착 아이템과의 자동 연동은 미구현이다.
+아이템 엔티티는 자신의 `Stance` Property에 해당 무기의 Stance 값을 저장한다.
+Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동 변경한다.
 
 ### 4.4 아이템 Property 목록
 
@@ -294,7 +290,7 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 | `Defense` | Hot | 방어력 |
 | `ItemState` | Cold | 상태 (0=Ground, 1=InBag, 2=Active) |
 | `ItemId` | Cold | 아이템 종류 식별자 (100=목검, 101=나무) |
-| `BagSlot` | Cold | 가방 내 위치 (0~19) |
+| `BagSlot` | Cold | 가방 내 위치 (0~BagCapacity-1) |
 | `ActionSlot` | Cold | 액션 슬롯 번호 (-1=미등록) |
 | `BagCapacity` | Cold | 엔티티별 가방 용량 (기본 8, 창고 엔티티 등은 다른 값) |
 
@@ -316,8 +312,7 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 | ExportPlayerState | `IHktDeterminismSimulator` — OwnerUid 기준 추출 | 완료 |
 | OwnerUid 자동 전파 | `HktVMInterpreterActions.cpp` — `Op_SpawnEntity` | 완료 |
 | 아이템 Pickup Flow | `HktStoryItemPickup.cpp` — 거리/용량 검증 포함 | 완료 |
-| 아이템 Equip Flow | `HktStoryItemEquip.cpp` — InBag→Active | 완료 |
-| 아이템 Activate Flow | `HktStoryItemActivate.cpp` — ActionSlot 할당 | 완료 |
+| 아이템 Activate Flow | `HktStoryItemActivate.cpp` — InBag→Active + ActionSlot + Stance | 수정 필요 |
 | 아이템 Drop Flow | `HktStoryItemDrop.cpp` — 소유 해제 + 위치 이동 | 완료 |
 | 자연 아이템 스포너 | `HktStoryItemSpawnerTreeDrop.cpp` — 30초 주기 나무 스폰 | 완료 |
 | 플레이어 월드 진입 | `HktStoryPlayerInWorld.cpp` — 캐릭터 + 목검 생성 | 완료 |
@@ -330,8 +325,9 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 
 | ItemId | 태그 | 이름 | 초기 스탯 |
 |--------|------|------|-----------|
-| 100 | `Entity.Item.WoodenSword` | 목검 | AttackPower=5 |
+| 100 | `Entity.Item.WoodenSword` | 목검 | AttackPower=5, Stance=Sword1H |
 | 101 | `Entity.Item.Wood` | 나무 | (재료) |
+| 102 | `Entity.Item.WoodSpear` | 나무창 | AttackPower=7, Stance=Spear |
 | - | `Entity.Item.Sword` | 검 | (CharacterSpawn용) |
 | - | `Entity.Item.Shield` | 방패 | (CharacterSpawn용) |
 
@@ -344,10 +340,10 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 - **영향**: 클라이언트가 임의의 Event Tag를 fire하여 부정 행위가 가능하다. Story 내부 검증은 Story가 이미 실행된 후에 발생하므로, 실행 자체를 막지는 못한다.
 - **제안**: Event fire 시점에 사전 검증 레이어 추가. Map Event(서버 자체 fire)는 검증 최소화 또는 생략 가능. Client Intent는 Story 실행 전 게이트에서 조건을 확인.
 
-### Gap 1: Unequip 흐름 부재 — 우선순위: 높음
+### Gap 1: Deactivate 흐름 부재 — 우선순위: 높음
 - **현상**: Active(State=2) → InBag(State=1) 전이를 담당하는 Story가 없다.
-- **영향**: 장착 해제를 하려면 Drop 후 Pickup해야 한다 (비직관적).
-- **제안**: `Event.Item.Unequip` Story 추가. Active→InBag 전환, ActionSlot=-1로 초기화.
+- **영향**: 활성 해제를 하려면 Drop 후 Pickup해야 한다 (비직관적).
+- **제안**: `Event.Item.Deactivate` Story 추가. Active→InBag 전환, ActionSlot=-1로 초기화, Stance 복원.
 
 ### Gap 2: BagSlot 재배치 미구현 — 우선순위: 높음
 - **현상**: Drop 시 BagSlot이 0으로 초기화되지만, 나머지 아이템의 BagSlot이 재정렬되지 않는다.
@@ -362,13 +358,13 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 
 ### Gap 4: 장비 스탯 캐릭터 반영 미구현 — 우선순위: 중간
 - **현상**: 아이템의 AttackPower/Defense가 캐릭터의 전투 스탯에 합산되는 로직 없음.
-- **영향**: 아이템 장착이 실질적인 전투력 변화를 일으키지 않음.
-- **제안**: Equip/Unequip Story에서 캐릭터 스탯에 아이템 스탯을 가감산 (이벤트 기반, 매 프레임 계산 방지).
+- **영향**: 아이템 활성화가 실질적인 전투력 변화를 일으키지 않음.
+- **제안**: Activate/Deactivate Story에서 캐릭터 스탯에 아이템 스탯을 가감산.
 
-### Gap 5: Stance 자동 연동 부재 — 우선순위: 낮음
-- **현상**: Stance는 Story에서 수동 설정. 아이템 장착/해제 시 Stance 자동 변경 없음.
-- **영향**: 검을 장착했는데 Spear 자세를 유지하는 등의 불일치 가능.
-- **제안**: 아이템 태그(`Tag.Weapon.*`)와 Stance 매핑 테이블 또는 Equip Story 자동화.
+### Gap 5: 무기 메쉬 소켓 부착 시스템 부재 — 우선순위: 높음
+- **현상**: Presentation 레이어에 무기 소켓 부착 시스템이 없다. 아이템은 독립 Actor로 렌더링되며 캐릭터에 붙지 않는다.
+- **영향**: ActionSlot이 변경되어도 시각적으로 무기가 캐릭터에 표시되지 않음.
+- **제안**: 캐릭터 SkeletalMesh에 무기 소켓 정의, Activate 시 해당 아이템의 Mesh를 소켓에 Attach, HktActorRenderer에서 ActionSlot 변경 감지.
 
 ### Gap 6: 아이템 거래/이전 시스템 부재 — 우선순위: 낮음
 - **현상**: 플레이어 간 직접 아이템 이전 수단 없음.
@@ -381,13 +377,42 @@ Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
 
 ---
 
-## 7. 향후 확장 제안
+## 7. 프로토타입 전투 흐름
 
-### 7.1 아이템 내구도/소비 시스템
+### 7.1 기본 흐름
+
+```
+1. 서버가 플레이어 Entity 생성 (State.Player.InWorld)
+2. 클라이언트가 자기 Entity를 포커싱하여 게임 진행
+3. 우클릭으로 이동
+4. PrototypeMap에 WoodSpear가 하나 스폰되어 있음
+5. 플레이어가 WoodSpear를 Pickup (Client Intent → Event.Item.Pickup)
+6. Command로 Activate 실행 (Client Intent → Event.Item.Activate)
+   - UI 미구현이므로 Command로 대체
+7. Activate 시:
+   - ItemState: 1(InBag) → 2(Active)
+   - ActionSlot 할당
+   - 아이템의 Stance Property를 읽어 캐릭터 Stance 자동 변경
+   - 캐릭터 무기 소켓에 해당 아이템 Mesh 부착 (Gap 5)
+```
+
+### 7.2 미구현 항목 (프로토타입용)
+
+| 항목 | 상태 | 설명 |
+|------|------|------|
+| WoodSpear 맵 스폰 Story | 미구현 | PrototypeMap 로드 시 고정 위치에 WoodSpear 1개 스폰하는 Map Event |
+| Command → Activate 연결 | 미구현 | 클라이언트에서 키/커맨드로 Event.Item.Activate를 fire하는 입력 경로 |
+| 무기 메쉬 소켓 부착 | 미구현 | Presentation 레이어에서 ActionSlot 변경 감지 → 무기 Mesh를 캐릭터 소켓에 Attach |
+
+---
+
+## 8. 향후 확장 제안
+
+### 8.1 아이템 내구도/소비 시스템
 - Cold Property로 `Durability` 추가.
 - 사용/전투 시 감소, 0이면 파괴(RemoveEntity).
 
-### 7.2 아이템 조합/성장 시스템
+### 8.2 아이템 조합/성장 시스템
 - CLAUDE.md에 명시된 "item attribute and combination, random growth" 컨셉.
 - **조합**: 두 아이템 엔티티를 소비하고 새 아이템 엔티티를 SpawnEntity.
 - **성장**: 아이템 Property에 Level/Experience 추가, Story에서 조건 충족 시 스탯 증가.
