@@ -9,12 +9,6 @@
 #include "Math/UnrealMathUtility.h"
 #include "HAL/IConsoleManager.h"
 #include "HktCoreEventLog.h"
-#include "NativeGameplayTags.h"
-
-namespace HktVMBuildValidationTags
-{
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Story_Event, "Story.Event", "Client Intent event parent tag for VM-level validation.");
-}
 
 // ============================================================================
 // 콘솔 변수 (CVar) - 런타임 이동 조작감 튜닝용
@@ -105,26 +99,6 @@ void FHktVMBuildSystem::Process(
         {
             UE_LOG(LogTemp, Warning, TEXT("VM Build: No program for %s"), *Event.EventTag.ToString());
             continue;
-        }
-
-        // Gap 0: Client Intent (Story.Event.*) 최종 검증 — VM 할당 전 게이트
-        if (Event.EventTag.MatchesTag(HktVMBuildValidationTags::Tag_Story_Event))
-        {
-            if (!WorldState.IsValidEntity(Event.SourceEntity))
-            {
-                HKT_EVENT_LOG("Core.VM.Validation",
-                    FString::Printf(TEXT("VM Build rejected: SourceEntity=%d invalid for %s"),
-                        Event.SourceEntity, *Event.EventTag.ToString()));
-                continue;
-            }
-
-            if (Event.PlayerUid == 0)
-            {
-                HKT_EVENT_LOG("Core.VM.Validation",
-                    FString::Printf(TEXT("VM Build rejected: PlayerUid=0 for Client Intent %s"),
-                        *Event.EventTag.ToString()));
-                continue;
-            }
         }
 
         // CancelOnDuplicate: 같은 EventTag + SourceEntity의 기존 VM 취소

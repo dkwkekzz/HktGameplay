@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
+#include "HktWorldState.h"
+#include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
@@ -31,6 +33,39 @@ namespace HktStoryItemPickup
 		using namespace Reg;
 
 		Story(Event_Item_Pickup)
+			.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
+			{
+				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
+					return false;
+
+				// Ground 상태 확인
+				if (WS.GetProperty(E.TargetEntity, PropertyId::ItemState) != 0)
+					return false;
+
+				// 거리 검증 (3m = 300cm)
+				FIntVector SelfPos = WS.GetPosition(E.SourceEntity);
+				FIntVector TargetPos = WS.GetPosition(E.TargetEntity);
+				float DX = static_cast<float>(TargetPos.X - SelfPos.X);
+				float DY = static_cast<float>(TargetPos.Y - SelfPos.Y);
+				float DZ = static_cast<float>(TargetPos.Z - SelfPos.Z);
+				if (DX * DX + DY * DY + DZ * DZ > 300.0f * 300.0f)
+					return false;
+
+				// 가방 용량 확인 — OwnerUid로 소유 아이템 수 카운트
+				int32 BagCount = 0;
+				int64 OwnerUid = WS.GetOwnerUid(E.SourceEntity);
+				WS.ForEachEntityByOwner(OwnerUid, [&](FHktEntityId Id, int32 Slot)
+				{
+					if (WS.GetTagsBySlot(Slot).HasTag(Tag_Entity_Item))
+						BagCount++;
+				});
+				int32 BagCapacity = WS.GetProperty(E.SourceEntity, PropertyId::BagCapacity);
+				if (BagCount >= BagCapacity)
+					return false;
+
+				return true;
+			})
+
 			// Ground 상태 확인
 			.LoadEntityProperty(R0, Target, PropertyId::ItemState)
 			.LoadConst(R1, 0)                                           // Ground = 0

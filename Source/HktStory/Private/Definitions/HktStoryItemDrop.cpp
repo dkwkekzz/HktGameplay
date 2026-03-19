@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
+#include "HktWorldState.h"
+#include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
@@ -27,6 +29,18 @@ namespace HktStoryItemDrop
 		using namespace Reg;
 
 		Story(Event_Item_Drop)
+			.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
+			{
+				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
+					return false;
+
+				// 소유자 확인
+				if (WS.GetProperty(E.TargetEntity, PropertyId::OwnerEntity) != E.SourceEntity)
+					return false;
+
+				return true;
+			})
+
 			// 소유자 확인
 			.LoadEntityProperty(R0, Target, PropertyId::OwnerEntity)
 			.CmpNe(Flag, R0, Self)

@@ -2,6 +2,8 @@
 
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
+#include "HktWorldState.h"
+#include "HktCoreEvents.h"
 #include "VM/HktVMProgram.h"
 #include "GameplayTagsManager.h"
 
@@ -74,6 +76,12 @@ FString FHktStoryBuilder::MakeInternalLabel(const TCHAR* Prefix)
 FHktStoryBuilder& FHktStoryBuilder::CancelOnDuplicate()
 {
     Program->bCancelOnDuplicate = true;
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SetPrecondition(FHktEventPrecondition InPrecondition)
+{
+    Program->Precondition = MoveTemp(InPrecondition);
     return *this;
 }
 
@@ -632,4 +640,13 @@ TSharedRef<FHktVMProgram> FHktStoryBuilder::Build()
 void FHktStoryBuilder::BuildAndRegister()
 {
     FHktVMProgramRegistry::Get().RegisterProgram(Build());
+}
+
+// ============================================================================
+// Public Query API
+// ============================================================================
+
+bool HktStory::ValidateEvent(const FHktWorldState& WorldState, const FHktEvent& Event)
+{
+    return FHktVMProgramRegistry::Get().ValidateEvent(WorldState, Event);
 }

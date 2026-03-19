@@ -1,6 +1,8 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktVMProgram.h"
+#include "HktWorldState.h"
+#include "HktCoreEvents.h"
 
 // ============================================================================
 // FHktVMProgramRegistry
@@ -33,5 +35,15 @@ void FHktVMProgramRegistry::Clear()
 {
     FRWScopeLock WriteLock(Lock, SLT_Write);
     Programs.Empty();
+}
+
+bool FHktVMProgramRegistry::ValidateEvent(const FHktWorldState& WorldState, const FHktEvent& Event) const
+{
+    const FHktVMProgram* Program = FindProgram(Event.EventTag);
+    if (!Program || !Program->Precondition)
+    {
+        return true;
+    }
+    return Program->Precondition(WorldState, Event);
 }
 
