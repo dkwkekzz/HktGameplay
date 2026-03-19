@@ -121,6 +121,7 @@ namespace HktStoryItemPickup
 		.Label(TEXT("found_slot"))
 			// R3 = 빈 BagSlot, 아이템을 가방으로 이동
 			.SaveEntityProperty(Target, PropertyId::OwnerEntity, Self)
+			.SetOwnerUid(Target)                                            // 계정 소유 설정 (Gap 6)
 			.SaveConstEntity(Target, PropertyId::ItemState, 1)              // InBag
 			.SaveEntityProperty(Target, PropertyId::BagSlot, R3)
 

@@ -109,6 +109,8 @@ namespace Reg
     /* Item System */       \
     X(CountByOwner)     \
     X(FindByOwner)      \
+    X(SetOwnerUid)      \
+    X(ClearOwnerUid)    \
     /* Utility */           \
     X(Log)
 

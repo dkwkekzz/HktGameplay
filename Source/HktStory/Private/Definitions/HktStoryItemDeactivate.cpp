@@ -67,6 +67,16 @@ namespace HktStoryItemDeactivate
 			.SaveConstEntity(Target, PropertyId::ItemState, 1)              // InBag
 			.SaveConstEntity(Target, PropertyId::ActionSlot, -1)            // 액션 해제
 
+			// 아이템 스탯을 캐릭터에서 차감 (Gap 4)
+			.LoadEntityProperty(R0, Target, PropertyId::AttackPower)
+			.LoadEntityProperty(R1, Self, PropertyId::AttackPower)
+			.Sub(R1, R1, R0)
+			.SaveEntityProperty(Self, PropertyId::AttackPower, R1)
+			.LoadEntityProperty(R0, Target, PropertyId::Defense)
+			.LoadEntityProperty(R1, Self, PropertyId::Defense)
+			.Sub(R1, R1, R0)
+			.SaveEntityProperty(Self, PropertyId::Defense, R1)
+
 			// 다른 활성 아이템이 있는지 확인하여 Stance 복원 결정
 			// FindByOwner로 소유 아이템을 순회, Active(State==2)인 것이 있으면 Stance 유지
 			.FindByOwner(Self, Tag_Entity_Item)

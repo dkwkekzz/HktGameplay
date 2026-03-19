@@ -242,6 +242,12 @@ public:
     /** 특정 엔티티가 소유한 Tag 매칭 엔티티 검색 → NextFound()로 순회 */
     FHktStoryBuilder& FindByOwner(RegisterIndex OwnerEntity, const FGameplayTag& Tag);
 
+    /** 현재 Runtime.PlayerUid를 엔티티의 OwnerUid로 설정 */
+    FHktStoryBuilder& SetOwnerUid(RegisterIndex Entity);
+
+    /** 엔티티의 OwnerUid를 0으로 초기화 (무주물 전환) */
+    FHktStoryBuilder& ClearOwnerUid(RegisterIndex Entity);
+
     // ========== Stance ==========
 
     /** Stance 태그 설정 */

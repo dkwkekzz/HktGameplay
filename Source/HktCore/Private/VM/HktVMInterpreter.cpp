@@ -103,6 +103,8 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     // Item System
     case EOpCode::CountByOwner: Op_CountByOwner(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
     case EOpCode::FindByOwner: Op_FindByOwner(Runtime, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::SetOwnerUid: Op_SetOwnerUid(Runtime, Inst.Src1); break;
+    case EOpCode::ClearOwnerUid: Op_ClearOwnerUid(Runtime, Inst.Src1); break;
     // Utility
     case EOpCode::Log: Op_Log(Runtime, Inst.GetSignedImm20()); break;
     default: return EVMStatus::Failed;

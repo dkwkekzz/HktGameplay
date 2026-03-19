@@ -104,6 +104,8 @@ private:
     // ===== Item System =====
     void Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, int32 StringIndex);
     void Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, int32 StringIndex);
+    void Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity);
+    void Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);
