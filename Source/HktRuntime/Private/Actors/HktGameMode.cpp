@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktGameMode.h"
+#include "HktRuntimeLog.h"
 #include "HktIngamePlayerController.h"
 #include "HktPlayerState.h"
 #include "HktServerRuleInterfaces.h"
@@ -10,7 +11,7 @@
 #include "HktCoreDataCollector.h"
 #include "HktCoreEventLog.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogHktGameMode, Log, All);
+DEFINE_LOG_CATEGORY(LogHktRuntime);
 
 AHktGameMode::AHktGameMode()
 {
@@ -25,7 +26,7 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
     CachedServerRule = HktRule::GetServerRule(GetWorld());
     if (!CachedServerRule)
     {
-        UE_LOG(LogHktGameMode, Error, TEXT("InitGame: ServerRule is null"));
+        UE_LOG(LogHktRuntime, Error, TEXT("InitGame: ServerRule is null"));
         return;
     }
 
@@ -79,7 +80,6 @@ void AHktGameMode::Tick(float DeltaSeconds)
 
     if (!CachedFrameManager || !CachedFrameManager->IsInitialized())
     {
-        UE_LOG(LogHktGameMode, Verbose, TEXT("Tick: Frame not initialized yet"));
         return;
     }
 
@@ -101,13 +101,11 @@ void AHktGameMode::SimulationTick()
     IHktServerRule* Rule = GetServerRule();
     if (!Rule)
     {
-        UE_LOG(LogHktGameMode, Warning, TEXT("Tick: ServerRule is null"));
+        UE_LOG(LogHktRuntime, Warning, TEXT("Tick: ServerRule is null"));
         return;
     }
 
     const FHktEventGameModeTickResult TickResult = Rule->OnEvent_GameModeTick(FixedDeltaTime);
-    HKT_EVENT_LOG("Runtime.Server",
-        FString::Printf(TEXT("SimulationTick: %d groups"), TickResult.EventSends.Num()));
 
     for (const FGroupEventSend& GroupSend : TickResult.EventSends)
     {

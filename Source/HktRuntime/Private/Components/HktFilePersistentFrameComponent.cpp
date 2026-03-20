@@ -1,13 +1,12 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktFilePersistentFrameComponent.h"
+#include "HktRuntimeLog.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonWriter.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogHktPersistentFrame, Log, All);
 
 // --- FHktFilePersistentFrameProvider ---
 
@@ -30,7 +29,7 @@ void FHktFilePersistentFrameProvider::ReserveBatch(int64 BatchSize, TFunction<vo
         FString JsonString;
         if (!FFileHelper::LoadFileToString(JsonString, *FilePath))
         {
-            UE_LOG(LogHktPersistentFrame, Error, TEXT("[PersistentFrame] Failed to load file: %s"), *FilePath);
+            UE_LOG(LogHktRuntime, Error, TEXT("[PersistentFrame] Failed to load file: %s"), *FilePath);
             return;
         }
 
@@ -38,7 +37,7 @@ void FHktFilePersistentFrameProvider::ReserveBatch(int64 BatchSize, TFunction<vo
         TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
         if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
         {
-            UE_LOG(LogHktPersistentFrame, Error, TEXT("[PersistentFrame] Failed to parse file"));
+            UE_LOG(LogHktRuntime, Error, TEXT("[PersistentFrame] Failed to parse file"));
             return;
         }
 
@@ -54,13 +53,13 @@ void FHktFilePersistentFrameProvider::ReserveBatch(int64 BatchSize, TFunction<vo
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
     if (!FJsonSerializer::Serialize(RootObject, Writer))
     {
-        UE_LOG(LogHktPersistentFrame, Error, TEXT("[PersistentFrame] Failed to serialize"));
+        UE_LOG(LogHktRuntime, Error, TEXT("[PersistentFrame] Failed to serialize"));
         return;
     }
 
     if (!FFileHelper::SaveStringToFile(JsonString, *FilePath))
     {
-        UE_LOG(LogHktPersistentFrame, Error, TEXT("[PersistentFrame] Failed to save file: %s"), *FilePath);
+        UE_LOG(LogHktRuntime, Error, TEXT("[PersistentFrame] Failed to save file: %s"), *FilePath);
         return;
     }
 
@@ -100,7 +99,7 @@ void UHktFilePersistentFrameComponent::AdvanceFrame()
 
     if (CurrentFrame >= ReservedMaxFrame)
     {
-        UE_LOG(LogHktPersistentFrame, Error, TEXT("[PersistentTick] CRITICAL: Frame range exhausted (Current=%lld, Max=%lld). Waiting for next batch."),
+        UE_LOG(LogHktRuntime, Error, TEXT("[PersistentTick] CRITICAL: Frame range exhausted (Current=%lld, Max=%lld). Waiting for next batch."),
             CurrentFrame, ReservedMaxFrame);
         return;
     }
@@ -130,7 +129,7 @@ void UHktFilePersistentFrameComponent::ReserveNextBatch()
         {
             CurrentFrame = NewMaxFrame - BatchSize;
             bIsInitialized = true;
-            UE_LOG(LogHktPersistentFrame, Log, TEXT("[PersistentTick] Initialized: CurrentFrame=%lld, ReservedMaxFrame=%lld"),
+            UE_LOG(LogHktRuntime, Log, TEXT("[PersistentTick] Initialized: CurrentFrame=%lld, ReservedMaxFrame=%lld"),
                 CurrentFrame, ReservedMaxFrame);
         }
 

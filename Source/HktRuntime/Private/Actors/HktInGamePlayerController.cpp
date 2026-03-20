@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktIngamePlayerController.h"
+#include "HktRuntimeLog.h"
 #include "HktPlayerState.h"
 #include "HktClientRuleInterfaces.h"
 #include "HktGameMode.h"
@@ -12,8 +13,6 @@
 #include "DataAssets/HktInputAction.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogHktIngamePlayerController, Log, All);
 
 AHktIngamePlayerController::AHktIngamePlayerController()
 {
@@ -117,7 +116,7 @@ void AHktIngamePlayerController::OnRep_PlayerState()
         CachedWorldPlayer->InvalidatePlayerUidCache();
     }
 
-    UE_LOG(LogHktIngamePlayerController, Log, TEXT("OnRep_PlayerState"));
+    UE_LOG(LogHktRuntime, Log, TEXT("OnRep_PlayerState"));
 }
 
 void AHktIngamePlayerController::SetupInputComponent()
@@ -192,7 +191,7 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
             const FHktWorldState* WS = nullptr;
             if (GetWorldState(WS) && WS && !HktStory::ValidateEvent(*WS, Event.Value))
             {
-                UE_LOG(LogHktIngamePlayerController, Warning, TEXT("Intent blocked by precondition: %s"), *Event.Value.EventTag.ToString());
+                UE_LOG(LogHktRuntime, Warning, TEXT("Intent blocked by precondition: %s"), *Event.Value.EventTag.ToString());
             }
             else
             {
@@ -205,7 +204,7 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
         }
         else
         {
-            UE_LOG(LogHktIngamePlayerController, Verbose, TEXT("OnTargetAction TargetEntityId=%d"), CachedIntentBuilder->GetTargetEntityId());
+            UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction TargetEntityId=%d"), CachedIntentBuilder->GetTargetEntityId());
         }
     }
 }
@@ -229,7 +228,7 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
             const FHktWorldState* WS = nullptr;
             if (GetWorldState(WS) && WS && !HktStory::ValidateEvent(*WS, Event.Value))
             {
-                UE_LOG(LogHktIngamePlayerController, Warning, TEXT("Intent blocked by precondition: %s"), *Event.Value.EventTag.ToString());
+                UE_LOG(LogHktRuntime, Warning, TEXT("Intent blocked by precondition: %s"), *Event.Value.EventTag.ToString());
             }
             else
             {
@@ -419,7 +418,7 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
     {
         CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
         SubjectChangedDelegate.Broadcast(DefaultSubjectEntityId);
-        UE_LOG(LogHktIngamePlayerController, Log, TEXT("ResolveDefaultSubject: DefaultSubjectEntityId=%d PlayerUid=%lld"), DefaultSubjectEntityId, PlayerUid);
+        UE_LOG(LogHktRuntime, Log, TEXT("ResolveDefaultSubject: DefaultSubjectEntityId=%d PlayerUid=%lld"), DefaultSubjectEntityId, PlayerUid);
     }
 }
 

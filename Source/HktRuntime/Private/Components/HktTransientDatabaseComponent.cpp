@@ -1,10 +1,9 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktTransientDatabaseComponent.h"
+#include "HktRuntimeLog.h"
 #include "GameplayTagContainer.h"
 #include "HktStoryTags.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogHktTransientDatabase, Log, All);
 
 UHktTransientDatabaseComponent::UHktTransientDatabaseComponent()
 {
@@ -70,7 +69,7 @@ void UHktTransientDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FH
         TransientRecords.Add(InPlayerUid, MoveTemp(NewRecord));
     }
     
-    UE_LOG(LogHktTransientDatabase, VeryVerbose, TEXT("[TransientDatabase] Saved player record in memory: PlayerUid=%lld"), InPlayerUid);
+    UE_LOG(LogHktRuntime, VeryVerbose, TEXT("[TransientDatabase] Saved player record in memory: PlayerUid=%lld"), InPlayerUid);
 }
 
 const FHktPlayerRecord* UHktTransientDatabaseComponent::GetCachedPlayerRecord(int64 InPlayerUid) const

@@ -1,11 +1,12 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "IHktPresentationModule.h"
+#include "HktPresentationLog.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FHktPresentationModule"
 
-DEFINE_LOG_CATEGORY_STATIC(LogHktPresentation, Log, All);
+DEFINE_LOG_CATEGORY(LogHktPresentation);
 
 class FHktPresentationModule : public IHktPresentationModule
 {

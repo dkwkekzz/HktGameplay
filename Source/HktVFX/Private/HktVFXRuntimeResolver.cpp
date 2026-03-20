@@ -1,17 +1,16 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktVFXRuntimeResolver.h"
+#include "HktVFXLog.h"
 #include "HktCoreEventLog.h"
 #include "NiagaraSystem.h"
 #include "Engine/World.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogHktVFXResolver, Log, All);
 
 UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
 {
     if (!AssetBank)
     {
-        UE_LOG(LogHktVFXResolver, Warning, TEXT("[VFXResolver] No AssetBank assigned"));
+        UE_LOG(LogHktVFX, Warning, TEXT("[VFXResolver] No AssetBank assigned"));
         return nullptr;
     }
 
@@ -22,7 +21,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
         System = FallbackSystem;
         if (!System)
         {
-            UE_LOG(LogHktVFXResolver, Warning, TEXT("[VFXResolver] No matching VFX for: %s"),
+            UE_LOG(LogHktVFX, Warning, TEXT("[VFXResolver] No matching VFX for: %s"),
                 *Intent.GetAssetKey());
             return nullptr;
         }

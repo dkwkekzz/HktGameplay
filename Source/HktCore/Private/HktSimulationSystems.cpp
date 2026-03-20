@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSimulationSystems.h"
+#include "HktCoreLog.h"
 #include "HktCoreProperties.h"
 #include "VM/HktVMProgram.h"
 #include "VM/HktVMRuntime.h"
@@ -9,8 +10,6 @@
 #include "Math/UnrealMathUtility.h"
 #include "HAL/IConsoleManager.h"
 #include "HktCoreEventLog.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogHktSimulation, Log, All);
 
 // ============================================================================
 // 콘솔 변수 (CVar) - 런타임 이동 조작감 튜닝용
@@ -99,7 +98,7 @@ void FHktVMBuildSystem::Process(
         const FHktVMProgram* Program = FHktVMProgramRegistry::Get().FindProgram(Event.EventTag);
         if (!Program)
         {
-            UE_LOG(LogHktSimulation, Error, TEXT("VM Build: No program for %s — Story가 등록되지 않았습니다 (빌드 검증 실패 또는 미등록)"), *Event.EventTag.ToString());
+            UE_LOG(LogHktCore, Error, TEXT("VM Build: No program for %s — Story가 등록되지 않았습니다 (빌드 검증 실패 또는 미등록)"), *Event.EventTag.ToString());
             continue;
         }
 
@@ -125,7 +124,7 @@ void FHktVMBuildSystem::Process(
         FHktVMHandle Handle = Pool.Allocate();
         if (!Handle.IsValid())
         {
-            UE_LOG(LogHktSimulation, Warning, TEXT("VM Build: Pool exhausted"));
+            UE_LOG(LogHktCore, Warning, TEXT("VM Build: Pool exhausted"));
             continue;
         }
 
@@ -296,7 +295,7 @@ void FHktVMProcessSystem::Process(
         {
             if (Result == EVMStatus::Failed)
             {
-                UE_LOG(LogHktSimulation, Error, TEXT("VM FAILED: %s Src=%d PC=%d — client sent invalid intent"),
+                UE_LOG(LogHktCore, Error, TEXT("VM FAILED: %s Src=%d PC=%d — client sent invalid intent"),
                     Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("?"),
                     Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId,
                     Runtime->PC);

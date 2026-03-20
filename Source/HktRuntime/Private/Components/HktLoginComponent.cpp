@@ -1,11 +1,10 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Components/HktLoginComponent.h"
+#include "HktRuntimeLog.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogHktLogin, Log, All);
 
 UHktLoginComponent::UHktLoginComponent()
 {
@@ -36,7 +35,7 @@ void UHktLoginComponent::Client_ReceiveLoginResult_Implementation(bool bSuccess,
 	}
 	else
 	{
-		UE_LOG(LogHktLogin, Warning, TEXT("HktLoginComponent: Login failed (server rejected)"));
+		UE_LOG(LogHktRuntime, Warning, TEXT("HktLoginComponent: Login failed (server rejected)"));
 	}
 }
 
@@ -45,7 +44,7 @@ void UHktLoginComponent::OnLoginSuccess(const FString& Token, const FString& InU
 	APlayerController* PC = Cast<APlayerController>(GetOwner());
 	if (!PC)
 	{
-		UE_LOG(LogHktLogin, Error, TEXT("HktLoginComponent: Owner is not a PlayerController"));
+		UE_LOG(LogHktRuntime, Error, TEXT("HktLoginComponent: Owner is not a PlayerController"));
 		return;
 	}
 
@@ -56,11 +55,11 @@ void UHktLoginComponent::OnLoginSuccess(const FString& Token, const FString& InU
 	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
 	if (!Settings || Settings->InGameMap.IsNull())
 	{
-		UE_LOG(LogHktLogin, Error, TEXT("HktLoginComponent: InGameMap is not set in Hkt Runtime Settings"));
+		UE_LOG(LogHktRuntime, Error, TEXT("HktLoginComponent: InGameMap is not set in Hkt Runtime Settings"));
 		return;
 	}
 
 	const TSoftObjectPtr<UWorld>& Level = Settings->InGameMap;
-	UE_LOG(LogHktLogin, Log, TEXT("HktLoginComponent: Login success, opening level '%s'"), *Level.GetLongPackageName());
+	UE_LOG(LogHktRuntime, Log, TEXT("HktLoginComponent: Login success, opening level '%s'"), *Level.GetLongPackageName());
 	UGameplayStatics::OpenLevelBySoftObjectPtr(PC, Level);
 }

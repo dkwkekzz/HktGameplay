@@ -1,11 +1,12 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "IHktVFXModule.h"
+#include "HktVFXLog.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FHktVFXModule"
 
-DEFINE_LOG_CATEGORY_STATIC(LogHktVFX, Log, All);
+DEFINE_LOG_CATEGORY(LogHktVFX);
 
 class FHktVFXModule : public IHktVFXModule
 {

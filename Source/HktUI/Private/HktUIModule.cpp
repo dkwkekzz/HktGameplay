@@ -1,9 +1,10 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "IHktUIModule.h"
+#include "HktUILog.h"
 #include "Modules/ModuleManager.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogHktUI, Log, All);
+DEFINE_LOG_CATEGORY(LogHktUI);
 
 class FHktUIModule : public IHktUIModule
 {

@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktHUD.h"
+#include "HktUILog.h"
 #include "HktUIElement.h"
 #include "IHktUIViewFactory.h"
 #include "HktUIAnchorStrategy.h"
@@ -14,8 +15,6 @@
 #include "Layout/Visibility.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Widgets/SWidget.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogHktHUD, Log, All);
 
 void AHktHUD::BeginPlay()
 {
@@ -64,7 +63,7 @@ void AHktHUD::BindPlayerInteraction(APlayerController* PC)
 
 	if (!PlayerInteraction)
 	{
-		UE_LOG(LogHktHUD, Verbose, TEXT("[HktHUD] PlayerController does not implement IHktPlayerInteractionInterface"));
+		UE_LOG(LogHktUI, Verbose, TEXT("[HktHUD] PlayerController does not implement IHktPlayerInteractionInterface"));
 	}
 }
 
