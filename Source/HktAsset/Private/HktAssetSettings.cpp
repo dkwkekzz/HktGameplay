@@ -4,7 +4,8 @@
 
 UHktAssetSettings::UHktAssetSettings()
 {
-	// 기본 Convention 규칙 — 프로젝트 설정에서 변경 가능
+	// 기본 Convention 규칙 — Generator가 에셋 출력 경로를 결정할 때 사용
+	// 런타임 에셋 로딩은 TagDataAsset 기반으로 수행됨
 	ConventionRules = {
 		// Entity.Character.{Name} → {Root}/Characters/{Name}/BP_{Name}
 		{ TEXT("Entity.Character."), TEXT("{Root}/Characters/{Leaf}/BP_{Leaf}") },
@@ -15,10 +16,10 @@ UHktAssetSettings::UHktAssetSettings()
 		// Entity.{Type}.{Name} → {Root}/Entities/{Name}/BP_{Name}  (fallback)
 		{ TEXT("Entity."), TEXT("{Root}/Entities/{Leaf}/BP_{Leaf}") },
 
-		// VFX.Niagara.{Name} → {Root}/VFX/NS_{Leaf}  (Niagara System 직접 참조)
+		// VFX.Niagara.{Name} → {Root}/VFX/NS_{Leaf}  (Generator 출력 경로)
 		{ TEXT("VFX.Niagara."), TEXT("{Root}/VFX/NS_{Leaf}") },
 
-		// VFX.{...} → {Root}/VFX/NS_{TagPath}  (기존 VFX 태그 호환)
+		// VFX.{...} → {Root}/VFX/NS_{TagPath}  (Generator 출력 경로)
 		{ TEXT("VFX."), TEXT("{Root}/VFX/NS_{TagPath}") },
 
 		// Anim.{...} → {Root}/Animations/{TagPath}

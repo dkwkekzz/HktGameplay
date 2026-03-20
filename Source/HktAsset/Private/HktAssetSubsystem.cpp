@@ -60,7 +60,7 @@ void UHktAssetSubsystem::RebuildTagMap()
 }
 
 // ============================================================================
-// 경로 해결 (TagMap → Convention → OnMiss 순서)
+// 경로 해결 (TagMap → OnMiss 순서)
 // ============================================================================
 
 FSoftObjectPath UHktAssetSubsystem::ResolvePath(FGameplayTag Tag)
@@ -76,23 +76,7 @@ FSoftObjectPath UHktAssetSubsystem::ResolvePath(FGameplayTag Tag)
         }
     }
 
-    // 2. Convention Path (규칙 기반)
-    FSoftObjectPath ConventionPath = ResolveConventionPath(Tag);
-    if (ConventionPath.IsValid())
-    {
-        // Convention Path에 에셋이 실제로 존재하는지 확인
-        FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-        FAssetData AssetData = ARM.Get().GetAssetByObjectPath(ConventionPath);
-        if (AssetData.IsValid())
-        {
-            // 발견 시 캐시에 등록
-            TagToPathMap.Add(Tag, ConventionPath);
-            UE_LOG(LogHktAssetSubsystem, Log, TEXT("Convention hit: %s → %s"), *Tag.ToString(), *ConventionPath.ToString());
-            return ConventionPath;
-        }
-    }
-
-    // 3. OnMiss 콜백 (Generator 연동)
+    // 2. OnMiss 콜백 (Generator 연동)
     if (OnTagMiss.IsBound())
     {
         FSoftObjectPath GeneratedPath = OnTagMiss.Execute(Tag);
@@ -135,18 +119,6 @@ FSoftObjectPath UHktAssetSubsystem::ResolveConventionPath(const FGameplayTag& Ta
 
     // FSoftObjectPath 형식: PackagePath.AssetName
     return FSoftObjectPath(FString::Printf(TEXT("%s.%s"), *ResolvedPath, *AssetName));
-}
-
-UObject* UHktAssetSubsystem::LoadByConventionSync(FGameplayTag Tag)
-{
-    FSoftObjectPath Path = ResolvePath(Tag);
-    if (!Path.IsValid()) return nullptr;
-
-    if (UObject* Resolved = Path.ResolveObject())
-    {
-        return Resolved;
-    }
-    return Path.TryLoad();
 }
 
 // ============================================================================
