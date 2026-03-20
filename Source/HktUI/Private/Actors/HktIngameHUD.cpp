@@ -8,7 +8,7 @@
 #include "Widgets/SHktEntityHudWidget.h"
 #include "HktUITags.h"
 #include "HktCoreProperties.h"
-#include "HktCoreEventLog.h"
+#include "HktUILog.h"
 #include "HktUIHelpers.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "GameFramework/PlayerController.h"
@@ -66,7 +66,7 @@ void AHktIngameHUD::UnbindWorldViewDelegate()
 
 void AHktIngameHUD::OnWorldViewUpdated(const FHktWorldView& View)
 {
-	HKT_EVENT_LOG("UI", TEXT("HUD: WorldViewUpdated"));
+	UE_LOG(LogHktUI, Verbose, TEXT("HUD: WorldViewUpdated"));
 	RefreshWorldState();
 	if (!bWorldStateValid) return;
 
@@ -101,7 +101,7 @@ void AHktIngameHUD::SyncEntityElements()
 {
 	if (!CachedWorldState) return;
 
-	HKT_EVENT_LOG("UI", FString::Printf(TEXT("HUD: SyncEntityElements TrackedCount=%d"), TrackedEntities.Num()));
+	UE_LOG(LogHktUI, Verbose, TEXT("HUD: SyncEntityElements TrackedCount=%d"), TrackedEntities.Num());
 
 	if (!bInitialSyncDone)
 	{

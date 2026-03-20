@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktIntentBuilderComponent.h"
-#include "HktCoreEventLog.h"
+#include "HktRuntimeLog.h"
 
 UHktIntentBuilderComponent::UHktIntentBuilderComponent()
 {
@@ -15,17 +15,14 @@ UHktIntentBuilderComponent::UHktIntentBuilderComponent()
 void UHktIntentBuilderComponent::SetSubject(FHktEntityId InSubject)
 {
     SubjectEntityId = InSubject;
-    HKT_EVENT_LOG_ENTITY("Runtime.Intent",
-        FString::Printf(TEXT("SetSubject Id=%d"), SubjectEntityId), SubjectEntityId);
+    UE_LOG(LogHktRuntime, Verbose, TEXT("SetSubject Id=%d"), SubjectEntityId);
 }
 
 void UHktIntentBuilderComponent::SetCommand(FGameplayTag InEventTag, bool bInTargetRequired)
 {
     EventTag = InEventTag;
     bTargetRequired = bInTargetRequired;
-    HKT_EVENT_LOG_TAG("Runtime.Intent",
-        FString::Printf(TEXT("SetCommand Tag=%s TargetRequired=%d"), *EventTag.ToString(), bInTargetRequired),
-        SubjectEntityId, EventTag);
+    UE_LOG(LogHktRuntime, Verbose, TEXT("SetCommand Tag=%s TargetRequired=%d"), *EventTag.ToString(), bInTargetRequired);
 
     // 커맨드 변경 시 Target 초기화
     TargetEntityId = InvalidEntityId;
@@ -82,11 +79,9 @@ bool UHktIntentBuilderComponent::Submit()
 
     bHasPendingSubmit = true;
 
-    HKT_EVENT_LOG_TAG("Runtime.Intent",
-        FString::Printf(TEXT("Submit Tag=%s Subject=%d Target=%d Loc=(%.0f,%.0f,%.0f)"),
-            *EventTag.ToString(), SubjectEntityId, TargetEntityId,
-            TargetLocation.X, TargetLocation.Y, TargetLocation.Z),
-        SubjectEntityId, EventTag);
+    UE_LOG(LogHktRuntime, Verbose, TEXT("Submit Tag=%s Subject=%d Target=%d Loc=(%.0f,%.0f,%.0f)"),
+        *EventTag.ToString(), SubjectEntityId, TargetEntityId,
+        TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
 
     // 커맨드 초기화 (Subject 유지)
     ResetCommand();

@@ -5,7 +5,7 @@
 #include "HktVMContext.h"
 #include "HktVMWorldStateProxy.h"
 #include "GameplayTagsManager.h"
-#include "HktCoreEventLog.h"
+#include "HktCoreLog.h"
 
 // ============================================================================
 // Helper
@@ -32,11 +32,9 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex
 
         // ClassTag를 영구 태그로 부여
         const FString& TagName = GetString(Runtime, StringIndex);
-        HKT_EVENT_LOG_ENTITY("Core.VM",
-            FString::Printf(TEXT("Op_SpawnEntity Id=%d ClassTag=%s Story=%s"),
+        UE_LOG(LogHktCore, Verbose, TEXT("Op_SpawnEntity Id=%d ClassTag=%s Story=%s"),
                 NewEntity, *TagName,
-                Runtime.Program ? *Runtime.Program->Tag.ToString() : TEXT("?")),
-            NewEntity);
+                Runtime.Program ? *Runtime.Program->Tag.ToString() : TEXT("?"));
         FGameplayTag ClassTag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
         if (ClassTag.IsValid() && VMProxy)
         {
@@ -77,8 +75,7 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex
 void FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex Entity)
 {
     FHktEntityId E = Runtime.GetRegEntity(Entity);
-    HKT_EVENT_LOG_ENTITY("Core.VM",
-        FString::Printf(TEXT("Op_DestroyEntity Id=%d"), E), E);
+    UE_LOG(LogHktCore, Verbose, TEXT("Op_DestroyEntity Id=%d"), E);
 
     WorldState->RemoveEntity(E);
 }
@@ -169,24 +166,21 @@ void FHktVMInterpreter::Op_ApplyEffect(FHktVMRuntime& Runtime, RegisterIndex Tar
 {
     FHktEntityId E = Runtime.GetRegEntity(Target);
     const FString& Effect = GetString(Runtime, StringIndex);
-    HKT_EVENT_LOG_ENTITY("Core.VM",
-        FString::Printf(TEXT("Op_ApplyEffect Id=%d Effect=%s"), E, *Effect), E);
+    UE_LOG(LogHktCore, Verbose, TEXT("Op_ApplyEffect Id=%d Effect=%s"), E, *Effect);
 }
 
 void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex)
 {
     FHktEntityId E = Runtime.GetRegEntity(Target);
     const FString& Effect = GetString(Runtime, StringIndex);
-    HKT_EVENT_LOG_ENTITY("Core.VM",
-        FString::Printf(TEXT("Op_RemoveEffect Id=%d Effect=%s"), E, *Effect), E);
+    UE_LOG(LogHktCore, Verbose, TEXT("Op_RemoveEffect Id=%d Effect=%s"), E, *Effect);
 }
 
 void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)
 {
-    HKT_EVENT_LOG("Core.VM",
-        FString::Printf(TEXT("Op_PlayVFX Pos=(%d,%d,%d) VFX=%s"),
+    UE_LOG(LogHktCore, Verbose, TEXT("Op_PlayVFX Pos=(%d,%d,%d) VFX=%s"),
             Runtime.GetReg(PosBase), Runtime.GetReg(PosBase + 1), Runtime.GetReg(PosBase + 2),
-            *GetString(Runtime, StringIndex)));
+            *GetString(Runtime, StringIndex));
 }
 
 void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
@@ -200,22 +194,19 @@ void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex
     {
         VMProxy->AddTag(*WorldState, E, Tag);
     }
-    HKT_EVENT_LOG_ENTITY("Core.VM",
-        FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *VFXName), E);
+    UE_LOG(LogHktCore, Verbose, TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *VFXName);
 }
 
 void FHktVMInterpreter::Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex)
 {
-    HKT_EVENT_LOG("Core.VM",
-        FString::Printf(TEXT("Op_PlaySound Sound=%s"), *GetString(Runtime, StringIndex)));
+    UE_LOG(LogHktCore, Verbose, TEXT("Op_PlaySound Sound=%s"), *GetString(Runtime, StringIndex));
 }
 
 void FHktVMInterpreter::Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)
 {
-    HKT_EVENT_LOG("Core.VM",
-        FString::Printf(TEXT("Op_PlaySoundAtLocation Pos=(%d,%d,%d) Sound=%s"),
+    UE_LOG(LogHktCore, Verbose, TEXT("Op_PlaySoundAtLocation Pos=(%d,%d,%d) Sound=%s"),
             Runtime.GetReg(PosBase), Runtime.GetReg(PosBase + 1), Runtime.GetReg(PosBase + 2),
-            *GetString(Runtime, StringIndex)));
+            *GetString(Runtime, StringIndex));
 }
 
 // ============================================================================
@@ -232,8 +223,7 @@ void FHktVMInterpreter::Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, 
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
     if (Tag.IsValid())
     {
-        HKT_EVENT_LOG_TAG("Core.VM",
-            FString::Printf(TEXT("Op_AddTag Id=%d Tag=%s"), E, *TagName), E, Tag);
+        UE_LOG(LogHktCore, Verbose, TEXT("Op_AddTag Id=%d Tag=%s"), E, *TagName);
         VMProxy->AddTag(*WorldState, E, Tag);
     }
 }
@@ -248,8 +238,7 @@ void FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entit
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
     if (Tag.IsValid())
     {
-        HKT_EVENT_LOG_TAG("Core.VM",
-            FString::Printf(TEXT("Op_RemoveTag Id=%d Tag=%s"), E, *TagName), E, Tag);
+        UE_LOG(LogHktCore, Verbose, TEXT("Op_RemoveTag Id=%d Tag=%s"), E, *TagName);
         VMProxy->RemoveTag(*WorldState, E, Tag);
     }
 }
@@ -389,8 +378,7 @@ void FHktVMInterpreter::Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Ent
     if (WorldState && VMProxy && Runtime.PlayerUid != 0)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        HKT_EVENT_LOG_ENTITY("Core.VM",
-            FString::Printf(TEXT("Op_SetOwnerUid Id=%d Uid=%lld"), E, Runtime.PlayerUid), E);
+        UE_LOG(LogHktCore, Verbose, TEXT("Op_SetOwnerUid Id=%d Uid=%lld"), E, Runtime.PlayerUid);
         VMProxy->SetOwnerUid(*WorldState, E, Runtime.PlayerUid);
     }
 }
@@ -400,8 +388,7 @@ void FHktVMInterpreter::Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex E
     if (WorldState && VMProxy)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        HKT_EVENT_LOG_ENTITY("Core.VM",
-            FString::Printf(TEXT("Op_ClearOwnerUid Id=%d"), E), E);
+        UE_LOG(LogHktCore, Verbose, TEXT("Op_ClearOwnerUid Id=%d"), E);
         VMProxy->SetOwnerUid(*WorldState, E, 0);
     }
 }
@@ -412,7 +399,5 @@ void FHktVMInterpreter::Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex E
 
 void FHktVMInterpreter::Op_Log(FHktVMRuntime& Runtime, int32 StringIndex)
 {
-    HKT_EVENT_LOG_ENTITY("Core.VM",
-        FString::Printf(TEXT("Op_Log: %s"), *GetString(Runtime, StringIndex)),
-        Runtime.Context ? Runtime.Context->SourceEntity : InvalidEntityId);
+    UE_LOG(LogHktCore, Verbose, TEXT("Op_Log: %s"), *GetString(Runtime, StringIndex));
 }

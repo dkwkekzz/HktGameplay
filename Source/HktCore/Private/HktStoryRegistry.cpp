@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktStoryRegistry.h"
-#include "HktCoreEventLog.h"
+#include "HktCoreLog.h"
 
 TArray<FHktStoryRegistry::FStoryRegisterFunc>& FHktStoryRegistry::GetRegistry()
 {
@@ -30,6 +30,5 @@ void FHktStoryRegistry::InitializeAllStories()
     // 메모리 절약을 위해 실행 후 비움 (필요에 따라 유지 가능)
     GetRegistry().Empty();
 
-    HKT_EVENT_LOG("Core.Story",
-        FString::Printf(TEXT("InitializeAllStories: %d stories initialized"), StoryCount));
+    UE_LOG(LogHktCore, Verbose, TEXT("InitializeAllStories: %d stories initialized"), StoryCount);
 }

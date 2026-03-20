@@ -2,7 +2,6 @@
 
 #include "HktVFXRuntimeResolver.h"
 #include "HktVFXLog.h"
-#include "HktCoreEventLog.h"
 #include "NiagaraSystem.h"
 #include "Engine/World.h"
 
@@ -43,7 +42,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
     // 3. 런타임 파라미터 오버라이드
     ApplyRuntimeOverrides(Comp, Intent);
 
-    HKT_EVENT_LOG("VFX", FString::Printf(TEXT("PlayVFX at location")));
+    UE_LOG(LogHktVFX, Verbose, TEXT("PlayVFX at location"));
 
     return Comp;
 }
@@ -73,7 +72,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFXAttached(
     if (Comp)
     {
         ApplyRuntimeOverrides(Comp, Intent);
-        HKT_EVENT_LOG("VFX", FString::Printf(TEXT("PlayVFXAttached")));
+        UE_LOG(LogHktVFX, Verbose, TEXT("PlayVFXAttached"));
     }
     return Comp;
 }
