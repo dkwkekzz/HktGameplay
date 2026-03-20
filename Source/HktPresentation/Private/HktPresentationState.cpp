@@ -56,6 +56,14 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	// Combat
 	AttackPower.Set(WS.GetProperty(Id, PropertyId::AttackPower), Frame);
 	Defense.Set(WS.GetProperty(Id, PropertyId::Defense), Frame);
+	{
+		int32 CpVal = WS.GetProperty(Id, PropertyId::CP);
+		int32 MaxCpVal = WS.GetProperty(Id, PropertyId::MaxCP);
+		CP.Set(CpVal, Frame);
+		MaxCP.Set(MaxCpVal, Frame);
+		CPRatio.Set((MaxCpVal > 0) ? static_cast<float>(CpVal) / static_cast<float>(MaxCpVal) : 0.f, Frame);
+	}
+	AttackSpeed.Set(WS.GetProperty(Id, PropertyId::AttackSpeed), Frame);
 
 	// Ownership
 	Team.Set(WS.GetProperty(Id, PropertyId::Team), Frame);
@@ -116,6 +124,15 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	// Combat
 	case PropertyId::AttackPower: AttackPower.Set(NewValue, Frame); break;
 	case PropertyId::Defense:     Defense.Set(NewValue, Frame); break;
+	case PropertyId::CP:
+		CP.Set(NewValue, Frame);
+		CPRatio.Set((MaxCP.Get() > 0) ? static_cast<float>(NewValue) / static_cast<float>(MaxCP.Get()) : 0.f, Frame);
+		break;
+	case PropertyId::MaxCP:
+		MaxCP.Set(NewValue, Frame);
+		CPRatio.Set((NewValue > 0) ? static_cast<float>(CP.Get()) / static_cast<float>(NewValue) : 0.f, Frame);
+		break;
+	case PropertyId::AttackSpeed: AttackSpeed.Set(NewValue, Frame); break;
 
 	// Ownership
 	case PropertyId::Team: Team.Set(NewValue, Frame); break;

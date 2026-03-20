@@ -18,6 +18,9 @@ namespace HktStoryPlayerInWorld
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_WoodenSword, "Entity.Item.WoodenSword", "Wooden sword starter item.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Weapon_Sword, "Entity.Attr.Weapon.Sword", "Sword weapon tag.");
 
+	// Skill (목검의 고유 스킬 태그)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_WoodenSwordSlash, "Story.Event.Skill.WoodenSwordSlash", "Wooden sword slash skill.");
+
 	/**
 	 * ================================================================
 	 * 플레이어 월드 진입 상태 Flow
@@ -52,6 +55,10 @@ namespace HktStoryPlayerInWorld
 			// 플레이어 속성 설정
 			.SetStance(Self, HktStance::Spear)
 			.SaveConstEntity(Self, PropertyId::BagCapacity, 8)          // 가방 용량 8
+			.SaveConstEntity(Self, PropertyId::MaxCP, 100)              // CP 최대 100
+			.SaveConstEntity(Self, PropertyId::CP, 0)                   // CP 초기 0
+			.SaveConstEntity(Self, PropertyId::AttackSpeed, 100)        // 공속 기본 1.0x (100 = 1.0)
+			.SaveConstEntity(Self, PropertyId::NextActionFrame, 0)      // 즉시 행동 가능
 
 			// === 복귀 플레이어 검사 (Gap 8) ===
 			// DB에서 복원된 엔티티가 이미 존재하면 초기 아이템 지급 건너뜀
@@ -72,6 +79,9 @@ namespace HktStoryPlayerInWorld
 			.SaveConstEntity(Spawned, PropertyId::AttackPower, 5)              // 공격력 5
 			.SetStance(Spawned, HktStance::Sword1H)                            // Stance
 			.AddTag(Spawned, Tag_Weapon_Sword)
+			// 아이템 스킬 데이터
+			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 30)             // 스킬 CP 소모 30
+			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 60)           // 기본 후딜레이 60프레임
 
 		.Label(TEXT("skip_grant"))
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))

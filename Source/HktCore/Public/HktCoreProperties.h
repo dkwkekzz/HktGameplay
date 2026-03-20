@@ -38,7 +38,12 @@
     X(OwnerEntity)            \
     X(EntitySpawnTag)         \
     /* 스탠스 */              \
-    X(Stance)
+    X(Stance)                 \
+    /* 전투 (CP/공속) */      \
+    X(CP)                     \
+    X(MaxCP)                  \
+    X(AttackSpeed)            \
+    X(NextActionFrame)
 
 #define HKT_COLD_PROPERTY_LIST(X) \
     /* 이벤트 파라미터 */     \
@@ -68,7 +73,11 @@
     X(BagCapacity)            \
     /* NPC */                 \
     X(IsNPC)                  \
-    X(SpawnFlowTag)
+    X(SpawnFlowTag)           \
+    /* 아이템 스킬 */         \
+    X(ItemSkillTag)           \
+    X(SkillCPCost)            \
+    X(RecoveryFrame)
 
 #define HKT_PROPERTY_LIST(X) \
     HKT_HOT_PROPERTY_LIST(X) \

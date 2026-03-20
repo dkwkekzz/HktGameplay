@@ -75,17 +75,22 @@ void UHktAnimInstance::ApplyAnimTag(const FGameplayTag& AnimTag)
 	// 매핑 테이블에서 에셋을 찾아 자동 재생
 	if (const FHktAnimMappingEntry* Entry = FindMapping(AnimTag))
 	{
+		// 공격/스킬 몽타주는 AttackPlayRate 적용
+		const bool bIsCombatAnim = LayerParent.MatchesTagExact(HktGameplayTags::Anim_UpperBody)
+			|| LayerParent.MatchesTagExact(HktGameplayTags::Anim_Montage);
+		const float PlayRate = bIsCombatAnim ? AttackPlayRate : 1.0f;
+
 		if (Entry->Montage)
 		{
-			Montage_Play(Entry->Montage);
-			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] PlayMontage: %s -> %s"),
-				*AnimTag.ToString(), *Entry->Montage->GetName());
+			Montage_Play(Entry->Montage, PlayRate);
+			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] PlayMontage: %s -> %s (Rate=%.2f)"),
+				*AnimTag.ToString(), *Entry->Montage->GetName(), PlayRate);
 		}
 		else if (Entry->Sequence)
 		{
-			PlaySlotAnimationAsDynamicMontage(Entry->Sequence, FName(TEXT("DefaultSlot")), 0.25f, 0.25f, 1.0f);
-			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] PlaySequence: %s -> %s"),
-				*AnimTag.ToString(), *Entry->Sequence->GetName());
+			PlaySlotAnimationAsDynamicMontage(Entry->Sequence, FName(TEXT("DefaultSlot")), 0.25f, 0.25f, PlayRate);
+			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] PlaySequence: %s -> %s (Rate=%.2f)"),
+				*AnimTag.ToString(), *Entry->Sequence->GetName(), PlayRate);
 		}
 
 		if (Entry->BlendSpace && ActiveBlendSpace != Entry->BlendSpace)
