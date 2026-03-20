@@ -48,6 +48,9 @@ public:
 	/** Intent 제출 시 브로드캐스트 (클라이언트 즉시 VFX 등에 사용). */
 	virtual FOnHktIntentSubmitted& OnIntentSubmitted() = 0;
 
+	/** 아이템 장착/해제로 액션 슬롯 바인딩이 변경될 때 브로드캐스트. */
+	virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() { static FOnHktSlotBindingChanged Dummy; return Dummy; }
+
 	/** 이 플레이어의 고유 UID. 소유권 검증 등에 사용. 미지원 시 0 반환. */
 	virtual int64 GetPlayerUid() const { return 0; }
 };

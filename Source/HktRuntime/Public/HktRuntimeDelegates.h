@@ -19,3 +19,4 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktWheelInput, float);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktEntityCreated, FHktEntityId);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktEntityDestroyed, FHktEntityId);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktWorldViewUpdated, const FHktWorldView&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktSlotBindingChanged, int32 /*SlotIndex*/);

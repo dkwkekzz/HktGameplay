@@ -84,6 +84,13 @@ public:
 	virtual bool IsTargetRequiredAtSlot(int32 SlotIndex) const = 0;
 	virtual int32 GetNumSlots() const = 0;
 	virtual void SetSlotActions(const TArray<TObjectPtr<UObject>>& InSlotActions) = 0;
+
+	/** 아이템 장착에 의한 동적 슬롯 오버라이드 (해제 시 FGameplayTag() 전달) */
+	virtual void OverrideSlotBinding(int32 SlotIndex, FGameplayTag EventTag, bool bTargetRequired) {}
+
+	/** 슬롯 바인딩이 변경되었을 때 브로드캐스트 (SlotIndex) */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSlotBindingChanged, int32);
+	virtual FOnSlotBindingChanged& OnSlotBindingChanged() { static FOnSlotBindingChanged Dummy; return Dummy; }
 };
 
 // ============================================================================

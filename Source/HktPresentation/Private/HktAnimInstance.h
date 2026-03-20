@@ -75,6 +75,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	FGameplayTag StanceTag;
 
+	/** 공격/스킬 몽타주 재생 속도 (AttackSpeed / 100) */
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
+	float AttackPlayRate = 1.0f;
+
+	/** 현재 CP 비율 (0~1) — UI에서 사용 */
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
+	float CPRatio = 0.0f;
+
 	/** 현재 활성 블렌드스페이스 */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	TObjectPtr<UBlendSpace> ActiveBlendSpace;

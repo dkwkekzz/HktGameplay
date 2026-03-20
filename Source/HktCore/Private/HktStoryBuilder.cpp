@@ -602,6 +602,17 @@ FHktStoryBuilder& FHktStoryBuilder::SetStance(RegisterIndex Entity, const FGamep
 }
 
 // ============================================================================
+// Item Skill
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::SetItemSkillTag(RegisterIndex Entity, const FGameplayTag& SkillTag)
+{
+    int32 TagIdx = TagToInt(SkillTag);
+    SaveConstEntity(Entity, PropertyId::ItemSkillTag, TagIdx);
+    return *this;
+}
+
+// ============================================================================
 // Utility
 // ============================================================================
 

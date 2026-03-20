@@ -11,12 +11,16 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Styling/CoreStyle.h"
+#include "IHktPlayerInteractionInterface.h"
+#include "HktCoreProperties.h"
+#include "GameplayTagsManager.h"
 
 class APlayerController;
 
 /**
  * 인게임 뷰포트 HUD 위젯.
  * 하단 바에 Inventory/Equipment/Skills 버튼과 각각의 패널을 제공합니다.
+ * Skills 패널은 실제 액션 슬롯 바인딩을 WorldState에서 읽어 표시합니다.
  */
 class HKTUI_API SHktIngameHudWidget : public SCompoundWidget
 {
@@ -26,10 +30,7 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
-	void SetOwningPlayerController(APlayerController* InPC)
-	{
-		CachedPC = InPC;
-	}
+	void SetOwningPlayerController(APlayerController* InPC);
 
 private:
 	FReply OnInventoryClicked();
@@ -37,11 +38,16 @@ private:
 	FReply OnSkillsClicked();
 	void TogglePanel(int32 PanelIndex);
 
+	/** 슬롯 바인딩 변경 시 스킬 패널 갱신 */
+	void RefreshSkillsPanel();
+
 	TSharedPtr<SBorder> InventoryPanel;
 	TSharedPtr<SBorder> EquipmentPanel;
 	TSharedPtr<SBorder> SkillsPanel;
+	TSharedPtr<SVerticalBox> SkillListBox;
 
 	TWeakObjectPtr<APlayerController> CachedPC;
+	FDelegateHandle SlotBindingHandle;
 
 	int32 ActivePanel = -1; // -1 = none
 };
@@ -57,7 +63,7 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 	{
 		TSharedRef<SScrollBox> ItemList = SNew(SScrollBox);
 
-		// Mock 아이템 데이터
+		// Mock 아이템 데이터 (추후 WorldState 기반으로 전환 예정)
 		static const TArray<FString> Items = { TEXT("Iron Sword"), TEXT("Wooden Shield"), TEXT("Health Potion x3"), TEXT("Mana Potion x2"), TEXT("Leather Armor"), TEXT("Magic Ring") };
 		for (const FString& Item : Items)
 		{
@@ -170,55 +176,10 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 			];
 	};
 
-	// --- 스킬 패널 ---
+	// --- 스킬 패널 (데이터 기반) ---
 	auto BuildSkillsPanel = [this]() -> TSharedRef<SWidget>
 	{
-		struct FSkillSlot { FString Name; FString Desc; FString Cooldown; };
-		static const TArray<FSkillSlot> Skills = {
-			{ TEXT("Fireball"), TEXT("Deal fire damage to target"), TEXT("8s") },
-			{ TEXT("Heal"), TEXT("Restore health"), TEXT("12s") },
-			{ TEXT("Dash"), TEXT("Quick movement"), TEXT("5s") },
-			{ TEXT("Shield Bash"), TEXT("Stun target briefly"), TEXT("10s") }
-		};
-
-		TSharedRef<SVerticalBox> SkillList = SNew(SVerticalBox);
-		for (const FSkillSlot& Skill : Skills)
-		{
-			SkillList->AddSlot()
-			.AutoHeight()
-			.Padding(0.f, 4.f)
-			[
-				SNew(SBorder)
-				.Padding(8.f)
-				.BorderBackgroundColor(FLinearColor(0.15f, 0.15f, 0.2f, 0.8f))
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot().FillWidth(1.f)
-						[
-							SNew(STextBlock)
-							.Text(FText::FromString(Skill.Name))
-							.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
-							.ColorAndOpacity(FLinearColor(1.f, 0.8f, 0.3f))
-						]
-						+ SHorizontalBox::Slot().AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(FText::FromString(FString::Printf(TEXT("CD: %s"), *Skill.Cooldown)))
-							.ColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
-						]
-					]
-					+ SVerticalBox::Slot().AutoHeight()
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString(Skill.Desc))
-						.ColorAndOpacity(FLinearColor(0.7f, 0.7f, 0.7f))
-					]
-				]
-			];
-		}
+		SkillListBox = SNew(SVerticalBox);
 
 		return SAssignNew(SkillsPanel, SBorder)
 			.Padding(12.f)
@@ -235,14 +196,14 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 					.Padding(0.f, 0.f, 0.f, 8.f)
 					[
 						SNew(STextBlock)
-						.Text(FText::FromString(TEXT("Skills")))
+						.Text(FText::FromString(TEXT("Action Slots")))
 						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
 						.ColorAndOpacity(FLinearColor(1.f, 0.4f, 0.4f))
 					]
 					+ SVerticalBox::Slot()
 					.FillHeight(1.f)
 					[
-						SkillList
+						SkillListBox.ToSharedRef()
 					]
 				]
 			];
@@ -317,9 +278,177 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 	];
 }
 
+inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* InPC)
+{
+	CachedPC = InPC;
+
+	// 슬롯 바인딩 변경 구독
+	if (InPC)
+	{
+		if (IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(InPC))
+		{
+			SlotBindingHandle = Interaction->OnSlotBindingChanged().AddLambda([this](int32 /*SlotIndex*/)
+			{
+				RefreshSkillsPanel();
+			});
+		}
+	}
+}
+
+inline void SHktIngameHudWidget::RefreshSkillsPanel()
+{
+	if (!SkillListBox.IsValid()) return;
+	SkillListBox->ClearChildren();
+
+	APlayerController* PC = CachedPC.Get();
+	if (!PC) return;
+
+	IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC);
+	if (!Interaction) return;
+
+	const FHktWorldState* WS = nullptr;
+	if (!Interaction->GetWorldState(WS) || !WS) return;
+
+	const int64 PlayerUid = Interaction->GetPlayerUid();
+	if (PlayerUid == 0) return;
+
+	// 내 캐릭터 엔티티 찾기
+	FHktEntityId MyCharacter = InvalidEntityId;
+	WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId Id, int32 /*Slot*/)
+	{
+		if (MyCharacter != InvalidEntityId) return;
+		// 아이템이 아닌 캐릭터 (OwnerEntity가 자기 자신이 아닌 엔티티)
+		if (WS->GetProperty(Id, PropertyId::ItemState) == 0)
+		{
+			MyCharacter = Id;
+		}
+	});
+
+	if (MyCharacter == InvalidEntityId) return;
+
+	// Active 아이템을 ActionSlot 기준으로 수집
+	struct FHktSlotInfo
+	{
+		int32 ActionSlot;
+		FGameplayTag SkillTag;
+		int32 CPCost;
+		int32 RecoveryFrame;
+	};
+	TArray<FHktSlotInfo> SlotInfos;
+
+	WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
+	{
+		if (WS->GetProperty(ItemId, PropertyId::OwnerEntity) != MyCharacter) return;
+		if (WS->GetProperty(ItemId, PropertyId::ItemState) != 2) return; // Active만
+
+		int32 ActionSlot = WS->GetProperty(ItemId, PropertyId::ActionSlot);
+		if (ActionSlot < 0) return;
+
+		int32 SkillNetIdx = WS->GetProperty(ItemId, PropertyId::ItemSkillTag);
+		FGameplayTag SkillTag;
+		if (SkillNetIdx > 0)
+		{
+			FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillNetIdx));
+			if (!TagName.IsNone())
+			{
+				SkillTag = FGameplayTag::RequestGameplayTag(TagName, false);
+			}
+		}
+
+		SlotInfos.Add({
+			ActionSlot,
+			SkillTag,
+			WS->GetProperty(ItemId, PropertyId::SkillCPCost),
+			WS->GetProperty(ItemId, PropertyId::RecoveryFrame)
+		});
+	});
+
+	// ActionSlot 순으로 정렬
+	SlotInfos.Sort([](const FHktSlotInfo& A, const FHktSlotInfo& B) { return A.ActionSlot < B.ActionSlot; });
+
+	if (SlotInfos.Num() == 0)
+	{
+		SkillListBox->AddSlot()
+		.AutoHeight()
+		.Padding(0.f, 4.f)
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(TEXT("No active item skills")))
+			.ColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
+		];
+		return;
+	}
+
+	for (const FHktSlotInfo& Info : SlotInfos)
+	{
+		FString SkillName = Info.SkillTag.IsValid() ? Info.SkillTag.ToString() : TEXT("Unknown");
+		// 태그 이름에서 마지막 세그먼트만 표시 (예: "Story.Event.Skill.WoodenSwordSlash" → "WoodenSwordSlash")
+		int32 DotIdx;
+		if (SkillName.FindLastChar('.', DotIdx))
+		{
+			SkillName = SkillName.Mid(DotIdx + 1);
+		}
+
+		SkillListBox->AddSlot()
+		.AutoHeight()
+		.Padding(0.f, 4.f)
+		[
+			SNew(SBorder)
+			.Padding(8.f)
+			.BorderBackgroundColor(FLinearColor(0.15f, 0.15f, 0.2f, 0.8f))
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(FString::Printf(TEXT("[%d]"), Info.ActionSlot)))
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+						.ColorAndOpacity(FLinearColor(0.5f, 0.8f, 1.f))
+					]
+					+ SHorizontalBox::Slot().FillWidth(1.f)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(SkillName))
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+						.ColorAndOpacity(FLinearColor(1.f, 0.8f, 0.3f))
+					]
+				]
+				+ SVerticalBox::Slot().AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1.f)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(FString::Printf(TEXT("CP: %d"), Info.CPCost)))
+						.ColorAndOpacity(FLinearColor(0.3f, 0.7f, 1.f))
+					]
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(FString::Printf(TEXT("CD: %d frames"), Info.RecoveryFrame)))
+						.ColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
+					]
+				]
+			]
+		];
+	}
+}
+
 inline FReply SHktIngameHudWidget::OnInventoryClicked() { TogglePanel(0); return FReply::Handled(); }
 inline FReply SHktIngameHudWidget::OnEquipmentClicked() { TogglePanel(1); return FReply::Handled(); }
-inline FReply SHktIngameHudWidget::OnSkillsClicked() { TogglePanel(2); return FReply::Handled(); }
+inline FReply SHktIngameHudWidget::OnSkillsClicked()
+{
+	TogglePanel(2);
+	// 스킬 패널 열 때 최신 데이터로 갱신
+	if (ActivePanel == 2)
+	{
+		RefreshSkillsPanel();
+	}
+	return FReply::Handled();
+}
 
 inline void SHktIngameHudWidget::TogglePanel(int32 PanelIndex)
 {

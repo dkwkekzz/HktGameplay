@@ -46,6 +46,10 @@ struct FHktEntityPresentation
 	// --- Combat ---
 	THktVisualField<int32> AttackPower;
 	THktVisualField<int32> Defense;
+	THktVisualField<int32> CP;
+	THktVisualField<int32> MaxCP;
+	THktVisualField<float> CPRatio;
+	THktVisualField<int32> AttackSpeed;
 
 	// --- Ownership ---
 	THktVisualField<int32> Team;

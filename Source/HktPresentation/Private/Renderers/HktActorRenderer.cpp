@@ -302,6 +302,20 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->SyncStance(Entity.Stance.Get());
 	}
 
+	// AttackSpeed → 몽타주 PlayRate 동기화
+	if (Entity.AttackSpeed.IsDirty(Frame))
+	{
+		float SpeedScale = static_cast<float>(Entity.AttackSpeed.Get()) / 100.0f;
+		if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
+		HktAnim->AttackPlayRate = SpeedScale;
+	}
+
+	// CP 비율 동기화 (UI 피드백용)
+	if (Entity.CPRatio.IsDirty(Frame))
+	{
+		HktAnim->CPRatio = Entity.CPRatio.Get();
+	}
+
 	// Entity TagContainer 기반 애니메이션 동기화
 	// Story에서 AddTag/RemoveTag로 상태를 변경하면 AnimInstance가 태그 변화를 감지하여 애니메이션을 자동 재생
 	if (Entity.TagsDirtyFrame == Frame)

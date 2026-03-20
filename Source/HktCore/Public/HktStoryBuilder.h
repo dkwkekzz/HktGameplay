@@ -253,6 +253,11 @@ public:
     /** Stance 태그 설정 */
     FHktStoryBuilder& SetStance(RegisterIndex Entity, const FGameplayTag& StanceTag);
 
+    // ========== Item Skill ==========
+
+    /** 아이템의 스킬 태그 설정 (GameplayTag → NetIndex로 저장) */
+    FHktStoryBuilder& SetItemSkillTag(RegisterIndex Entity, const FGameplayTag& SkillTag);
+
     // ========== Utility ==========
 
     FHktStoryBuilder& Log(const FString& Message);
