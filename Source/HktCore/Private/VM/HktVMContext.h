@@ -41,25 +41,25 @@ struct FHktVMContext
         case PropertyId::Param3:     return EventParam3;
         default: break;
         }
-        if (!WorldState || !WorldState->IsValidEntity(SourceEntity)) return 0;
+        if (!WorldState) return 0;
         return WorldState->GetProperty(SourceEntity, PropId);
     }
 
     FORCEINLINE int32 ReadEntity(FHktEntityId Entity, uint16 PropId) const
     {
-        if (!WorldState || !WorldState->IsValidEntity(Entity)) return 0;
+        if (!WorldState) return 0;
         return WorldState->GetProperty(Entity, PropId);
     }
 
     FORCEINLINE void Write(uint16 PropId, int32 Value)
     {
-        if (VMProxy && WorldState && WorldState->IsValidEntity(SourceEntity))
+        if (VMProxy && WorldState)
             VMProxy->SetPropertyDirty(*WorldState, SourceEntity, PropId, Value);
     }
 
     FORCEINLINE void WriteEntity(FHktEntityId Entity, uint16 PropId, int32 Value)
     {
-        if (VMProxy && WorldState && WorldState->IsValidEntity(Entity))
+        if (VMProxy && WorldState)
             VMProxy->SetPropertyDirty(*WorldState, Entity, PropId, Value);
     }
 
