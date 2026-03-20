@@ -39,6 +39,7 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		FHktEntityId Id = *It;
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E || !ActorMap.Contains(Id)) { It.RemoveCurrent(); continue; }
+		ApplyVisualAnimMappings(Id);  // AnimInstance가 지연 초기화된 경우 재시도
 		UpdateMotionTarget(Id, *E, E->SpawnedFrame);
 		UpdateAnimation(Id, *E, E->SpawnedFrame);
 		if (E->IsItemAttached())
@@ -102,6 +103,7 @@ void FHktActorRenderer::Teardown()
 	PendingInitSync.Empty();
 	AttachedItems.Empty();
 	PendingAttachments.Empty();
+	VisualAssetMap.Empty();
 }
 
 AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
@@ -184,11 +186,20 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			ActorMap.Add(EntityId, SpawnedActor);
 			PendingInitSync.Add(EntityId);
 
+			// DataAsset 캐시 (AnimMapping 적용을 위해 보관)
+			if (VisualAsset)
+			{
+				VisualAssetMap.Add(EntityId, VisualAsset);
+			}
+
 			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
 			Motion.TargetLocation = SpawnLocation;
 			Motion.TargetRotation = Rotation;
 			Motion.bIsMoving = bIsMoving;
 			Motion.bNeedsGroundSnap = false;
+
+			// 스폰 직후 DataAsset의 AnimMappings를 AnimInstance에 등록
+			ApplyVisualAnimMappings(EntityId);
 		}
 	});
 }
@@ -218,6 +229,7 @@ void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 	}
 	MotionStates.Remove(Id);
 	PendingInitSync.Remove(Id);
+	VisualAssetMap.Remove(Id);
 }
 
 void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame)
@@ -430,6 +442,44 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 	PendingAttachments.Remove(ItemId);
 
 	UE_LOG(LogHktPresentation, Verbose, TEXT("DetachItem Entity=%d"), ItemId);
+}
+
+void FHktActorRenderer::ApplyVisualAnimMappings(FHktEntityId Id)
+{
+	TWeakObjectPtr<UObject>* AssetPtr = VisualAssetMap.Find(Id);
+	if (!AssetPtr || !AssetPtr->IsValid())
+		return;
+
+	UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(AssetPtr->Get());
+	if (!VisualAsset || VisualAsset->AnimMappings.Num() == 0)
+		return;
+
+	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
+	if (!WeakPtr || !WeakPtr->IsValid())
+		return;
+
+	AActor* Actor = WeakPtr->Get();
+	USkeletalMeshComponent* SkelMesh = Actor->FindComponentByClass<USkeletalMeshComponent>();
+	if (!SkelMesh)
+		return;
+
+	UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance());
+	if (!HktAnim)
+		return;
+
+	// DataAsset의 AnimMappings를 AnimInstance에 동적 등록
+	for (const FHktVisualAnimMapping& Mapping : VisualAsset->AnimMappings)
+	{
+		if (Mapping.AnimTag.IsValid())
+		{
+			HktAnim->RegisterAnimMapping(Mapping.AnimTag, Mapping.Montage, Mapping.Sequence, Mapping.BlendSpace);
+		}
+	}
+
+	// 등록 완료 후 캐시 제거 (중복 등록 방지)
+	VisualAssetMap.Remove(Id);
+
+	UE_LOG(LogHktPresentation, Log, TEXT("ApplyVisualAnimMappings: Entity=%d Mappings=%d"), Id, VisualAsset->AnimMappings.Num());
 }
 
 bool FHktActorRenderer::TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const
