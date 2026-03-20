@@ -188,8 +188,6 @@ EVMStatus FHktVMInterpreter::Op_LoadStoreEntity(FHktVMRuntime& Runtime, Register
     if (Runtime.Context)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        if (!RequireValidEntity(Runtime, E, TEXT("LoadStoreEntity")))
-            return EVMStatus::Failed;
         Runtime.SetReg(Dst, Runtime.Context->ReadEntity(E, PropertyId));
     }
     return EVMStatus::Running;
@@ -206,8 +204,6 @@ EVMStatus FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, Register
     if (Runtime.Context)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        if (!RequireValidEntity(Runtime, E, TEXT("SaveStoreEntity")))
-            return EVMStatus::Failed;
         Runtime.Context->WriteEntity(E, PropertyId, Runtime.GetReg(Src));
     }
     return EVMStatus::Running;

@@ -644,7 +644,7 @@ void FHktStoryBuilder::ResolveLabels()
     }
 }
 
-TSharedRef<FHktVMProgram> FHktStoryBuilder::Build()
+TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
 {
     if (Program->Code.Num() == 0 || Program->Code.Last().GetOpCode() != EOpCode::Halt)
     {
@@ -652,7 +652,15 @@ TSharedRef<FHktVMProgram> FHktStoryBuilder::Build()
     }
 
     ResolveLabels();
-    ValidateEntityFlow();
+
+    if (!ValidateEntityFlow())
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("Story BUILD FAILED: %s — 엔티티 레지스터 검증 실패. 이 Story는 등록되지 않습니다."),
+            *Program->Tag.ToString());
+        return nullptr;
+    }
+
     return Program;
 }
 
@@ -660,8 +668,9 @@ TSharedRef<FHktVMProgram> FHktStoryBuilder::Build()
 // Build-time Entity Register Validation
 // ============================================================================
 
-void FHktStoryBuilder::ValidateEntityFlow()
+bool FHktStoryBuilder::ValidateEntityFlow()
 {
+    bool bValid = true;
     // Self(R10), Target(R11)은 이벤트에서 항상 초기화됨
     // Spawned(R12), Hit(R13), Iter(R14)는 특정 Op 실행 후에만 유효
     uint16 EntityRegs = (1 << Reg::Self) | (1 << Reg::Target);
@@ -693,6 +702,7 @@ void FHktStoryBuilder::ValidateEntityFlow()
                 TEXT("Story BUILD: %s PC=%d Op=%s — Reg %s (R%d) 가 엔티티로 사용되었지만 이전에 초기화되지 않았습니다. "
                      "SpawnEntity/WaitCollision/NextFound 호출 순서를 확인하세요."),
                 *Program->Tag.ToString(), PC, GetOpCodeName(Op), Name, R);
+            bValid = false;
         }
     };
 
@@ -758,11 +768,17 @@ void FHktStoryBuilder::ValidateEntityFlow()
             break;
         }
     }
+
+    return bValid;
 }
 
 void FHktStoryBuilder::BuildAndRegister()
 {
-    FHktVMProgramRegistry::Get().RegisterProgram(Build());
+    TSharedPtr<FHktVMProgram> BuiltProgram = Build();
+    if (BuiltProgram.IsValid())
+    {
+        FHktVMProgramRegistry::Get().RegisterProgram(BuiltProgram.ToSharedRef());
+    }
 }
 
 // ============================================================================

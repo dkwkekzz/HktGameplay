@@ -19,20 +19,6 @@ const FString& FHktVMInterpreter::GetString(FHktVMRuntime& Runtime, int32 Index)
     return Empty;
 }
 
-bool FHktVMInterpreter::RequireValidEntity(FHktVMRuntime& Runtime, FHktEntityId Entity, const TCHAR* OpName)
-{
-    if (WorldState && WorldState->IsValidEntity(Entity))
-        return true;
-
-    UE_LOG(LogTemp, Error,
-        TEXT("VM INVALID ENTITY: Story=%s PC=%d Op=%s Entity=%d — Story에서 무효한 엔티티 접근. Story 정의를 확인하세요."),
-        Runtime.Program ? *Runtime.Program->Tag.ToString() : TEXT("?"),
-        Runtime.PC - 1,
-        OpName,
-        Entity);
-    return false;
-}
-
 // ============================================================================
 // Entity
 // ============================================================================
@@ -94,9 +80,6 @@ EVMStatus FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIn
     HKT_EVENT_LOG_ENTITY("Core.VM",
         FString::Printf(TEXT("Op_DestroyEntity Id=%d"), E), E);
 
-    if (!RequireValidEntity(Runtime, E, TEXT("DestroyEntity")))
-        return EVMStatus::Failed;
-
     WorldState->RemoveEntity(E);
     return EVMStatus::Running;
 }
@@ -111,11 +94,6 @@ EVMStatus FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterInde
     {
         FHktEntityId E1 = Runtime.GetRegEntity(Entity1);
         FHktEntityId E2 = Runtime.GetRegEntity(Entity2);
-
-        if (!RequireValidEntity(Runtime, E1, TEXT("GetDistance.Entity1")))
-            return EVMStatus::Failed;
-        if (!RequireValidEntity(Runtime, E2, TEXT("GetDistance.Entity2")))
-            return EVMStatus::Failed;
 
         int32 X1 = Runtime.Context->ReadEntity(E1, PropertyId::PosX);
         int32 Y1 = Runtime.Context->ReadEntity(E1, PropertyId::PosY);
@@ -142,9 +120,6 @@ EVMStatus FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterInd
     if (WorldState && Runtime.Context)
     {
         FHktEntityId Center = Runtime.GetRegEntity(CenterEntity);
-
-        if (!RequireValidEntity(Runtime, Center, TEXT("FindInRadius")))
-            return EVMStatus::Failed;
 
         int32 CX = Runtime.Context->ReadEntity(Center, PropertyId::PosX);
         int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
@@ -222,9 +197,6 @@ EVMStatus FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, Register
     if (!WorldState || !VMProxy) return EVMStatus::Running;
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
-    if (!RequireValidEntity(Runtime, E, TEXT("PlayVFXAttached")))
-        return EVMStatus::Failed;
-
     const FString& VFXName = GetString(Runtime, StringIndex);
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*VFXName), false);
     if (Tag.IsValid())
@@ -259,8 +231,6 @@ EVMStatus FHktVMInterpreter::Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Ent
     if (!WorldState || !VMProxy) return EVMStatus::Running;
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
-    if (!RequireValidEntity(Runtime, E, TEXT("AddTag")))
-        return EVMStatus::Failed;
 
     const FString& TagName = GetString(Runtime, StringIndex);
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
@@ -278,8 +248,6 @@ EVMStatus FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex 
     if (!WorldState || !VMProxy) return EVMStatus::Running;
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
-    if (!RequireValidEntity(Runtime, E, TEXT("RemoveTag")))
-        return EVMStatus::Failed;
 
     const FString& TagName = GetString(Runtime, StringIndex);
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
@@ -298,9 +266,6 @@ EVMStatus FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst
     if (WorldState)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        if (!RequireValidEntity(Runtime, E, TEXT("HasTag")))
-            return EVMStatus::Failed;
-
         const FString& TagName = GetString(Runtime, StringIndex);
         FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
         if (Tag.IsValid())
@@ -431,8 +396,6 @@ EVMStatus FHktVMInterpreter::Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterInde
     if (WorldState && VMProxy && Runtime.PlayerUid != 0)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        if (!RequireValidEntity(Runtime, E, TEXT("SetOwnerUid")))
-            return EVMStatus::Failed;
         HKT_EVENT_LOG_ENTITY("Core.VM",
             FString::Printf(TEXT("Op_SetOwnerUid Id=%d Uid=%lld"), E, Runtime.PlayerUid), E);
         VMProxy->SetOwnerUid(*WorldState, E, Runtime.PlayerUid);
@@ -445,8 +408,6 @@ EVMStatus FHktVMInterpreter::Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIn
     if (WorldState && VMProxy)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        if (!RequireValidEntity(Runtime, E, TEXT("ClearOwnerUid")))
-            return EVMStatus::Failed;
         HKT_EVENT_LOG_ENTITY("Core.VM",
             FString::Printf(TEXT("Op_ClearOwnerUid Id=%d"), E), E);
         VMProxy->SetOwnerUid(*WorldState, E, 0);

@@ -113,9 +113,6 @@ private:
     // ===== Helper =====
     const FString& GetString(FHktVMRuntime& Runtime, int32 Index);
 
-    /** 엔티티 유효성 검증 — 무효 시 Story 위치 포함 에러 로그 출력 */
-    bool RequireValidEntity(FHktVMRuntime& Runtime, FHktEntityId Entity, const TCHAR* OpName);
-
 private:
     static constexpr int32 MaxInstructionsPerTick = 10000;
 
