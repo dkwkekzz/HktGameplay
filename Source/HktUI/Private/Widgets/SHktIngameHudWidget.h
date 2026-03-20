@@ -40,10 +40,17 @@ private:
 
 	/** 슬롯 바인딩 변경 시 스킬 패널 갱신 */
 	void RefreshSkillsPanel();
+	void RefreshInventoryPanel();
+	void RefreshEquipmentPanel();
+
+	/** WorldState에서 엔티티의 EntitySpawnTag를 읽어 마지막 세그먼트 이름 반환 */
+	static FString GetEntityDisplayName(const FHktWorldState* WS, FHktEntityId Id);
 
 	TSharedPtr<SBorder> InventoryPanel;
 	TSharedPtr<SBorder> EquipmentPanel;
 	TSharedPtr<SBorder> SkillsPanel;
+	TSharedPtr<SVerticalBox> InventoryListBox;
+	TSharedPtr<SVerticalBox> EquipmentListBox;
 	TSharedPtr<SVerticalBox> SkillListBox;
 
 	TWeakObjectPtr<APlayerController> CachedPC;
@@ -58,26 +65,10 @@ private:
 
 inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 {
-	// --- 인벤토리 패널 ---
+	// --- 인벤토리 패널 (WorldState 기반) ---
 	auto BuildInventoryPanel = [this]() -> TSharedRef<SWidget>
 	{
-		TSharedRef<SScrollBox> ItemList = SNew(SScrollBox);
-
-		// Mock 아이템 데이터 (추후 WorldState 기반으로 전환 예정)
-		static const TArray<FString> Items = { TEXT("Iron Sword"), TEXT("Wooden Shield"), TEXT("Health Potion x3"), TEXT("Mana Potion x2"), TEXT("Leather Armor"), TEXT("Magic Ring") };
-		for (const FString& Item : Items)
-		{
-			ItemList->AddSlot()
-			[
-				SNew(SBox)
-				.Padding(FMargin(8.f, 4.f))
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(Item))
-					.ColorAndOpacity(FLinearColor::White)
-				]
-			];
-		}
+		InventoryListBox = SNew(SVerticalBox);
 
 		return SAssignNew(InventoryPanel, SBorder)
 			.Padding(12.f)
@@ -101,52 +92,16 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 					+ SVerticalBox::Slot()
 					.FillHeight(1.f)
 					[
-						ItemList
+						InventoryListBox.ToSharedRef()
 					]
 				]
 			];
 	};
 
-	// --- 장착 패널 ---
+	// --- 장착 패널 (WorldState 기반) ---
 	auto BuildEquipmentPanel = [this]() -> TSharedRef<SWidget>
 	{
-		struct FEquipSlot { FString Name; FString Item; };
-		static const TArray<FEquipSlot> Slots = {
-			{ TEXT("Head"), TEXT("Leather Helmet") },
-			{ TEXT("Body"), TEXT("Leather Armor") },
-			{ TEXT("Weapon"), TEXT("Iron Sword") },
-			{ TEXT("Shield"), TEXT("Wooden Shield") },
-			{ TEXT("Accessory"), TEXT("Empty") }
-		};
-
-		TSharedRef<SVerticalBox> SlotList = SNew(SVerticalBox);
-		for (const FEquipSlot& Slot : Slots)
-		{
-			SlotList->AddSlot()
-			.AutoHeight()
-			.Padding(0.f, 2.f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(0.f, 0.f, 8.f, 0.f)
-				[
-					SNew(SBox).WidthOverride(80.f)
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString(Slot.Name))
-						.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
-					]
-				]
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.f)
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(Slot.Item))
-					.ColorAndOpacity(Slot.Item == TEXT("Empty") ? FLinearColor(0.4f, 0.4f, 0.4f) : FLinearColor::White)
-				]
-			];
-		}
+		EquipmentListBox = SNew(SVerticalBox);
 
 		return SAssignNew(EquipmentPanel, SBorder)
 			.Padding(12.f)
@@ -170,7 +125,7 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 					+ SVerticalBox::Slot()
 					.FillHeight(1.f)
 					[
-						SlotList
+						EquipmentListBox.ToSharedRef()
 					]
 				]
 			];
@@ -282,19 +237,237 @@ inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* In
 {
 	CachedPC = InPC;
 
-	// 슬롯 바인딩 변경 구독
+	// 슬롯 바인딩 변경 구독 (아이템 상태 변화 시 모든 패널 갱신)
 	if (InPC)
 	{
 		if (IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(InPC))
 		{
 			SlotBindingHandle = Interaction->OnSlotBindingChanged().AddLambda([this](int32 /*SlotIndex*/)
 			{
+				RefreshInventoryPanel();
+				RefreshEquipmentPanel();
 				RefreshSkillsPanel();
 			});
 		}
 	}
 }
 
+// ============================================================================
+// Helper: EntitySpawnTag → display name
+// ============================================================================
+inline FString SHktIngameHudWidget::GetEntityDisplayName(const FHktWorldState* WS, FHktEntityId Id)
+{
+	int32 SpawnTagIdx = WS->GetProperty(Id, PropertyId::EntitySpawnTag);
+	if (SpawnTagIdx > 0)
+	{
+		FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(SpawnTagIdx));
+		if (!TagName.IsNone())
+		{
+			FString Name = TagName.ToString();
+			int32 DotIdx;
+			if (Name.FindLastChar(TEXT('.'), DotIdx))
+			{
+				Name = Name.Mid(DotIdx + 1);
+			}
+			return Name;
+		}
+	}
+	return FString::Printf(TEXT("Item#%d"), WS->GetProperty(Id, PropertyId::ItemId));
+}
+
+// ============================================================================
+// Inventory 패널 (가방 아이템: ItemState == 1)
+// ============================================================================
+inline void SHktIngameHudWidget::RefreshInventoryPanel()
+{
+	if (!InventoryListBox.IsValid()) return;
+	InventoryListBox->ClearChildren();
+
+	APlayerController* PC = CachedPC.Get();
+	if (!PC) return;
+
+	IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC);
+	if (!Interaction) return;
+
+	const FHktWorldState* WS = nullptr;
+	if (!Interaction->GetWorldState(WS) || !WS) return;
+
+	const int64 PlayerUid = Interaction->GetPlayerUid();
+	if (PlayerUid == 0) return;
+
+	// 내 캐릭터 엔티티 찾기
+	FHktEntityId MyCharacter = InvalidEntityId;
+	WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId Id, int32 /*Slot*/)
+	{
+		if (MyCharacter != InvalidEntityId) return;
+		if (WS->GetProperty(Id, PropertyId::ItemState) == 0)
+		{
+			MyCharacter = Id;
+		}
+	});
+	if (MyCharacter == InvalidEntityId) return;
+
+	// 가방 아이템 수집 (ItemState == 1)
+	struct FBagItem { int32 BagSlot; FString Name; int32 AttackPower; };
+	TArray<FBagItem> Items;
+
+	WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
+	{
+		if (WS->GetProperty(ItemId, PropertyId::OwnerEntity) != MyCharacter) return;
+		if (WS->GetProperty(ItemId, PropertyId::ItemState) != 1) return; // InBag만
+
+		Items.Add({
+			WS->GetProperty(ItemId, PropertyId::BagSlot),
+			GetEntityDisplayName(WS, ItemId),
+			WS->GetProperty(ItemId, PropertyId::AttackPower)
+		});
+	});
+
+	Items.Sort([](const FBagItem& A, const FBagItem& B) { return A.BagSlot < B.BagSlot; });
+
+	if (Items.Num() == 0)
+	{
+		InventoryListBox->AddSlot()
+		.AutoHeight().Padding(0.f, 4.f)
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(TEXT("Bag is empty")))
+			.ColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
+		];
+		return;
+	}
+
+	for (const FBagItem& Item : Items)
+	{
+		InventoryListBox->AddSlot()
+		.AutoHeight().Padding(0.f, 2.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+			[
+				SNew(SBox).WidthOverride(30.f)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(FString::Printf(TEXT("[%d]"), Item.BagSlot)))
+					.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
+				]
+			]
+			+ SHorizontalBox::Slot().FillWidth(1.f)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Item.Name))
+				.ColorAndOpacity(FLinearColor::White)
+			]
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Item.AttackPower > 0 ? FString::Printf(TEXT("ATK %d"), Item.AttackPower) : TEXT("")))
+				.ColorAndOpacity(FLinearColor(1.f, 0.6f, 0.3f))
+			]
+		];
+	}
+}
+
+// ============================================================================
+// Equipment 패널 (장착 아이템: ItemState == 2)
+// ============================================================================
+inline void SHktIngameHudWidget::RefreshEquipmentPanel()
+{
+	if (!EquipmentListBox.IsValid()) return;
+	EquipmentListBox->ClearChildren();
+
+	APlayerController* PC = CachedPC.Get();
+	if (!PC) return;
+
+	IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC);
+	if (!Interaction) return;
+
+	const FHktWorldState* WS = nullptr;
+	if (!Interaction->GetWorldState(WS) || !WS) return;
+
+	const int64 PlayerUid = Interaction->GetPlayerUid();
+	if (PlayerUid == 0) return;
+
+	// 내 캐릭터 엔티티 찾기
+	FHktEntityId MyCharacter = InvalidEntityId;
+	WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId Id, int32 /*Slot*/)
+	{
+		if (MyCharacter != InvalidEntityId) return;
+		if (WS->GetProperty(Id, PropertyId::ItemState) == 0)
+		{
+			MyCharacter = Id;
+		}
+	});
+	if (MyCharacter == InvalidEntityId) return;
+
+	// 장착 아이템 수집 (ItemState == 2)
+	struct FEquipItem { int32 ActionSlot; FString Name; int32 AttackPower; };
+	TArray<FEquipItem> Items;
+
+	WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
+	{
+		if (WS->GetProperty(ItemId, PropertyId::OwnerEntity) != MyCharacter) return;
+		if (WS->GetProperty(ItemId, PropertyId::ItemState) != 2) return; // Active만
+
+		Items.Add({
+			WS->GetProperty(ItemId, PropertyId::ActionSlot),
+			GetEntityDisplayName(WS, ItemId),
+			WS->GetProperty(ItemId, PropertyId::AttackPower)
+		});
+	});
+
+	Items.Sort([](const FEquipItem& A, const FEquipItem& B) { return A.ActionSlot < B.ActionSlot; });
+
+	if (Items.Num() == 0)
+	{
+		EquipmentListBox->AddSlot()
+		.AutoHeight().Padding(0.f, 4.f)
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(TEXT("Nothing equipped")))
+			.ColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
+		];
+		return;
+	}
+
+	for (const FEquipItem& Item : Items)
+	{
+		FString SlotLabel = Item.ActionSlot >= 0
+			? FString::Printf(TEXT("Slot %d"), Item.ActionSlot)
+			: TEXT("Passive");
+
+		EquipmentListBox->AddSlot()
+		.AutoHeight().Padding(0.f, 2.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+			[
+				SNew(SBox).WidthOverride(60.f)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(SlotLabel))
+					.ColorAndOpacity(FLinearColor(0.5f, 0.8f, 1.f))
+				]
+			]
+			+ SHorizontalBox::Slot().FillWidth(1.f)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Item.Name))
+				.ColorAndOpacity(FLinearColor::White)
+			]
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Item.AttackPower > 0 ? FString::Printf(TEXT("ATK %d"), Item.AttackPower) : TEXT("")))
+				.ColorAndOpacity(FLinearColor(1.f, 0.6f, 0.3f))
+			]
+		];
+	}
+}
+
+// ============================================================================
+// Skills 패널 (액션 슬롯 바인딩)
+// ============================================================================
 inline void SHktIngameHudWidget::RefreshSkillsPanel()
 {
 	if (!SkillListBox.IsValid()) return;
@@ -437,8 +610,18 @@ inline void SHktIngameHudWidget::RefreshSkillsPanel()
 	}
 }
 
-inline FReply SHktIngameHudWidget::OnInventoryClicked() { TogglePanel(0); return FReply::Handled(); }
-inline FReply SHktIngameHudWidget::OnEquipmentClicked() { TogglePanel(1); return FReply::Handled(); }
+inline FReply SHktIngameHudWidget::OnInventoryClicked()
+{
+	TogglePanel(0);
+	if (ActivePanel == 0) { RefreshInventoryPanel(); }
+	return FReply::Handled();
+}
+inline FReply SHktIngameHudWidget::OnEquipmentClicked()
+{
+	TogglePanel(1);
+	if (ActivePanel == 1) { RefreshEquipmentPanel(); }
+	return FReply::Handled();
+}
 inline FReply SHktIngameHudWidget::OnSkillsClicked()
 {
 	TogglePanel(2);
