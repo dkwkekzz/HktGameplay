@@ -10,8 +10,8 @@ class UHktTagDataAsset;
 
 /**
  * TagMiss 콜백 델리게이트.
- * Tag가 매핑되지 않았을 때 호출됩니다. Convention Path를 반환하면 해당 경로로 에셋 로드 시도.
- * 빈 문자열 반환 시 로드 포기.
+ * Tag가 매핑되지 않았을 때 호출됩니다. 에셋 경로(TagDataAsset)를 반환하면 해당 경로로 로드 시도.
+ * 빈 경로 반환 시 로드 포기.
  */
 DECLARE_DELEGATE_RetVal_OneParam(FSoftObjectPath, FOnHktTagMiss, const FGameplayTag& /*Tag*/);
 
