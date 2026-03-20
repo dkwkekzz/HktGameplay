@@ -59,9 +59,9 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::LoadConst: Op_LoadConst(Runtime, Inst._Dst, Inst.GetSignedImm20()); break;
     case EOpCode::LoadConstHigh: Op_LoadConstHigh(Runtime, Inst.Dst, Inst.Imm12); break;
     case EOpCode::LoadStore: Op_LoadStore(Runtime, Inst.Dst, Inst.Imm12); break;
-    case EOpCode::LoadStoreEntity: Op_LoadStoreEntity(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::LoadStoreEntity: return Op_LoadStoreEntity(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12);
     case EOpCode::SaveStore: Op_SaveStore(Runtime, Inst.Imm12, Inst.Src1); break;
-    case EOpCode::SaveStoreEntity: Op_SaveStoreEntity(Runtime, Inst.Src1, Inst.Imm12, Inst.Src2); break;
+    case EOpCode::SaveStoreEntity: return Op_SaveStoreEntity(Runtime, Inst.Src1, Inst.Imm12, Inst.Src2);
     case EOpCode::Move: Op_Move(Runtime, Inst.Dst, Inst.Src1); break;
     // Arithmetic
     case EOpCode::Add: Op_Add(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
@@ -79,22 +79,22 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::CmpGe: Op_CmpGe(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     // Entity
     case EOpCode::SpawnEntity: Op_SpawnEntity(Runtime, Inst.Imm12); break;
-    case EOpCode::DestroyEntity: Op_DestroyEntity(Runtime, Inst.Src1); break;
+    case EOpCode::DestroyEntity: return Op_DestroyEntity(Runtime, Inst.Src1);
     // Spatial Query
-    case EOpCode::GetDistance: Op_GetDistance(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
-    case EOpCode::FindInRadius: Op_FindInRadius(Runtime, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::GetDistance: return Op_GetDistance(Runtime, Inst.Dst, Inst.Src1, Inst.Src2);
+    case EOpCode::FindInRadius: return Op_FindInRadius(Runtime, Inst.Src1, Inst.Imm12);
     case EOpCode::NextFound: Op_NextFound(Runtime); break;
     // Presentation
     case EOpCode::ApplyEffect: Op_ApplyEffect(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::RemoveEffect: Op_RemoveEffect(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::PlayVFX: Op_PlayVFX(Runtime, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::PlayVFXAttached: Op_PlayVFXAttached(Runtime, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::PlayVFXAttached: return Op_PlayVFXAttached(Runtime, Inst.Src1, Inst.Imm12);
     case EOpCode::PlaySound: Op_PlaySound(Runtime, Inst.GetSignedImm20()); break;
     case EOpCode::PlaySoundAtLocation: Op_PlaySoundAtLocation(Runtime, Inst.Src1, Inst.Imm12); break;
     // Tags
-    case EOpCode::AddTag:    Op_AddTag(Runtime, Inst.Src1, Inst.Imm12);            break;
-    case EOpCode::RemoveTag: Op_RemoveTag(Runtime, Inst.Src1, Inst.Imm12);         break;
-    case EOpCode::HasTag:    Op_HasTag(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::AddTag:    return Op_AddTag(Runtime, Inst.Src1, Inst.Imm12);
+    case EOpCode::RemoveTag: return Op_RemoveTag(Runtime, Inst.Src1, Inst.Imm12);
+    case EOpCode::HasTag:    return Op_HasTag(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12);
     // NPC Spawning
     case EOpCode::CountByTag: Op_CountByTag(Runtime, Inst.Dst, Inst.Imm12); break;
     case EOpCode::GetWorldTime: Op_GetWorldTime(Runtime, Inst.Dst); break;
@@ -103,8 +103,8 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     // Item System
     case EOpCode::CountByOwner: Op_CountByOwner(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
     case EOpCode::FindByOwner: Op_FindByOwner(Runtime, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::SetOwnerUid: Op_SetOwnerUid(Runtime, Inst.Src1); break;
-    case EOpCode::ClearOwnerUid: Op_ClearOwnerUid(Runtime, Inst.Src1); break;
+    case EOpCode::SetOwnerUid: return Op_SetOwnerUid(Runtime, Inst.Src1);
+    case EOpCode::ClearOwnerUid: return Op_ClearOwnerUid(Runtime, Inst.Src1);
     // Utility
     case EOpCode::Log: Op_Log(Runtime, Inst.GetSignedImm20()); break;
     default: return EVMStatus::Failed;
@@ -183,10 +183,16 @@ void FHktVMInterpreter::Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, 
         Runtime.SetReg(Dst, Runtime.Context->Read(PropertyId));
 }
 
-void FHktVMInterpreter::Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
+EVMStatus FHktVMInterpreter::Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
 {
     if (Runtime.Context)
-        Runtime.SetReg(Dst, Runtime.Context->ReadEntity(Runtime.GetRegEntity(Entity), PropertyId));
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        if (!RequireValidEntity(Runtime, E, TEXT("LoadStoreEntity")))
+            return EVMStatus::Failed;
+        Runtime.SetReg(Dst, Runtime.Context->ReadEntity(E, PropertyId));
+    }
+    return EVMStatus::Running;
 }
 
 void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropertyId, RegisterIndex Src)
@@ -195,10 +201,16 @@ void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropertyId, 
         Runtime.Context->Write(PropertyId, Runtime.GetReg(Src));
 }
 
-void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
+EVMStatus FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
 {
     if (Runtime.Context)
-        Runtime.Context->WriteEntity(Runtime.GetRegEntity(Entity), PropertyId, Runtime.GetReg(Src));
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        if (!RequireValidEntity(Runtime, E, TEXT("SaveStoreEntity")))
+            return EVMStatus::Failed;
+        Runtime.Context->WriteEntity(E, PropertyId, Runtime.GetReg(Src));
+    }
+    return EVMStatus::Running;
 }
 
 void FHktVMInterpreter::Op_Move(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src)
