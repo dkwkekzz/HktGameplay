@@ -94,14 +94,6 @@ void FHktVMBuildSystem::Process(
 {
     for (const FHktEvent& Event : Events)
     {
-        // 무효한 SourceEntity를 가진 이벤트는 VM 생성을 건너뛴다
-        if (!WorldState.IsValidEntity(Event.SourceEntity))
-        {
-            UE_LOG(LogTemp, Warning, TEXT("VM Build: Invalid SourceEntity=%d for %s — skipping"),
-                Event.SourceEntity, *Event.EventTag.ToString());
-            continue;
-        }
-
         const FHktVMProgram* Program = FHktVMProgramRegistry::Get().FindProgram(Event.EventTag);
         if (!Program)
         {
