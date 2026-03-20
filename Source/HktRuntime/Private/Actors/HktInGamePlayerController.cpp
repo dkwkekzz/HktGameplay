@@ -477,7 +477,11 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
         FGameplayTag SkillTag;
         if (SkillTagNetIndex > 0)
         {
-            SkillTag = UGameplayTagsManager::Get().GetTagFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillTagNetIndex));
+            FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillTagNetIndex));
+            if (!TagName.IsNone())
+            {
+                SkillTag = FGameplayTag::RequestGameplayTag(TagName, false);
+            }
         }
 
         if (SkillTag.IsValid())

@@ -348,7 +348,11 @@ inline void SHktIngameHudWidget::RefreshSkillsPanel()
 		FGameplayTag SkillTag;
 		if (SkillNetIdx > 0)
 		{
-			SkillTag = UGameplayTagsManager::Get().GetTagFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillNetIdx));
+			FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillNetIdx));
+			if (!TagName.IsNone())
+			{
+				SkillTag = FGameplayTag::RequestGameplayTag(TagName, false);
+			}
 		}
 
 		SlotInfos.Add({
