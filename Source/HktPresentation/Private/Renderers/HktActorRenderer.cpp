@@ -342,8 +342,8 @@ void FHktActorRenderer::InterpolateActors(float DeltaSeconds)
 			continue;
 
 		AActor* Actor = WeakPtr->Get();
-		const FVector CurrentLocation = Actor->GetActorLocation();
-
+		//const FVector CurrentLocation = Actor->GetActorLocation();
+		//
 		//// --- 위치: 단순 Lerp (매 프레임 50% → ~2틱에 도달) ---
 		//FVector NewLocation;
 		//if (FVector::DistSquared(CurrentLocation, Motion.TargetLocation) <= SnapDistance * SnapDistance)

@@ -122,7 +122,7 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 {
 	if (!View.WorldState) return;
 
-	UE_LOG(LogHktPresentation, Verbose, TEXT("WorldViewUpdated Frame=%lld IsInitialSync=%s"), View.FrameNumber, View.bIsInitialSync ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogHktPresentation, VeryVerbose, TEXT("WorldViewUpdated Frame=%lld IsInitialSync=%s"), View.FrameNumber, View.bIsInitialSync ? TEXT("true") : TEXT("false"));
 
 	if (View.bIsInitialSync || !bInitialSyncDone)
 	{

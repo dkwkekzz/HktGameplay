@@ -60,7 +60,7 @@ void UHktCameraMode_SubjectFollow::TickMode(AHktRtsCameraPawn* Pawn, float Delta
 	}
 
 	// Edge scroll 오프셋 업데이트
-	HandleEdgeScrollOffset(Pawn, DeltaTime);
+	//HandleEdgeScrollOffset(Pawn, DeltaTime);
 
 	// 오프셋 감쇄
 	ManualOffset = FMath::VInterpTo(ManualOffset, FVector::ZeroVector, DeltaTime, OffsetDecaySpeed);

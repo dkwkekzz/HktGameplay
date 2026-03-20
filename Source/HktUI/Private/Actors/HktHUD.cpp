@@ -75,7 +75,7 @@ void AHktHUD::UnbindPlayerInteraction()
 
 UHktUIElement* AHktHUD::CreateElement(TSharedPtr<IHktUIView> InView, UHktUIAnchorStrategy* InStrategy, UHktUIElement* Parent)
 {
-	if (!InView.IsValid() || !InStrategy) return nullptr;
+	if (!InView.IsValid()) return nullptr;
 
 	UHktUIElement* ParentElement = Parent ? Parent : RootElement.Get();
 	if (!ParentElement) return nullptr;

@@ -63,7 +63,7 @@ namespace HktStoryCombatUseItemSkill
 				// ActionSlot 0에 활성 아이템이 있는지 찾기
 				bool bFoundItem = false;
 				int32 CpCost = 0;
-				WS.ForEachEntityByOwner(WS.GetOwnerUid(E.SourceEntity), [&](FHktEntityId ItemId)
+				WS.ForEachEntityByOwner(WS.GetOwnerUid(E.SourceEntity), [&](FHktEntityId ItemId, int32 /*Slot*/)
 				{
 					if (bFoundItem) return;
 					if (WS.GetProperty(ItemId, PropertyId::OwnerEntity) != E.SourceEntity) return;

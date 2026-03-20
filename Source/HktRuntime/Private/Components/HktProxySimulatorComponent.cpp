@@ -83,17 +83,29 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     FHktSimulationEvent LocalBatch = BuildLocalBatch(LocalFrame, DeltaSeconds);
     FHktSimulationDiff Diff = Simulator->AdvanceFrame(LocalBatch);
 
-    // Diff 히스토리에 기록 (역적용 롤백용)
+    // 실제 변경이 있는 Diff만 히스토리에 기록 (역적용 롤백용)
+    const bool bHasChanges = Diff.SpawnedEntities.Num() > 0
+        || Diff.RemovedEntities.Num() > 0
+        || Diff.PropertyDeltas.Num() > 0
+        || Diff.TagDeltas.Num() > 0
+        || Diff.OwnerDeltas.Num() > 0;
+    if (!bHasChanges)
+    {
+        return;
+    }
+
     DiffHistory.Add(Diff);
 
     // PendingDiff에 누적 (PlayerController Tick에서 소비 → WorldViewUpdated 전달)
     AccumulateDiff(Diff);
 
     // 서버 미응답 타임아웃: MaxHistoryFrames(10초) 초과 시 연결 끊김으로 판정
-    if (DiffHistory.Num() > MaxHistoryFrames)
+    FramesSinceLastServerBatch++;
+    if (FramesSinceLastServerBatch > MaxHistoryFrames)
     {
-        UE_LOG(LogHktRuntime, Verbose, TEXT("ServerBatchTimeout: %d frames without response"), DiffHistory.Num());
+        UE_LOG(LogHktRuntime, Error, TEXT("ServerBatchTimeout: %d frames without response"), FramesSinceLastServerBatch);
         DiffHistory.Empty();
+        FramesSinceLastServerBatch = 0;
         bInitialized = false;
         OnTimeout.Broadcast();
     }
@@ -180,6 +192,7 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
     }
 
     PendingServerBatches.Reset();
+    FramesSinceLastServerBatch = 0;
 }
 
 // ============================================================================
@@ -198,6 +211,7 @@ void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, in
     PendingServerBatches.Empty();
     bHasPendingDiff = false;
     FrameAccumulator = 0.0f;
+    FramesSinceLastServerBatch = 0;
 
     bInitialized = true;
 }

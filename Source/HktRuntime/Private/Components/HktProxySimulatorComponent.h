@@ -62,6 +62,7 @@ private:
     // --- 틱 카운터 ---
     float FrameAccumulator = 0.0f;
     int64 LocalFrame = 0;
+    int32 FramesSinceLastServerBatch = 0;
 
     static constexpr float FixedDeltaTime = 1.0f / 30.0f;
 
