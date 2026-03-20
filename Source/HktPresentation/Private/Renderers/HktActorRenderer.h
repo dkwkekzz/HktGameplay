@@ -47,7 +47,7 @@ private:
 	TSet<FHktEntityId> PendingInitSync;
 	TSet<FHktEntityId> AttachedItems;
 	TSet<FHktEntityId> PendingAttachments;
-	ULocalPlayer* LocalPlayer = nullptr;
+	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
 
 	static constexpr float LerpAlpha = 0.5f;          // 매 프레임 50% 접근 → ~2틱에 도달
 	static constexpr float SnapDistance = 1.0f;        // cm, 이 거리 이내면 스냅

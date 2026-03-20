@@ -23,6 +23,7 @@ class HKTUI_API AHktIngameHUD : public AHktHUD
 
 public:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 protected:
 	/** 인게임 뷰포트 위젯 태그 (기본값: Widget.IngameHud) */
@@ -41,6 +42,7 @@ protected:
 
 private:
 	void OnWorldViewUpdated(const FHktWorldView& View);
+	void UnbindWorldViewDelegate();
 	void RefreshWorldState();
 	void SyncEntityElements();
 	void CreateEntityElement(FHktEntityId EntityId);
@@ -51,4 +53,6 @@ private:
 	bool bInitialSyncDone = false;
 
 	TSet<FHktEntityId> TrackedEntities;
+
+	FDelegateHandle WorldViewDelegateHandle;
 };
