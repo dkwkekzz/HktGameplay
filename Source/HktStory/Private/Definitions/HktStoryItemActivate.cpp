@@ -7,11 +7,13 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
+#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryItemActivate
 {
 	using namespace HktStoryTags;
+	using namespace HktGameplayTags;
 
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Activate, "Story.Event.Item.Activate", "Item activate intent event.");
@@ -64,7 +66,7 @@ namespace HktStoryItemActivate
 			.LoadStore(R2, PropertyId::Param0)                              // R2 = ActionSlot from event
 
 			// 동일 ActionSlot에 이미 활성된 아이템이 있으면 자동 비활성화
-			.FindByOwner(Self, Tag_Entity_Item)
+			.FindByOwner(Self, Entity_Item)
 
 		.Label(TEXT("evict_loop"))
 			.NextFound()

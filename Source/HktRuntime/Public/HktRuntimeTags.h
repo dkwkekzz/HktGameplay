@@ -5,17 +5,24 @@
 
 namespace HktGameplayTags
 {
-    // Story IDs - Story 식별자 (Story.{호출형태}.{카테고리}.{이름})
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Event_Skill_Fireball);
+    // --- Story IDs used by Runtime ---
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Event_Move_ToLocation);
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Flow_Character_Spawn);
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Event_Attack_Basic);
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Event_Skill_Heal);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_PlayerInWorld);
 
-    // Effect Tags
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Burn);
+    // --- Database Defaults ---
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Visual_Character_Default);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Flow_Character_Default);
 
-    // Animation Parent Tags — 태그 계층 루트
+    // --- Entity Classification ---
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Character);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Building);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Projectile);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Item);
+
+    // --- Animation Parent Tags ---
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_FullBody);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_Montage);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_UpperBody);
 }

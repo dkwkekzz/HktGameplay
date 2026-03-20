@@ -5,11 +5,13 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
+#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryNPCSpawnerWave
 {
 	using namespace HktStoryTags;
+	using namespace HktGameplayTags;
 
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_Wave_Arena, "Story.Flow.Spawner.Wave.Arena", "Wave-based arena spawner flow.");
@@ -53,7 +55,7 @@ namespace HktStoryNPCSpawnerWave
 				.SaveConstEntity(Spawned, PropertyId::MaxHealth, 80)
 				.SaveConstEntity(Spawned, PropertyId::AttackPower, 15)
 				.SaveConstEntity(Spawned, PropertyId::Team, 0)
-				.AddTag(Spawned, Tag_Entity_NPC)
+				.AddTag(Spawned, Entity_NPC)
 				.AddTag(Spawned, Entity_NPC_Goblin)
 				.AddTag(Spawned, Tag_NPC_Hostile)
 				.SaveStoreEntity(Spawned, PropertyId::PosX, R5)
@@ -86,7 +88,7 @@ namespace HktStoryNPCSpawnerWave
 				.SaveConstEntity(Spawned, PropertyId::MaxHealth, 60)
 				.SaveConstEntity(Spawned, PropertyId::AttackPower, 20)
 				.SaveConstEntity(Spawned, PropertyId::Team, 0)
-				.AddTag(Spawned, Tag_Entity_NPC)
+				.AddTag(Spawned, Entity_NPC)
 				.AddTag(Spawned, Entity_NPC_Skeleton)
 				.AddTag(Spawned, Tag_NPC_Hostile)
 				.SaveStoreEntity(Spawned, PropertyId::PosX, R5)

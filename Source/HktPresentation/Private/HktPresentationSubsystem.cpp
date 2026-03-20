@@ -9,9 +9,9 @@
 #include "Renderers/HktVFXRenderer.h"
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
+#include "HktRuntimeTags.h"
 
 
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Action_Move_ToLocation, "Story.Event.Move.ToLocation");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.Niagara.SelectionTarget");
@@ -216,7 +216,7 @@ void UHktPresentationSubsystem::OnIntentSubmitted(const FHktRuntimeEvent& Event)
 	const FHktEvent& CoreEvent = Event.Value;
 
 	// MoveTo intent → 목표 위치에 이동 인디케이터 VFX 재생
-	if (CoreEvent.EventTag.MatchesTag(Tag_Action_Move_ToLocation))
+	if (CoreEvent.EventTag.MatchesTag(HktGameplayTags::Story_Event_Move_ToLocation))
 	{
 		PlayVFXAtLocation(Tag_VFX_MoveIndicator, CoreEvent.Location);
 	}

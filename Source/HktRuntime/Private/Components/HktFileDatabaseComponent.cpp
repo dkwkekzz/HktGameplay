@@ -4,7 +4,7 @@
 #include "HktRuntimeLog.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Paths.h"
-#include "HktStoryTags.h"
+#include "HktRuntimeTags.h"
 
 // ============================================================================
 // SaveGame Custom Serialization
@@ -21,8 +21,8 @@ void UHktPlayerSaveGame::Serialize(FArchive& Ar)
 UHktFileDatabaseComponent::UHktFileDatabaseComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
-	DefaultVisualTag = FGameplayTag::RequestGameplayTag(TEXT("Visual.Character.Default"), false);
-	DefaultFlowTag = FGameplayTag::RequestGameplayTag(TEXT("Flow.Character.Default"), false);
+	DefaultVisualTag = HktGameplayTags::Visual_Character_Default;
+	DefaultFlowTag = HktGameplayTags::Flow_Character_Default;
 }
 
 void UHktFileDatabaseComponent::BeginPlay()
@@ -121,7 +121,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 			Record.PlayerUid = InPlayerUid;
 
 			// 기존 레코드에 월드 진입 이벤트가 없으면 추가 (재진입 시)
-			const FGameplayTag InWorldTag = HktStoryTags::Story_PlayerInWorld;
+			const FGameplayTag InWorldTag = HktGameplayTags::Story_PlayerInWorld;
 			bool bHasInWorldEvent = false;
 			for (const FHktEvent& Event : Record.ActiveEvents)
 			{
@@ -156,7 +156,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 
 			// 초기 월드 진입 이벤트 추가
 			FHktEvent EnterWorldEvent;
-			EnterWorldEvent.EventTag = HktStoryTags::Story_PlayerInWorld;
+			EnterWorldEvent.EventTag = HktGameplayTags::Story_PlayerInWorld;
 			EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid);
 			EnterWorldEvent.TargetEntity = InvalidEntityId;
 			EnterWorldEvent.Location = FVector::ZeroVector;

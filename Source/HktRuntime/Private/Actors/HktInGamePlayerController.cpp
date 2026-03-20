@@ -9,6 +9,7 @@
 #include "HktRuntimeTypes.h"
 #include "HktCoreDataCollector.h"
 #include "HktStoryBuilder.h"
+#include "HktRuntimeTags.h"
 #include "DataAssets/HktInputAction.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
@@ -173,7 +174,7 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
             // SetCommand가 Target을 초기화하므로 기존 Target 보존
             const FHktEntityId SavedTarget = CachedIntentBuilder->GetTargetEntityId();
             const FVector SavedLocation = CachedIntentBuilder->GetTargetLocation();
-            CachedIntentBuilder->SetCommand(FGameplayTag::RequestGameplayTag(TEXT("Story.Event.Move.ToLocation")), true);
+            CachedIntentBuilder->SetCommand(HktGameplayTags::Story_Event_Move_ToLocation, true);
             CachedIntentBuilder->SetTarget(SavedTarget, SavedLocation);
         }
         CachedIntentBuilder->Submit();

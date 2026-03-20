@@ -4,10 +4,8 @@
 
 namespace HktStoryTags
 {
-	// --- Entity Filter ---
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_Item,              "Entity.Item",              "Item entity parent tag.");
+	// --- Entity Filter (Story-specific sub-tags) ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player,      "Entity.Character.Player",  "Player character entity.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Entity_NPC,               "Entity.NPC",               "Generic NPC tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Goblin,            "Entity.NPC.Goblin",        "Goblin NPC entity.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Skeleton,          "Entity.NPC.Skeleton",      "Skeleton NPC entity.");
 
@@ -23,7 +21,4 @@ namespace HktStoryTags
 
 	// --- Sound ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Spawn,                  "Sound.Spawn",              "Character spawn sound.");
-
-	// --- Story Flow Names ---
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_PlayerInWorld,          "Story.State.Player.InWorld", "Player in world state flow.");
 }
