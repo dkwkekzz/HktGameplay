@@ -488,6 +488,9 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
                 ActionSlot, *SkillTag.ToString(), ItemId);
         }
     });
+
+    // 배치 완료 후 한 번만 broadcast — UI 갱신 트리거
+    SlotBindingChangedDelegate.Broadcast(-1);
 }
 
 IHktClientRule* AHktIngamePlayerController::GetClientRule() const

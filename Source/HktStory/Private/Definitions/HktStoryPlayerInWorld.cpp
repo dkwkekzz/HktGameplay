@@ -18,8 +18,10 @@ namespace HktStoryPlayerInWorld
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_WoodenSword, "Entity.Item.WoodenSword", "Wooden sword starter item.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Weapon_Sword, "Entity.Attr.Weapon.Sword", "Sword weapon tag.");
 
-	// Skill (목검의 고유 스킬 태그)
+	// Skill (목검의 고유 스킬 태그 — 추후 아이템별 고유 스킬 Story 등록 시 사용)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_WoodenSwordSlash, "Story.Event.Skill.WoodenSwordSlash", "Wooden sword slash skill.");
+	// 현재는 범용 UseItemSkill Story로 라우팅
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_UseItemSkill_Ref, "Story.Event.Combat.UseItemSkill", "Generic item skill story.");
 
 	/**
 	 * ================================================================
@@ -72,17 +74,24 @@ namespace HktStoryPlayerInWorld
 			.SpawnEntity(Entity_Item_WoodenSword)
 			.SaveEntityProperty(Spawned, PropertyId::OwnerEntity, Self)  // 소유자 = 플레이어
 			.SetOwnerUid(Spawned)                                              // 계정 소유 설정
-			.SaveConstEntity(Spawned, PropertyId::ItemState, 1)                // InBag
+			.SaveConstEntity(Spawned, PropertyId::ItemState, 2)                // Active (자동 장착)
 			.SaveConstEntity(Spawned, PropertyId::ItemId, 100)                 // 목검 ID
 			.SaveConstEntity(Spawned, PropertyId::BagSlot, 0)                  // 가방 슬롯 0
-			.SaveConstEntity(Spawned, PropertyId::ActionSlot, -1)              // 미등록
+			.SaveConstEntity(Spawned, PropertyId::ActionSlot, 0)               // 액션 슬롯 0 (주무기)
 			.SaveConstEntity(Spawned, PropertyId::AttackPower, 5)              // 공격력 5
 			.SetStance(Spawned, HktStance::Sword1H)                            // Stance
 			.AddTag(Spawned, Tag_Weapon_Sword)
 			// 아이템 스킬 데이터
-			.SetItemSkillTag(Spawned, Skill_WoodenSwordSlash)                  // 아이템 고유 스킬 태그
+			.SetItemSkillTag(Spawned, Event_Combat_UseItemSkill_Ref)            // 범용 아이템 스킬 Story로 라우팅
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 30)             // 스킬 CP 소모 30
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 60)           // 기본 후딜레이 60프레임
+
+			// 자동 장착: 아이템 스탯을 캐릭터에 적용
+			.LoadEntityProperty(R3, Spawned, PropertyId::AttackPower)
+			.LoadEntityProperty(R4, Self, PropertyId::AttackPower)
+			.Add(R4, R4, R3)
+			.SaveEntityProperty(Self, PropertyId::AttackPower, R4)
+			.SetStance(Self, HktStance::Sword1H)
 
 		.Label(TEXT("skip_grant"))
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))

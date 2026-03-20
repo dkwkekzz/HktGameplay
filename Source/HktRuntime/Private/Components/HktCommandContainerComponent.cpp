@@ -81,5 +81,5 @@ void UHktCommandContainerComponent::OverrideSlotBinding(int32 SlotIndex, FGamepl
         Override = FHktSlotOverride();
     }
 
-    SlotBindingChangedDelegate.Broadcast(SlotIndex);
+    // 개별 broadcast 하지 않음 — 호출자(PlayerController)가 배치 완료 후 한 번에 broadcast
 }
