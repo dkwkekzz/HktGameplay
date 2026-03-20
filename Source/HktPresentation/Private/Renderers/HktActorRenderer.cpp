@@ -3,7 +3,7 @@
 #include "HktActorRenderer.h"
 #include "HktAnimInstance.h"
 #include "HktAssetSubsystem.h"
-#include "DataAssets/HktActorVisualDataAsset.h"
+#include "DataAssets/HktActorVisualDataAsset.h"  // Public/DataAssets/
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
