@@ -61,6 +61,7 @@ void FHktVFXRenderer::LoadNiagaraSystemAsync(FGameplayTag VFXTag, TFunction<void
 	}
 
 	// TagDataAsset 비동기 로드 → UHktVFXVisualDataAsset → NiagaraSystem 추출
+	// NiagaraSystem은 하드 레퍼런스이므로 DataAsset 로드 시 함께 로드됨 (LoadSynchronous 불필요)
 	TWeakPtr<bool> WeakGuard = AliveGuard;
 	AssetSubsystem->LoadAssetAsync(VFXTag, [WeakGuard, this, VFXTag, OnLoaded](UHktTagDataAsset* LoadedAsset)
 	{
@@ -69,10 +70,9 @@ void FHktVFXRenderer::LoadNiagaraSystemAsync(FGameplayTag VFXTag, TFunction<void
 		UNiagaraSystem* System = nullptr;
 
 		UHktVFXVisualDataAsset* VFXAsset = Cast<UHktVFXVisualDataAsset>(LoadedAsset);
-		if (VFXAsset && !VFXAsset->NiagaraSystem.IsNull())
+		if (VFXAsset && VFXAsset->NiagaraSystem)
 		{
-			// NOTE: DataAsset은 비동기 로드 완료 후이므로 NiagaraSystem은 보통 이미 메모리에 있음
-			System = VFXAsset->NiagaraSystem.LoadSynchronous();
+			System = VFXAsset->NiagaraSystem;
 		}
 
 		if (System)
