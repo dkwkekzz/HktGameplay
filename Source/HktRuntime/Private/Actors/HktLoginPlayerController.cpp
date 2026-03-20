@@ -1,14 +1,13 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktLoginPlayerController.h"
+#include "HktRuntimeLog.h"
 #include "HktGameInstance.h"
 #include "HktRuntimeCommands.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 #include "Components/HktLoginComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/InputSettings.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogHktLoginPlayerController, Log, All);
 
 AHktLoginPlayerController::AHktLoginPlayerController()
 {
@@ -22,7 +21,7 @@ void AHktLoginPlayerController::BeginPlay()
 	SetInputMode(FInputModeUIOnly());
 	bShowMouseCursor = true;
 
-	UE_LOG(LogHktLoginPlayerController, Log, TEXT("LoginPlayerController ready"));
+	UE_LOG(LogHktRuntime, Log, TEXT("LoginPlayerController ready"));
 }
 
 // ============================================================================

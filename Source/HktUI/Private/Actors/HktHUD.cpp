@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktHUD.h"
+#include "HktUILog.h"
 #include "HktUIElement.h"
 #include "IHktUIViewFactory.h"
 #include "HktUIAnchorStrategy.h"
@@ -62,7 +63,7 @@ void AHktHUD::BindPlayerInteraction(APlayerController* PC)
 
 	if (!PlayerInteraction)
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[HktHUD] PlayerController does not implement IHktPlayerInteractionInterface"));
+		UE_LOG(LogHktUI, Verbose, TEXT("[HktHUD] PlayerController does not implement IHktPlayerInteractionInterface"));
 	}
 }
 

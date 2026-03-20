@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktGameMode.h"
+#include "HktRuntimeLog.h"
 #include "HktIngamePlayerController.h"
 #include "HktPlayerState.h"
 #include "HktServerRuleInterfaces.h"
@@ -8,9 +9,8 @@
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
 #include "HktCoreDataCollector.h"
-#include "HktCoreEventLog.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogHktGameMode, Log, All);
+DEFINE_LOG_CATEGORY(LogHktRuntime);
 
 AHktGameMode::AHktGameMode()
 {
@@ -25,7 +25,7 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
     CachedServerRule = HktRule::GetServerRule(GetWorld());
     if (!CachedServerRule)
     {
-        UE_LOG(LogHktGameMode, Error, TEXT("InitGame: ServerRule is null"));
+        UE_LOG(LogHktRuntime, Error, TEXT("InitGame: ServerRule is null"));
         return;
     }
 
@@ -79,7 +79,6 @@ void AHktGameMode::Tick(float DeltaSeconds)
 
     if (!CachedFrameManager || !CachedFrameManager->IsInitialized())
     {
-        UE_LOG(LogHktGameMode, Verbose, TEXT("Tick: Frame not initialized yet"));
         return;
     }
 
@@ -101,13 +100,11 @@ void AHktGameMode::SimulationTick()
     IHktServerRule* Rule = GetServerRule();
     if (!Rule)
     {
-        UE_LOG(LogHktGameMode, Warning, TEXT("Tick: ServerRule is null"));
+        UE_LOG(LogHktRuntime, Warning, TEXT("Tick: ServerRule is null"));
         return;
     }
 
     const FHktEventGameModeTickResult TickResult = Rule->OnEvent_GameModeTick(FixedDeltaTime);
-    HKT_EVENT_LOG("Runtime.Server",
-        FString::Printf(TEXT("SimulationTick: %d groups"), TickResult.EventSends.Num()));
 
     for (const FGroupEventSend& GroupSend : TickResult.EventSends)
     {
@@ -193,8 +190,7 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
     // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
     Rule->OnEvent_GameModePostLogin(*WorldPlayer);
 
-    HKT_EVENT_LOG("Runtime.Server",
-        FString::Printf(TEXT("PostLogin PlayerUid=%lld"), WorldPlayer->GetPlayerUid()));
+    UE_LOG(LogHktRuntime, Verbose, TEXT("PostLogin PlayerUid=%lld"), WorldPlayer->GetPlayerUid());
 }
 
 void AHktGameMode::Logout(AController* Exiting)
@@ -209,8 +205,7 @@ void AHktGameMode::Logout(AController* Exiting)
     if (!WorldPlayer || !WorldPlayer->IsInitialized()) return;
 
     const int64 PlayerUid = WorldPlayer->GetPlayerUid();
-    HKT_EVENT_LOG("Runtime.Server",
-        FString::Printf(TEXT("Logout PlayerUid=%lld"), PlayerUid));
+    UE_LOG(LogHktRuntime, Verbose, TEXT("Logout PlayerUid=%lld"), PlayerUid);
 
     // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
     Rule->OnEvent_GameModeLogout(*WorldPlayer);
@@ -230,9 +225,7 @@ void AHktGameMode::PushIntent(int64 PlayerUid, const FHktEvent& Event)
     if (!WorldPlayer) return;
 
     // item 2: Graph/Builder 파라미터 없음 — Rule이 내부 캐싱된 컨텍스트 사용
-    HKT_EVENT_LOG_TAG("Runtime.Server",
-        FString::Printf(TEXT("PushIntent PlayerUid=%lld %s"), PlayerUid, *Event.ToString()),
-        Event.SourceEntity, Event.EventTag);
+    UE_LOG(LogHktRuntime, Verbose, TEXT("PushIntent PlayerUid=%lld %s"), PlayerUid, *Event.ToString());
     Rule->OnReceived_FireIntentEvent(Event, *WorldPlayer);
 }
 

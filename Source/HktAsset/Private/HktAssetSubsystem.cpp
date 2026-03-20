@@ -1,11 +1,11 @@
 #include "HktAssetSubsystem.h"
+#include "HktAssetLog.h"
 #include "HktTagDataAsset.h"
 #include "HktAssetSettings.h"
-#include "HktCoreEventLog.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/AssetManager.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogHktAssetSubsystem, Log, All);
+DEFINE_LOG_CATEGORY(LogHktAsset);
 
 void UHktAssetSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -55,8 +55,8 @@ void UHktAssetSubsystem::RebuildTagMap()
         }
     }
 
-    UE_LOG(LogHktAssetSubsystem, Log, TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num());
-    HKT_EVENT_LOG("Asset", FString::Printf(TEXT("RebuildTagMap complete")));
+    UE_LOG(LogHktAsset, Log, TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num());
+    UE_LOG(LogHktAsset, Verbose, TEXT("RebuildTagMap complete"));
 }
 
 // ============================================================================
@@ -65,7 +65,7 @@ void UHktAssetSubsystem::RebuildTagMap()
 
 FSoftObjectPath UHktAssetSubsystem::ResolvePath(FGameplayTag Tag)
 {
-    HKT_EVENT_LOG("Asset", FString::Printf(TEXT("ResolvePath: %s"), *Tag.ToString()));
+    UE_LOG(LogHktAsset, Verbose, TEXT("ResolvePath: %s"), *Tag.ToString());
 
     // 1. TagMap (DataAsset 기반)
     if (const FSoftObjectPath* Path = TagToPathMap.Find(Tag))
@@ -83,7 +83,7 @@ FSoftObjectPath UHktAssetSubsystem::ResolvePath(FGameplayTag Tag)
         if (GeneratedPath.IsValid())
         {
             TagToPathMap.Add(Tag, GeneratedPath);
-            UE_LOG(LogHktAssetSubsystem, Log, TEXT("OnTagMiss resolved: %s → %s"), *Tag.ToString(), *GeneratedPath.ToString());
+            UE_LOG(LogHktAsset, Log, TEXT("OnTagMiss resolved: %s → %s"), *Tag.ToString(), *GeneratedPath.ToString());
             return GeneratedPath;
         }
     }
@@ -130,7 +130,7 @@ void UHktAssetSubsystem::RegisterTagPath(FGameplayTag Tag, FSoftObjectPath Path)
     if (Tag.IsValid() && Path.IsValid())
     {
         TagToPathMap.Add(Tag, Path);
-        UE_LOG(LogHktAssetSubsystem, Log, TEXT("RegisterTagPath: %s → %s"), *Tag.ToString(), *Path.ToString());
+        UE_LOG(LogHktAsset, Log, TEXT("RegisterTagPath: %s → %s"), *Tag.ToString(), *Path.ToString());
     }
 }
 
@@ -150,7 +150,7 @@ UHktTagDataAsset* UHktAssetSubsystem::LoadAssetSync(FGameplayTag Tag)
     FSoftObjectPath Path = ResolvePath(Tag);
     if (!Path.IsValid())
     {
-        UE_LOG(LogHktAssetSubsystem, Warning, TEXT("LoadAssetSync: Tag not resolved: %s"), *Tag.ToString());
+        UE_LOG(LogHktAsset, Warning, TEXT("LoadAssetSync: Tag not resolved: %s"), *Tag.ToString());
         return nullptr;
     }
 
@@ -176,7 +176,7 @@ void UHktAssetSubsystem::LoadAssetAsync(FGameplayTag Tag, FStreamableDelegate De
         return;
     }
 
-    UE_LOG(LogHktAssetSubsystem, Warning, TEXT("LoadAssetAsync: Tag not resolved: %s"), *Tag.ToString());
+    UE_LOG(LogHktAsset, Warning, TEXT("LoadAssetAsync: Tag not resolved: %s"), *Tag.ToString());
 }
 
 void UHktAssetSubsystem::LoadAssetAsync(FGameplayTag Tag, TFunction<void(UHktTagDataAsset*)> OnLoaded)

@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktVFXRuntimeResolver.h"
-#include "HktCoreEventLog.h"
+#include "HktVFXLog.h"
 #include "NiagaraSystem.h"
 #include "Engine/World.h"
 
@@ -9,7 +9,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
 {
     if (!AssetBank)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[VFXResolver] No AssetBank assigned"));
+        UE_LOG(LogHktVFX, Warning, TEXT("[VFXResolver] No AssetBank assigned"));
         return nullptr;
     }
 
@@ -20,7 +20,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
         System = FallbackSystem;
         if (!System)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[VFXResolver] No matching VFX for: %s"),
+            UE_LOG(LogHktVFX, Warning, TEXT("[VFXResolver] No matching VFX for: %s"),
                 *Intent.GetAssetKey());
             return nullptr;
         }
@@ -42,7 +42,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
     // 3. 런타임 파라미터 오버라이드
     ApplyRuntimeOverrides(Comp, Intent);
 
-    HKT_EVENT_LOG("VFX", FString::Printf(TEXT("PlayVFX at location")));
+    UE_LOG(LogHktVFX, Verbose, TEXT("PlayVFX at location"));
 
     return Comp;
 }
@@ -72,7 +72,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFXAttached(
     if (Comp)
     {
         ApplyRuntimeOverrides(Comp, Intent);
-        HKT_EVENT_LOG("VFX", FString::Printf(TEXT("PlayVFXAttached")));
+        UE_LOG(LogHktVFX, Verbose, TEXT("PlayVFXAttached"));
     }
     return Comp;
 }

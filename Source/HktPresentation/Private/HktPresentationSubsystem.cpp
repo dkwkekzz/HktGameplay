@@ -8,7 +8,7 @@
 #include "Renderers/HktUIRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
 #include "NativeGameplayTags.h"
-#include "HktCoreEventLog.h"
+#include "HktPresentationLog.h"
 
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Action_Move_ToLocation, "Story.Event.Move.ToLocation");
@@ -122,7 +122,7 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 {
 	if (!View.WorldState) return;
 
-	HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("WorldViewUpdated Frame=%lld IsInitialSync=%s"), View.FrameNumber, View.bIsInitialSync ? TEXT("true") : TEXT("false")));
+	UE_LOG(LogHktPresentation, Verbose, TEXT("WorldViewUpdated Frame=%lld IsInitialSync=%s"), View.FrameNumber, View.bIsInitialSync ? TEXT("true") : TEXT("false"));
 
 	if (View.bIsInitialSync || !bInitialSyncDone)
 	{
@@ -165,7 +165,7 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 
 	if (SpawnedCount > 0 || RemovedCount > 0)
 	{
-		HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("ProcessDiff Frame=%lld Spawned=%d Removed=%d"), View.FrameNumber, SpawnedCount, RemovedCount));
+		UE_LOG(LogHktPresentation, Verbose, TEXT("ProcessDiff Frame=%lld Spawned=%d Removed=%d"), View.FrameNumber, SpawnedCount, RemovedCount);
 	}
 	View.ForEachDelta([this](FHktEntityId Id, uint16 PropId, int32 NewValue)
 	{
@@ -224,7 +224,7 @@ void UHktPresentationSubsystem::OnIntentSubmitted(const FHktRuntimeEvent& Event)
 
 void UHktPresentationSubsystem::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)
 {
-	HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("PlayVFXAtLocation Tag=%s Location=(%.1f, %.1f, %.1f)"), *VFXTag.ToString(), Location.X, Location.Y, Location.Z));
+	UE_LOG(LogHktPresentation, Verbose, TEXT("PlayVFXAtLocation Tag=%s Location=(%.1f, %.1f, %.1f)"), *VFXTag.ToString(), Location.X, Location.Y, Location.Z);
 
 	if (VFXRenderer)
 	{
@@ -259,7 +259,7 @@ void UHktPresentationSubsystem::OnSubjectChanged(FHktEntityId NewSubject)
 		FVector Pos = Entity ? Entity->Location.Get() : FVector::ZeroVector;
 		VFXRenderer->AttachVFXToEntity(Tag_VFX_SelectionSubject, NewSubject, Pos);
 
-		HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("SelectionSubject VFX attached Entity=%d"), NewSubject));
+		UE_LOG(LogHktPresentation, Verbose, TEXT("SelectionSubject VFX attached Entity=%d"), NewSubject);
 	}
 }
 
@@ -282,6 +282,6 @@ void UHktPresentationSubsystem::OnTargetChanged(FHktEntityId NewTarget)
 		FVector Pos = Entity ? Entity->Location.Get() : FVector::ZeroVector;
 		VFXRenderer->AttachVFXToEntity(Tag_VFX_SelectionTarget, NewTarget, Pos);
 
-		HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("SelectionTarget VFX attached Entity=%d"), NewTarget));
+		UE_LOG(LogHktPresentation, Verbose, TEXT("SelectionTarget VFX attached Entity=%d"), NewTarget);
 	}
 }

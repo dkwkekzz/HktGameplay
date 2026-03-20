@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktActorRenderer.h"
+#include "HktPresentationLog.h"
 #include "HktAnimInstance.h"
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
@@ -8,7 +9,6 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Components/CapsuleComponent.h"
-#include "HktCoreEventLog.h"
 
 FHktActorRenderer::FHktActorRenderer(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
@@ -157,7 +157,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 		if (!ActorClass)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: No ActorClass for tag %s (DataAsset not found or missing ActorClass)"), *VisualTag.ToString());
+			UE_LOG(LogHktPresentation, Warning, TEXT("SpawnActor: No ActorClass for tag %s (DataAsset not found or missing ActorClass)"), *VisualTag.ToString());
 			return;
 		}
 
@@ -178,7 +178,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		AActor* SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, Rotation, SpawnParams);
 		if (SpawnedActor)
 		{
-			HKT_EVENT_LOG_ENTITY("Presentation", FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), *VisualTag.ToString(), SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z), EntityId);
+			UE_LOG(LogHktPresentation, Verbose, TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f) Entity=%d"), *VisualTag.ToString(), SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z, EntityId);
 
 			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
@@ -391,7 +391,7 @@ void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresenta
 	FName SocketName = GetSocketName(Slot);
 	if (!SkelMesh->DoesSocketExist(SocketName))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] Socket '%s' not found on owner %d for item %d"), *SocketName.ToString(), OwnerId, ItemId);
+		UE_LOG(LogHktPresentation, Warning, TEXT("Socket '%s' not found on owner %d for item %d"), *SocketName.ToString(), OwnerId, ItemId);
 		return;
 	}
 
@@ -399,7 +399,7 @@ void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresenta
 	AttachedItems.Add(ItemId);
 	PendingAttachments.Remove(ItemId);
 
-	HKT_EVENT_LOG_ENTITY("Presentation", FString::Printf(TEXT("AttachItem Slot=%d Socket=%s Owner=%d"), Slot, *SocketName.ToString(), OwnerId), ItemId);
+	UE_LOG(LogHktPresentation, Verbose, TEXT("AttachItem Slot=%d Socket=%s Owner=%d Entity=%d"), Slot, *SocketName.ToString(), OwnerId, ItemId);
 }
 
 void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
@@ -415,7 +415,7 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 	AttachedItems.Remove(ItemId);
 	PendingAttachments.Remove(ItemId);
 
-	HKT_EVENT_LOG_ENTITY("Presentation", TEXT("DetachItem"), ItemId);
+	UE_LOG(LogHktPresentation, Verbose, TEXT("DetachItem Entity=%d"), ItemId);
 }
 
 bool FHktActorRenderer::TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const
