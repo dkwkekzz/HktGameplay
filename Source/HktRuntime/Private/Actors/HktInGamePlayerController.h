@@ -19,6 +19,7 @@ class UInputMappingContext;
 class UInputAction;
 class UHktInputAction;
 class IHktClientRule;
+struct FHktWorldView;
 
 UCLASS()
 class HKTRUNTIME_API AHktIngamePlayerController : public APlayerController
@@ -51,6 +52,7 @@ public:
     virtual FOnHktWheelInput& OnWheelInput() override { return WheelInputDelegate; }
     virtual FOnHktSubjectChanged& OnSubjectChanged() override { return SubjectChangedDelegate; }
     virtual FOnHktIntentSubmitted& OnIntentSubmitted() override { return IntentSubmittedDelegate; }
+    virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() override { return SlotBindingChangedDelegate; }
 
     // === Player UID ===
     virtual int64 GetPlayerUid() const override;
@@ -93,6 +95,7 @@ private:
     FOnHktIntentSubmitted IntentSubmittedDelegate;
     FOnHktWheelInput WheelInputDelegate;
     FOnHktWorldViewUpdated WorldViewUpdatedDelegate;
+    FOnHktSlotBindingChanged SlotBindingChangedDelegate;
 
     /** 클라이언트 규칙 (Subsystem 소유, 수명 동일) */
     IHktClientRule* CachedClientRule = nullptr;
@@ -110,6 +113,9 @@ private:
 
     /** WorldState에서 나의 엔티티를 찾아 DefaultSubjectEntityId로 설정 */
     void ResolveDefaultSubject();
+
+    /** PropertyDelta에서 ActionSlot 변경을 감지하여 CommandContainer에 동적 바인딩 */
+    void SyncSlotBindingsFromWorldState(const FHktWorldView& View);
 
 #if ENABLE_HKT_INSIGHTS
     /** Insight 통계 카운터 */

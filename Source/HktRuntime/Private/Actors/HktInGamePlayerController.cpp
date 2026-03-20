@@ -10,9 +10,13 @@
 #include "HktCoreDataCollector.h"
 #include "HktStoryBuilder.h"
 #include "HktRuntimeTags.h"
+#include "HktCoreProperties.h"
+#include "HktCoreEvents.h"
+#include "HktWorldView.h"
 #include "DataAssets/HktInputAction.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
+#include "GameplayTagsManager.h"
 
 AHktIngamePlayerController::AHktIngamePlayerController()
 {
@@ -307,6 +311,9 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
             View.FrameNumber = CachedProxySimulator->GetWorldState().FrameNumber;
             View.bIsInitialSync = true;
             WorldViewUpdatedDelegate.Broadcast(View);
+
+            // InitialSync 시 전체 슬롯 바인딩 동기화
+            SyncSlotBindingsFromWorldState(View);
         }
     }
 
@@ -329,6 +336,9 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
         View.TagDeltas = &Diff.TagDeltas;
         View.OwnerDeltas = &Diff.OwnerDeltas;
         WorldViewUpdatedDelegate.Broadcast(View);
+
+        // ActionSlot 변경이 포함된 경우 슬롯 바인딩 동기화
+        SyncSlotBindingsFromWorldState(View);
     }
 
 #if ENABLE_HKT_INSIGHTS
@@ -413,6 +423,71 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
         SubjectChangedDelegate.Broadcast(DefaultSubjectEntityId);
         UE_LOG(LogHktRuntime, Log, TEXT("ResolveDefaultSubject: DefaultSubjectEntityId=%d PlayerUid=%lld"), DefaultSubjectEntityId, PlayerUid);
     }
+}
+
+void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldView& View)
+{
+    if (!CachedCommandContainer || !View.WorldState) return;
+    if (DefaultSubjectEntityId == InvalidEntityId) return;
+
+    const FHktWorldState& WS = *View.WorldState;
+    const int64 MyUid = GetPlayerUid();
+    if (MyUid == 0) return;
+
+    // InitialSync 또는 ActionSlot 변경이 포함된 경우 전체 스캔
+    bool bNeedsFullScan = View.bIsInitialSync;
+    if (!bNeedsFullScan && View.PropertyDeltas)
+    {
+        for (const FHktPropertyDelta& D : *View.PropertyDeltas)
+        {
+            if (D.PropertyId == PropertyId::ActionSlot || D.PropertyId == PropertyId::ItemState)
+            {
+                bNeedsFullScan = true;
+                break;
+            }
+        }
+    }
+
+    if (!bNeedsFullScan) return;
+
+    // 기존 오버라이드 클리어 (최대 슬롯 수만큼)
+    const int32 MaxSlots = CachedCommandContainer->GetNumSlots();
+    for (int32 i = 0; i < MaxSlots; ++i)
+    {
+        CachedCommandContainer->OverrideSlotBinding(i, FGameplayTag(), false);
+    }
+
+    // 내 엔티티 소유 아이템 중 Active(State=2)인 것을 찾아 슬롯 바인딩
+    WS.ForEachEntityByOwner(MyUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
+    {
+        // 내 캐릭터가 소유한 아이템만
+        if (WS.GetProperty(ItemId, PropertyId::OwnerEntity) != DefaultSubjectEntityId)
+            return;
+
+        // Active 상태만
+        if (WS.GetProperty(ItemId, PropertyId::ItemState) != 2)
+            return;
+
+        int32 ActionSlot = WS.GetProperty(ItemId, PropertyId::ActionSlot);
+        if (ActionSlot < 0)
+            return;
+
+        // ItemSkillTag (NetIndex → FGameplayTag)
+        int32 SkillTagNetIndex = WS.GetProperty(ItemId, PropertyId::ItemSkillTag);
+        FGameplayTag SkillTag;
+        if (SkillTagNetIndex > 0)
+        {
+            SkillTag = UGameplayTagsManager::Get().GetTagFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillTagNetIndex));
+        }
+
+        if (SkillTag.IsValid())
+        {
+            // 아이템 스킬은 기본적으로 Enemy 타겟 필요
+            CachedCommandContainer->OverrideSlotBinding(ActionSlot, SkillTag, /*bTargetRequired=*/true);
+            UE_LOG(LogHktRuntime, Log, TEXT("SyncSlotBindings: Slot %d -> %s (Item %d)"),
+                ActionSlot, *SkillTag.ToString(), ItemId);
+        }
+    });
 }
 
 IHktClientRule* AHktIngamePlayerController::GetClientRule() const

@@ -80,6 +80,7 @@ namespace HktStoryPlayerInWorld
 			.SetStance(Spawned, HktStance::Sword1H)                            // Stance
 			.AddTag(Spawned, Tag_Weapon_Sword)
 			// 아이템 스킬 데이터
+			.SetItemSkillTag(Spawned, Skill_WoodenSwordSlash)                  // 아이템 고유 스킬 태그
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 30)             // 스킬 CP 소모 30
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 60)           // 기본 후딜레이 60프레임
 
