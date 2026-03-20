@@ -271,6 +271,9 @@ private:
     int32 TagToInt(const FGameplayTag& Tag);
     void ResolveLabels();
 
+    /** 빌드 타임 엔티티 레지스터 초기화 순서 검증 */
+    void ValidateEntityFlow();
+
     /** 내부 라벨용 고유 카운터 */
     FString MakeInternalLabel(const TCHAR* Prefix);
 
