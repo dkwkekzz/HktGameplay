@@ -2,6 +2,7 @@
 
 #include "HktPresentationState.h"
 #include "GameplayTagsManager.h"
+#include "HktRuntimeTags.h"
 
 namespace
 {
@@ -156,17 +157,11 @@ bool FHktEntityPresentation::IsRemovedAt(int64 Frame) const
 
 EHktRenderCategory FHktEntityPresentation::DetermineRenderCategory(const FGameplayTagContainer& Tags)
 {
-	static const FGameplayTag CharacterTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Character")), false);
-	static const FGameplayTag NPCTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.NPC")), false);
-	static const FGameplayTag BuildingTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Building")), false);
-	static const FGameplayTag ProjectileTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Projectile")), false);
-	static const FGameplayTag ItemTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Item")), false);
-
-	if (Tags.HasTag(CharacterTag) || Tags.HasTag(NPCTag) || Tags.HasTag(BuildingTag))
+	if (Tags.HasTag(HktGameplayTags::Entity_Character) || Tags.HasTag(HktGameplayTags::Entity_NPC) || Tags.HasTag(HktGameplayTags::Entity_Building))
 		return EHktRenderCategory::Actor;
-	if (Tags.HasTag(ProjectileTag))
+	if (Tags.HasTag(HktGameplayTags::Entity_Projectile))
 		return EHktRenderCategory::MassEntity;
-	if (Tags.HasTag(ItemTag))
+	if (Tags.HasTag(HktGameplayTags::Entity_Item))
 		return EHktRenderCategory::Actor;
 	return EHktRenderCategory::None;
 }

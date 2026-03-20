@@ -5,11 +5,13 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
+#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryNPCSpawnerProximity
 {
 	using namespace HktStoryTags;
+	using namespace HktGameplayTags;
 
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_DungeonEntrance, "Story.Flow.Spawner.DungeonEntrance", "Proximity-triggered dungeon entrance spawner.");
@@ -61,7 +63,7 @@ namespace HktStoryNPCSpawnerProximity
 				.SaveConstEntity(Spawned, PropertyId::Team, 0)
 
 				// 태그 부여
-				.AddTag(Spawned, Tag_Entity_NPC)
+				.AddTag(Spawned, Entity_NPC)
 				.AddTag(Spawned, Entity_NPC_Skeleton)
 				.AddTag(Spawned, Tag_NPC_Hostile)
 

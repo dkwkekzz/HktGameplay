@@ -7,11 +7,13 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
+#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryItemDeactivate
 {
 	using namespace HktStoryTags;
+	using namespace HktGameplayTags;
 
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Deactivate, "Story.Event.Item.Deactivate", "Item deactivate intent event.");
@@ -76,7 +78,7 @@ namespace HktStoryItemDeactivate
 
 			// 다른 활성 아이템이 있는지 확인하여 Stance 복원 결정
 			// FindByOwner로 소유 아이템을 순회, Active(State==2)인 것이 있으면 Stance 유지
-			.FindByOwner(Self, Tag_Entity_Item)
+			.FindByOwner(Self, Entity_Item)
 			.LoadConst(R4, 0)                                               // R4 = 활성 아이템 존재 플래그
 
 		.Label(TEXT("check_loop"))

@@ -5,11 +5,13 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
+#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryNPCSpawnerGoblinCamp
 {
 	using namespace HktStoryTags;
+	using namespace HktGameplayTags;
 
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Spawner_GoblinCamp, "Story.Flow.Spawner.GoblinCamp", "Periodic goblin camp spawner flow.");
@@ -56,7 +58,7 @@ namespace HktStoryNPCSpawnerGoblinCamp
 				.SaveConstEntity(Spawned, PropertyId::Team, 0)
 
 				// 태그 부여
-				.AddTag(Spawned, Tag_Entity_NPC)
+				.AddTag(Spawned, Entity_NPC)
 				.AddTag(Spawned, Entity_NPC_Goblin)
 				.AddTag(Spawned, Tag_NPC_Hostile)
 

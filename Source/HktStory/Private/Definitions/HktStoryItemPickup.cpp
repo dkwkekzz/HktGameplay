@@ -7,11 +7,13 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
+#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryItemPickup
 {
 	using namespace HktStoryTags;
+	using namespace HktGameplayTags;
 
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Pickup, "Story.Event.Item.Pickup", "Item pickup intent event.");
@@ -59,7 +61,7 @@ namespace HktStoryItemPickup
 				WS.ForEachEntity([&](FHktEntityId Id, int32 Slot)
 				{
 					if (WS.Get(Slot, PropertyId::OwnerEntity) == E.SourceEntity
-						&& WS.GetTagsBySlot(Slot).HasTag(Tag_Entity_Item))
+						&& WS.GetTagsBySlot(Slot).HasTag(Entity_Item))
 					{
 						int32 BagSlot = WS.Get(Slot, PropertyId::BagSlot);
 						if (BagSlot >= 0 && BagSlot < BagCapacity)
@@ -98,7 +100,7 @@ namespace HktStoryItemPickup
 
 			// R3 슬롯이 점유되었는지 확인: 소유 아이템 재순회
 			.LoadConst(R4, 0)                                               // R4 = 점유 플래그
-			.FindByOwner(Self, Tag_Entity_Item)
+			.FindByOwner(Self, Entity_Item)
 
 		.Label(TEXT("slot_check_loop"))
 			.NextFound()

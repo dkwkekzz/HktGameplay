@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktStory.h"
+#include "HktStoryModule.h"
 #include "HktStoryRegistry.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHktStory, Log, All); // Story 모듈은 단일 파일이므로 static 유지

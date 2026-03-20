@@ -2,16 +2,10 @@
 
 #include "HktAnimInstance.h"
 #include "HktPresentationLog.h"
+#include "HktRuntimeTags.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
-
-
-namespace
-{
-	/** Anim.* 태그 필터 — Entity 태그 중 Anim 계열만 추출 */
-	static const FGameplayTag AnimRootTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim")), false);
-}
 
 FGameplayTag UHktAnimInstance::ExtractLayerParent(const FGameplayTag& AnimTag)
 {
@@ -37,7 +31,7 @@ FGameplayTag UHktAnimInstance::ExtractLayerParent(const FGameplayTag& AnimTag)
 void UHktAnimInstance::SyncFromTagContainer(const FGameplayTagContainer& EntityTags)
 {
 	// Entity 태그 중 Anim.* 계열만 필터링
-	FGameplayTagContainer CurrentAnimTags = EntityTags.Filter(FGameplayTagContainer(AnimRootTag));
+	FGameplayTagContainer CurrentAnimTags = EntityTags.Filter(FGameplayTagContainer(HktGameplayTags::Anim));
 
 	// 새로 추가된 태그 감지 → 애니메이션 재생
 	for (const FGameplayTag& Tag : CurrentAnimTags)
@@ -73,8 +67,7 @@ void UHktAnimInstance::ApplyAnimTag(const FGameplayTag& AnimTag)
 	Current = AnimTag;
 
 	// FullBody는 AnimStateTag와 동기화 (하위호환)
-	static const FGameplayTag FullBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.FullBody")), false);
-	if (LayerParent.MatchesTagExact(FullBodyParent))
+	if (LayerParent.MatchesTagExact(HktGameplayTags::Anim_FullBody))
 	{
 		AnimStateTag = AnimTag;
 	}
@@ -126,16 +119,13 @@ void UHktAnimInstance::RemoveAnimTag(const FGameplayTag& AnimTag)
 	}
 
 	// FullBody는 AnimStateTag와 동기화
-	static const FGameplayTag FullBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.FullBody")), false);
-	if (LayerParent.MatchesTagExact(FullBodyParent) && AnimStateTag.MatchesTagExact(AnimTag))
+	if (LayerParent.MatchesTagExact(HktGameplayTags::Anim_FullBody) && AnimStateTag.MatchesTagExact(AnimTag))
 	{
 		AnimStateTag = FGameplayTag();
 	}
 
 	// 몽타주 계열 태그가 제거되면 몽타주 중지
-	static const FGameplayTag MontageParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.Montage")), false);
-	static const FGameplayTag UpperBodyParent = FGameplayTag::RequestGameplayTag(FName(TEXT("Anim.UpperBody")), false);
-	if (LayerParent.MatchesTagExact(MontageParent) || LayerParent.MatchesTagExact(UpperBodyParent))
+	if (LayerParent.MatchesTagExact(HktGameplayTags::Anim_Montage) || LayerParent.MatchesTagExact(HktGameplayTags::Anim_UpperBody))
 	{
 		if (const FHktAnimMappingEntry* Entry = FindMapping(AnimTag))
 		{

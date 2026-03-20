@@ -3,13 +3,13 @@
 #include "HktTransientDatabaseComponent.h"
 #include "HktRuntimeLog.h"
 #include "GameplayTagContainer.h"
-#include "HktStoryTags.h"
+#include "HktRuntimeTags.h"
 
 UHktTransientDatabaseComponent::UHktTransientDatabaseComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
-    DefaultVisualTag = FGameplayTag::RequestGameplayTag(TEXT("Visual.Character.Default"), false);
-    DefaultFlowTag = FGameplayTag::RequestGameplayTag(TEXT("Flow.Character.Default"), false);
+    DefaultVisualTag = HktGameplayTags::Visual_Character_Default;
+    DefaultFlowTag = HktGameplayTags::Flow_Character_Default;
 }
 
 // ============================================================================
@@ -33,7 +33,7 @@ void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TF
     
     // 신규 플레이어 레코드에 월드 진입 이벤트 추가
     FHktEvent EnterWorldEvent;
-    EnterWorldEvent.EventTag = HktStoryTags::Story_PlayerInWorld;
+    EnterWorldEvent.EventTag = HktGameplayTags::Story_PlayerInWorld;
     EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid); // 임시, 플로우에서 실제 엔티티 생성
     EnterWorldEvent.TargetEntity = InvalidEntityId;
     EnterWorldEvent.Location = FVector::ZeroVector; // 기본 스폰 위치는 여기서 정하는게 아님

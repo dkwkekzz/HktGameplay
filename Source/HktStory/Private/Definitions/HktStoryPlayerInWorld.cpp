@@ -6,11 +6,13 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
+#include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
 
 namespace HktStoryPlayerInWorld
 {
 	using namespace HktStoryTags;
+	using namespace HktGameplayTags;
 
 	// Item
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_WoodenSword, "Entity.Item.WoodenSword", "Wooden sword starter item.");
@@ -53,7 +55,7 @@ namespace HktStoryPlayerInWorld
 
 			// === 복귀 플레이어 검사 (Gap 8) ===
 			// DB에서 복원된 엔티티가 이미 존재하면 초기 아이템 지급 건너뜀
-			.CountByOwner(R0, Self, Tag_Entity_Item)
+			.CountByOwner(R0, Self, Entity_Item)
 			.LoadConst(R1, 0)
 			.CmpNe(Flag, R0, R1)
 			.JumpIf(Flag, TEXT("skip_grant"))
