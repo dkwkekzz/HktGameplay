@@ -94,6 +94,9 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 
 void FHktActorRenderer::Teardown()
 {
+	// 비동기 콜백 무효화 (this 접근 방지)
+	AliveGuard.Reset();
+
 	ActorMap.Empty();
 	MotionStates.Empty();
 	PendingInitSync.Empty();
@@ -132,42 +135,29 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 	}
 
 	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
-	AssetSubsystem->LoadAssetAsync(VisualTag, [this, VisualTag, EntityId, Location, Rotation, bIsMoving, WeakLP](UHktTagDataAsset* LoadedAsset)
+	TWeakPtr<bool> WeakGuard = AliveGuard;
+	AssetSubsystem->LoadAssetAsync(VisualTag, [WeakGuard, this, VisualTag, EntityId, Location, Rotation, bIsMoving, WeakLP](UHktTagDataAsset* LoadedAsset)
 	{
+		if (!WeakGuard.IsValid()) return;  // Renderer가 소멸됨
+
 		ULocalPlayer* LP = WeakLP.Get();
 		if (!LP) return;
 
 		UWorld* CallbackWorld = LP->GetWorld();
 		if (!CallbackWorld) return;
 
-		UHktAssetSubsystem* CallbackAssetSubsystem = UHktAssetSubsystem::Get(CallbackWorld);
-
 		TSubclassOf<AActor> ActorClass;
 
-		// Path 1: DataAsset 기반 (기존 방식)
+		// DataAsset 기반 ActorClass 해결
 		UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset);
 		if (VisualAsset && VisualAsset->ActorClass)
 		{
 			ActorClass = VisualAsset->ActorClass;
 		}
 
-		// Path 2: Convention Path fallback (DataAsset 없이 Blueprint 직접 로드)
-		if (!ActorClass && CallbackAssetSubsystem)
-		{
-			UObject* ConventionObj = CallbackAssetSubsystem->LoadByConventionSync(VisualTag);
-			if (UBlueprint* BP = Cast<UBlueprint>(ConventionObj))
-			{
-				ActorClass = *BP->GeneratedClass;
-			}
-			else if (UClass* Class = Cast<UClass>(ConventionObj))
-			{
-				ActorClass = Class;
-			}
-		}
-
 		if (!ActorClass)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: No ActorClass for tag %s (neither DataAsset nor Convention)"), *VisualTag.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: No ActorClass for tag %s (DataAsset not found or missing ActorClass)"), *VisualTag.ToString());
 			return;
 		}
 

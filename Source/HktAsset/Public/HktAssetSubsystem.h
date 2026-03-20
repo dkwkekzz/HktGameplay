@@ -10,8 +10,8 @@ class UHktTagDataAsset;
 
 /**
  * TagMiss 콜백 델리게이트.
- * Tag가 매핑되지 않았을 때 호출됩니다. Convention Path를 반환하면 해당 경로로 에셋 로드 시도.
- * 빈 문자열 반환 시 로드 포기.
+ * Tag가 매핑되지 않았을 때 호출됩니다. 에셋 경로(TagDataAsset)를 반환하면 해당 경로로 로드 시도.
+ * 빈 경로 반환 시 로드 포기.
  */
 DECLARE_DELEGATE_RetVal_OneParam(FSoftObjectPath, FOnHktTagMiss, const FGameplayTag& /*Tag*/);
 
@@ -20,9 +20,8 @@ DECLARE_DELEGATE_RetVal_OneParam(FSoftObjectPath, FOnHktTagMiss, const FGameplay
  * 게임 시작 시 HktTagDataAsset 타입의 에셋들을 스캔하여 태그 매핑 테이블을 구축합니다.
  *
  * 에셋 해결 순서:
- * 1. TagToPathMap (DataAsset 기반 — 기존 방식)
- * 2. Convention Path (태그 → 경로 규칙 — DataAsset 불필요)
- * 3. OnTagMiss 콜백 (Generator가 자동 생성 후 경로 반환)
+ * 1. TagToPathMap (DataAsset 기반)
+ * 2. OnTagMiss 콜백 (Generator가 자동 생성 후 경로 반환)
  */
 UCLASS()
 class HKTASSET_API UHktAssetSubsystem : public UGameInstanceSubsystem
@@ -45,26 +44,10 @@ public:
     void LoadAssetAsync(FGameplayTag Tag, TFunction<void(UHktTagDataAsset*)> OnLoaded);
 
     // =========================================================================
-    // Convention Path Resolution (DataAsset 없이 태그 → 에셋 경로 직접 해결)
+    // Convention Path (Generator 출력 경로 결정용 유틸리티)
     // =========================================================================
 
-    /**
-     * 태그에서 Convention Path로 에셋을 직접 로드합니다.
-     * DataAsset이 없어도 경로 규칙으로 에셋을 찾을 수 있습니다.
-     *
-     * Convention 규칙은 UHktAssetSettings (Project Settings > HktGameplay > HktAsset) 에서 변경 가능:
-     *   ConventionRootDirectory: 루트 경로 (기본: /Game/Generated)
-     *   ConventionRules: TagPrefix → PathPattern 규칙 목록
-     *
-     * PathPattern 치환 변수:
-     *   {Root} — ConventionRootDirectory
-     *   {Leaf} — 태그 마지막 세그먼트
-     *   {Category} — 태그 두 번째 세그먼트
-     *   {TagPath} — 태그를 _ 로 연결
-     */
-    UObject* LoadByConventionSync(FGameplayTag Tag);
-
-    /** Convention Path 문자열 반환 (로드하지 않음). Settings 기반. */
+    /** Convention Path 문자열 반환 (로드하지 않음). Settings 기반. Generator가 출력 경로를 결정할 때 사용. */
     static FSoftObjectPath ResolveConventionPath(const FGameplayTag& Tag);
 
     // =========================================================================
@@ -86,7 +69,7 @@ protected:
     // 로딩 완료 후 처리를 위한 내부 헬퍼
     void OnAssetLoadedInternal(FGameplayTag Tag, TFunction<void(UHktTagDataAsset*)> Callback);
 
-    /** Tag에서 에셋 경로 해결 (TagMap → Convention → OnMiss 순서) */
+    /** Tag에서 에셋 경로 해결 (TagMap → OnMiss 순서) */
     FSoftObjectPath ResolvePath(FGameplayTag Tag);
 
 private:

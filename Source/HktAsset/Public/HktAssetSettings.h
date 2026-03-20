@@ -39,6 +39,8 @@ struct HKTASSET_API FHktConventionRule
  *
  * Project Settings > HktGameplay > HktAsset 에서 설정 가능.
  * Convention Path의 루트 디렉토리와 태그별 경로 규칙을 정의합니다.
+ * Convention Path는 Generator가 에셋 출력 경로를 결정할 때 사용됩니다.
+ * 런타임 에셋 로딩은 TagDataAsset 시스템을 통해 수행됩니다.
  */
 UCLASS(config = Game, DefaultConfig, DisplayName = "Hkt Asset Convention")
 class HKTASSET_API UHktAssetSettings : public UDeveloperSettings
