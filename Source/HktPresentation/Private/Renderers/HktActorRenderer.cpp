@@ -94,6 +94,9 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 
 void FHktActorRenderer::Teardown()
 {
+	// 비동기 콜백 무효화 (this 접근 방지)
+	AliveGuard.Reset();
+
 	ActorMap.Empty();
 	MotionStates.Empty();
 	PendingInitSync.Empty();
@@ -132,8 +135,11 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 	}
 
 	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
-	AssetSubsystem->LoadAssetAsync(VisualTag, [this, VisualTag, EntityId, Location, Rotation, bIsMoving, WeakLP](UHktTagDataAsset* LoadedAsset)
+	TWeakPtr<bool> WeakGuard = AliveGuard;
+	AssetSubsystem->LoadAssetAsync(VisualTag, [WeakGuard, this, VisualTag, EntityId, Location, Rotation, bIsMoving, WeakLP](UHktTagDataAsset* LoadedAsset)
 	{
+		if (!WeakGuard.IsValid()) return;  // Renderer가 소멸됨
+
 		ULocalPlayer* LP = WeakLP.Get();
 		if (!LP) return;
 

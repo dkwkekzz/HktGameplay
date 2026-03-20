@@ -73,6 +73,9 @@ private:
 	UHktVFXAssetBank* AssetBank = nullptr;
 	UNiagaraSystem* FallbackSystem = nullptr;
 
+	/** 비동기 콜백에서 this 유효성 확인용 (Teardown/소멸 시 리셋) */
+	TSharedPtr<bool> AliveGuard = MakeShared<bool>(true);
+
 	/** 태그별 NiagaraSystem 캐시 (TagDataAsset 로드 결과) */
 	TMap<FGameplayTag, TWeakObjectPtr<UNiagaraSystem>> NiagaraSystemCache;
 

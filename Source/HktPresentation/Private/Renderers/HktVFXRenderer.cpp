@@ -61,13 +61,17 @@ void FHktVFXRenderer::LoadNiagaraSystemAsync(FGameplayTag VFXTag, TFunction<void
 	}
 
 	// TagDataAsset 비동기 로드 → UHktVFXVisualDataAsset → NiagaraSystem 추출
-	AssetSubsystem->LoadAssetAsync(VFXTag, [this, VFXTag, OnLoaded](UHktTagDataAsset* LoadedAsset)
+	TWeakPtr<bool> WeakGuard = AliveGuard;
+	AssetSubsystem->LoadAssetAsync(VFXTag, [WeakGuard, this, VFXTag, OnLoaded](UHktTagDataAsset* LoadedAsset)
 	{
+		if (!WeakGuard.IsValid()) return;  // Renderer가 소멸됨
+
 		UNiagaraSystem* System = nullptr;
 
 		UHktVFXVisualDataAsset* VFXAsset = Cast<UHktVFXVisualDataAsset>(LoadedAsset);
 		if (VFXAsset && !VFXAsset->NiagaraSystem.IsNull())
 		{
+			// NOTE: DataAsset은 비동기 로드 완료 후이므로 NiagaraSystem은 보통 이미 메모리에 있음
 			System = VFXAsset->NiagaraSystem.LoadSynchronous();
 		}
 
@@ -233,8 +237,11 @@ void FHktVFXRenderer::AttachVFXToEntity(FGameplayTag VFXTag, FHktEntityId Entity
 	}
 
 	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
-	LoadNiagaraSystemAsync(VFXTag, [this, Key, VFXTag, EntityId, Location, WeakLP](UNiagaraSystem* System)
+	TWeakPtr<bool> WeakGuard = AliveGuard;
+	LoadNiagaraSystemAsync(VFXTag, [WeakGuard, this, Key, VFXTag, EntityId, Location, WeakLP](UNiagaraSystem* System)
 	{
+		if (!WeakGuard.IsValid()) return;  // Renderer가 소멸됨
+
 		if (!System)
 		{
 			UE_LOG(LogHktVFXRenderer, Warning, TEXT("AttachVFXToEntity: No NiagaraSystem for tag [%s]"), *VFXTag.ToString());
@@ -304,6 +311,9 @@ void FHktVFXRenderer::UpdateEntityVFXPositions(const FHktPresentationState& Stat
 
 void FHktVFXRenderer::Teardown()
 {
+	// 비동기 콜백 무효화 (this 접근 방지)
+	AliveGuard.Reset();
+
 	// 지속형 VFX 정리
 	for (auto& Pair : EntityVFXMap)
 	{

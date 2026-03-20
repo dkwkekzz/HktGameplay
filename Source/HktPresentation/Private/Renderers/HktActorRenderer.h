@@ -49,6 +49,9 @@ private:
 	TSet<FHktEntityId> PendingAttachments;
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
 
+	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */
+	TSharedPtr<bool> AliveGuard = MakeShared<bool>(true);
+
 	static constexpr float LerpAlpha = 0.5f;          // 매 프레임 50% 접근 → ~2틱에 도달
 	static constexpr float SnapDistance = 1.0f;        // cm, 이 거리 이내면 스냅
 	static constexpr float TraceHalfHeight = 500.0f;
