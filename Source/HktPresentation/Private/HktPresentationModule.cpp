@@ -5,17 +5,19 @@
 
 #define LOCTEXT_NAMESPACE "FHktPresentationModule"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktPresentation, Log, All);
+
 class FHktPresentationModule : public IHktPresentationModule
 {
 public:
 	virtual void StartupModule() override
 	{
-		UE_LOG(LogTemp, Log, TEXT("HktPresentation Module Started"));
+		UE_LOG(LogHktPresentation, Log, TEXT("HktPresentation Module Started"));
 	}
 
 	virtual void ShutdownModule() override
 	{
-		UE_LOG(LogTemp, Log, TEXT("HktPresentation Module Shutdown"));
+		UE_LOG(LogHktPresentation, Log, TEXT("HktPresentation Module Shutdown"));
 	}
 };
 

@@ -5,6 +5,8 @@
 #include "Misc/Paths.h"
 #include "HktStoryTags.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktFileDatabase, Log, All);
+
 // ============================================================================
 // SaveGame Custom Serialization
 // ============================================================================
@@ -63,7 +65,7 @@ void UHktFileDatabaseComponent::LoadFromSlot(int64 PlayerUid, TFunction<void(TOp
 		UHktPlayerSaveGame* LoadedGame = Cast<UHktPlayerSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, 0));
 		if (LoadedGame)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[FileDatabase] Loaded SaveGame for player: %lld"), PlayerUid);
+			UE_LOG(LogHktFileDatabase, Log, TEXT("[FileDatabase] Loaded SaveGame for player: %lld"), PlayerUid);
 			Callback(TOptional<FHktPlayerRecord>(LoadedGame->PlayerRecord));
 			return;
 		}
@@ -84,18 +86,18 @@ void UHktFileDatabaseComponent::SaveToSlot(int64 PlayerUid, const FHktPlayerReco
 
 		if (UGameplayStatics::SaveGameToSlot(SaveGameInstance, SlotName, 0))
 		{
-			UE_LOG(LogTemp, Log, TEXT("[FileDatabase] Saved SaveGame for player: %lld"), PlayerUid);
+			UE_LOG(LogHktFileDatabase, Log, TEXT("[FileDatabase] Saved SaveGame for player: %lld"), PlayerUid);
 			Callback(true);
 		}
 		else
 		{
-			UE_LOG(LogTemp, Error, TEXT("[FileDatabase] Failed to write SaveGame to slot: %s"), *SlotName);
+			UE_LOG(LogHktFileDatabase, Error, TEXT("[FileDatabase] Failed to write SaveGame to slot: %s"), *SlotName);
 			Callback(false);
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[FileDatabase] Failed to create SaveGame instance for player: %lld"), PlayerUid);
+		UE_LOG(LogHktFileDatabase, Error, TEXT("[FileDatabase] Failed to create SaveGame instance for player: %lld"), PlayerUid);
 		Callback(false);
 	}
 }
@@ -183,7 +185,7 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 		{
 			if (!bSuccess)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), InPlayerUid);
+				UE_LOG(LogHktFileDatabase, Warning, TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), InPlayerUid);
 			}
 		});
 	}
@@ -219,7 +221,7 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 			{
 				if (!bSuccess)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), InPlayerUid);
+					UE_LOG(LogHktFileDatabase, Warning, TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), InPlayerUid);
 				}
 			});
 		});

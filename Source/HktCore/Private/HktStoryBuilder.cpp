@@ -7,6 +7,8 @@
 #include "VM/HktVMProgram.h"
 #include "GameplayTagsManager.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktStoryBuilder, Log, All);
+
 // ============================================================================
 // FHktStoryBuilder - Construction
 // ============================================================================
@@ -639,7 +641,7 @@ void FHktStoryBuilder::ResolveLabels()
         }
         else
         {
-            UE_LOG(LogTemp, Error, TEXT("Unresolved label: %s in Flow %s"), *LabelName, *Program->Tag.ToString());
+            UE_LOG(LogHktStoryBuilder, Error, TEXT("Unresolved label: %s in Flow %s"), *LabelName, *Program->Tag.ToString());
         }
     }
 }
@@ -655,7 +657,7 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
 
     if (!ValidateEntityFlow())
     {
-        UE_LOG(LogTemp, Error,
+        UE_LOG(LogHktStoryBuilder, Error,
             TEXT("Story BUILD FAILED: %s — 엔티티 레지스터 검증 실패. 이 Story는 등록되지 않습니다."),
             *Program->Tag.ToString());
         return nullptr;
@@ -698,7 +700,7 @@ bool FHktStoryBuilder::ValidateEntityFlow()
 
         if (!(EntityRegs & (1 << R)))
         {
-            UE_LOG(LogTemp, Error,
+            UE_LOG(LogHktStoryBuilder, Error,
                 TEXT("Story BUILD: %s PC=%d Op=%s — Reg %s (R%d) 가 엔티티로 사용되었지만 이전에 초기화되지 않았습니다. "
                      "SpawnEntity/WaitCollision/NextFound 호출 순서를 확인하세요."),
                 *Program->Tag.ToString(), PC, GetOpCodeName(Op), Name, R);

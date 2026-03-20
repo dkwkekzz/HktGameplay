@@ -4,6 +4,8 @@
 #include "GameplayTagContainer.h"
 #include "HktStoryTags.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktTransientDatabase, Log, All);
+
 UHktTransientDatabaseComponent::UHktTransientDatabaseComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
@@ -68,7 +70,7 @@ void UHktTransientDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FH
         TransientRecords.Add(InPlayerUid, MoveTemp(NewRecord));
     }
     
-    UE_LOG(LogTemp, VeryVerbose, TEXT("[TransientDatabase] Saved player record in memory: PlayerUid=%lld"), InPlayerUid);
+    UE_LOG(LogHktTransientDatabase, VeryVerbose, TEXT("[TransientDatabase] Saved player record in memory: PlayerUid=%lld"), InPlayerUid);
 }
 
 const FHktPlayerRecord* UHktTransientDatabaseComponent::GetCachedPlayerRecord(int64 InPlayerUid) const

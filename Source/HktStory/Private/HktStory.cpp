@@ -4,6 +4,8 @@
 #include "HktStoryRegistry.h"
 #include "HktCoreEventLog.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktStory, Log, All);
+
 IMPLEMENT_MODULE(FHktStoryModule, HktStory)
 
 void FHktStoryModule::StartupModule()
@@ -17,5 +19,5 @@ void FHktStoryModule::StartupModule()
 
 void FHktStoryModule::ShutdownModule()
 {
-	UE_LOG(LogTemp, Log, TEXT("[HktStory] Module shutdown"));
+	UE_LOG(LogHktStory, Log, TEXT("HktStory Module Shutdown"));
 }

@@ -5,17 +5,19 @@
 
 #define LOCTEXT_NAMESPACE "FHktVFXModule"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktVFX, Log, All);
+
 class FHktVFXModule : public IHktVFXModule
 {
 public:
 	virtual void StartupModule() override
 	{
-		UE_LOG(LogTemp, Log, TEXT("HktVFX Module Started"));
+		UE_LOG(LogHktVFX, Log, TEXT("HktVFX Module Started"));
 	}
 
 	virtual void ShutdownModule() override
 	{
-		UE_LOG(LogTemp, Log, TEXT("HktVFX Module Shutdown"));
+		UE_LOG(LogHktVFX, Log, TEXT("HktVFX Module Shutdown"));
 	}
 };
 

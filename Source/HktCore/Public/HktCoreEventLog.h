@@ -7,22 +7,26 @@
 #include "GameplayTagContainer.h"
 #include "HAL/CriticalSection.h"
 
+HKTCORE_API DECLARE_LOG_CATEGORY_EXTERN(LogHktEvent, Log, All);
+
 // ============================================================================
 // HKT_EVENT_LOG 매크로
 //
 // ENABLE_HKT_INSIGHTS 매크로 활용 (HktCore.Build.cs 에서 비-Shipping 빌드 시 정의).
 // bActive 플래그를 먼저 확인하여 패널이 닫혀 있으면 즉시 반환 (성능 최적화).
+//
+// HKT_EVENT_LOG_ENTITY — 언리얼 로그로 출력 (항상 활성, Shipping 포함)
+// HKT_EVENT_LOG / HKT_EVENT_LOG_TAG — Developer 패널 전용 (Insights 활성 시)
 // ============================================================================
+
+#define HKT_EVENT_LOG_ENTITY(Category, Message, EntityId) \
+	UE_LOG(LogHktEvent, Verbose, TEXT("[%s] Entity=%d: %s"), TEXT(Category), EntityId, *FString(Message))
 
 #if ENABLE_HKT_INSIGHTS
 
 #define HKT_EVENT_LOG(Category, Message) \
 	do { if (FHktCoreEventLog::Get().IsActive()) \
 		FHktCoreEventLog::Get().Log(TEXT(Category), Message); } while(0)
-
-#define HKT_EVENT_LOG_ENTITY(Category, Message, EntityId) \
-	do { if (FHktCoreEventLog::Get().IsActive()) \
-		FHktCoreEventLog::Get().Log(TEXT(Category), Message, EntityId); } while(0)
 
 #define HKT_EVENT_LOG_TAG(Category, Message, EntityId, Tag) \
 	do { if (FHktCoreEventLog::Get().IsActive()) \
@@ -31,7 +35,6 @@
 #else
 
 #define HKT_EVENT_LOG(Category, Message)                    do {} while(0)
-#define HKT_EVENT_LOG_ENTITY(Category, Message, EntityId)   do {} while(0)
 #define HKT_EVENT_LOG_TAG(Category, Message, EntityId, Tag) do {} while(0)
 
 #endif // ENABLE_HKT_INSIGHTS

@@ -2,6 +2,8 @@
 
 #include "HktCoreEventLog.h"
 
+DEFINE_LOG_CATEGORY(LogHktEvent);
+
 FHktCoreEventLog& FHktCoreEventLog::Get()
 {
 	static FHktCoreEventLog Instance;

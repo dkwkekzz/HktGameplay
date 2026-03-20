@@ -15,6 +15,8 @@
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Widgets/SWidget.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktHUD, Log, All);
+
 void AHktHUD::BeginPlay()
 {
 	Super::BeginPlay();
@@ -62,7 +64,7 @@ void AHktHUD::BindPlayerInteraction(APlayerController* PC)
 
 	if (!PlayerInteraction)
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[HktHUD] PlayerController does not implement IHktPlayerInteractionInterface"));
+		UE_LOG(LogHktHUD, Verbose, TEXT("[HktHUD] PlayerController does not implement IHktPlayerInteractionInterface"));
 	}
 }
 

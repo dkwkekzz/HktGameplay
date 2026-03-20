@@ -5,11 +5,13 @@
 #include "NiagaraSystem.h"
 #include "Engine/World.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktVFXResolver, Log, All);
+
 UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
 {
     if (!AssetBank)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[VFXResolver] No AssetBank assigned"));
+        UE_LOG(LogHktVFXResolver, Warning, TEXT("[VFXResolver] No AssetBank assigned"));
         return nullptr;
     }
 
@@ -20,7 +22,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
         System = FallbackSystem;
         if (!System)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[VFXResolver] No matching VFX for: %s"),
+            UE_LOG(LogHktVFXResolver, Warning, TEXT("[VFXResolver] No matching VFX for: %s"),
                 *Intent.GetAssetKey());
             return nullptr;
         }

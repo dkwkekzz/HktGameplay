@@ -10,6 +10,8 @@
 #include "HAL/IConsoleManager.h"
 #include "HktCoreEventLog.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktSimulation, Log, All);
+
 // ============================================================================
 // 콘솔 변수 (CVar) - 런타임 이동 조작감 튜닝용
 // 사용법: 에디터 콘솔 창에서 "hkt.Move.AccelMultiplier 5.0" 등 입력
@@ -97,7 +99,7 @@ void FHktVMBuildSystem::Process(
         const FHktVMProgram* Program = FHktVMProgramRegistry::Get().FindProgram(Event.EventTag);
         if (!Program)
         {
-            UE_LOG(LogTemp, Error, TEXT("VM Build: No program for %s — Story가 등록되지 않았습니다 (빌드 검증 실패 또는 미등록)"), *Event.EventTag.ToString());
+            UE_LOG(LogHktSimulation, Error, TEXT("VM Build: No program for %s — Story가 등록되지 않았습니다 (빌드 검증 실패 또는 미등록)"), *Event.EventTag.ToString());
             continue;
         }
 
@@ -123,7 +125,7 @@ void FHktVMBuildSystem::Process(
         FHktVMHandle Handle = Pool.Allocate();
         if (!Handle.IsValid())
         {
-            UE_LOG(LogTemp, Warning, TEXT("VM Build: Pool exhausted"));
+            UE_LOG(LogHktSimulation, Warning, TEXT("VM Build: Pool exhausted"));
             continue;
         }
 
@@ -294,7 +296,7 @@ void FHktVMProcessSystem::Process(
         {
             if (Result == EVMStatus::Failed)
             {
-                UE_LOG(LogTemp, Error, TEXT("VM FAILED: %s Src=%d PC=%d — client sent invalid intent"),
+                UE_LOG(LogHktSimulation, Error, TEXT("VM FAILED: %s Src=%d PC=%d — client sent invalid intent"),
                     Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("?"),
                     Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId,
                     Runtime->PC);

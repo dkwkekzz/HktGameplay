@@ -10,6 +10,8 @@
 #include "Components/CapsuleComponent.h"
 #include "HktCoreEventLog.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogHktActorRenderer, Log, All);
+
 FHktActorRenderer::FHktActorRenderer(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
 {
@@ -157,7 +159,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 		if (!ActorClass)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] SpawnActor: No ActorClass for tag %s (DataAsset not found or missing ActorClass)"), *VisualTag.ToString());
+			UE_LOG(LogHktActorRenderer, Warning, TEXT("SpawnActor: No ActorClass for tag %s (DataAsset not found or missing ActorClass)"), *VisualTag.ToString());
 			return;
 		}
 
@@ -391,7 +393,7 @@ void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresenta
 	FName SocketName = GetSocketName(Slot);
 	if (!SkelMesh->DoesSocketExist(SocketName))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HktActorRenderer] Socket '%s' not found on owner %d for item %d"), *SocketName.ToString(), OwnerId, ItemId);
+		UE_LOG(LogHktActorRenderer, Warning, TEXT("Socket '%s' not found on owner %d for item %d"), *SocketName.ToString(), OwnerId, ItemId);
 		return;
 	}
 
