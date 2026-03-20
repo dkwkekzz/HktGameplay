@@ -80,11 +80,7 @@ void FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex E
     HKT_EVENT_LOG_ENTITY("Core.VM",
         FString::Printf(TEXT("Op_DestroyEntity Id=%d"), E), E);
 
-    // 엔티티 제거는 즉시 적용 (다른 VM이 참조하지 못하게)
-    if (WorldState)
-    {
-        WorldState->RemoveEntity(E);
-    }
+    WorldState->RemoveEntity(E);
 }
 
 // ============================================================================
@@ -93,7 +89,7 @@ void FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex E
 
 void FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2)
 {
-    if (Runtime.Context)
+    if (Runtime.Context && WorldState)
     {
         FHktEntityId E1 = Runtime.GetRegEntity(Entity1);
         FHktEntityId E2 = Runtime.GetRegEntity(Entity2);
@@ -196,15 +192,16 @@ void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase
 void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
 {
     if (!WorldState || !VMProxy) return;
+
+    FHktEntityId E = Runtime.GetRegEntity(Entity);
     const FString& VFXName = GetString(Runtime, StringIndex);
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*VFXName), false);
     if (Tag.IsValid())
     {
-        VMProxy->AddTag(*WorldState, Runtime.GetRegEntity(Entity), Tag);
+        VMProxy->AddTag(*WorldState, E, Tag);
     }
     HKT_EVENT_LOG_ENTITY("Core.VM",
-        FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), Runtime.GetRegEntity(Entity), *VFXName),
-        Runtime.GetRegEntity(Entity));
+        FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *VFXName), E);
 }
 
 void FHktVMInterpreter::Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex)
@@ -228,28 +225,32 @@ void FHktVMInterpreter::Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterI
 void FHktVMInterpreter::Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
 {
     if (!WorldState || !VMProxy) return;
+
+    FHktEntityId E = Runtime.GetRegEntity(Entity);
+
     const FString& TagName = GetString(Runtime, StringIndex);
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
     if (Tag.IsValid())
     {
         HKT_EVENT_LOG_TAG("Core.VM",
-            FString::Printf(TEXT("Op_AddTag Id=%d Tag=%s"), Runtime.GetRegEntity(Entity), *TagName),
-            Runtime.GetRegEntity(Entity), Tag);
-        VMProxy->AddTag(*WorldState, Runtime.GetRegEntity(Entity), Tag);
+            FString::Printf(TEXT("Op_AddTag Id=%d Tag=%s"), E, *TagName), E, Tag);
+        VMProxy->AddTag(*WorldState, E, Tag);
     }
 }
 
 void FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
 {
     if (!WorldState || !VMProxy) return;
+
+    FHktEntityId E = Runtime.GetRegEntity(Entity);
+
     const FString& TagName = GetString(Runtime, StringIndex);
     FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
     if (Tag.IsValid())
     {
         HKT_EVENT_LOG_TAG("Core.VM",
-            FString::Printf(TEXT("Op_RemoveTag Id=%d Tag=%s"), Runtime.GetRegEntity(Entity), *TagName),
-            Runtime.GetRegEntity(Entity), Tag);
-        VMProxy->RemoveTag(*WorldState, Runtime.GetRegEntity(Entity), Tag);
+            FString::Printf(TEXT("Op_RemoveTag Id=%d Tag=%s"), E, *TagName), E, Tag);
+        VMProxy->RemoveTag(*WorldState, E, Tag);
     }
 }
 
@@ -258,10 +259,11 @@ void FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, Reg
     bool bHas = false;
     if (WorldState)
     {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
         const FString& TagName = GetString(Runtime, StringIndex);
         FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
         if (Tag.IsValid())
-            bHas = WorldState->HasTag(Runtime.GetRegEntity(Entity), Tag);
+            bHas = WorldState->HasTag(E, Tag);
     }
     Runtime.SetReg(Dst, bHas ? 1 : 0);
 }

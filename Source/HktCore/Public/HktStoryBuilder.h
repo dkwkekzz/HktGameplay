@@ -259,7 +259,10 @@ public:
 
     // ========== Build ==========
 
-    TSharedRef<FHktVMProgram> Build();
+    /** 빌드 — 검증 실패 시 nullptr 반환, 실패한 Story는 등록되지 않음 */
+    TSharedPtr<FHktVMProgram> Build();
+
+    /** 빌드 + 레지스트리 등록 — 검증 실패 시 등록하지 않음 */
     void BuildAndRegister();
 
 private:
@@ -270,6 +273,9 @@ private:
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
     void ResolveLabels();
+
+    /** 빌드 타임 엔티티 레지스터 초기화 순서 검증 — 실패 시 false */
+    bool ValidateEntityFlow();
 
     /** 내부 라벨용 고유 카운터 */
     FString MakeInternalLabel(const TCHAR* Prefix);

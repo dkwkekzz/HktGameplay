@@ -92,8 +92,8 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::PlaySound: Op_PlaySound(Runtime, Inst.GetSignedImm20()); break;
     case EOpCode::PlaySoundAtLocation: Op_PlaySoundAtLocation(Runtime, Inst.Src1, Inst.Imm12); break;
     // Tags
-    case EOpCode::AddTag:    Op_AddTag(Runtime, Inst.Src1, Inst.Imm12);            break;
-    case EOpCode::RemoveTag: Op_RemoveTag(Runtime, Inst.Src1, Inst.Imm12);         break;
+    case EOpCode::AddTag:    Op_AddTag(Runtime, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::RemoveTag: Op_RemoveTag(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::HasTag:    Op_HasTag(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
     // NPC Spawning
     case EOpCode::CountByTag: Op_CountByTag(Runtime, Inst.Dst, Inst.Imm12); break;
@@ -186,7 +186,10 @@ void FHktVMInterpreter::Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, 
 void FHktVMInterpreter::Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
 {
     if (Runtime.Context)
-        Runtime.SetReg(Dst, Runtime.Context->ReadEntity(Runtime.GetRegEntity(Entity), PropertyId));
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        Runtime.SetReg(Dst, Runtime.Context->ReadEntity(E, PropertyId));
+    }
 }
 
 void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropertyId, RegisterIndex Src)
@@ -198,7 +201,10 @@ void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropertyId, 
 void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
 {
     if (Runtime.Context)
-        Runtime.Context->WriteEntity(Runtime.GetRegEntity(Entity), PropertyId, Runtime.GetReg(Src));
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        Runtime.Context->WriteEntity(E, PropertyId, Runtime.GetReg(Src));
+    }
 }
 
 void FHktVMInterpreter::Op_Move(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src)

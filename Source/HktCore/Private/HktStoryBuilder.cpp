@@ -644,7 +644,7 @@ void FHktStoryBuilder::ResolveLabels()
     }
 }
 
-TSharedRef<FHktVMProgram> FHktStoryBuilder::Build()
+TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
 {
     if (Program->Code.Num() == 0 || Program->Code.Last().GetOpCode() != EOpCode::Halt)
     {
@@ -652,12 +652,133 @@ TSharedRef<FHktVMProgram> FHktStoryBuilder::Build()
     }
 
     ResolveLabels();
+
+    if (!ValidateEntityFlow())
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("Story BUILD FAILED: %s — 엔티티 레지스터 검증 실패. 이 Story는 등록되지 않습니다."),
+            *Program->Tag.ToString());
+        return nullptr;
+    }
+
     return Program;
+}
+
+// ============================================================================
+// Build-time Entity Register Validation
+// ============================================================================
+
+bool FHktStoryBuilder::ValidateEntityFlow()
+{
+    bool bValid = true;
+    // Self(R10), Target(R11)은 이벤트에서 항상 초기화됨
+    // Spawned(R12), Hit(R13), Iter(R14)는 특정 Op 실행 후에만 유효
+    uint16 EntityRegs = (1 << Reg::Self) | (1 << Reg::Target);
+
+    auto GetEntityRegName = [](RegisterIndex R) -> const TCHAR*
+    {
+        switch (R)
+        {
+        case Reg::Self:    return TEXT("Self");
+        case Reg::Target:  return TEXT("Target");
+        case Reg::Spawned: return TEXT("Spawned");
+        case Reg::Hit:     return TEXT("Hit");
+        case Reg::Iter:    return TEXT("Iter");
+        default:           return nullptr;
+        }
+    };
+
+    // 특수 엔티티 레지스터(R10~R14)가 초기화되기 전에 사용되는지 검사
+    auto CheckEntityReg = [&](int32 PC, EOpCode Op, RegisterIndex R)
+    {
+        // R0~R9, Flag/Count(R15)는 범용이므로 검사 대상이 아님
+        const TCHAR* Name = GetEntityRegName(R);
+        if (!Name)
+            return;
+
+        if (!(EntityRegs & (1 << R)))
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("Story BUILD: %s PC=%d Op=%s — Reg %s (R%d) 가 엔티티로 사용되었지만 이전에 초기화되지 않았습니다. "
+                     "SpawnEntity/WaitCollision/NextFound 호출 순서를 확인하세요."),
+                *Program->Tag.ToString(), PC, GetOpCodeName(Op), Name, R);
+            bValid = false;
+        }
+    };
+
+    for (int32 PC = 0; PC < Program->Code.Num(); ++PC)
+    {
+        const FInstruction& Inst = Program->Code[PC];
+        EOpCode Op = Inst.GetOpCode();
+
+        switch (Op)
+        {
+        // --- Entity register writers ---
+        case EOpCode::SpawnEntity:
+            EntityRegs |= (1 << Reg::Spawned);
+            break;
+        case EOpCode::WaitCollision:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            EntityRegs |= (1 << Reg::Hit);
+            break;
+        case EOpCode::NextFound:
+            EntityRegs |= (1 << Reg::Iter);
+            break;
+
+        // --- Entity register readers (Src1 = entity) ---
+        case EOpCode::LoadStoreEntity:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            break;
+        case EOpCode::SaveStoreEntity:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            break;
+        case EOpCode::DestroyEntity:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            break;
+        case EOpCode::FindInRadius:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            break;
+        case EOpCode::GetDistance:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            CheckEntityReg(PC, Op, Inst.Src2);
+            break;
+        case EOpCode::AddTag:
+        case EOpCode::RemoveTag:
+        case EOpCode::HasTag:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            break;
+        case EOpCode::PlayVFXAttached:
+        case EOpCode::ApplyEffect:
+        case EOpCode::RemoveEffect:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            break;
+        case EOpCode::SetOwnerUid:
+        case EOpCode::ClearOwnerUid:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            break;
+        case EOpCode::CountByOwner:
+        case EOpCode::FindByOwner:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            break;
+        case EOpCode::WaitMoveEnd:
+            CheckEntityReg(PC, Op, Inst.Src1);
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    return bValid;
 }
 
 void FHktStoryBuilder::BuildAndRegister()
 {
-    FHktVMProgramRegistry::Get().RegisterProgram(Build());
+    TSharedPtr<FHktVMProgram> BuiltProgram = Build();
+    if (BuiltProgram.IsValid())
+    {
+        FHktVMProgramRegistry::Get().RegisterProgram(BuiltProgram.ToSharedRef());
+    }
 }
 
 // ============================================================================
