@@ -52,9 +52,9 @@ private:
     void Op_LoadConst(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 Value);
     void Op_LoadConstHigh(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 HighBits);
     void Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, uint16 PropertyId);
-    EVMStatus Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId);
+    void Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId);
     void Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropertyId, RegisterIndex Src);
-    EVMStatus Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
+    void Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src);
     void Op_Move(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src);
 
     // ===== Arithmetic =====
@@ -75,25 +75,25 @@ private:
 
     // ===== Entity =====
     void Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex);
-    EVMStatus Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex Entity);
+    void Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
     // ===== Spatial Query =====
-    EVMStatus Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2);
-    EVMStatus Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm);
+    void Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2);
+    void Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm);
     void Op_NextFound(FHktVMRuntime& Runtime);
 
     // ===== Presentation =====
     void Op_ApplyEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex);
     void Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex);
     void Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex);
-    EVMStatus Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
+    void Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
     void Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex);
     void Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex);
 
     // ===== Tags =====
-    EVMStatus Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
-    EVMStatus Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
-    EVMStatus Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 StringIndex);
+    void Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
+    void Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
+    void Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 StringIndex);
 
     // ===== NPC Spawning =====
     void Op_CountByTag(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 StringIndex);
@@ -104,8 +104,8 @@ private:
     // ===== Item System =====
     void Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, int32 StringIndex);
     void Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, int32 StringIndex);
-    EVMStatus Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity);
-    EVMStatus Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity);
+    void Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity);
+    void Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);

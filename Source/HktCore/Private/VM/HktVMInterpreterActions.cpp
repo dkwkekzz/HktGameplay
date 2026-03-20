@@ -74,21 +74,20 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex
     }
 }
 
-EVMStatus FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex Entity)
+void FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex Entity)
 {
     FHktEntityId E = Runtime.GetRegEntity(Entity);
     HKT_EVENT_LOG_ENTITY("Core.VM",
         FString::Printf(TEXT("Op_DestroyEntity Id=%d"), E), E);
 
     WorldState->RemoveEntity(E);
-    return EVMStatus::Running;
 }
 
 // ============================================================================
 // Spatial Query
 // ============================================================================
 
-EVMStatus FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2)
+void FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2)
 {
     if (Runtime.Context && WorldState)
     {
@@ -110,10 +109,9 @@ EVMStatus FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterInde
         int32 DistSq = static_cast<int32>(FMath::Min(static_cast<int64>(MAX_int32), DX * DX + DY * DY + DZ * DZ));
         Runtime.SetReg(Dst, static_cast<int32>(FMath::Sqrt(static_cast<float>(DistSq))));
     }
-    return EVMStatus::Running;
 }
 
-EVMStatus FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm)
+void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm)
 {
     Runtime.SpatialQuery.Reset();
 
@@ -147,7 +145,6 @@ EVMStatus FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterInd
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
-    return EVMStatus::Running;
 }
 
 void FHktVMInterpreter::Op_NextFound(FHktVMRuntime& Runtime)
@@ -192,9 +189,9 @@ void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase
             *GetString(Runtime, StringIndex)));
 }
 
-EVMStatus FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
+void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
 {
-    if (!WorldState || !VMProxy) return EVMStatus::Running;
+    if (!WorldState || !VMProxy) return;
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
     const FString& VFXName = GetString(Runtime, StringIndex);
@@ -205,7 +202,6 @@ EVMStatus FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, Register
     }
     HKT_EVENT_LOG_ENTITY("Core.VM",
         FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *VFXName), E);
-    return EVMStatus::Running;
 }
 
 void FHktVMInterpreter::Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex)
@@ -226,9 +222,9 @@ void FHktVMInterpreter::Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterI
 // Tags
 // ============================================================================
 
-EVMStatus FHktVMInterpreter::Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
+void FHktVMInterpreter::Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
 {
-    if (!WorldState || !VMProxy) return EVMStatus::Running;
+    if (!WorldState || !VMProxy) return;
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
 
@@ -240,12 +236,11 @@ EVMStatus FHktVMInterpreter::Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Ent
             FString::Printf(TEXT("Op_AddTag Id=%d Tag=%s"), E, *TagName), E, Tag);
         VMProxy->AddTag(*WorldState, E, Tag);
     }
-    return EVMStatus::Running;
 }
 
-EVMStatus FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
+void FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
 {
-    if (!WorldState || !VMProxy) return EVMStatus::Running;
+    if (!WorldState || !VMProxy) return;
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
 
@@ -257,10 +252,9 @@ EVMStatus FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex 
             FString::Printf(TEXT("Op_RemoveTag Id=%d Tag=%s"), E, *TagName), E, Tag);
         VMProxy->RemoveTag(*WorldState, E, Tag);
     }
-    return EVMStatus::Running;
 }
 
-EVMStatus FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 StringIndex)
+void FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 StringIndex)
 {
     bool bHas = false;
     if (WorldState)
@@ -272,7 +266,6 @@ EVMStatus FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst
             bHas = WorldState->HasTag(E, Tag);
     }
     Runtime.SetReg(Dst, bHas ? 1 : 0);
-    return EVMStatus::Running;
 }
 
 // ============================================================================
@@ -391,7 +384,7 @@ void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex Own
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
 }
 
-EVMStatus FHktVMInterpreter::Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity)
+void FHktVMInterpreter::Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity)
 {
     if (WorldState && VMProxy && Runtime.PlayerUid != 0)
     {
@@ -400,10 +393,9 @@ EVMStatus FHktVMInterpreter::Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterInde
             FString::Printf(TEXT("Op_SetOwnerUid Id=%d Uid=%lld"), E, Runtime.PlayerUid), E);
         VMProxy->SetOwnerUid(*WorldState, E, Runtime.PlayerUid);
     }
-    return EVMStatus::Running;
 }
 
-EVMStatus FHktVMInterpreter::Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity)
+void FHktVMInterpreter::Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity)
 {
     if (WorldState && VMProxy)
     {
@@ -412,7 +404,6 @@ EVMStatus FHktVMInterpreter::Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIn
             FString::Printf(TEXT("Op_ClearOwnerUid Id=%d"), E), E);
         VMProxy->SetOwnerUid(*WorldState, E, 0);
     }
-    return EVMStatus::Running;
 }
 
 // ============================================================================
