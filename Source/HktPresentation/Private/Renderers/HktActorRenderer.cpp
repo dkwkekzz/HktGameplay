@@ -5,6 +5,7 @@
 #include "HktAnimInstance.h"
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
+#include "DataAssets/HktAnimMontageDataAsset.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -103,7 +104,7 @@ void FHktActorRenderer::Teardown()
 	PendingInitSync.Empty();
 	AttachedItems.Empty();
 	PendingAttachments.Empty();
-	VisualAssetMap.Empty();
+	AnimMontageAssetMap.Empty();
 }
 
 AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
@@ -186,20 +187,36 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			ActorMap.Add(EntityId, SpawnedActor);
 			PendingInitSync.Add(EntityId);
 
-			// DataAsset 캐시 (AnimMapping 적용을 위해 보관)
-			if (VisualAsset)
-			{
-				VisualAssetMap.Add(EntityId, VisualAsset);
-			}
-
 			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
 			Motion.TargetLocation = SpawnLocation;
 			Motion.TargetRotation = Rotation;
 			Motion.bIsMoving = bIsMoving;
 			Motion.bNeedsGroundSnap = false;
 
-			// 스폰 직후 DataAsset의 AnimMappings를 AnimInstance에 등록
-			ApplyVisualAnimMappings(EntityId);
+			// AnimMontageDataAsset 비동기 로드 (VisualAsset에 AnimMontageTag가 있을 경우)
+			if (VisualAsset && VisualAsset->AnimMontageTag.IsValid())
+			{
+				UHktAssetSubsystem* AnimAssetSys = UHktAssetSubsystem::Get(CallbackWorld);
+				if (AnimAssetSys)
+				{
+					FGameplayTag MontageTag = VisualAsset->AnimMontageTag;
+					AnimAssetSys->LoadAssetAsync(MontageTag, [WeakGuard, this, EntityId, MontageTag](UHktTagDataAsset* MontageAsset)
+					{
+						if (!WeakGuard.IsValid()) return;
+
+						UHktAnimMontageDataAsset* MontageDA = Cast<UHktAnimMontageDataAsset>(MontageAsset);
+						if (!MontageDA || MontageDA->AnimMappings.Num() == 0)
+						{
+							UE_LOG(LogHktPresentation, Warning, TEXT("SpawnActor: AnimMontageDataAsset not found or empty for tag %s (Entity=%d)"), *MontageTag.ToString(), EntityId);
+							return;
+						}
+
+						AnimMontageAssetMap.Add(EntityId, MontageDA);
+						// 즉시 적용 시도 (AnimInstance가 이미 초기화되었을 수 있음)
+						ApplyVisualAnimMappings(EntityId);
+					});
+				}
+			}
 		}
 	});
 }
@@ -229,7 +246,7 @@ void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 	}
 	MotionStates.Remove(Id);
 	PendingInitSync.Remove(Id);
-	VisualAssetMap.Remove(Id);
+	AnimMontageAssetMap.Remove(Id);
 }
 
 void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame)
@@ -446,12 +463,12 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 
 void FHktActorRenderer::ApplyVisualAnimMappings(FHktEntityId Id)
 {
-	TWeakObjectPtr<UObject>* AssetPtr = VisualAssetMap.Find(Id);
+	TWeakObjectPtr<UObject>* AssetPtr = AnimMontageAssetMap.Find(Id);
 	if (!AssetPtr || !AssetPtr->IsValid())
 		return;
 
-	UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(AssetPtr->Get());
-	if (!VisualAsset || VisualAsset->AnimMappings.Num() == 0)
+	UHktAnimMontageDataAsset* MontageDA = Cast<UHktAnimMontageDataAsset>(AssetPtr->Get());
+	if (!MontageDA || MontageDA->AnimMappings.Num() == 0)
 		return;
 
 	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
@@ -467,8 +484,8 @@ void FHktActorRenderer::ApplyVisualAnimMappings(FHktEntityId Id)
 	if (!HktAnim)
 		return;
 
-	// DataAsset의 AnimMappings를 AnimInstance에 동적 등록
-	for (const FHktVisualAnimMapping& Mapping : VisualAsset->AnimMappings)
+	// AnimMontageDataAsset의 매핑을 AnimInstance에 동적 등록
+	for (const FHktAnimMontageMapping& Mapping : MontageDA->AnimMappings)
 	{
 		if (Mapping.AnimTag.IsValid())
 		{
@@ -477,9 +494,10 @@ void FHktActorRenderer::ApplyVisualAnimMappings(FHktEntityId Id)
 	}
 
 	// 등록 완료 후 캐시 제거 (중복 등록 방지)
-	VisualAssetMap.Remove(Id);
+	AnimMontageAssetMap.Remove(Id);
 
-	UE_LOG(LogHktPresentation, Log, TEXT("ApplyVisualAnimMappings: Entity=%d Mappings=%d"), Id, VisualAsset->AnimMappings.Num());
+	UE_LOG(LogHktPresentation, Log, TEXT("ApplyVisualAnimMappings: Entity=%d Mappings=%d from %s"),
+		Id, MontageDA->AnimMappings.Num(), *MontageDA->IdentifierTag.ToString());
 }
 
 bool FHktActorRenderer::TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const

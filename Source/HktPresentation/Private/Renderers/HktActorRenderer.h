@@ -50,8 +50,8 @@ private:
 	TSet<FHktEntityId> PendingInitSync;
 	TSet<FHktEntityId> AttachedItems;
 	TSet<FHktEntityId> PendingAttachments;
-	/** 엔티티별 VisualDataAsset 캐시 (AnimMapping 등록에 사용) */
-	TMap<FHktEntityId, TWeakObjectPtr<UObject>> VisualAssetMap;
+	/** 엔티티별 AnimMontageDataAsset 캐시 (비동기 로드 완료 후 AnimInstance에 등록) */
+	TMap<FHktEntityId, TWeakObjectPtr<UObject>> AnimMontageAssetMap;
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
 
 	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */
