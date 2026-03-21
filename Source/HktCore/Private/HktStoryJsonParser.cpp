@@ -216,6 +216,13 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 	}
 	Result.StoryTag = StoryTagStr;
 
+	// storyTag 자체도 ResolveTag를 통해 등록 (에디터에서는 자동등록, 런타임에서는 조회)
+	FGameplayTag StoryTag = ResolveTag(StoryTagStr);
+	if (StoryTag.IsValid())
+	{
+		Result.ReferencedTags.AddUnique(StoryTag);
+	}
+
 	// Tag aliases
 	TMap<FString, FGameplayTag> TagAliases;
 	const TSharedPtr<FJsonObject>* TagsObj;
