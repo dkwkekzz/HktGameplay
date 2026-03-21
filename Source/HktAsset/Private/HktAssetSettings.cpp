@@ -10,8 +10,8 @@ UHktAssetSettings::UHktAssetSettings()
 		// Entity.Character.{Name} → {Root}/Characters/{Name}/BP_{Name}
 		{ TEXT("Entity.Character."), TEXT("{Root}/Characters/{Leaf}/BP_{Leaf}") },
 
-		// Entity.Item.{Name} → {Root}/Items/{Name}/SM_{Leaf}
-		{ TEXT("Entity.Item."), TEXT("{Root}/Items/{Leaf}/SM_{Leaf}") },
+		// Entity.Item.{Name} → {Root}/Items/{Name}/DA_{Leaf}
+		{ TEXT("Entity.Item."), TEXT("{Root}/Items/{Leaf}/DA_{Leaf}") },
 
 		// Entity.{Type}.{Name} → {Root}/Entities/{Name}/BP_{Name}  (fallback)
 		{ TEXT("Entity."), TEXT("{Root}/Entities/{Leaf}/BP_{Leaf}") },

@@ -5,6 +5,8 @@
 #include "HktAnimInstance.h"
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
+#include "DataAssets/HktItemVisualDataAsset.h"
+#include "Actors/HktItemActor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -146,46 +148,62 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		UWorld* CallbackWorld = LP->GetWorld();
 		if (!CallbackWorld) return;
 
-		TSubclassOf<AActor> ActorClass;
+		AActor* SpawnedActor = nullptr;
 
-		// DataAsset 기반 ActorClass 해결
-		UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset);
-		if (VisualAsset && VisualAsset->ActorClass)
+		// --- 아이템 DataAsset 분기: 메시 기반 데이터 드리븐 스폰 ---
+		if (UHktItemVisualDataAsset* ItemAsset = Cast<UHktItemVisualDataAsset>(LoadedAsset))
 		{
-			ActorClass = VisualAsset->ActorClass;
-		}
-
-		if (!ActorClass)
-		{
-			UE_LOG(LogHktPresentation, Warning, TEXT("SpawnActor: No ActorClass for tag %s (DataAsset not found or missing ActorClass)"), *VisualTag.ToString());
-			return;
-		}
-
-		// 캡슐 반높이 오프셋 계산
-		float HalfHeight = 0.0f;
-		if (AActor* CDO = ActorClass->GetDefaultObject<AActor>())
-		{
-			if (UCapsuleComponent* Capsule = CDO->FindComponentByClass<UCapsuleComponent>())
+			FActorSpawnParameters SpawnParams;
+			AHktItemActor* ItemActor = CallbackWorld->SpawnActor<AHktItemActor>(AHktItemActor::StaticClass(), Location, Rotation, SpawnParams);
+			if (ItemActor)
 			{
-				HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+				ItemActor->SetupMesh(ItemAsset->Mesh, ItemAsset->MeshScale, ItemAsset->AttachRotationOffset);
 			}
+			SpawnedActor = ItemActor;
+		}
+		else
+		{
+			// --- 캐릭터/NPC DataAsset 분기: Blueprint 클래스 스폰 ---
+			TSubclassOf<AActor> ActorClass;
+			UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset);
+			if (VisualAsset && VisualAsset->ActorClass)
+			{
+				ActorClass = VisualAsset->ActorClass;
+			}
+
+			if (!ActorClass)
+			{
+				UE_LOG(LogHktPresentation, Warning, TEXT("SpawnActor: No ActorClass for tag %s (DataAsset not found or missing ActorClass)"), *VisualTag.ToString());
+				return;
+			}
+
+			// 캡슐 반높이 오프셋 계산
+			float HalfHeight = 0.0f;
+			if (AActor* CDO = ActorClass->GetDefaultObject<AActor>())
+			{
+				if (UCapsuleComponent* Capsule = CDO->FindComponentByClass<UCapsuleComponent>())
+				{
+					HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+				}
+			}
+
+			FVector SpawnLocation = Location;
+			SpawnLocation.Z += HalfHeight;
+
+			FActorSpawnParameters SpawnParams;
+			SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, Rotation, SpawnParams);
 		}
 
-		FVector SpawnLocation = Location;
-		SpawnLocation.Z += HalfHeight;
-
-		FActorSpawnParameters SpawnParams;
-		AActor* SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, Rotation, SpawnParams);
 		if (SpawnedActor)
 		{
-			UE_LOG(LogHktPresentation, Verbose, TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f) Entity=%d"), *VisualTag.ToString(), SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z, EntityId);
+			UE_LOG(LogHktPresentation, Verbose, TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f) Entity=%d"), *VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z, EntityId);
 
 			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
 			PendingInitSync.Add(EntityId);
 
 			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
-			Motion.TargetLocation = SpawnLocation;
+			Motion.TargetLocation = SpawnedActor->GetActorLocation();
 			Motion.TargetRotation = Rotation;
 			Motion.bIsMoving = bIsMoving;
 			Motion.bNeedsGroundSnap = false;

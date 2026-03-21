@@ -1,0 +1,28 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "HktItemActor.generated.h"
+
+/**
+ * 범용 아이템 Actor.
+ * 모든 아이템 타입이 이 단일 C++ 클래스를 공유합니다.
+ * DataAsset(UHktItemVisualDataAsset)으로부터 메시를 받아 설정합니다.
+ */
+UCLASS(NotBlueprintable)
+class AHktItemActor : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AHktItemActor();
+
+	/** DataAsset에서 메시/스케일/회전 오프셋을 받아 컴포넌트에 적용 */
+	void SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset);
+
+private:
+	UPROPERTY(VisibleAnywhere, Category = "HKT|Item")
+	TObjectPtr<UStaticMeshComponent> MeshComponent;
+};
