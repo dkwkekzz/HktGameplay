@@ -21,13 +21,4 @@ public:
 	/** 이 시각 태그에 대응하는 액터 또는 블루프린트 클래스 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Visual")
 	TSubclassOf<AActor> ActorClass;
-
-	/**
-	 * 이 엔티티의 애니메이션 몽타주 매핑 DataAsset 태그.
-	 * AssetSubsystem에서 이 태그로 UHktAnimMontageDataAsset을 로드하여
-	 * AnimInstance에 동적 등록합니다.
-	 * 비어있으면 AnimBP 기본값만 사용합니다.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Animation")
-	FGameplayTag AnimMontageTag;
 };

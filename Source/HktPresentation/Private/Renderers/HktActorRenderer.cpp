@@ -5,7 +5,6 @@
 #include "HktAnimInstance.h"
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
-#include "DataAssets/HktAnimMontageDataAsset.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -40,7 +39,6 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		FHktEntityId Id = *It;
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E || !ActorMap.Contains(Id)) { It.RemoveCurrent(); continue; }
-		ApplyVisualAnimMappings(Id);  // AnimInstance가 지연 초기화된 경우 재시도
 		UpdateMotionTarget(Id, *E, E->SpawnedFrame);
 		UpdateAnimation(Id, *E, E->SpawnedFrame);
 		if (E->IsItemAttached())
@@ -104,7 +102,6 @@ void FHktActorRenderer::Teardown()
 	PendingInitSync.Empty();
 	AttachedItems.Empty();
 	PendingAttachments.Empty();
-	AnimMontageAssetMap.Empty();
 }
 
 AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
@@ -192,31 +189,6 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			Motion.TargetRotation = Rotation;
 			Motion.bIsMoving = bIsMoving;
 			Motion.bNeedsGroundSnap = false;
-
-			// AnimMontageDataAsset 비동기 로드 (VisualAsset에 AnimMontageTag가 있을 경우)
-			if (VisualAsset && VisualAsset->AnimMontageTag.IsValid())
-			{
-				UHktAssetSubsystem* AnimAssetSys = UHktAssetSubsystem::Get(CallbackWorld);
-				if (AnimAssetSys)
-				{
-					FGameplayTag MontageTag = VisualAsset->AnimMontageTag;
-					AnimAssetSys->LoadAssetAsync(MontageTag, [WeakGuard, this, EntityId, MontageTag](UHktTagDataAsset* MontageAsset)
-					{
-						if (!WeakGuard.IsValid()) return;
-
-						UHktAnimMontageDataAsset* MontageDA = Cast<UHktAnimMontageDataAsset>(MontageAsset);
-						if (!MontageDA || MontageDA->AnimMappings.Num() == 0)
-						{
-							UE_LOG(LogHktPresentation, Warning, TEXT("SpawnActor: AnimMontageDataAsset not found or empty for tag %s (Entity=%d)"), *MontageTag.ToString(), EntityId);
-							return;
-						}
-
-						AnimMontageAssetMap.Add(EntityId, MontageDA);
-						// 즉시 적용 시도 (AnimInstance가 이미 초기화되었을 수 있음)
-						ApplyVisualAnimMappings(EntityId);
-					});
-				}
-			}
 		}
 	});
 }
@@ -246,7 +218,6 @@ void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 	}
 	MotionStates.Remove(Id);
 	PendingInitSync.Remove(Id);
-	AnimMontageAssetMap.Remove(Id);
 }
 
 void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame)
@@ -459,45 +430,6 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 	PendingAttachments.Remove(ItemId);
 
 	UE_LOG(LogHktPresentation, Verbose, TEXT("DetachItem Entity=%d"), ItemId);
-}
-
-void FHktActorRenderer::ApplyVisualAnimMappings(FHktEntityId Id)
-{
-	TWeakObjectPtr<UObject>* AssetPtr = AnimMontageAssetMap.Find(Id);
-	if (!AssetPtr || !AssetPtr->IsValid())
-		return;
-
-	UHktAnimMontageDataAsset* MontageDA = Cast<UHktAnimMontageDataAsset>(AssetPtr->Get());
-	if (!MontageDA || MontageDA->AnimMappings.Num() == 0)
-		return;
-
-	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
-	if (!WeakPtr || !WeakPtr->IsValid())
-		return;
-
-	AActor* Actor = WeakPtr->Get();
-	USkeletalMeshComponent* SkelMesh = Actor->FindComponentByClass<USkeletalMeshComponent>();
-	if (!SkelMesh)
-		return;
-
-	UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance());
-	if (!HktAnim)
-		return;
-
-	// AnimMontageDataAsset의 매핑을 AnimInstance에 동적 등록
-	for (const FHktAnimMontageMapping& Mapping : MontageDA->AnimMappings)
-	{
-		if (Mapping.AnimTag.IsValid())
-		{
-			HktAnim->RegisterAnimMapping(Mapping.AnimTag, Mapping.Montage, Mapping.Sequence, Mapping.BlendSpace);
-		}
-	}
-
-	// 등록 완료 후 캐시 제거 (중복 등록 방지)
-	AnimMontageAssetMap.Remove(Id);
-
-	UE_LOG(LogHktPresentation, Log, TEXT("ApplyVisualAnimMappings: Entity=%d Mappings=%d from %s"),
-		Id, MontageDA->AnimMappings.Num(), *MontageDA->IdentifierTag.ToString());
 }
 
 bool FHktActorRenderer::TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const

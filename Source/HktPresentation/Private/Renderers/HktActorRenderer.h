@@ -42,16 +42,11 @@ private:
 	/** ActionSlot → 소켓 이름 매핑 */
 	static FName GetSocketName(int32 ActionSlot);
 
-	/** DataAsset의 AnimMappings를 AnimInstance에 등록 (스폰 직후 또는 PendingInitSync에서 호출) */
-	void ApplyVisualAnimMappings(FHktEntityId Id);
-
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
 	TMap<FHktEntityId, FHktActorMotionState> MotionStates;
 	TSet<FHktEntityId> PendingInitSync;
 	TSet<FHktEntityId> AttachedItems;
 	TSet<FHktEntityId> PendingAttachments;
-	/** 엔티티별 AnimMontageDataAsset 캐시 (비동기 로드 완료 후 AnimInstance에 등록) */
-	TMap<FHktEntityId, TWeakObjectPtr<UObject>> AnimMontageAssetMap;
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
 
 	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */
