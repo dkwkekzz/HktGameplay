@@ -24,7 +24,13 @@ struct HKTCORE_API FHktVMProgram
     /** 사전조건 검증 — 설정되지 않으면 항상 true (무조건 실행 가능) */
     FHktEventPrecondition Precondition;
 
+    /** Precondition 바이트코드 (설정 시 기존 람다보다 우선) */
+    TArray<FInstruction> PreconditionCode;
+    TArray<int32> PreconditionConstants;
+    TArray<FString> PreconditionStrings;
+
     bool IsValid() const { return Code.Num() > 0; }
+    bool HasPreconditionCode() const { return PreconditionCode.Num() > 0; }
     int32 CodeSize() const { return Code.Num(); }
 };
 

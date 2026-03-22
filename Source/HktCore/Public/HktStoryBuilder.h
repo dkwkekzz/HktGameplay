@@ -62,6 +62,14 @@ public:
     /** Story 사전조건 등록 — 클라이언트/서버 양측에서 호출 가능한 검증 함수 */
     FHktStoryBuilder& SetPrecondition(FHktEventPrecondition InPrecondition);
 
+    /**
+     * Precondition 바이트코드 모드 — Begin/End 사이의 모든 Emit은 PreconditionCode로 전달.
+     * 기존 step ops와 동일한 fluent API를 사용하되, 읽기 전용 ops만 허용.
+     * 실행 후 Flag 레지스터 != 0이면 precondition pass.
+     */
+    FHktStoryBuilder& BeginPrecondition();
+    FHktStoryBuilder& EndPrecondition();
+
     // ========== Control Flow ==========
 
     /** 라벨 정의 (점프 대상) */
@@ -299,6 +307,14 @@ private:
     TArray<FForEachContext> ForEachStack;
     int32 ForEachCounter = 0;
     int32 InternalLabelCounter = 0;
+
+    // Precondition 모드
+    bool bPreconditionMode = false;
+    TArray<FInstruction> PreconditionCode;
+    TArray<int32> PreconditionConstants;
+    TArray<FString> PreconditionStrings;
+    TMap<FString, int32> PreconditionLabels;
+    TArray<TPair<int32, FString>> PreconditionFixups;
 };
 
 // ============================================================================

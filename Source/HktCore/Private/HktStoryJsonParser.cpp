@@ -251,6 +251,16 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 		Builder.CancelOnDuplicate();
 	}
 
+	// Preconditions 배열 (선택)
+	const TArray<TSharedPtr<FJsonValue>>* Preconditions;
+	if (Root->TryGetArrayField(TEXT("preconditions"), Preconditions))
+	{
+		if (!ParsePreconditions(*Preconditions, ResolveTagWithAlias, Builder, Result))
+		{
+			return Result;
+		}
+	}
+
 	// Steps 배열
 	const TArray<TSharedPtr<FJsonValue>>* Steps;
 	if (!Root->TryGetArrayField(TEXT("steps"), Steps))
@@ -318,6 +328,89 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 	Result.bSuccess = true;
 
 	return Result;
+}
+
+// ============================================================================
+// IsReadOnlyOp — Precondition에서 허용되는 읽기 전용 op 판별
+// ============================================================================
+
+bool FHktStoryJsonParser::IsReadOnlyOp(const FString& OpName)
+{
+	static const TSet<FString> ReadOnlyOps = {
+		// Control Flow
+		TEXT("Label"), TEXT("Jump"), TEXT("JumpIf"), TEXT("JumpIfNot"), TEXT("Halt"), TEXT("Fail"),
+		// Data (읽기 전용)
+		TEXT("LoadConst"), TEXT("LoadStore"), TEXT("LoadStoreEntity"), TEXT("LoadEntityProperty"), TEXT("Move"),
+		// Arithmetic
+		TEXT("Add"), TEXT("Sub"), TEXT("Mul"), TEXT("Div"), TEXT("AddImm"),
+		// Comparison
+		TEXT("CmpEq"), TEXT("CmpNe"), TEXT("CmpLt"), TEXT("CmpLe"), TEXT("CmpGt"), TEXT("CmpGe"),
+		// Spatial Query (읽기)
+		TEXT("GetDistance"),
+		// Tags (읽기)
+		TEXT("HasTag"),
+		// Query
+		TEXT("CountByTag"), TEXT("GetWorldTime"), TEXT("RandomInt"), TEXT("HasPlayerInGroup"),
+		// Item (읽기)
+		TEXT("CountByOwner"),
+		// Utility
+		TEXT("Log"),
+	};
+	return ReadOnlyOps.Contains(OpName);
+}
+
+// ============================================================================
+// ParsePreconditions — preconditions 배열 → Builder BeginPrecondition/EndPrecondition
+// ============================================================================
+
+bool FHktStoryJsonParser::ParsePreconditions(
+	const TArray<TSharedPtr<FJsonValue>>& PreconditionArray,
+	const TFunction<FGameplayTag(const FString&)>& ResolveTag,
+	FHktStoryBuilder& Builder,
+	FHktStoryParseResult& Result)
+{
+	Builder.BeginPrecondition();
+
+	for (int32 i = 0; i < PreconditionArray.Num(); ++i)
+	{
+		const TSharedPtr<FJsonObject>* StepObj;
+		if (!PreconditionArray[i]->TryGetObject(StepObj))
+		{
+			Result.Errors.Add(FString::Printf(TEXT("Precondition %d: not a JSON object"), i));
+			continue;
+		}
+
+		FString OpName;
+		if (!(*StepObj)->TryGetStringField(TEXT("op"), OpName))
+		{
+			Result.Errors.Add(FString::Printf(TEXT("Precondition %d: missing 'op' field"), i));
+			continue;
+		}
+
+		if (!IsReadOnlyOp(OpName))
+		{
+			Result.Errors.Add(FString::Printf(
+				TEXT("Precondition %d: operation '%s' is not allowed in preconditions (write/wait ops are forbidden)"),
+				i, *OpName));
+			continue;
+		}
+
+		FHktStoryCmdArgs Args(*StepObj, i, OpName);
+		Args.ResolveTagFunc = ResolveTag;
+
+		if (!ApplyCommand(Builder, Args))
+		{
+			Result.Errors.Add(FString::Printf(TEXT("Precondition %d: unknown operation '%s'"), i, *OpName));
+		}
+		else if (Args.HasErrors())
+		{
+			Result.Errors.Append(Args.Errors);
+		}
+	}
+
+	Builder.EndPrecondition();
+
+	return Result.Errors.Num() == 0;
 }
 
 // ============================================================================

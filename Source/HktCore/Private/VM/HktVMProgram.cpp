@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktVMProgram.h"
+#include "HktVMInterpreter.h"
 #include "HktWorldState.h"
 #include "HktCoreEvents.h"
 
@@ -40,10 +41,23 @@ void FHktVMProgramRegistry::Clear()
 bool FHktVMProgramRegistry::ValidateEvent(const FHktWorldState& WorldState, const FHktEvent& Event) const
 {
     const FHktVMProgram* Program = FindProgram(Event.EventTag);
-    if (!Program || !Program->Precondition)
-    {
+    if (!Program)
         return true;
+
+    // PreconditionCode 우선 실행
+    if (Program->HasPreconditionCode())
+    {
+        return FHktVMInterpreter::ExecutePrecondition(
+            Program->PreconditionCode, Program->PreconditionConstants,
+            Program->PreconditionStrings, WorldState, Event);
     }
-    return Program->Precondition(WorldState, Event);
+
+    // 기존 람다 fallback
+    if (Program->Precondition)
+    {
+        return Program->Precondition(WorldState, Event);
+    }
+
+    return true;
 }
 

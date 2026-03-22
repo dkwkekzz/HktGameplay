@@ -32,27 +32,32 @@ FHktStoryBuilder::FHktStoryBuilder(const FGameplayTag& Tag)
 
 void FHktStoryBuilder::Emit(FInstruction Inst)
 {
-    Program->Code.Add(Inst);
+    if (bPreconditionMode)
+        PreconditionCode.Add(Inst);
+    else
+        Program->Code.Add(Inst);
 }
 
 int32 FHktStoryBuilder::AddString(const FString& Str)
 {
-    int32 Index = Program->Strings.IndexOfByKey(Str);
+    TArray<FString>& Strings = bPreconditionMode ? PreconditionStrings : Program->Strings;
+    int32 Index = Strings.IndexOfByKey(Str);
     if (Index == INDEX_NONE)
     {
-        Index = Program->Strings.Num();
-        Program->Strings.Add(Str);
+        Index = Strings.Num();
+        Strings.Add(Str);
     }
     return Index;
 }
 
 int32 FHktStoryBuilder::AddConstant(int32 Value)
 {
-    int32 Index = Program->Constants.IndexOfByKey(Value);
+    TArray<int32>& Constants = bPreconditionMode ? PreconditionConstants : Program->Constants;
+    int32 Index = Constants.IndexOfByKey(Value);
     if (Index == INDEX_NONE)
     {
-        Index = Program->Constants.Num();
-        Program->Constants.Add(Value);
+        Index = Constants.Num();
+        Constants.Add(Value);
     }
     return Index;
 }
@@ -88,33 +93,89 @@ FHktStoryBuilder& FHktStoryBuilder::SetPrecondition(FHktEventPrecondition InPrec
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::BeginPrecondition()
+{
+    check(!bPreconditionMode);
+    bPreconditionMode = true;
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::EndPrecondition()
+{
+    check(bPreconditionMode);
+    bPreconditionMode = false;
+
+    // Precondition 라벨 resolve
+    for (const auto& Fixup : PreconditionFixups)
+    {
+        int32 CodeIndex = Fixup.Key;
+        const FString& LabelName = Fixup.Value;
+
+        if (const int32* Target = PreconditionLabels.Find(LabelName))
+        {
+            FInstruction& Inst = PreconditionCode[CodeIndex];
+            switch (Inst.GetOpCode())
+            {
+            case EOpCode::Jump:
+                Inst.Imm20 = *Target;
+                break;
+            case EOpCode::JumpIf:
+            case EOpCode::JumpIfNot:
+                Inst.Imm12 = static_cast<uint16>(*Target);
+                break;
+            default:
+                break;
+            }
+        }
+        else
+        {
+            UE_LOG(LogHktCore, Error, TEXT("Unresolved precondition label: %s in Flow %s"),
+                *LabelName, *Program->Tag.ToString());
+        }
+    }
+
+    return *this;
+}
+
 // ============================================================================
 // Control Flow
 // ============================================================================
 
 FHktStoryBuilder& FHktStoryBuilder::Label(const FString& Name)
 {
-    Labels.Add(Name, Program->Code.Num());
+    if (bPreconditionMode)
+        PreconditionLabels.Add(Name, PreconditionCode.Num());
+    else
+        Labels.Add(Name, Program->Code.Num());
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::Jump(const FString& LabelName)
 {
-    Fixups.Add({Program->Code.Num(), LabelName});
+    if (bPreconditionMode)
+        PreconditionFixups.Add({PreconditionCode.Num(), LabelName});
+    else
+        Fixups.Add({Program->Code.Num(), LabelName});
     Emit(FInstruction::MakeImm(EOpCode::Jump, 0, 0));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::JumpIf(RegisterIndex Cond, const FString& LabelName)
 {
-    Fixups.Add({Program->Code.Num(), LabelName});
+    if (bPreconditionMode)
+        PreconditionFixups.Add({PreconditionCode.Num(), LabelName});
+    else
+        Fixups.Add({Program->Code.Num(), LabelName});
     Emit(FInstruction::Make(EOpCode::JumpIf, 0, Cond, 0, 0));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::JumpIfNot(RegisterIndex Cond, const FString& LabelName)
 {
-    Fixups.Add({Program->Code.Num(), LabelName});
+    if (bPreconditionMode)
+        PreconditionFixups.Add({PreconditionCode.Num(), LabelName});
+    else
+        Fixups.Add({Program->Code.Num(), LabelName});
     Emit(FInstruction::Make(EOpCode::JumpIfNot, 0, Cond, 0, 0));
     return *this;
 }
@@ -673,6 +734,14 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
             TEXT("Story BUILD FAILED: %s — 엔티티 레지스터 검증 실패. 이 Story는 등록되지 않습니다."),
             *Program->Tag.ToString());
         return nullptr;
+    }
+
+    // Precondition 바이트코드 복사
+    if (PreconditionCode.Num() > 0)
+    {
+        Program->PreconditionCode = MoveTemp(PreconditionCode);
+        Program->PreconditionConstants = MoveTemp(PreconditionConstants);
+        Program->PreconditionStrings = MoveTemp(PreconditionStrings);
     }
 
     return Program;

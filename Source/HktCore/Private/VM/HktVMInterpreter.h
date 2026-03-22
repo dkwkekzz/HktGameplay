@@ -32,6 +32,18 @@ public:
     /** VM을 yield/완료/실패까지 실행 */
     EVMStatus Execute(FHktVMRuntime& Runtime);
 
+    /**
+     * Precondition 바이트코드를 읽기 전용으로 실행.
+     * 임시 레지스터/Context를 사용하여 WorldState에 쓰기 없음.
+     * Flag 레지스터 != 0이면 true 반환, Fail opcode 시 false 반환.
+     */
+    static bool ExecutePrecondition(
+        const TArray<FInstruction>& Code,
+        const TArray<int32>& Constants,
+        const TArray<FString>& Strings,
+        const FHktWorldState& WorldState,
+        const FHktEvent& Event);
+
 private:
     EVMStatus ExecuteInstruction(FHktVMRuntime& Runtime, const FInstruction& Inst);
 
