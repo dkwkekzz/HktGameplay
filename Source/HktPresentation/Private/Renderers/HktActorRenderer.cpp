@@ -41,8 +41,8 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		FHktEntityId Id = *It;
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E || !ActorMap.Contains(Id)) { It.RemoveCurrent(); continue; }
-		UpdateMotionTarget(Id, *E, E->SpawnedFrame);
-		UpdateAnimation(Id, *E, E->SpawnedFrame);
+		UpdateMotionTarget(Id, *E, Frame, /*bForceUpdate=*/true);
+		UpdateAnimation(Id, *E, Frame, /*bForceUpdate=*/true);
 		if (E->IsItemAttached())
 		{
 			TryAttachToOwner(Id, State);
@@ -238,11 +238,11 @@ void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 	PendingInitSync.Remove(Id);
 }
 
-void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame)
+void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceUpdate)
 {
 	FHktActorMotionState& Motion = MotionStates.FindOrAdd(Id);
 
-	if (Entity.Location.IsDirty(Frame))
+	if (bForceUpdate || Entity.Location.IsDirty(Frame))
 	{
 		FVector SimLocation = Entity.Location.Get();
 
@@ -268,18 +268,18 @@ void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPres
 		Motion.TargetLocation = SimLocation;
 	}
 
-	if (Entity.Rotation.IsDirty(Frame))
+	if (bForceUpdate || Entity.Rotation.IsDirty(Frame))
 	{
 		Motion.TargetRotation = Entity.Rotation.Get();
 	}
 
-	if (Entity.bIsMoving.IsDirty(Frame))
+	if (bForceUpdate || Entity.bIsMoving.IsDirty(Frame))
 	{
 		Motion.bIsMoving = Entity.bIsMoving.Get();
 	}
 }
 
-void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame)
+void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceUpdate)
 {
 	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
 	if (!WeakPtr || !WeakPtr->IsValid())
@@ -301,13 +301,13 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 	}
 
 	// 이동 상태 동기화
-	if (Entity.bIsMoving.IsDirty(Frame))
+	if (bForceUpdate || Entity.bIsMoving.IsDirty(Frame))
 	{
 		HktAnim->bIsMoving = Entity.bIsMoving.Get();
 	}
 
 	// 속도 벡터에서 이동 속도 계산 — 블렌드스페이스 파라미터로 활용
-	if (Entity.Velocity.IsDirty(Frame))
+	if (bForceUpdate || Entity.Velocity.IsDirty(Frame))
 	{
 		FVector Vel = Entity.Velocity.Get();
 		HktAnim->MoveSpeed = FVector2D(Vel.X, Vel.Y).Size();
@@ -315,13 +315,13 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 	}
 
 	// Stance 동기화 — Stance AnimBP 레이어 교체
-	if (Entity.Stance.IsDirty(Frame))
+	if (bForceUpdate || Entity.Stance.IsDirty(Frame))
 	{
 		HktAnim->SyncStance(Entity.Stance.Get());
 	}
 
 	// AttackSpeed → 몽타주 PlayRate 동기화
-	if (Entity.AttackSpeed.IsDirty(Frame))
+	if (bForceUpdate || Entity.AttackSpeed.IsDirty(Frame))
 	{
 		float SpeedScale = static_cast<float>(Entity.AttackSpeed.Get()) / 100.0f;
 		if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
@@ -329,14 +329,14 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 	}
 
 	// CP 비율 동기화 (UI 피드백용)
-	if (Entity.CPRatio.IsDirty(Frame))
+	if (bForceUpdate || Entity.CPRatio.IsDirty(Frame))
 	{
 		HktAnim->CPRatio = Entity.CPRatio.Get();
 	}
 
 	// Entity TagContainer 기반 애니메이션 동기화
 	// Story에서 AddTag/RemoveTag로 상태를 변경하면 AnimInstance가 태그 변화를 감지하여 애니메이션을 자동 재생
-	if (Entity.TagsDirtyFrame == Frame)
+	if (bForceUpdate || Entity.TagsDirtyFrame == Frame)
 	{
 		HktAnim->SyncFromTagContainer(Entity.Tags);
 	}
