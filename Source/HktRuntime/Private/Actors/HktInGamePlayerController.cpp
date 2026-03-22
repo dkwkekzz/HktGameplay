@@ -13,7 +13,6 @@
 #include "HktCoreProperties.h"
 #include "HktCoreEvents.h"
 #include "HktWorldView.h"
-#include "DataAssets/HktSkillTypes.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "GameplayTagsManager.h"
@@ -65,16 +64,6 @@ void AHktIngamePlayerController::BeginPlay()
         {
             CachedCommandContainer = CommandContainer;
             CommandContainer->InitializeSlots(SlotInputActions.Num());
-
-            // 캐릭터 기본 스킬 슬롯 설정
-            for (int32 i = 0; i < DefaultSkillSlots.Num(); ++i)
-            {
-                const FHktSkillEntry& Entry = DefaultSkillSlots[i];
-                if (Entry.IsValid())
-                {
-                    CommandContainer->SetSlotBinding(i, Entry.EventTag, Entry.IsTargetRequired());
-                }
-            }
         }
         else if (IHktWorldPlayer* WorldPlayer = Cast<IHktWorldPlayer>(Comp))
         {
@@ -218,6 +207,13 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
 {
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
+
+    // 태그에 의해 비활성화된 슬롯은 사용 불가
+    if (CachedCommandContainer && !CachedCommandContainer->IsSlotAvailable(SlotIndex))
+    {
+        UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction: Slot %d is disabled by tag"), SlotIndex);
+        return;
+    }
 
     Rule->OnUserEvent_CommandInputAction(SlotIndex);
 
@@ -430,83 +426,106 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
     }
 }
 
+/** ItemSlot0~8에 대응하는 PropertyId 테이블 */
+static constexpr uint16 ItemSlotPropertyIds[] =
+{
+    PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
+    PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
+    PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+};
+static constexpr int32 MaxItemSlots = UE_ARRAY_COUNT(ItemSlotPropertyIds);
+
+/** Skill.Slot.Disabled.N 태그 테이블 (슬롯별 비활성화 태그 조회용) */
+static const FGameplayTag& GetSlotDisabledTag(int32 SlotIndex)
+{
+    using namespace HktGameplayTags;
+    static const FGameplayTag* Table[] =
+    {
+        &Skill_Slot_Disabled_0, &Skill_Slot_Disabled_1, &Skill_Slot_Disabled_2,
+        &Skill_Slot_Disabled_3, &Skill_Slot_Disabled_4, &Skill_Slot_Disabled_5,
+        &Skill_Slot_Disabled_6, &Skill_Slot_Disabled_7, &Skill_Slot_Disabled_8,
+    };
+    check(SlotIndex >= 0 && SlotIndex < UE_ARRAY_COUNT(Table));
+    return *Table[SlotIndex];
+}
+
 void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldView& View)
 {
     if (!CachedCommandContainer || !View.WorldState) return;
     if (DefaultSubjectEntityId == InvalidEntityId) return;
 
     const FHktWorldState& WS = *View.WorldState;
-    const int64 MyUid = GetPlayerUid();
-    if (MyUid == 0) return;
 
-    // InitialSync 또는 ActionSlot 변경이 포함된 경우 전체 스캔
-    bool bNeedsFullScan = View.bIsInitialSync;
-    if (!bNeedsFullScan && View.PropertyDeltas)
+    // InitialSync, ItemSlot/ItemSkillTag 프로퍼티 변경, 또는 Skill.Slot.Disabled 태그 변경 시 동기화
+    bool bNeedsSync = View.bIsInitialSync;
+    if (!bNeedsSync && View.PropertyDeltas)
     {
         for (const FHktPropertyDelta& D : *View.PropertyDeltas)
         {
-            if (D.PropertyId == PropertyId::ActionSlot || D.PropertyId == PropertyId::ItemState)
+            if (D.PropertyId >= PropertyId::ItemSlot0 && D.PropertyId <= PropertyId::ItemSlot8)
             {
-                bNeedsFullScan = true;
+                bNeedsSync = true;
+                break;
+            }
+            if (D.PropertyId == PropertyId::ItemSkillTag || D.PropertyId == PropertyId::ItemState)
+            {
+                bNeedsSync = true;
+                break;
+            }
+        }
+    }
+    if (!bNeedsSync && View.TagDeltas)
+    {
+        for (const FHktTagDelta& TD : *View.TagDeltas)
+        {
+            if (TD.EntityId == DefaultSubjectEntityId
+                && TD.Tags.HasTag(HktGameplayTags::Skill_Slot_Disabled))
+            {
+                bNeedsSync = true;
                 break;
             }
         }
     }
 
-    if (!bNeedsFullScan) return;
+    if (!bNeedsSync) return;
 
-    // 1. 모든 슬롯 클리어
-    const int32 MaxSlots = CachedCommandContainer->GetNumSlots();
-    for (int32 i = 0; i < MaxSlots; ++i)
+    // 모든 슬롯 클리어
+    const int32 NumSlots = FMath::Min(CachedCommandContainer->GetNumSlots(), MaxItemSlots);
+    for (int32 i = 0; i < NumSlots; ++i)
     {
         CachedCommandContainer->ClearSlotBinding(i);
     }
 
-    // 2. 캐릭터 기본 스킬 재적용
-    for (int32 i = 0; i < DefaultSkillSlots.Num(); ++i)
+    // 캐릭터 엔티티의 ItemSlot0~8에서 아이템 EntityId 읽기 → 스킬 바인딩
+    for (int32 i = 0; i < NumSlots; ++i)
     {
-        const FHktSkillEntry& Entry = DefaultSkillSlots[i];
-        if (Entry.IsValid())
-        {
-            CachedCommandContainer->SetSlotBinding(i, Entry.EventTag, Entry.IsTargetRequired());
-        }
-    }
-
-    // 3. Active 아이템 스킬로 덮어쓰기 (아이템이 기본 스킬보다 우선)
-    WS.ForEachEntityByOwner(MyUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
-    {
-        // 내 캐릭터가 소유한 아이템만
-        if (WS.GetProperty(ItemId, PropertyId::OwnerEntity) != DefaultSubjectEntityId)
-            return;
-
-        // Active 상태만
-        if (WS.GetProperty(ItemId, PropertyId::ItemState) != 2)
-            return;
-
-        int32 ActionSlot = WS.GetProperty(ItemId, PropertyId::ActionSlot);
-        if (ActionSlot < 0)
-            return;
+        const FHktEntityId ItemId = WS.GetProperty(DefaultSubjectEntityId, ItemSlotPropertyIds[i]);
+        if (ItemId == 0 || !WS.IsValidEntity(ItemId))
+            continue;
 
         // ItemSkillTag (NetIndex → FGameplayTag)
         int32 SkillTagNetIndex = WS.GetProperty(ItemId, PropertyId::ItemSkillTag);
-        FGameplayTag SkillTag;
-        if (SkillTagNetIndex > 0)
-        {
-            FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillTagNetIndex));
-            if (!TagName.IsNone())
-            {
-                SkillTag = FGameplayTag::RequestGameplayTag(TagName, false);
-            }
-        }
+        if (SkillTagNetIndex <= 0)
+            continue;
 
-        if (SkillTag.IsValid())
-        {
-            // 아이템 스킬은 기본적으로 Enemy 타겟 필요
-            CachedCommandContainer->SetSlotBinding(ActionSlot, SkillTag, /*bTargetRequired=*/true);
-            UE_LOG(LogHktRuntime, Log, TEXT("SyncSlotBindings: Slot %d -> %s (Item %d)"),
-                ActionSlot, *SkillTag.ToString(), ItemId);
-        }
-    });
+        FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillTagNetIndex));
+        if (TagName.IsNone())
+            continue;
+
+        FGameplayTag SkillTag = FGameplayTag::RequestGameplayTag(TagName, false);
+        if (!SkillTag.IsValid())
+            continue;
+
+        // 아이템 스킬은 기본적으로 타겟 필요
+        CachedCommandContainer->SetSlotBinding(i, SkillTag, /*bTargetRequired=*/true);
+
+        // 태그 기반 사용 가능 여부 — Skill.Slot.Disabled.N 태그가 있으면 비활성화
+        bool bDisabled = WS.HasTag(DefaultSubjectEntityId, GetSlotDisabledTag(i));
+        CachedCommandContainer->SetSlotAvailable(i, !bDisabled);
+
+        UE_LOG(LogHktRuntime, Log, TEXT("SyncSlotBindings: Slot %d -> %s (Item %d) Available=%s"),
+            i, *SkillTag.ToString(), ItemId, bDisabled ? TEXT("No") : TEXT("Yes"));
+    }
 
     // 배치 완료 후 한 번만 broadcast — UI 갱신 트리거
     SlotBindingChangedDelegate.Broadcast(-1);

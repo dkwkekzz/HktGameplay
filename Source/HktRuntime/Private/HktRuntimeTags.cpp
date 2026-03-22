@@ -22,4 +22,16 @@ namespace HktGameplayTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody, "Anim.FullBody", "Full body animation layer root (locomotion, idle, death).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Montage, "Anim.Montage", "Montage animation layer root.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_UpperBody, "Anim.UpperBody", "Upper body animation layer root (attack, cast override).");
+
+    // --- Skill Slot Availability ---
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Slot_Disabled, "Skill.Slot.Disabled", "Skill slot disabled parent tag.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Slot_Disabled_0, "Skill.Slot.Disabled.0", "Disable skill slot 0.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Slot_Disabled_1, "Skill.Slot.Disabled.1", "Disable skill slot 1.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Slot_Disabled_2, "Skill.Slot.Disabled.2", "Disable skill slot 2.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Slot_Disabled_3, "Skill.Slot.Disabled.3", "Disable skill slot 3.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Slot_Disabled_4, "Skill.Slot.Disabled.4", "Disable skill slot 4.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Slot_Disabled_5, "Skill.Slot.Disabled.5", "Disable skill slot 5.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Slot_Disabled_6, "Skill.Slot.Disabled.6", "Disable skill slot 6.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Slot_Disabled_7, "Skill.Slot.Disabled.7", "Disable skill slot 7.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Slot_Disabled_8, "Skill.Slot.Disabled.8", "Disable skill slot 8.");
 }

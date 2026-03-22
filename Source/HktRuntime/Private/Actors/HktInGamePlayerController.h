@@ -12,7 +12,6 @@
 #include "HktServerRuleInterfaces.h"
 #include "HktRuntimeTypes.h"
 #include "IHktPlayerInteractionInterface.h"
-#include "DataAssets/HktSkillTypes.h"
 
 #include "HktIngamePlayerController.generated.h"
 
@@ -88,10 +87,6 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TArray<TObjectPtr<UInputAction>> SlotInputActions;
 
-    /** 캐릭터 기본 스킬 슬롯 설정 (인덱스 = 슬롯 번호) */
-    UPROPERTY(EditDefaultsOnly, Category = "Hkt|Skills")
-    TArray<FHktSkillEntry> DefaultSkillSlots;
-
 private:
     FOnHktSubjectChanged SubjectChangedDelegate;
     FOnHktTargetChanged TargetChangedDelegate;
@@ -118,7 +113,7 @@ private:
     /** WorldState에서 나의 엔티티를 찾아 DefaultSubjectEntityId로 설정 */
     void ResolveDefaultSubject();
 
-    /** PropertyDelta에서 ActionSlot 변경을 감지하여 CommandContainer에 동적 바인딩 */
+    /** 캐릭터 엔티티의 ItemSlot0~8 프로퍼티에서 아이템 스킬을 읽어 CommandSlot에 바인딩 */
     void SyncSlotBindingsFromWorldState(const FHktWorldView& View);
 
 #if ENABLE_HKT_INSIGHTS

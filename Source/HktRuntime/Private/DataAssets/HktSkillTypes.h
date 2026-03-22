@@ -20,7 +20,7 @@ enum class EHktActionTargetType : uint8
  * FHktSkillEntry - 스킬 정의 (입력 바인딩과 무관한 순수 데이터)
  *
  * 캐릭터 기본 스킬, 아이템 스킬 등 모든 스킬의 슬롯 할당 단위.
- * PlayerController의 DefaultSkillSlots 또는 SyncSlotBindingsFromWorldState에서 설정.
+ * SyncSlotBindingsFromWorldState에서 캐릭터 엔티티의 ItemSlot 프로퍼티를 통해 설정.
  */
 USTRUCT(BlueprintType)
 struct HKTRUNTIME_API FHktSkillEntry

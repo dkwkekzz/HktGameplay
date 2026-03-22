@@ -21,6 +21,7 @@ struct FHktSlotBinding
 	FGameplayTag EventTag;
 	bool bTargetRequired = false;
 	bool bBound = false;
+	bool bAvailable = true;         // 태그에 의한 사용 가능 여부
 };
 
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
@@ -39,6 +40,8 @@ public:
 	virtual void InitializeSlots(int32 NumSlots) override;
 	virtual void SetSlotBinding(int32 SlotIndex, FGameplayTag EventTag, bool bTargetRequired) override;
 	virtual void ClearSlotBinding(int32 SlotIndex) override;
+	virtual bool IsSlotAvailable(int32 SlotIndex) const override;
+	virtual void SetSlotAvailable(int32 SlotIndex, bool bAvailable) override;
 	virtual FOnSlotBindingChanged& OnSlotBindingChanged() override { return SlotBindingChangedDelegate; }
 
 private:
