@@ -13,7 +13,7 @@
 #include "HktCoreProperties.h"
 #include "HktCoreEvents.h"
 #include "HktWorldView.h"
-#include "DataAssets/HktInputAction.h"
+#include "DataAssets/HktSkillTypes.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "GameplayTagsManager.h"
@@ -64,12 +64,17 @@ void AHktIngamePlayerController::BeginPlay()
         else if (IHktCommandContainer* CommandContainer = Cast<IHktCommandContainer>(Comp))
         {
             CachedCommandContainer = CommandContainer;
-            TArray<TObjectPtr<UObject>> AsObjects;
-            for (const TObjectPtr<UHktInputAction>& A : SlotActions)
+            CommandContainer->InitializeSlots(SlotInputActions.Num());
+
+            // 캐릭터 기본 스킬 슬롯 설정
+            for (int32 i = 0; i < DefaultSkillSlots.Num(); ++i)
             {
-                AsObjects.Add(A.Get());
+                const FHktSkillEntry& Entry = DefaultSkillSlots[i];
+                if (Entry.IsValid())
+                {
+                    CommandContainer->SetSlotBinding(i, Entry.EventTag, Entry.IsTargetRequired());
+                }
             }
-            CommandContainer->SetSlotActions(AsObjects);
         }
         else if (IHktWorldPlayer* WorldPlayer = Cast<IHktWorldPlayer>(Comp))
         {
@@ -134,9 +139,9 @@ void AHktIngamePlayerController::SetupInputComponent()
     if (TargetAction)  EnhancedInput->BindAction(TargetAction,  ETriggerEvent::Started, this, &AHktIngamePlayerController::OnTargetAction);
     if (ZoomAction)    EnhancedInput->BindAction(ZoomAction,    ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnZoom);
 
-    for (int32 i = 0; i < SlotActions.Num(); ++i)
+    for (int32 i = 0; i < SlotInputActions.Num(); ++i)
     {
-        if (SlotActions[i]) EnhancedInput->BindAction(SlotActions[i], ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSlotAction, i);
+        if (SlotInputActions[i]) EnhancedInput->BindAction(SlotInputActions[i], ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSlotAction, i);
     }
 }
 
@@ -450,14 +455,24 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
 
     if (!bNeedsFullScan) return;
 
-    // 기존 오버라이드 클리어 (최대 슬롯 수만큼)
+    // 1. 모든 슬롯 클리어
     const int32 MaxSlots = CachedCommandContainer->GetNumSlots();
     for (int32 i = 0; i < MaxSlots; ++i)
     {
-        CachedCommandContainer->OverrideSlotBinding(i, FGameplayTag(), false);
+        CachedCommandContainer->ClearSlotBinding(i);
     }
 
-    // 내 엔티티 소유 아이템 중 Active(State=2)인 것을 찾아 슬롯 바인딩
+    // 2. 캐릭터 기본 스킬 재적용
+    for (int32 i = 0; i < DefaultSkillSlots.Num(); ++i)
+    {
+        const FHktSkillEntry& Entry = DefaultSkillSlots[i];
+        if (Entry.IsValid())
+        {
+            CachedCommandContainer->SetSlotBinding(i, Entry.EventTag, Entry.IsTargetRequired());
+        }
+    }
+
+    // 3. Active 아이템 스킬로 덮어쓰기 (아이템이 기본 스킬보다 우선)
     WS.ForEachEntityByOwner(MyUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
     {
         // 내 캐릭터가 소유한 아이템만
@@ -487,7 +502,7 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
         if (SkillTag.IsValid())
         {
             // 아이템 스킬은 기본적으로 Enemy 타겟 필요
-            CachedCommandContainer->OverrideSlotBinding(ActionSlot, SkillTag, /*bTargetRequired=*/true);
+            CachedCommandContainer->SetSlotBinding(ActionSlot, SkillTag, /*bTargetRequired=*/true);
             UE_LOG(LogHktRuntime, Log, TEXT("SyncSlotBindings: Slot %d -> %s (Item %d)"),
                 ActionSlot, *SkillTag.ToString(), ItemId);
         }

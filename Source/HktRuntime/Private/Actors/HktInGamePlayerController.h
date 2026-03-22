@@ -12,12 +12,12 @@
 #include "HktServerRuleInterfaces.h"
 #include "HktRuntimeTypes.h"
 #include "IHktPlayerInteractionInterface.h"
+#include "DataAssets/HktSkillTypes.h"
 
 #include "HktIngamePlayerController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
-class UHktInputAction;
 class IHktClientRule;
 struct FHktWorldView;
 
@@ -86,7 +86,11 @@ protected:
     TObjectPtr<UInputAction> ZoomAction;
 
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
-    TArray<TObjectPtr<UHktInputAction>> SlotActions;
+    TArray<TObjectPtr<UInputAction>> SlotInputActions;
+
+    /** 캐릭터 기본 스킬 슬롯 설정 (인덱스 = 슬롯 번호) */
+    UPROPERTY(EditDefaultsOnly, Category = "Hkt|Skills")
+    TArray<FHktSkillEntry> DefaultSkillSlots;
 
 private:
     FOnHktSubjectChanged SubjectChangedDelegate;
