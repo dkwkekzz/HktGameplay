@@ -1,0 +1,568 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+
+#include "HktStoryJsonParser.h"
+#include "HktStoryBuilder.h"
+#include "HktCoreProperties.h"
+#include "GameplayTagsManager.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
+
+// ============================================================================
+// FHktStoryCmdArgs
+// ============================================================================
+
+FHktStoryCmdArgs::FHktStoryCmdArgs(const TSharedPtr<FJsonObject>& InStep, int32 InStepIndex, const FString& InOpName)
+	: Step(InStep)
+	, StepIndex(InStepIndex)
+	, OpName(InOpName)
+{
+}
+
+RegisterIndex FHktStoryCmdArgs::GetReg(const FString& Key) const
+{
+	FString Val;
+	if (!Step->TryGetStringField(Key, Val))
+	{
+		Errors.Add(FString::Printf(TEXT("Step %d (%s): missing '%s'"), StepIndex, *OpName, *Key));
+		return Reg::R0;
+	}
+	RegisterIndex Idx = FHktStoryJsonParser::ParseRegister(Val);
+	if (Idx == 0xFF)
+	{
+		Errors.Add(FString::Printf(TEXT("Step %d (%s): invalid register '%s'"), StepIndex, *OpName, *Val));
+		return Reg::R0;
+	}
+	return Idx;
+}
+
+RegisterIndex FHktStoryCmdArgs::GetRegOpt(const FString& Key, RegisterIndex Default) const
+{
+	FString Val;
+	if (!Step->TryGetStringField(Key, Val))
+	{
+		return Default;
+	}
+	RegisterIndex Idx = FHktStoryJsonParser::ParseRegister(Val);
+	return (Idx != 0xFF) ? Idx : Default;
+}
+
+int32 FHktStoryCmdArgs::GetInt(const FString& Key) const
+{
+	double Val;
+	if (!Step->TryGetNumberField(Key, Val))
+	{
+		Errors.Add(FString::Printf(TEXT("Step %d (%s): missing '%s'"), StepIndex, *OpName, *Key));
+		return 0;
+	}
+	return static_cast<int32>(Val);
+}
+
+int32 FHktStoryCmdArgs::GetIntOpt(const FString& Key, int32 Default) const
+{
+	double Val;
+	return Step->TryGetNumberField(Key, Val) ? static_cast<int32>(Val) : Default;
+}
+
+float FHktStoryCmdArgs::GetFloatOpt(const FString& Key, float Default) const
+{
+	double Val;
+	return Step->TryGetNumberField(Key, Val) ? static_cast<float>(Val) : Default;
+}
+
+FGameplayTag FHktStoryCmdArgs::GetTag(const FString& Key) const
+{
+	FString Val;
+	if (!Step->TryGetStringField(Key, Val))
+	{
+		Errors.Add(FString::Printf(TEXT("Step %d (%s): missing '%s'"), StepIndex, *OpName, *Key));
+		return FGameplayTag();
+	}
+	if (ResolveTagFunc)
+	{
+		return ResolveTagFunc(Val);
+	}
+	return FGameplayTag::RequestGameplayTag(FName(*Val), false);
+}
+
+uint16 FHktStoryCmdArgs::GetPropertyId(const FString& Key) const
+{
+	FString Val;
+	if (!Step->TryGetStringField(Key, Val))
+	{
+		Errors.Add(FString::Printf(TEXT("Step %d (%s): missing '%s'"), StepIndex, *OpName, *Key));
+		return 0xFFFF;
+	}
+	uint16 PropId = FHktStoryJsonParser::ParsePropertyId(Val);
+	if (PropId == 0xFFFF)
+	{
+		Errors.Add(FString::Printf(TEXT("Step %d (%s): invalid PropertyId '%s'"), StepIndex, *OpName, *Val));
+	}
+	return PropId;
+}
+
+FString FHktStoryCmdArgs::GetString(const FString& Key) const
+{
+	FString Val;
+	Step->TryGetStringField(Key, Val);
+	return Val;
+}
+
+// ============================================================================
+// FHktStoryJsonParser — 싱글턴
+// ============================================================================
+
+FHktStoryJsonParser& FHktStoryJsonParser::Get()
+{
+	static FHktStoryJsonParser Instance;
+	return Instance;
+}
+
+FHktStoryJsonParser::FHktStoryJsonParser()
+{
+	InitializeCoreCommands();
+}
+
+void FHktStoryJsonParser::RegisterCommand(const FString& OpName, FHktStoryCommandHandler Handler)
+{
+	CommandMap.Add(OpName, MoveTemp(Handler));
+}
+
+bool FHktStoryJsonParser::ApplyCommand(FHktStoryBuilder& Builder, const FHktStoryCmdArgs& Args)
+{
+	if (const FHktStoryCommandHandler* Handler = CommandMap.Find(Args.OpName))
+	{
+		(*Handler)(Builder, Args);
+		return true;
+	}
+	return false;
+}
+
+TSet<FString> FHktStoryJsonParser::GetValidOpNames() const
+{
+	TSet<FString> Names;
+	Names.Reserve(CommandMap.Num());
+	for (const auto& Pair : CommandMap)
+	{
+		Names.Add(Pair.Key);
+	}
+	return Names;
+}
+
+// ============================================================================
+// ParseRegister / ParsePropertyId
+// ============================================================================
+
+RegisterIndex FHktStoryJsonParser::ParseRegister(const FString& RegStr)
+{
+	if (RegStr == TEXT("Self")) return Reg::Self;
+	if (RegStr == TEXT("Target")) return Reg::Target;
+	if (RegStr == TEXT("Spawned")) return Reg::Spawned;
+	if (RegStr == TEXT("Hit")) return Reg::Hit;
+	if (RegStr == TEXT("Iter")) return Reg::Iter;
+	if (RegStr == TEXT("Flag")) return Reg::Flag;
+	if (RegStr == TEXT("Count")) return Reg::Count;
+	if (RegStr == TEXT("Temp")) return Reg::Temp;
+
+	// R0-R9
+	if (RegStr.StartsWith(TEXT("R")) && RegStr.Len() <= 3)
+	{
+		int32 Idx = FCString::Atoi(*RegStr.Mid(1));
+		if (Idx >= 0 && Idx <= 9) return static_cast<RegisterIndex>(Idx);
+	}
+
+	return 0xFF;
+}
+
+uint16 FHktStoryJsonParser::ParsePropertyId(const FString& PropStr)
+{
+	#define HKT_PROP_PARSE(Name) if (PropStr == TEXT(#Name)) return PropertyId::Name;
+	HKT_PROPERTY_LIST(HKT_PROP_PARSE)
+	#undef HKT_PROP_PARSE
+	return 0xFFFF;
+}
+
+// ============================================================================
+// ParseAndBuild
+// ============================================================================
+
+FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(const FString& JsonStr)
+{
+	return ParseAndBuild(JsonStr, [](const FString& TagStr) -> FGameplayTag {
+		return FGameplayTag::RequestGameplayTag(FName(*TagStr), false);
+	});
+}
+
+FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
+	const FString& JsonStr,
+	const TFunction<FGameplayTag(const FString&)>& ResolveTag)
+{
+	FHktStoryParseResult Result;
+
+	// JSON 파싱
+	TSharedPtr<FJsonObject> Root;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonStr);
+	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
+	{
+		Result.Errors.Add(TEXT("Invalid JSON syntax"));
+		return Result;
+	}
+
+	// Story tag
+	FString StoryTagStr;
+	if (!Root->TryGetStringField(TEXT("storyTag"), StoryTagStr) || StoryTagStr.IsEmpty())
+	{
+		Result.Errors.Add(TEXT("Missing or empty 'storyTag' field"));
+		return Result;
+	}
+	Result.StoryTag = StoryTagStr;
+
+	// storyTag 자체도 ResolveTag를 통해 등록 (에디터에서는 자동등록, 런타임에서는 조회)
+	FGameplayTag StoryTag = ResolveTag(StoryTagStr);
+	if (StoryTag.IsValid())
+	{
+		Result.ReferencedTags.AddUnique(StoryTag);
+	}
+
+	// Tag aliases
+	TMap<FString, FGameplayTag> TagAliases;
+	const TSharedPtr<FJsonObject>* TagsObj;
+	if (Root->TryGetObjectField(TEXT("tags"), TagsObj))
+	{
+		for (const auto& Pair : (*TagsObj)->Values)
+		{
+			FString TagName = Pair.Value->AsString();
+			FGameplayTag Tag = ResolveTag(TagName);
+			if (!Tag.IsValid())
+			{
+				Result.Warnings.Add(FString::Printf(
+					TEXT("Tag '%s' (%s) could not be resolved"), *Pair.Key, *TagName));
+			}
+			TagAliases.Add(Pair.Key, Tag);
+		}
+	}
+
+	// Builder 생성
+	FHktStoryBuilder Builder = FHktStoryBuilder::Create(FName(*StoryTagStr));
+
+	// CancelOnDuplicate
+	bool bCancelOnDuplicate = false;
+	if (Root->TryGetBoolField(TEXT("cancelOnDuplicate"), bCancelOnDuplicate) && bCancelOnDuplicate)
+	{
+		Builder.CancelOnDuplicate();
+	}
+
+	// Steps 배열
+	const TArray<TSharedPtr<FJsonValue>>* Steps;
+	if (!Root->TryGetArrayField(TEXT("steps"), Steps))
+	{
+		Result.Errors.Add(TEXT("Missing 'steps' array"));
+		return Result;
+	}
+
+	// Alias 해결 + 참조 태그 수집을 포함하는 태그 해석기
+	auto ResolveTagWithAlias = [&](const FString& TagStr) -> FGameplayTag
+	{
+		FGameplayTag Tag;
+		if (const FGameplayTag* Found = TagAliases.Find(TagStr))
+		{
+			Tag = *Found;
+		}
+		else
+		{
+			Tag = ResolveTag(TagStr);
+		}
+		if (Tag.IsValid())
+		{
+			Result.ReferencedTags.AddUnique(Tag);
+		}
+		return Tag;
+	};
+
+	// 각 step을 커맨드 맵으로 디스패치
+	for (int32 i = 0; i < Steps->Num(); ++i)
+	{
+		const TSharedPtr<FJsonObject>* StepObj;
+		if (!(*Steps)[i]->TryGetObject(StepObj))
+		{
+			Result.Errors.Add(FString::Printf(TEXT("Step %d: not a JSON object"), i));
+			continue;
+		}
+
+		FString OpName;
+		if (!(*StepObj)->TryGetStringField(TEXT("op"), OpName))
+		{
+			Result.Errors.Add(FString::Printf(TEXT("Step %d: missing 'op' field"), i));
+			continue;
+		}
+
+		FHktStoryCmdArgs Args(*StepObj, i, OpName);
+		Args.ResolveTagFunc = ResolveTagWithAlias;
+
+		if (!ApplyCommand(Builder, Args))
+		{
+			Result.Errors.Add(FString::Printf(TEXT("Step %d: unknown operation '%s'"), i, *OpName));
+		}
+		else if (Args.HasErrors())
+		{
+			Result.Errors.Append(Args.Errors);
+		}
+	}
+
+	if (Result.Errors.Num() > 0)
+	{
+		return Result;
+	}
+
+	// 빌드 + 등록
+	Builder.BuildAndRegister();
+	Result.bSuccess = true;
+
+	return Result;
+}
+
+// ============================================================================
+// InitializeCoreCommands — 모든 Builder 명령어를 람다로 등록
+// ============================================================================
+
+void FHktStoryJsonParser::InitializeCoreCommands()
+{
+	// ======================== Control Flow ========================
+
+	RegisterCommand(TEXT("Label"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Label(A.GetString(TEXT("name")));
+	});
+	RegisterCommand(TEXT("Jump"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Jump(A.GetString(TEXT("label")));
+	});
+	RegisterCommand(TEXT("JumpIf"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.JumpIf(A.GetReg(TEXT("cond")), A.GetString(TEXT("label")));
+	});
+	RegisterCommand(TEXT("JumpIfNot"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.JumpIfNot(A.GetReg(TEXT("cond")), A.GetString(TEXT("label")));
+	});
+	RegisterCommand(TEXT("Yield"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Yield(A.GetIntOpt(TEXT("frames"), 1));
+	});
+	RegisterCommand(TEXT("WaitSeconds"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.WaitSeconds(A.GetFloatOpt(TEXT("seconds"), 1.0f));
+	});
+	RegisterCommand(TEXT("Halt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Halt();
+	});
+	RegisterCommand(TEXT("Fail"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Fail();
+	});
+
+	// ======================== Event Wait ========================
+
+	RegisterCommand(TEXT("WaitCollision"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.WaitCollision(A.GetRegOpt(TEXT("entity"), Reg::Spawned));
+	});
+	RegisterCommand(TEXT("WaitAnimEnd"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.WaitAnimEnd(A.GetRegOpt(TEXT("entity"), Reg::Self));
+	});
+	RegisterCommand(TEXT("WaitMoveEnd"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.WaitMoveEnd(A.GetRegOpt(TEXT("entity"), Reg::Self));
+	});
+
+	// ======================== Data Operations ========================
+
+	RegisterCommand(TEXT("LoadConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.LoadConst(A.GetReg(TEXT("dst")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("LoadStore"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.LoadStore(A.GetReg(TEXT("dst")), A.GetPropertyId(TEXT("property")));
+	});
+	RegisterCommand(TEXT("LoadEntityProperty"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.LoadEntityProperty(A.GetReg(TEXT("dst")), A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("property")));
+	});
+	RegisterCommand(TEXT("SaveStore"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.SaveStore(A.GetPropertyId(TEXT("property")), A.GetReg(TEXT("src")));
+	});
+	RegisterCommand(TEXT("SaveEntityProperty"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.SaveEntityProperty(A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetReg(TEXT("src")));
+	});
+	RegisterCommand(TEXT("SaveConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.SaveConst(A.GetPropertyId(TEXT("property")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("SaveConstEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.SaveConstEntity(A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("Move"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Move(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src")));
+	});
+
+	// ======================== Arithmetic ========================
+
+	RegisterCommand(TEXT("Add"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Add(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src1")), A.GetReg(TEXT("src2")));
+	});
+	RegisterCommand(TEXT("Sub"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Sub(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src1")), A.GetReg(TEXT("src2")));
+	});
+	RegisterCommand(TEXT("Mul"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Mul(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src1")), A.GetReg(TEXT("src2")));
+	});
+	RegisterCommand(TEXT("Div"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Div(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src1")), A.GetReg(TEXT("src2")));
+	});
+	RegisterCommand(TEXT("AddImm"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.AddImm(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src")), A.GetInt(TEXT("imm")));
+	});
+
+	// ======================== Comparison ========================
+
+	RegisterCommand(TEXT("CmpEq"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpEq(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src1")), A.GetReg(TEXT("src2")));
+	});
+	RegisterCommand(TEXT("CmpNe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpNe(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src1")), A.GetReg(TEXT("src2")));
+	});
+	RegisterCommand(TEXT("CmpLt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpLt(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src1")), A.GetReg(TEXT("src2")));
+	});
+	RegisterCommand(TEXT("CmpLe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpLe(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src1")), A.GetReg(TEXT("src2")));
+	});
+	RegisterCommand(TEXT("CmpGt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpGt(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src1")), A.GetReg(TEXT("src2")));
+	});
+	RegisterCommand(TEXT("CmpGe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpGe(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src1")), A.GetReg(TEXT("src2")));
+	});
+
+	// ======================== Entity ========================
+
+	RegisterCommand(TEXT("SpawnEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.SpawnEntity(A.GetTag(TEXT("classTag")));
+	});
+	RegisterCommand(TEXT("DestroyEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.DestroyEntity(A.GetReg(TEXT("entity")));
+	});
+
+	// ======================== Position & Movement ========================
+
+	RegisterCommand(TEXT("GetPosition"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.GetPosition(A.GetReg(TEXT("dst")), A.GetReg(TEXT("entity")));
+	});
+	RegisterCommand(TEXT("SetPosition"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.SetPosition(A.GetReg(TEXT("entity")), A.GetReg(TEXT("src")));
+	});
+	RegisterCommand(TEXT("MoveToward"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.MoveToward(A.GetReg(TEXT("entity")), A.GetReg(TEXT("targetPos")), A.GetInt(TEXT("force")));
+	});
+	RegisterCommand(TEXT("MoveForward"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.MoveForward(A.GetReg(TEXT("entity")), A.GetInt(TEXT("force")));
+	});
+	RegisterCommand(TEXT("StopMovement"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.StopMovement(A.GetReg(TEXT("entity")));
+	});
+	RegisterCommand(TEXT("GetDistance"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.GetDistance(A.GetReg(TEXT("dst")), A.GetReg(TEXT("entity1")), A.GetReg(TEXT("entity2")));
+	});
+
+	// ======================== Spatial Query ========================
+
+	RegisterCommand(TEXT("FindInRadius"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.FindInRadius(A.GetReg(TEXT("center")), A.GetInt(TEXT("radius")));
+	});
+	RegisterCommand(TEXT("NextFound"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.NextFound();
+	});
+	RegisterCommand(TEXT("ForEachInRadius"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.ForEachInRadius(A.GetReg(TEXT("center")), A.GetInt(TEXT("radius")));
+	});
+	RegisterCommand(TEXT("EndForEach"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.EndForEach();
+	});
+
+	// ======================== Combat ========================
+
+	RegisterCommand(TEXT("ApplyDamage"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.ApplyDamage(A.GetReg(TEXT("target")), A.GetReg(TEXT("amount")));
+	});
+	RegisterCommand(TEXT("ApplyDamageConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.ApplyDamageConst(A.GetReg(TEXT("target")), A.GetInt(TEXT("amount")));
+	});
+	RegisterCommand(TEXT("ApplyEffect"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.ApplyEffect(A.GetReg(TEXT("target")), A.GetTag(TEXT("effectTag")));
+	});
+	RegisterCommand(TEXT("RemoveEffect"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.RemoveEffect(A.GetReg(TEXT("target")), A.GetTag(TEXT("effectTag")));
+	});
+
+	// ======================== VFX ========================
+
+	RegisterCommand(TEXT("PlayVFX"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.PlayVFX(A.GetReg(TEXT("pos")), A.GetTag(TEXT("tag")));
+	});
+	RegisterCommand(TEXT("PlayVFXAttached"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.PlayVFXAttached(A.GetReg(TEXT("entity")), A.GetTag(TEXT("tag")));
+	});
+
+	// ======================== Audio ========================
+
+	RegisterCommand(TEXT("PlaySound"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.PlaySound(A.GetTag(TEXT("tag")));
+	});
+	RegisterCommand(TEXT("PlaySoundAtLocation"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.PlaySoundAtLocation(A.GetReg(TEXT("pos")), A.GetTag(TEXT("tag")));
+	});
+
+	// ======================== Tags ========================
+
+	RegisterCommand(TEXT("AddTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.AddTag(A.GetReg(TEXT("entity")), A.GetTag(TEXT("tag")));
+	});
+	RegisterCommand(TEXT("RemoveTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.RemoveTag(A.GetReg(TEXT("entity")), A.GetTag(TEXT("tag")));
+	});
+	RegisterCommand(TEXT("HasTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.HasTag(A.GetReg(TEXT("dst")), A.GetReg(TEXT("entity")), A.GetTag(TEXT("tag")));
+	});
+	RegisterCommand(TEXT("CountByTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CountByTag(A.GetReg(TEXT("dst")), A.GetTag(TEXT("tag")));
+	});
+
+	// ======================== World Query ========================
+
+	RegisterCommand(TEXT("GetWorldTime"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.GetWorldTime(A.GetReg(TEXT("dst")));
+	});
+	RegisterCommand(TEXT("RandomInt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.RandomInt(A.GetReg(TEXT("dst")), A.GetReg(TEXT("modulus")));
+	});
+	RegisterCommand(TEXT("HasPlayerInGroup"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.HasPlayerInGroup(A.GetReg(TEXT("dst")));
+	});
+
+	// ======================== Item System ========================
+
+	RegisterCommand(TEXT("CountByOwner"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CountByOwner(A.GetReg(TEXT("dst")), A.GetReg(TEXT("owner")), A.GetTag(TEXT("tag")));
+	});
+	RegisterCommand(TEXT("FindByOwner"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.FindByOwner(A.GetReg(TEXT("owner")), A.GetTag(TEXT("tag")));
+	});
+	RegisterCommand(TEXT("SetOwnerUid"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.SetOwnerUid(A.GetReg(TEXT("entity")));
+	});
+	RegisterCommand(TEXT("ClearOwnerUid"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.ClearOwnerUid(A.GetReg(TEXT("entity")));
+	});
+
+	// ======================== Stance ========================
+
+	RegisterCommand(TEXT("SetStance"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.SetStance(A.GetReg(TEXT("entity")), A.GetTag(TEXT("stanceTag")));
+	});
+	RegisterCommand(TEXT("SetItemSkillTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.SetItemSkillTag(A.GetReg(TEXT("entity")), A.GetTag(TEXT("skillTag")));
+	});
+
+	// ======================== Utility ========================
+
+	RegisterCommand(TEXT("Log"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Log(A.GetString(TEXT("message")));
+	});
+}
