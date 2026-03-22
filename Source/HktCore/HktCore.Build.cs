@@ -23,7 +23,9 @@ public class HktCore : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-				"GameplayTags"
+				"GameplayTags",
+				"Json",
+				"JsonUtilities"
 			}
 		);
 			
