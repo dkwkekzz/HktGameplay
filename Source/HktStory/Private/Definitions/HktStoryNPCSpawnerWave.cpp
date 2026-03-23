@@ -30,8 +30,8 @@ namespace HktStoryNPCSpawnerWave
 	{
 		using namespace Reg;
 
-		auto B = Story(Story_Spawner_Wave_Arena)
-			.Log(TEXT("Wave spawner: starting"))
+		auto B = Story(Story_Spawner_Wave_Arena);
+		B.Log(TEXT("Wave spawner: starting"))
 			.LoadConst(R0, 0)                               // R0 = zero constant
 			// 이벤트 Param0/Param1에서 스폰 위치 로드 (Self 엔티티 없음)
 			.LoadStore(R5, PropertyId::Param0)               // R5 = SpawnPosX

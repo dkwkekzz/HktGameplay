@@ -34,8 +34,8 @@ namespace HktStoryBasicAttack
 	{
 		using namespace Reg;
 
-		auto B = Story(Story_BasicAttack)
-			.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
+		auto B = Story(Story_BasicAttack);
+		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity))
 					return false;

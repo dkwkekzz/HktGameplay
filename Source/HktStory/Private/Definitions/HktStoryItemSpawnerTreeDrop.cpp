@@ -34,8 +34,8 @@ namespace HktStoryItemSpawnerTreeDrop
 	{
 		using namespace Reg;
 
-		auto B = Story(Story_Spawner_Item_TreeDrop)
-			.Log(TEXT("TreeDrop spawner: activated"));
+		auto B = Story(Story_Spawner_Item_TreeDrop);
+		B.Log(TEXT("TreeDrop spawner: activated"));
 
 		// 주기적 스포너 루프 시작 (플레이어 체크 + 아이템 10개 상한)
 		HktSnippetNPC::SpawnerLoopBegin(B, TEXT("loop"), TEXT("wait"), Tag_Item_Wood, 10);

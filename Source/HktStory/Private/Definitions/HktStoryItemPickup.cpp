@@ -35,8 +35,8 @@ namespace HktStoryItemPickup
 	{
 		using namespace Reg;
 
-		auto B = Story(Event_Item_Pickup)
-			.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
+		auto B = Story(Event_Item_Pickup);
+		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
 					return false;

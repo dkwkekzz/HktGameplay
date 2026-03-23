@@ -31,8 +31,8 @@ namespace HktStoryNPCSpawnerGoblinCamp
 	{
 		using namespace Reg;
 
-		auto B = Story(Story_Spawner_GoblinCamp)
-			.Log(TEXT("GoblinCamp spawner: activated"));
+		auto B = Story(Story_Spawner_GoblinCamp);
+		B.Log(TEXT("GoblinCamp spawner: activated"));
 
 		// 주기적 스포너 루프 시작 (플레이어 체크 + 인구 5마리 상한)
 		HktSnippetNPC::SpawnerLoopBegin(B, TEXT("loop"), TEXT("wait"), Entity_NPC_Goblin, 5);
