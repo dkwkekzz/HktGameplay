@@ -9,6 +9,7 @@
 #include "HktStoryTags.h"
 #include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetItem.h"
 
 namespace HktStoryItemPickup
 {
@@ -34,7 +35,7 @@ namespace HktStoryItemPickup
 	{
 		using namespace Reg;
 
-		Story(Event_Item_Pickup)
+		auto B = Story(Event_Item_Pickup)
 			.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
@@ -75,15 +76,12 @@ namespace HktStoryItemPickup
 						return true;
 				}
 				return false;
-			})
+			});
 
-			// Ground 상태 확인
-			.LoadEntityProperty(R0, Target, PropertyId::ItemState)
-			.LoadConst(R1, 0)                                           // Ground = 0
-			.CmpNe(Flag, R0, R1)
-			.JumpIf(Flag, TEXT("fail"))
+		// Ground 상태 확인
+		HktSnippetItem::ValidateItemState(B, Target, 0, TEXT("fail"));
 
-			// 거리 검증
+		B	// 거리 검증
 			.GetDistance(R0, Self, Target)
 			.LoadConst(R1, 300)                                         // 3m = 300cm
 			.CmpGt(Flag, R0, R1)
@@ -123,7 +121,7 @@ namespace HktStoryItemPickup
 		.Label(TEXT("found_slot"))
 			// R3 = 빈 BagSlot, 아이템을 가방으로 이동
 			.SaveEntityProperty(Target, PropertyId::OwnerEntity, Self)
-			.SetOwnerUid(Target)                                            // 계정 소유 설정 (Gap 6)
+			.SetOwnerUid(Target)                                            // 계정 소유 설정
 			.SaveConstEntity(Target, PropertyId::ItemState, 1)              // InBag
 			.SaveEntityProperty(Target, PropertyId::BagSlot, R3)
 

@@ -7,6 +7,7 @@
 #include "HktStoryTags.h"
 #include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetNPC.h"
 
 namespace HktStoryNPCSpawnerWave
 {
@@ -23,16 +24,13 @@ namespace HktStoryNPCSpawnerWave
 	 * 자연어로 읽으면:
 	 * "Wave 1: 고블린 3마리 스폰 → 전멸 대기 →
 	 *  Wave 2: 스켈레톤 2마리 스폰 → 전멸 대기 → 완료."
-	 *
-	 * 서버가 EventTag "Story.Flow.Spawner.Wave.Arena" 을 fire.
-	 * Param0 = SpawnPosX, Param1 = SpawnPosY (Self 엔티티 없음)
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Story(Story_Spawner_Wave_Arena)
+		auto B = Story(Story_Spawner_Wave_Arena)
 			.Log(TEXT("Wave spawner: starting"))
 			.LoadConst(R0, 0)                               // R0 = zero constant
 			// 이벤트 Param0/Param1에서 스폰 위치 로드 (Self 엔티티 없음)
@@ -49,16 +47,12 @@ namespace HktStoryNPCSpawnerWave
 				.CmpGe(Flag, R2, R1)
 				.JumpIf(Flag, TEXT("wave1_wait"))
 
-				.SpawnEntity( Entity_NPC_Goblin)
-				.SaveConstEntity(Spawned, PropertyId::IsNPC, 1)
-				.SaveConstEntity(Spawned, PropertyId::Health, 80)
-				.SaveConstEntity(Spawned, PropertyId::MaxHealth, 80)
-				.SaveConstEntity(Spawned, PropertyId::AttackPower, 15)
-				.SaveConstEntity(Spawned, PropertyId::Team, 0)
-				.AddTag(Spawned, Entity_NPC)
-				.AddTag(Spawned, Entity_NPC_Goblin)
-				.AddTag(Spawned, Tag_NPC_Hostile)
-				.SaveStoreEntity(Spawned, PropertyId::PosX, R5)
+				.SpawnEntity( Entity_NPC_Goblin);
+
+		// 고블린 스탯 설정 (Defense, MaxSpeed 미설정 — 원본과 동일)
+		HktSnippetNPC::SetupNPCStats(B, Entity_NPC_Goblin, { 80, 15, 0, 0, 0 });
+
+		B		.SaveStoreEntity(Spawned, PropertyId::PosX, R5)
 				.SaveStoreEntity(Spawned, PropertyId::PosY, R6)
 
 				.AddImm(R2, R2, 1)
@@ -82,16 +76,12 @@ namespace HktStoryNPCSpawnerWave
 				.CmpGe(Flag, R2, R1)
 				.JumpIf(Flag, TEXT("wave2_wait"))
 
-				.SpawnEntity( Entity_NPC_Skeleton)
-				.SaveConstEntity(Spawned, PropertyId::IsNPC, 1)
-				.SaveConstEntity(Spawned, PropertyId::Health, 60)
-				.SaveConstEntity(Spawned, PropertyId::MaxHealth, 60)
-				.SaveConstEntity(Spawned, PropertyId::AttackPower, 20)
-				.SaveConstEntity(Spawned, PropertyId::Team, 0)
-				.AddTag(Spawned, Entity_NPC)
-				.AddTag(Spawned, Entity_NPC_Skeleton)
-				.AddTag(Spawned, Tag_NPC_Hostile)
-				.SaveStoreEntity(Spawned, PropertyId::PosX, R5)
+				.SpawnEntity( Entity_NPC_Skeleton);
+
+		// 스켈레톤 스탯 설정 (Defense, MaxSpeed 미설정 — 원본과 동일)
+		HktSnippetNPC::SetupNPCStats(B, Entity_NPC_Skeleton, { 60, 20, 0, 0, 0 });
+
+		B		.SaveStoreEntity(Spawned, PropertyId::PosX, R5)
 				.SaveStoreEntity(Spawned, PropertyId::PosY, R6)
 
 				.AddImm(R2, R2, 1)

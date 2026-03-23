@@ -6,6 +6,7 @@
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetNPC.h"
 
 namespace HktStoryItemSpawnerTreeDrop
 {
@@ -27,47 +28,37 @@ namespace HktStoryItemSpawnerTreeDrop
 	 * 자연어로 읽으면:
 	 * "플레이어가 있을 때 30초마다 나무 아이템을 월드에 드랍한다.
 	 *  아이템 수가 상한에 도달하면 대기한다."
-	 *
-	 * 서버가 EventTag "Story.Flow.Spawner.Item.TreeDrop" fire.
-	 * Param0 = SpawnPosX, Param1 = SpawnPosY
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Story(Story_Spawner_Item_TreeDrop)
-			.Log(TEXT("TreeDrop spawner: activated"))
+		auto B = Story(Story_Spawner_Item_TreeDrop)
+			.Log(TEXT("TreeDrop spawner: activated"));
 
-			.Label(TEXT("loop"))
-				.HasPlayerInGroup(Flag)
-				.JumpIfNot(Flag, TEXT("wait"))
+		// 주기적 스포너 루프 시작 (플레이어 체크 + 아이템 10개 상한)
+		HktSnippetNPC::SpawnerLoopBegin(B, TEXT("loop"), TEXT("wait"), Tag_Item_Wood, 10);
 
-				// 아이템 인구 체크
-				.CountByTag(R0, Tag_Item_Wood)
-				.LoadConst(R1, 10)
-				.CmpGe(Flag, R0, R1)
-				.JumpIf(Flag, TEXT("wait"))
+		B	// 아이템 엔티티 생성
+			.SpawnEntity(Entity_Item_Wood)
+			.SaveConstEntity(Spawned, PropertyId::ItemState, 0)               // Ground
+			.SaveConstEntity(Spawned, PropertyId::ItemId, 101)                // Wood = 101
+			.SaveConstEntity(Spawned, PropertyId::ActionSlot, -1)             // 미등록
+			.AddTag(Spawned, Tag_Item_Material)
+			.AddTag(Spawned, Tag_Item_Wood)
 
-				// 아이템 엔티티 생성
-				.SpawnEntity(Entity_Item_Wood)
-				.SaveConstEntity(Spawned, PropertyId::ItemState, 0)               // Ground
-				.SaveConstEntity(Spawned, PropertyId::ItemId, 101)                // Wood = 101
-				.SaveConstEntity(Spawned, PropertyId::ActionSlot, -1)             // 미등록
-				.AddTag(Spawned, Tag_Item_Material)
-				.AddTag(Spawned, Tag_Item_Wood)
+			// 위치 설정
+			.LoadStore(R3, PropertyId::Param0)
+			.LoadStore(R4, PropertyId::Param1)
+			.LoadConst(R5, 0)
+			.SetPosition(Spawned, R3)
 
-				// 위치 설정
-				.LoadStore(R3, PropertyId::Param0)
-				.LoadStore(R4, PropertyId::Param1)
-				.LoadConst(R5, 0)
-				.SetPosition(Spawned, R3)
+			.Log(TEXT("TreeDrop: wood spawned"));
 
-				.Log(TEXT("TreeDrop: wood spawned"))
+		// 주기적 스포너 루프 종결 (30초 대기)
+		HktSnippetNPC::SpawnerLoopEnd(B, TEXT("loop"), TEXT("wait"), 30.0f);
 
-			.Label(TEXT("wait"))
-				.WaitSeconds(30.0f)
-				.Jump(TEXT("loop"))
-			.BuildAndRegister();
+		B.BuildAndRegister();
 	}
 }

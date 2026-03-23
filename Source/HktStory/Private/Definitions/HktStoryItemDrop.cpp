@@ -7,6 +7,7 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetItem.h"
 
 namespace HktStoryItemDrop
 {
@@ -28,45 +29,33 @@ namespace HktStoryItemDrop
 	{
 		using namespace Reg;
 
-		Story(Event_Item_Drop)
+		auto B = Story(Event_Item_Drop)
 			.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
 					return false;
-
-				// 소유자 확인
 				if (WS.GetProperty(E.TargetEntity, PropertyId::OwnerEntity) != E.SourceEntity)
 					return false;
-
 				return true;
-			})
+			});
 
-			// 소유자 확인
-			.LoadEntityProperty(R0, Target, PropertyId::OwnerEntity)
-			.CmpNe(Flag, R0, Self)
-			.JumpIf(Flag, TEXT("fail"))
+		// 소유자 확인
+		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
 
-			// Active 상태였으면 캐릭터에서 스탯 차감 (Gap 4)
-			.LoadEntityProperty(R0, Target, PropertyId::ItemState)
-			.LoadConst(R1, 2)                                                 // Active = 2
-			.CmpNe(Flag, R0, R1)
-			.JumpIf(Flag, TEXT("drop_exec"))
+		// Active 상태였으면 캐릭터에서 스탯 차감
+		B.LoadEntityProperty(R0, Target, PropertyId::ItemState)
+		 .LoadConst(R1, 2)                                                 // Active = 2
+		 .CmpNe(Flag, R0, R1)
+		 .JumpIf(Flag, TEXT("drop_exec"));
 
-			// Active 아이템 스탯 차감
-			.LoadEntityProperty(R0, Target, PropertyId::AttackPower)
-			.LoadEntityProperty(R1, Self, PropertyId::AttackPower)
-			.Sub(R1, R1, R0)
-			.SaveEntityProperty(Self, PropertyId::AttackPower, R1)
-			.LoadEntityProperty(R0, Target, PropertyId::Defense)
-			.LoadEntityProperty(R1, Self, PropertyId::Defense)
-			.Sub(R1, R1, R0)
-			.SaveEntityProperty(Self, PropertyId::Defense, R1)
+		// Active 아이템 스탯 차감
+		HktSnippetItem::RemoveItemStats(B, Target, Self);
 
-		.Label(TEXT("drop_exec"))
+		B.Label(TEXT("drop_exec"))
 			// Ground로 전환
 			.SaveConstEntity(Target, PropertyId::ItemState, 0)                // Ground
 			.SaveConstEntity(Target, PropertyId::OwnerEntity, 0)              // 소유자 해제
-			.ClearOwnerUid(Target)                                            // 계정 소유 해제 (Gap 6)
+			.ClearOwnerUid(Target)                                            // 계정 소유 해제
 			.SaveConstEntity(Target, PropertyId::BagSlot, 0)                  // 슬롯 초기화
 			.SaveConstEntity(Target, PropertyId::ActionSlot, -1)              // 액션 해제
 
