@@ -51,6 +51,7 @@ public:
     virtual FHktEntityId GetSubjectEntityId() const override;
     virtual FHktEntityId GetTargetEntityId() const override;
     virtual FGameplayTag GetEventTag() const override;
+    virtual int32 GetCommandSlotIndex() const override { return CommandSlotIndex; }
     virtual bool HasPendingSubmit() const override;
     virtual FHktEvent ConsumePendingSubmit() override;
 

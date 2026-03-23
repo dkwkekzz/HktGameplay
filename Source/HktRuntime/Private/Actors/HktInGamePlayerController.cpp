@@ -167,14 +167,32 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
     {
         TargetChangedDelegate.Broadcast(CachedIntentBuilder->GetTargetEntityId());
 
-        // 이동 요청: EventTag 없이 SourceEntity + Target/Location만 전송
-        FHktClientMoveRequest MoveReq;
-        MoveReq.SourceEntity = CachedIntentBuilder->GetSubjectEntityId();
-        MoveReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();
-        MoveReq.Location = CachedIntentBuilder->GetTargetLocation();
+        const FHktEntityId SourceEntity = CachedIntentBuilder->GetSubjectEntityId();
+        if (SourceEntity == InvalidEntityId) return;
 
-        if (MoveReq.SourceEntity != InvalidEntityId)
+        const int32 PendingSlot = CachedIntentBuilder->GetCommandSlotIndex();
+
+        if (PendingSlot >= 0)
         {
+            // 커맨드 대기 중 → 타겟 지정 완료 → SlotRequest 전송
+            FHktClientSlotRequest SlotReq;
+            SlotReq.SlotIndex = PendingSlot;
+            SlotReq.SourceEntity = SourceEntity;
+            SlotReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();
+            SlotReq.TargetLocation = CachedIntentBuilder->GetTargetLocation();
+
+            FHktRuntimeSlotRequest RuntimeReq(SlotReq);
+            Server_ReceiveSlotRequest(RuntimeReq);
+            UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction SlotRequest (pending) %s"), *SlotReq.ToString());
+        }
+        else
+        {
+            // 커맨드 없음 → 이동 요청
+            FHktClientMoveRequest MoveReq;
+            MoveReq.SourceEntity = SourceEntity;
+            MoveReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();
+            MoveReq.Location = CachedIntentBuilder->GetTargetLocation();
+
             FHktRuntimeMoveRequest RuntimeReq(MoveReq);
             Server_ReceiveMoveRequest(RuntimeReq);
             UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction MoveRequest %s"), *MoveReq.ToString());
