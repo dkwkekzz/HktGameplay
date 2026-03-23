@@ -125,6 +125,9 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 
 	if (View.bIsInitialSync || !bInitialSyncDone)
 	{
+		HKT_EVENT_LOG("Presentation",
+			FString::Printf(TEXT("InitialSync Frame=%lld Entities=%d"),
+				View.FrameNumber, View.WorldState->GetEntityCount()));
 		ProcessInitialSync(View);
 		bInitialSyncDone = true;
 	}

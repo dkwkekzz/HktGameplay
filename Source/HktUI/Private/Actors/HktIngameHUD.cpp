@@ -9,6 +9,7 @@
 #include "HktUITags.h"
 #include "HktCoreProperties.h"
 #include "HktUILog.h"
+#include "HktCoreEventLog.h"
 #include "HktUIHelpers.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "GameFramework/PlayerController.h"
@@ -66,6 +67,16 @@ void AHktIngameHUD::UnbindWorldViewDelegate()
 
 void AHktIngameHUD::OnWorldViewUpdated(const FHktWorldView& View)
 {
+	if (View.bIsInitialSync)
+	{
+		HKT_EVENT_LOG("UI", FString::Printf(TEXT("HUD: InitialSync Frame=%lld"), View.FrameNumber));
+	}
+	else if (View.SpawnedEntities && View.SpawnedEntities->Num() > 0)
+	{
+		HKT_EVENT_LOG("UI", FString::Printf(TEXT("HUD: Spawned %d entities Frame=%lld"),
+			View.SpawnedEntities->Num(), View.FrameNumber));
+	}
+
 	RefreshWorldState();
 	if (!bWorldStateValid) return;
 
