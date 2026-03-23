@@ -22,11 +22,17 @@ void UHktIntentBuilderComponent::SetCommand(FGameplayTag InEventTag, bool bInTar
 {
     EventTag = InEventTag;
     bTargetRequired = bInTargetRequired;
+    CommandSlotIndex = -1;
     UE_LOG(LogHktRuntime, Verbose, TEXT("SetCommand Tag=%s TargetRequired=%d"), *EventTag.ToString(), bInTargetRequired);
 
     // 커맨드 변경 시 Target 초기화
     TargetEntityId = InvalidEntityId;
     TargetLocation = FVector::ZeroVector;
+}
+
+void UHktIntentBuilderComponent::SetCommandSlot(int32 InSlotIndex)
+{
+    CommandSlotIndex = InSlotIndex;
 }
 
 void UHktIntentBuilderComponent::SetTarget(FHktEntityId InTarget, FVector InLocation)
@@ -41,6 +47,7 @@ void UHktIntentBuilderComponent::ResetCommand()
     TargetEntityId = InvalidEntityId;
     TargetLocation = FVector::ZeroVector;
     bTargetRequired = true;
+    CommandSlotIndex = -1;
 }
 
 bool UHktIntentBuilderComponent::IsReadyToSubmit() const
@@ -73,7 +80,7 @@ bool UHktIntentBuilderComponent::Submit()
     CoreEvent.TargetEntity = TargetEntityId;
     CoreEvent.Location = TargetLocation;
     CoreEvent.Param0 = 0;
-    CoreEvent.Param1 = 0;
+    CoreEvent.Param1 = CommandSlotIndex;
 
     PendingSubmitEvent = CoreEvent; // 복사 생성자 사용
 

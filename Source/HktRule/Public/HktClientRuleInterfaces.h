@@ -44,6 +44,7 @@ class HKTRULE_API IHktIntentBuilder
 public:
 	virtual void SetSubject(FHktEntityId InSubject) = 0;
 	virtual void SetCommand(FGameplayTag InEventTag, bool bInTargetRequired) = 0;
+	virtual void SetCommandSlot(int32 InSlotIndex) = 0;
 	virtual void SetTarget(FHktEntityId InTarget, FVector InLocation) = 0;
 	virtual void ResetCommand() = 0;
 	virtual bool IsReadyToSubmit() const = 0;
@@ -83,10 +84,15 @@ public:
 	virtual FGameplayTag GetEventTagAtSlot(int32 SlotIndex) const = 0;
 	virtual bool IsTargetRequiredAtSlot(int32 SlotIndex) const = 0;
 	virtual int32 GetNumSlots() const = 0;
-	virtual void SetSlotActions(const TArray<TObjectPtr<UObject>>& InSlotActions) = 0;
 
-	/** 아이템 장착에 의한 동적 슬롯 오버라이드 (해제 시 FGameplayTag() 전달) */
-	virtual void OverrideSlotBinding(int32 SlotIndex, FGameplayTag EventTag, bool bTargetRequired) {}
+	/** 슬롯 개수 초기화 */
+	virtual void InitializeSlots(int32 NumSlots) = 0;
+
+	/** 슬롯에 스킬 바인딩 (캐릭터 기본 스킬 또는 아이템 스킬) */
+	virtual void SetSlotBinding(int32 SlotIndex, FGameplayTag EventTag, bool bTargetRequired) = 0;
+
+	/** 슬롯 바인딩 해제 */
+	virtual void ClearSlotBinding(int32 SlotIndex) = 0;
 
 	/** 슬롯 바인딩이 변경되었을 때 브로드캐스트 (SlotIndex) */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSlotBindingChanged, int32);

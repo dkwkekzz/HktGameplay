@@ -31,18 +31,26 @@ namespace HktStoryCombatUseItemSkill
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_SkillHit, "Sound.SkillHit", "Item skill hit sound.");
 
+	/** ItemSlot[N] PropertyId 테이블 — Param1(슬롯 인덱스)에서 프로퍼티 ID를 결정 */
+	static constexpr uint16 ItemSlotProperties[] =
+	{
+		PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
+		PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
+		PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+	};
+
 	/**
 	 * ================================================================
 	 * 아이템 스킬 사용 Flow (Story.Event.Combat.UseItemSkill)
 	 *
 	 * 자연어로 읽으면:
-	 * "우클릭으로 아이템 스킬을 사용한다.
-	 *  활성 슬롯(ActionSlot 0)의 아이템을 찾아
+	 * "슬롯 키를 눌러 아이템 스킬을 사용한다.
+	 *  Param1(슬롯 인덱스)의 ItemSlot에서 아이템을 찾아
 	 *  공속 기반 쿨타임(NextActionFrame)과 CP를 검증한 뒤,
 	 *  CP를 차감하고 스킬 로직(대상에 공격력*2 피해)을 실행한다.
 	 *  스킬의 후딜레이를 AttackSpeed로 나눠 NextActionFrame을 갱신한다."
 	 *
-	 * Self = 캐릭터, Target = 공격 대상 (Param0에서 로드)
+	 * Self = 캐릭터, Param0 = 공격 대상 EntityId, Param1 = 슬롯 인덱스
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
@@ -60,23 +68,17 @@ namespace HktStoryCombatUseItemSkill
 				if (WS.FrameNumber < NextFrame)
 					return false;
 
-				// ActionSlot 0에 활성 아이템이 있는지 찾기
-				bool bFoundItem = false;
-				int32 CpCost = 0;
-				WS.ForEachEntityByOwner(WS.GetOwnerUid(E.SourceEntity), [&](FHktEntityId ItemId, int32 /*Slot*/)
-				{
-					if (bFoundItem) return;
-					if (WS.GetProperty(ItemId, PropertyId::OwnerEntity) != E.SourceEntity) return;
-					if (WS.GetProperty(ItemId, PropertyId::ItemState) != 2) return;     // Active만
-					if (WS.GetProperty(ItemId, PropertyId::ActionSlot) != 0) return;     // 주무기 슬롯만
-					CpCost = WS.GetProperty(ItemId, PropertyId::SkillCPCost);
-					bFoundItem = true;
-				});
+				// Param1 = 슬롯 인덱스 → ItemSlot[N]에서 아이템 EntityId 조회
+				int32 SlotIndex = E.Param1;
+				if (SlotIndex < 0 || SlotIndex >= UE_ARRAY_COUNT(ItemSlotProperties))
+					return false;
 
-				if (!bFoundItem)
+				FHktEntityId ItemId = WS.GetProperty(E.SourceEntity, ItemSlotProperties[SlotIndex]);
+				if (!WS.IsValidEntity(ItemId))
 					return false;
 
 				// CP 검증
+				int32 CpCost = WS.GetProperty(ItemId, PropertyId::SkillCPCost);
 				int32 CurrentCP = WS.GetProperty(E.SourceEntity, PropertyId::CP);
 				return CurrentCP >= CpCost;
 			})
@@ -89,38 +91,36 @@ namespace HktStoryCombatUseItemSkill
 			.CmpLt(Flag, R0, R1)
 			.JumpIf(Flag, TEXT("fail"))
 
-			// === ActionSlot 0의 활성 아이템 검색 ===
-			.FindByOwner(Self, Entity_Item)
-			.LoadConst(R6, 0)                                           // R6 = 아이템 발견 플래그
+			// === Param1(슬롯 인덱스)로 ItemSlot[N]에서 아이템 엔티티 조회 ===
+			.LoadStore(R0, PropertyId::Param1)                          // R0 = 슬롯 인덱스
+			.LoadConst(R1, 0).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_0"))
+			.LoadConst(R1, 1).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_1"))
+			.LoadConst(R1, 2).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_2"))
+			.LoadConst(R1, 3).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_3"))
+			.LoadConst(R1, 4).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_4"))
+			.LoadConst(R1, 5).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_5"))
+			.LoadConst(R1, 6).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_6"))
+			.LoadConst(R1, 7).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_7"))
+			.LoadConst(R1, 8).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_8"))
+			.Jump(TEXT("fail"))                                         // 유효하지 않은 슬롯
 
-		.Label(TEXT("find_loop"))
-			.NextFound()
-			.JumpIfNot(Flag, TEXT("find_done"))
+		.Label(TEXT("load_slot_0")).LoadStore(R2, PropertyId::ItemSlot0).Jump(TEXT("item_found"))
+		.Label(TEXT("load_slot_1")).LoadStore(R2, PropertyId::ItemSlot1).Jump(TEXT("item_found"))
+		.Label(TEXT("load_slot_2")).LoadStore(R2, PropertyId::ItemSlot2).Jump(TEXT("item_found"))
+		.Label(TEXT("load_slot_3")).LoadStore(R2, PropertyId::ItemSlot3).Jump(TEXT("item_found"))
+		.Label(TEXT("load_slot_4")).LoadStore(R2, PropertyId::ItemSlot4).Jump(TEXT("item_found"))
+		.Label(TEXT("load_slot_5")).LoadStore(R2, PropertyId::ItemSlot5).Jump(TEXT("item_found"))
+		.Label(TEXT("load_slot_6")).LoadStore(R2, PropertyId::ItemSlot6).Jump(TEXT("item_found"))
+		.Label(TEXT("load_slot_7")).LoadStore(R2, PropertyId::ItemSlot7).Jump(TEXT("item_found"))
+		.Label(TEXT("load_slot_8")).LoadStore(R2, PropertyId::ItemSlot8).Jump(TEXT("item_found"))
 
-			// Active(State==2) 확인
-			.LoadEntityProperty(R3, Iter, PropertyId::ItemState)
-			.LoadConst(R4, 2)
-			.CmpNe(R5, R3, R4)
-			.JumpIf(R5, TEXT("find_loop"))
-
-			// ActionSlot == 0 확인 (주무기)
-			.LoadEntityProperty(R3, Iter, PropertyId::ActionSlot)
-			.LoadConst(R4, 0)
-			.CmpNe(R5, R3, R4)
-			.JumpIf(R5, TEXT("find_loop"))
-
-			// 아이템 발견! R6 = 1, Target 레지스터에 Iter 복사 (아이템 엔티티)
-			.LoadConst(R6, 1)
-			.Move(R2, Iter)                                             // R2 = 아이템 엔티티 ID (나중에 사용)
-
-		.Label(TEXT("find_done"))
-			// 아이템 미발견 시 실패
-			.LoadConst(R4, 0)
-			.CmpEq(Flag, R6, R4)
+		.Label(TEXT("item_found"))
+			// R2 = 아이템 엔티티 ID — 유효성 검증
+			.LoadConst(R3, 0)
+			.CmpEq(Flag, R2, R3)
 			.JumpIf(Flag, TEXT("fail"))
 
 			// === CP 검증 및 차감 ===
-			// R2 = 아이템 엔티티
 			.LoadEntityProperty(R3, R2, PropertyId::SkillCPCost)        // R3 = CP 소모량
 			.LoadStore(R4, PropertyId::CP)                              // R4 = 현재 CP
 			.CmpLt(Flag, R4, R3)                                        // CP < Cost?
