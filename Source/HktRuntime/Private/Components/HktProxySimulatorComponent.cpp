@@ -1,5 +1,6 @@
 #include "HktProxySimulatorComponent.h"
 #include "HktRuntimeLog.h"
+#include "HktCoreEventLog.h"
 #include "HktRuntimeCommon.h"
 #include "HktCoreDataCollector.h"
 
@@ -103,7 +104,8 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     FramesSinceLastServerBatch++;
     if (FramesSinceLastServerBatch > MaxHistoryFrames)
     {
-        UE_LOG(LogHktRuntime, Error, TEXT("ServerBatchTimeout: %d frames without response"), FramesSinceLastServerBatch);
+        HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+            FString::Printf(TEXT("ServerBatchTimeout: %d frames without response"), FramesSinceLastServerBatch));
         DiffHistory.Empty();
         FramesSinceLastServerBatch = 0;
         bInitialized = false;
@@ -127,8 +129,9 @@ FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
 
 void UHktProxySimulatorComponent::EnqueueServerBatch(const FHktSimulationEvent& InBatch)
 {
-    UE_LOG(LogHktRuntime, Verbose, TEXT("EnqueueServerBatch Frame=%lld Events=%d"),
-        InBatch.FrameNumber, InBatch.NewEvents.Num());
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+        FString::Printf(TEXT("EnqueueServerBatch Frame=%lld Events=%d"),
+            InBatch.FrameNumber, InBatch.NewEvents.Num()));
     PendingServerBatches.Add(InBatch);
 }
 
@@ -146,8 +149,9 @@ bool UHktProxySimulatorComponent::ConsumePendingDiff(FHktSimulationDiff& OutDiff
 
 void UHktProxySimulatorComponent::ProcessPendingServerBatches()
 {
-    UE_LOG(LogHktRuntime, Verbose, TEXT("ProcessServerBatches: %d batches, rollback %d diffs"),
-        PendingServerBatches.Num(), DiffHistory.Num());
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+        FString::Printf(TEXT("ProcessServerBatches: %d batches, rollback %d diffs"),
+            PendingServerBatches.Num(), DiffHistory.Num()));
 
     // 프레임 번호 기준 오름차순 정렬
     PendingServerBatches.Sort([](const FHktSimulationEvent& A, const FHktSimulationEvent& B)
@@ -201,8 +205,9 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
 
 void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, int32 InGroupIndex)
 {
-    UE_LOG(LogHktRuntime, Verbose, TEXT("RestoreState Frame=%lld Entities=%d GroupIndex=%d"),
-        InState.FrameNumber, InState.GetEntityCount(), InGroupIndex);
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+        FString::Printf(TEXT("RestoreState Frame=%lld Entities=%d GroupIndex=%d"),
+            InState.FrameNumber, InState.GetEntityCount(), InGroupIndex));
     Simulator->RestoreWorldState(InState);
 
     CachedGroupIndex = InGroupIndex;

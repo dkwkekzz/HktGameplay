@@ -8,6 +8,9 @@
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
 #include "HktCoreDataCollector.h"
+#include "HktCoreEventLog.h"
+#include "HktStoryBuilder.h"
+#include "HktRuntimeTags.h"
 #include "HktCoreProperties.h"
 #include "HktCoreEvents.h"
 #include "HktWorldView.h"
@@ -153,7 +156,9 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
         }
 
         SubjectChangedDelegate.Broadcast(CachedIntentBuilder->GetSubjectEntityId());
-        UE_LOG(LogHktRuntime, Verbose, TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId());
+        HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+            FString::Printf(TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId()),
+            CachedIntentBuilder->GetSubjectEntityId());
     }
 }
 
@@ -194,6 +199,10 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
                 IntentEvent.TargetEntity = SlotReq.TargetEntity;
                 IntentEvent.Location = SlotReq.TargetLocation;
                 IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(IntentEvent));
+              
+                HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+                    FString::Printf(TEXT("OnTargetAction Submit %s"), *IntentEvent.ToString()),
+                    IntentEvent.SourceEntity, IntentEvent.EventTag);
             }
 
             UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction SlotRequest (pending) %s"), *SlotReq.ToString());
@@ -267,6 +276,10 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
                 IntentEvent.TargetEntity = SlotReq.TargetEntity;
                 IntentEvent.Location = SlotReq.TargetLocation;
                 IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(IntentEvent));
+              
+                HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+                    FString::Printf(TEXT("OnSlotAction Submit Slot=%d %s"), SlotIndex, *IntentEvent.ToString()),
+                    IntentEvent.SourceEntity, IntentEvent.EventTag);
             }
 
             UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction SlotRequest %s"), *SlotReq.ToString());
@@ -299,7 +312,7 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
     InsightReceivedInitialStateCount++;
 #endif
 
-    UE_LOG(LogHktRuntime, Verbose, TEXT("ReceiveInitialState GroupIndex=%d"), GroupIndex);
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client, FString::Printf(TEXT("ReceiveInitialState GroupIndex=%d"), GroupIndex));
     bIsInitialSync = false;
 
     IHktClientRule* Rule = GetClientRule();
@@ -318,8 +331,9 @@ void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
     InsightReceivedBatchCount++;
 #endif
 
-    UE_LOG(LogHktRuntime, Verbose, TEXT("ReceiveFrameBatch Frame=%lld Events=%d"),
-        Batch.Value.FrameNumber, Batch.Value.NewEvents.Num());
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+        FString::Printf(TEXT("ReceiveFrameBatch Frame=%lld Events=%d"),
+            Batch.Value.FrameNumber, Batch.Value.NewEvents.Num()));
     Rule->OnReceived_FrameBatch(static_cast<const FHktSimulationEvent&>(Batch));
 }
 

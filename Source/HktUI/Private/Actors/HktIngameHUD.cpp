@@ -9,6 +9,7 @@
 #include "HktUITags.h"
 #include "HktCoreProperties.h"
 #include "HktUILog.h"
+#include "HktCoreEventLog.h"
 #include "HktUIHelpers.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "GameFramework/PlayerController.h"
@@ -66,7 +67,17 @@ void AHktIngameHUD::UnbindWorldViewDelegate()
 
 void AHktIngameHUD::OnWorldViewUpdated(const FHktWorldView& View)
 {
-	UE_LOG(LogHktUI, Verbose, TEXT("HUD: WorldViewUpdated"));
+	if (View.bIsInitialSync)
+	{
+		HKT_EVENT_LOG(HktLogTags::UI, FString::Printf(TEXT("HUD: InitialSync Frame=%lld Entities=%d"),
+			View.FrameNumber, View.WorldState ? View.WorldState->GetEntityCount() : 0));
+	}
+	else if (View.SpawnedEntities && View.SpawnedEntities->Num() > 0)
+	{
+		HKT_EVENT_LOG(HktLogTags::UI, FString::Printf(TEXT("HUD: Spawned %d entities Frame=%lld"),
+			View.SpawnedEntities->Num(), View.FrameNumber));
+	}
+
 	RefreshWorldState();
 	if (!bWorldStateValid) return;
 
@@ -100,8 +111,6 @@ void AHktIngameHUD::UpdateEntityUI()
 void AHktIngameHUD::SyncEntityElements()
 {
 	if (!CachedWorldState) return;
-
-	UE_LOG(LogHktUI, Verbose, TEXT("HUD: SyncEntityElements TrackedCount=%d"), TrackedEntities.Num());
 
 	if (!bInitialSyncDone)
 	{

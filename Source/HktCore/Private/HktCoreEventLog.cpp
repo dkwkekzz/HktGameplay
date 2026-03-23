@@ -2,13 +2,35 @@
 
 #include "HktCoreEventLog.h"
 
+// ============================================================================
+// 로그 카테고리 GameplayTag 정의
+// ============================================================================
+
+namespace HktLogTags
+{
+	UE_DEFINE_GAMEPLAY_TAG(Core,            "HktLog.Core");
+	UE_DEFINE_GAMEPLAY_TAG(Core_Entity,     "HktLog.Core.Entity");
+	UE_DEFINE_GAMEPLAY_TAG(Core_VM,         "HktLog.Core.VM");
+	UE_DEFINE_GAMEPLAY_TAG(Core_Story,      "HktLog.Core.Story");
+	UE_DEFINE_GAMEPLAY_TAG(Runtime,         "HktLog.Runtime");
+	UE_DEFINE_GAMEPLAY_TAG(Runtime_Server,  "HktLog.Runtime.Server");
+	UE_DEFINE_GAMEPLAY_TAG(Runtime_Client,  "HktLog.Runtime.Client");
+	UE_DEFINE_GAMEPLAY_TAG(Runtime_Intent,  "HktLog.Runtime.Intent");
+	UE_DEFINE_GAMEPLAY_TAG(Presentation,    "HktLog.Presentation");
+	UE_DEFINE_GAMEPLAY_TAG(Asset,           "HktLog.Asset");
+	UE_DEFINE_GAMEPLAY_TAG(Rule,            "HktLog.Rule");
+	UE_DEFINE_GAMEPLAY_TAG(Story,           "HktLog.Story");
+	UE_DEFINE_GAMEPLAY_TAG(UI,              "HktLog.UI");
+	UE_DEFINE_GAMEPLAY_TAG(VFX,             "HktLog.VFX");
+}
+
 FHktCoreEventLog& FHktCoreEventLog::Get()
 {
 	static FHktCoreEventLog Instance;
 	return Instance;
 }
 
-void FHktCoreEventLog::Log(const TCHAR* Category, const FString& Message,
+void FHktCoreEventLog::Log(const FGameplayTag& Category, const FString& Message,
                            FHktEntityId EntityId, FGameplayTag EventTag)
 {
 	if (!bActive)
@@ -36,7 +58,7 @@ void FHktCoreEventLog::Log(const TCHAR* Category, const FString& Message,
 	++WriteIndex;
 	++Version;
 
-	KnownCategories.Add(Category);
+	KnownCategories.AddTag(Category);
 }
 
 void FHktCoreEventLog::SetActive(bool bNewActive)
@@ -83,8 +105,8 @@ void FHktCoreEventLog::Clear()
 	++Version;
 }
 
-TArray<FString> FHktCoreEventLog::GetCategories() const
+FGameplayTagContainer FHktCoreEventLog::GetCategories() const
 {
 	FScopeLock ScopeLock(&Lock);
-	return KnownCategories.Array();
+	return KnownCategories;
 }

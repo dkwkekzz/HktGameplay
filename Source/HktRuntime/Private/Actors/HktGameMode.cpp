@@ -9,6 +9,7 @@
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
 #include "HktCoreDataCollector.h"
+#include "HktCoreEventLog.h"
 
 DEFINE_LOG_CATEGORY(LogHktRuntime);
 
@@ -190,7 +191,8 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
     // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
     Rule->OnEvent_GameModePostLogin(*WorldPlayer);
 
-    UE_LOG(LogHktRuntime, Verbose, TEXT("PostLogin PlayerUid=%lld"), WorldPlayer->GetPlayerUid());
+    HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+        FString::Printf(TEXT("PostLogin PlayerUid=%lld"), WorldPlayer->GetPlayerUid()));
 }
 
 void AHktGameMode::Logout(AController* Exiting)
@@ -205,7 +207,8 @@ void AHktGameMode::Logout(AController* Exiting)
     if (!WorldPlayer || !WorldPlayer->IsInitialized()) return;
 
     const int64 PlayerUid = WorldPlayer->GetPlayerUid();
-    UE_LOG(LogHktRuntime, Verbose, TEXT("Logout PlayerUid=%lld"), PlayerUid);
+    HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+        FString::Printf(TEXT("Logout PlayerUid=%lld"), PlayerUid));
 
     // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
     Rule->OnEvent_GameModeLogout(*WorldPlayer);
@@ -224,7 +227,10 @@ void AHktGameMode::PushSlotRequest(int64 PlayerUid, const FHktSlotRequest& Reque
     IHktWorldPlayer* WorldPlayer = Graph->GetWorldPlayer(PlayerUid);
     if (!WorldPlayer) return;
 
-    UE_LOG(LogHktRuntime, Verbose, TEXT("PushSlotRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString());
+    // item 2: Graph/Builder 파라미터 없음 — Rule이 내부 캐싱된 컨텍스트 사용
+    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Server,
+        FString::Printf(TEXT("PushSlotRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString()),
+        Event.SourceEntity, Event.EventTag);
     Rule->OnReceived_SlotRequest(Request, *WorldPlayer);
 }
 
@@ -239,7 +245,10 @@ void AHktGameMode::PushMoveRequest(int64 PlayerUid, const FHktMoveRequest& Reque
     IHktWorldPlayer* WorldPlayer = Graph->GetWorldPlayer(PlayerUid);
     if (!WorldPlayer) return;
 
-    UE_LOG(LogHktRuntime, Verbose, TEXT("PushMoveRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString());
+    // item 2: Graph/Builder 파라미터 없음 — Rule이 내부 캐싱된 컨텍스트 사용
+    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Server,
+        FString::Printf(TEXT("PushMoveRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString()),
+        Event.SourceEntity, Event.EventTag);
     Rule->OnReceived_MoveRequest(Request, *WorldPlayer);
 }
 
