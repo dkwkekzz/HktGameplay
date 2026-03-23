@@ -8,8 +8,6 @@
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
 #include "HktCoreDataCollector.h"
-#include "HktStoryBuilder.h"
-#include "HktRuntimeTags.h"
 #include "HktCoreProperties.h"
 #include "HktCoreEvents.h"
 #include "HktWorldView.h"
@@ -167,39 +165,22 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 
     if (CachedIntentBuilder)
     {
-        if (CachedIntentBuilder->IsReadyToSubmit() == false)
-        {
-            // SetCommand가 Target을 초기화하므로 기존 Target 보존
-            const FHktEntityId SavedTarget = CachedIntentBuilder->GetTargetEntityId();
-            const FVector SavedLocation = CachedIntentBuilder->GetTargetLocation();
-            CachedIntentBuilder->SetCommand(HktGameplayTags::Story_Event_Move_ToLocation, true);
-            CachedIntentBuilder->SetTarget(SavedTarget, SavedLocation);
-        }
-        CachedIntentBuilder->Submit();
-
         TargetChangedDelegate.Broadcast(CachedIntentBuilder->GetTargetEntityId());
 
-        if (CachedIntentBuilder->HasPendingSubmit())
-        {
-            FHktRuntimeEvent Event(CachedIntentBuilder->ConsumePendingSubmit());
+        // 이동 요청: EventTag 없이 SourceEntity + Target/Location만 전송
+        FHktClientMoveRequest MoveReq;
+        MoveReq.SourceEntity = CachedIntentBuilder->GetSubjectEntityId();
+        MoveReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();
+        MoveReq.Location = CachedIntentBuilder->GetTargetLocation();
 
-            // 클라이언트 사전 검증 — Precondition 실패 시 요청하지 않음
-            const FHktWorldState* WS = nullptr;
-            if (GetWorldState(WS) && WS && !HktStory::ValidateEvent(*WS, Event.Value))
-            {
-                UE_LOG(LogHktRuntime, Warning, TEXT("Intent blocked by precondition: %s"), *Event.Value.EventTag.ToString());
-            }
-            else
-            {
-                Server_ReceiveIntent(Event);
-                IntentSubmittedDelegate.Broadcast(Event);
-                UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction Submit %s"), *Event.Value.ToString());
-            }
-        }
-        else
+        if (MoveReq.SourceEntity != InvalidEntityId)
         {
-            UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction TargetEntityId=%d"), CachedIntentBuilder->GetTargetEntityId());
+            FHktRuntimeMoveRequest RuntimeReq(MoveReq);
+            Server_ReceiveMoveRequest(RuntimeReq);
+            UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction MoveRequest %s"), *MoveReq.ToString());
         }
+
+        CachedIntentBuilder->ResetCommand();
     }
 }
 
@@ -212,25 +193,34 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
 
     if (CachedIntentBuilder)
     {
-        CommandChangedDelegate.Broadcast(CachedIntentBuilder->GetEventTag());
+        // 슬롯 요청: EventTag 없이 SlotIndex + SourceEntity + Target만 전송
+        FHktClientSlotRequest SlotReq;
+        SlotReq.SlotIndex = SlotIndex;
+        SlotReq.SourceEntity = CachedIntentBuilder->GetSubjectEntityId();
+        SlotReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();
+        SlotReq.TargetLocation = CachedIntentBuilder->GetTargetLocation();
 
-        if (CachedIntentBuilder->HasPendingSubmit())
+        if (SlotReq.SourceEntity != InvalidEntityId)
         {
-            FHktRuntimeEvent Event(CachedIntentBuilder->ConsumePendingSubmit());
+            // 타겟이 필요한 스킬인지 클라이언트 측 확인 (UI 표시용)
+            bool bTargetRequired = CachedCommandContainer && CachedCommandContainer->IsTargetRequiredAtSlot(SlotIndex);
+            if (bTargetRequired && SlotReq.TargetLocation.IsZero())
+            {
+                // 타겟 대기 상태 — CommandChanged 브로드캐스트하고 전송하지 않음
+                if (CachedCommandContainer)
+                {
+                    CommandChangedDelegate.Broadcast(CachedCommandContainer->GetEventTagAtSlot(SlotIndex));
+                }
+                UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction WaitTarget Slot=%d"), SlotIndex);
+                return;
+            }
 
-            // 클라이언트 사전 검증 — Precondition 실패 시 요청하지 않음
-            const FHktWorldState* WS = nullptr;
-            if (GetWorldState(WS) && WS && !HktStory::ValidateEvent(*WS, Event.Value))
-            {
-                UE_LOG(LogHktRuntime, Warning, TEXT("Intent blocked by precondition: %s"), *Event.Value.EventTag.ToString());
-            }
-            else
-            {
-                Server_ReceiveIntent(Event);
-                IntentSubmittedDelegate.Broadcast(Event);
-                UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction Submit Slot=%d %s"), SlotIndex, *Event.Value.ToString());
-            }
+            FHktRuntimeSlotRequest RuntimeReq(SlotReq);
+            Server_ReceiveSlotRequest(RuntimeReq);
+            UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction SlotRequest %s"), *SlotReq.ToString());
         }
+
+        CachedIntentBuilder->ResetCommand();
     }
 }
 
@@ -376,12 +366,12 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
 #endif
 }
 
-bool AHktIngamePlayerController::Server_ReceiveIntent_Validate(const FHktRuntimeEvent& Event)
+bool AHktIngamePlayerController::Server_ReceiveSlotRequest_Validate(const FHktRuntimeSlotRequest& Request)
 {
-    return true;
+    return Request.Value.SlotIndex >= 0 && Request.Value.SourceEntity != InvalidEntityId;
 }
 
-void AHktIngamePlayerController::Server_ReceiveIntent_Implementation(const FHktRuntimeEvent& Event)
+void AHktIngamePlayerController::Server_ReceiveSlotRequest_Implementation(const FHktRuntimeSlotRequest& Request)
 {
 #if ENABLE_HKT_INSIGHTS
     InsightSentIntentCount++;
@@ -389,7 +379,24 @@ void AHktIngamePlayerController::Server_ReceiveIntent_Implementation(const FHktR
 
     if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
     {
-        GM->PushIntent(GetPlayerUid(), Event);
+        GM->PushSlotRequest(GetPlayerUid(), Request.Value);
+    }
+}
+
+bool AHktIngamePlayerController::Server_ReceiveMoveRequest_Validate(const FHktRuntimeMoveRequest& Request)
+{
+    return Request.Value.SourceEntity != InvalidEntityId;
+}
+
+void AHktIngamePlayerController::Server_ReceiveMoveRequest_Implementation(const FHktRuntimeMoveRequest& Request)
+{
+#if ENABLE_HKT_INSIGHTS
+    InsightSentIntentCount++;
+#endif
+
+    if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
+    {
+        GM->PushMoveRequest(GetPlayerUid(), Request.Value);
     }
 }
 

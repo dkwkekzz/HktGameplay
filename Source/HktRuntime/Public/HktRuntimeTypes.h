@@ -92,6 +92,64 @@ struct TStructOpsTypeTraits<FHktRuntimeEvent> : public TStructOpsTypeTraitsBase2
 };
 
 //=============================================================================
+// FHktRuntimeSlotRequest - 클라이언트 슬롯 커맨드 요청 래퍼
+//=============================================================================
+USTRUCT()
+struct HKTRUNTIME_API FHktRuntimeSlotRequest
+{
+    GENERATED_BODY()
+
+    FHktClientSlotRequest Value;
+
+    FHktRuntimeSlotRequest() = default;
+    explicit FHktRuntimeSlotRequest(const FHktClientSlotRequest& In) : Value(In) {}
+
+    FORCEINLINE operator FHktClientSlotRequest&() { return Value; }
+    FORCEINLINE operator const FHktClientSlotRequest&() const { return Value; }
+
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+    {
+        Ar << Value;
+        return bOutSuccess = true;
+    }
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeSlotRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeSlotRequest>
+{
+    enum { WithNetSerializer = true };
+};
+
+//=============================================================================
+// FHktRuntimeMoveRequest - 클라이언트 이동 요청 래퍼
+//=============================================================================
+USTRUCT()
+struct HKTRUNTIME_API FHktRuntimeMoveRequest
+{
+    GENERATED_BODY()
+
+    FHktClientMoveRequest Value;
+
+    FHktRuntimeMoveRequest() = default;
+    explicit FHktRuntimeMoveRequest(const FHktClientMoveRequest& In) : Value(In) {}
+
+    FORCEINLINE operator FHktClientMoveRequest&() { return Value; }
+    FORCEINLINE operator const FHktClientMoveRequest&() const { return Value; }
+
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+    {
+        Ar << Value;
+        return bOutSuccess = true;
+    }
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeMoveRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeMoveRequest>
+{
+    enum { WithNetSerializer = true };
+};
+
+//=============================================================================
 // FHktRuntimeBatch - 기존 유저용 "입력(Input)" 패킷
 // FHktSimulationEvent를 소유하며 암시적 변환 및 커스텀 직렬화를 제공합니다.
 //=============================================================================

@@ -26,8 +26,8 @@
  * Submit 흐름:
  *   Rule이 IHktIntentBuilder::Submit() 호출
  *   → 내부에서 IntentEvent 생성, PendingSubmit에 저장
- *   → Actor(PlayerController)가 HasPendingSubmit() 확인 후 ConsumePendingSubmit()으로 가져감
- *   → Actor가 Server_ReceiveIntent RPC 발행
+ *   → Actor(PlayerController)가 FHktClientSlotRequest / FHktClientMoveRequest 직접 전송
+ *   → Server_ReceiveSlotRequest / Server_ReceiveMoveRequest RPC 발행
  */
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktIntentBuilderComponent

@@ -2,6 +2,7 @@
 
 #include "HktServerRule.h"
 #include "HktCoreSimulator.h"
+#include "HktCoreProperties.h"
 #include "GameplayTagsManager.h"
 #include "NativeGameplayTags.h"
 #include "HktTempMapStoryConfig.h"
@@ -10,6 +11,9 @@
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_GoblinCamp,    "Story.Flow.Spawner.GoblinCamp");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_Item_TreeDrop, "Story.Flow.Spawner.Item.TreeDrop");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_Wave_Arena,    "Story.Flow.Spawner.Wave.Arena");
+
+// 클라이언트 요청 해석용 태그
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Move_ToLocation, "Story.Event.Move.ToLocation");
 
 TArray<FHktTempStoryEntry> HktTempMapStoryConfig::GetSpawnersForGroup(int32 GroupIndex)
 {
@@ -71,22 +75,85 @@ void FHktDefaultServerRule::OnReceived_Authentication(
 }
 
 // ============================================================================
-// Intent (item 2 — 내부 캐싱된 Graph/Builder 사용)
+// 클라이언트 요청 수신 — 서버가 WorldState에서 EventTag 해석
 // ============================================================================
 
-void FHktDefaultServerRule::OnReceived_FireIntentEvent(
-	const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer)
+/** ItemSlot PropertyId 테이블 (서버 슬롯 해석용) */
+static constexpr uint16 ServerItemSlotPropertyIds[] =
+{
+	PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
+	PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
+	PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+};
+static constexpr int32 MaxServerItemSlots = UE_ARRAY_COUNT(ServerItemSlotPropertyIds);
+
+void FHktDefaultServerRule::OnReceived_SlotRequest(
+	const FHktClientSlotRequest& InRequest, const IHktWorldPlayer& InPlayer)
 {
 	if (!CachedGraph) return;
 
-	const int32 GroupIndex = CachedGraph->GetRelevancyGroupIndex(InPlayer.GetPlayerUid());
-	if (PendingGroupIntents.IsValidIndex(GroupIndex))
-	{
-		FHktEvent Copy = InEvent;
-		Copy.EventId = ++ServerEventSequence;
-		Copy.PlayerUid = InPlayer.GetPlayerUid();
-		PendingGroupIntents[GroupIndex].Add(Copy);
-	}
+	const int64 PlayerUid = InPlayer.GetPlayerUid();
+	const int32 GroupIndex = CachedGraph->GetRelevancyGroupIndex(PlayerUid);
+	if (!PendingGroupIntents.IsValidIndex(GroupIndex)) return;
+
+	// 슬롯 인덱스 범위 검증
+	if (InRequest.SlotIndex < 0 || InRequest.SlotIndex >= MaxServerItemSlots) return;
+
+	// 소스 엔티티 소유권 검증
+	const IHktRelevancyGroup& Group = CachedGraph->GetRelevancyGroup(GroupIndex);
+	const FHktWorldState& WS = Group.GetSimulator().GetWorldState();
+	if (!WS.IsValidEntity(InRequest.SourceEntity)) return;
+	if (WS.GetOwnerUid(InRequest.SourceEntity) != PlayerUid) return;
+
+	// WorldState에서 슬롯 → 아이템 엔티티 → EventTag 해석
+	const FHktEntityId ItemId = WS.GetProperty(InRequest.SourceEntity, ServerItemSlotPropertyIds[InRequest.SlotIndex]);
+	if (ItemId == 0 || !WS.IsValidEntity(ItemId)) return;
+
+	const int32 SkillTagNetIndex = WS.GetProperty(ItemId, PropertyId::ItemSkillTag);
+	if (SkillTagNetIndex <= 0) return;
+
+	const FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillTagNetIndex));
+	if (TagName.IsNone()) return;
+
+	const FGameplayTag SkillTag = FGameplayTag::RequestGameplayTag(TagName, false);
+	if (!SkillTag.IsValid()) return;
+
+	// FHktEvent 생성 (기존 파이프라인에 투입)
+	FHktEvent Event;
+	Event.EventId = ++ServerEventSequence;
+	Event.EventTag = SkillTag;
+	Event.SourceEntity = InRequest.SourceEntity;
+	Event.TargetEntity = InRequest.TargetEntity;
+	Event.Location = InRequest.TargetLocation;
+	Event.PlayerUid = PlayerUid;
+	Event.Param1 = InRequest.SlotIndex;
+	PendingGroupIntents[GroupIndex].Add(Event);
+}
+
+void FHktDefaultServerRule::OnReceived_MoveRequest(
+	const FHktClientMoveRequest& InRequest, const IHktWorldPlayer& InPlayer)
+{
+	if (!CachedGraph) return;
+
+	const int64 PlayerUid = InPlayer.GetPlayerUid();
+	const int32 GroupIndex = CachedGraph->GetRelevancyGroupIndex(PlayerUid);
+	if (!PendingGroupIntents.IsValidIndex(GroupIndex)) return;
+
+	// 소스 엔티티 소유권 검증
+	const IHktRelevancyGroup& Group = CachedGraph->GetRelevancyGroup(GroupIndex);
+	const FHktWorldState& WS = Group.GetSimulator().GetWorldState();
+	if (!WS.IsValidEntity(InRequest.SourceEntity)) return;
+	if (WS.GetOwnerUid(InRequest.SourceEntity) != PlayerUid) return;
+
+	// FHktEvent 생성 — Move EventTag 직접 매핑
+	FHktEvent Event;
+	Event.EventId = ++ServerEventSequence;
+	Event.EventTag = Event_Move_ToLocation;
+	Event.SourceEntity = InRequest.SourceEntity;
+	Event.TargetEntity = InRequest.TargetEntity;
+	Event.Location = InRequest.Location;
+	Event.PlayerUid = PlayerUid;
+	PendingGroupIntents[GroupIndex].Add(Event);
 }
 
 // ============================================================================

@@ -50,19 +50,15 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 	FVector TargetLocation    = FVector::ZeroVector;
 	CachedPolicy->ResolveTarget(TargetEntity, TargetLocation);
 	CachedBuilder->SetTarget(TargetEntity, TargetLocation);
-	if (CachedBuilder->IsReadyToSubmit()) { CachedBuilder->Submit(); }
+	// Submit은 하지 않음 — PlayerController::OnTargetAction에서 요청 패킷 직접 전송
 }
 
 void FHktDefaultClientRule::OnUserEvent_CommandInputAction(int32 InSlotIndex)
 {
-	if (!CachedContainer || !CachedBuilder) return;
-
-	FGameplayTag EventTag = CachedContainer->GetEventTagAtSlot(InSlotIndex);
-	if (!EventTag.IsValid()) return;
-	bool bTargetRequired = CachedContainer->IsTargetRequiredAtSlot(InSlotIndex);
-	CachedBuilder->SetCommand(EventTag, bTargetRequired);
+	// 클라이언트는 EventTag를 해석하지 않음 — 슬롯 인덱스만 기록
+	// 실제 요청 패킷 전송은 PlayerController::OnSlotAction에서 처리
+	if (!CachedBuilder) return;
 	CachedBuilder->SetCommandSlot(InSlotIndex);
-	if (!bTargetRequired && CachedBuilder->IsReadyToSubmit()) { CachedBuilder->Submit(); }
 }
 
 void FHktDefaultClientRule::OnUserEvent_ZoomInputAction(float InDelta)

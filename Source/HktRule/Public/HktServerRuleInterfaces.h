@@ -208,8 +208,11 @@ public:
 	virtual void OnReceived_Authentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal, TFunction<void(bool bSuccess, const FString& Token)> InResultCallback) {}
 	virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) {}
 
-	/** Intent 수신 — 내부 캐싱된 Graph/Builder 사용 (item 2) */
-	virtual void OnReceived_FireIntentEvent(const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer) {}
+	/** 슬롯 커맨드 요청 수신 — 서버가 WorldState에서 EventTag 해석 */
+	virtual void OnReceived_SlotRequest(const FHktClientSlotRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
+
+	/** 이동 요청 수신 — 서버가 Move EventTag 매핑 */
+	virtual void OnReceived_MoveRequest(const FHktClientMoveRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
 
 	/** 액터 이벤트 — 내부 캐싱된 DB 사용 (item 1, 2) */
 	virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) {}
