@@ -7,7 +7,6 @@
 #include "HktCoreDefs.h"
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
-#include "HktServerRuleInterfaces.h"
 #include "HktRuntimeTypes.generated.h"
 
 // =========================================================================
@@ -88,64 +87,6 @@ struct HKTRUNTIME_API FHktRuntimeEvent
 // 엔진에게 커스텀 직렬화 함수가 존재함을 알림
 template<>
 struct TStructOpsTypeTraits<FHktRuntimeEvent> : public TStructOpsTypeTraitsBase2<FHktRuntimeEvent>
-{
-    enum { WithNetSerializer = true };
-};
-
-//=============================================================================
-// FHktRuntimeSlotRequest - 클라이언트 슬롯 커맨드 요청 래퍼
-//=============================================================================
-USTRUCT()
-struct HKTRUNTIME_API FHktRuntimeSlotRequest
-{
-    GENERATED_BODY()
-
-    FHktClientSlotRequest Value;
-
-    FHktRuntimeSlotRequest() = default;
-    explicit FHktRuntimeSlotRequest(const FHktClientSlotRequest& In) : Value(In) {}
-
-    FORCEINLINE operator FHktClientSlotRequest&() { return Value; }
-    FORCEINLINE operator const FHktClientSlotRequest&() const { return Value; }
-
-    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-    {
-        Ar << Value;
-        return bOutSuccess = true;
-    }
-};
-
-template<>
-struct TStructOpsTypeTraits<FHktRuntimeSlotRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeSlotRequest>
-{
-    enum { WithNetSerializer = true };
-};
-
-//=============================================================================
-// FHktRuntimeMoveRequest - 클라이언트 이동 요청 래퍼
-//=============================================================================
-USTRUCT()
-struct HKTRUNTIME_API FHktRuntimeMoveRequest
-{
-    GENERATED_BODY()
-
-    FHktClientMoveRequest Value;
-
-    FHktRuntimeMoveRequest() = default;
-    explicit FHktRuntimeMoveRequest(const FHktClientMoveRequest& In) : Value(In) {}
-
-    FORCEINLINE operator FHktClientMoveRequest&() { return Value; }
-    FORCEINLINE operator const FHktClientMoveRequest&() const { return Value; }
-
-    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-    {
-        Ar << Value;
-        return bOutSuccess = true;
-    }
-};
-
-template<>
-struct TStructOpsTypeTraits<FHktRuntimeMoveRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeMoveRequest>
 {
     enum { WithNetSerializer = true };
 };

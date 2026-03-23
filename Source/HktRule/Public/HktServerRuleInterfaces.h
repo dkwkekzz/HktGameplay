@@ -246,6 +246,64 @@ struct HKTRULE_API FHktClientMoveRequest
 };
 
 //=============================================================================
+// FHktRuntimeSlotRequest - 클라이언트 슬롯 커맨드 요청 래퍼 (네트워크 직렬화)
+//=============================================================================
+USTRUCT()
+struct HKTRULE_API FHktRuntimeSlotRequest
+{
+	GENERATED_BODY()
+
+	FHktClientSlotRequest Value;
+
+	FHktRuntimeSlotRequest() = default;
+	explicit FHktRuntimeSlotRequest(const FHktClientSlotRequest& In) : Value(In) {}
+
+	FORCEINLINE operator FHktClientSlotRequest&() { return Value; }
+	FORCEINLINE operator const FHktClientSlotRequest&() const { return Value; }
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		Ar << Value;
+		return bOutSuccess = true;
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeSlotRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeSlotRequest>
+{
+	enum { WithNetSerializer = true };
+};
+
+//=============================================================================
+// FHktRuntimeMoveRequest - 클라이언트 이동 요청 래퍼 (네트워크 직렬화)
+//=============================================================================
+USTRUCT()
+struct HKTRULE_API FHktRuntimeMoveRequest
+{
+	GENERATED_BODY()
+
+	FHktClientMoveRequest Value;
+
+	FHktRuntimeMoveRequest() = default;
+	explicit FHktRuntimeMoveRequest(const FHktClientMoveRequest& In) : Value(In) {}
+
+	FORCEINLINE operator FHktClientMoveRequest&() { return Value; }
+	FORCEINLINE operator const FHktClientMoveRequest&() const { return Value; }
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		Ar << Value;
+		return bOutSuccess = true;
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeMoveRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeMoveRequest>
+{
+	enum { WithNetSerializer = true };
+};
+
+//=============================================================================
 // IHktServerRule
 //=============================================================================
 class HKTRULE_API IHktServerRule
