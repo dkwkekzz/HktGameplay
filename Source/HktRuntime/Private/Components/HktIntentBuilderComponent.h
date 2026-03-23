@@ -55,6 +55,10 @@ public:
     virtual bool HasPendingSubmit() const override;
     virtual FHktEvent ConsumePendingSubmit() override;
 
+    virtual void SetPendingItemPickup(FHktEntityId InItemEntity) override;
+    virtual bool HasPendingItemPickup() const override;
+    virtual FHktEntityId ConsumePendingItemPickup() override;
+
     // === 추가 API ===
 
     virtual FVector GetTargetLocation() const override { return TargetLocation; }
@@ -70,4 +74,8 @@ private:
     // Submit 결과 (Actor가 소비)
     bool bHasPendingSubmit = false;
     FHktRuntimeEvent PendingSubmitEvent;
+
+    // Item Pickup (Rule이 설정, Actor가 소비)
+    bool bHasPendingItemPickup = false;
+    FHktEntityId PendingItemPickupEntity = InvalidEntityId;
 };

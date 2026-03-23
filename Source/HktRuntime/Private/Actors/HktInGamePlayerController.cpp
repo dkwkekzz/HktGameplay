@@ -149,6 +149,13 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 
     if (CachedIntentBuilder)
     {
+        // Rule이 바닥 아이템으로 판정한 경우 → Pickup RPC 전달
+        if (CachedIntentBuilder->HasPendingItemPickup())
+        {
+            RequestItemPickup(CachedIntentBuilder->ConsumePendingItemPickup());
+            return;
+        }
+
         // 빈 공간 클릭 시 (Subject 미선택) → 기본 Subject로 복원
         if (CachedIntentBuilder->GetSubjectEntityId() == InvalidEntityId && DefaultSubjectEntityId != InvalidEntityId)
         {
@@ -210,23 +217,6 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
         else
         {
             const FHktEntityId TargetEntity = CachedIntentBuilder->GetTargetEntityId();
-
-            // 클릭 대상이 아이템인지 확인 → 자동 픽업
-            if (TargetEntity != InvalidEntityId && CachedProxySimulator && CachedProxySimulator->IsInitialized())
-            {
-                const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
-                if (WS.IsValidEntity(TargetEntity))
-                {
-                    const int32 ItemState = WS.GetProperty(TargetEntity, PropertyId::ItemState);
-                    const int32 ItemId   = WS.GetProperty(TargetEntity, PropertyId::ItemId);
-                    if (ItemState == 0 && ItemId > 0)  // Ground 상태 아이템 (캐릭터 제외)
-                    {
-                        RequestItemPickup(TargetEntity);
-                        CachedIntentBuilder->ResetCommand();
-                        return;
-                    }
-                }
-            }
 
             // 커맨드 없음 → 이동 요청
             FHktMoveRequest MoveReq;
