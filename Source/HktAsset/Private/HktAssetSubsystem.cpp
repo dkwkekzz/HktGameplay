@@ -2,6 +2,7 @@
 #include "HktAssetLog.h"
 #include "HktTagDataAsset.h"
 #include "HktAssetSettings.h"
+#include "HktCoreEventLog.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/AssetManager.h"
 
@@ -56,7 +57,7 @@ void UHktAssetSubsystem::RebuildTagMap()
     }
 
     UE_LOG(LogHktAsset, Log, TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num());
-    UE_LOG(LogHktAsset, Verbose, TEXT("RebuildTagMap complete"));
+    HKT_EVENT_LOG(HktLogTags::Asset, FString::Printf(TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num()));
 }
 
 // ============================================================================
@@ -65,8 +66,6 @@ void UHktAssetSubsystem::RebuildTagMap()
 
 FSoftObjectPath UHktAssetSubsystem::ResolvePath(FGameplayTag Tag)
 {
-    UE_LOG(LogHktAsset, Verbose, TEXT("ResolvePath: %s"), *Tag.ToString());
-
     // 1. TagMap (DataAsset 기반)
     if (const FSoftObjectPath* Path = TagToPathMap.Find(Tag))
     {

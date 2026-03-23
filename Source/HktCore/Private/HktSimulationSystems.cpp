@@ -9,6 +9,7 @@
 #include "VM/HktVMWorldStateProxy.h"
 #include "Math/UnrealMathUtility.h"
 #include "HAL/IConsoleManager.h"
+#include "HktCoreEventLog.h"
 
 // ============================================================================
 // 콘솔 변수 (CVar) - 런타임 이동 조작감 튜닝용
@@ -72,8 +73,9 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
         });
     }
 
-    UE_LOG(LogHktCore, Verbose, TEXT("EntityArrange: Removing %d entities for %d owners"),
-            ScratchRemoveList.Num(), RemovedOwnerIds.Num());
+    HKT_EVENT_LOG(HktLogTags::Core_Entity,
+        FString::Printf(TEXT("EntityArrange: Removing %d entities for %d owners"),
+            ScratchRemoveList.Num(), RemovedOwnerIds.Num()));
     for (FHktEntityId Id : ScratchRemoveList)
         WorldState.RemoveEntity(Id);
 }
@@ -111,8 +113,10 @@ void FHktVMBuildSystem::Process(
                     && Existing->Context->SourceEntity == Event.SourceEntity)
                 {
                     Existing->Status = EVMStatus::Completed;
-                    UE_LOG(LogHktCore, Verbose, TEXT("VM cancelled (duplicate): %s Entity=%d"),
-                            *Event.EventTag.ToString(), Event.SourceEntity);
+                    HKT_EVENT_LOG_TAG(HktLogTags::Core_VM,
+                        FString::Printf(TEXT("VM cancelled (duplicate): %s Entity=%d"),
+                            *Event.EventTag.ToString(), Event.SourceEntity),
+                        Event.SourceEntity, Event.EventTag);
                 }
             }
         }
@@ -179,9 +183,11 @@ void FHktVMBuildSystem::Process(
         }
 #endif
 
-        UE_LOG(LogHktCore, Verbose, TEXT("VM created: %s Src=%d Tgt=%d CodeSize=%d"),
+        HKT_EVENT_LOG_TAG(HktLogTags::Core_VM,
+            FString::Printf(TEXT("VM created: %s Src=%d Tgt=%d CodeSize=%d"),
                 *Event.EventTag.ToString(), Event.SourceEntity, Event.TargetEntity,
-                Program->CodeSize());
+                Program->CodeSize()),
+            Event.SourceEntity, Event.EventTag);
     }
 }
 
@@ -294,10 +300,12 @@ void FHktVMProcessSystem::Process(
                     Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId,
                     Runtime->PC);
             }
-            UE_LOG(LogHktCore, Verbose, TEXT("VM %s: %s PC=%d"),
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM,
+                FString::Printf(TEXT("VM %s: %s PC=%d"),
                     Result == EVMStatus::Completed ? TEXT("Completed") : TEXT("Failed"),
                     Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("?"),
-                    Runtime->PC);
+                    Runtime->PC),
+                Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId);
 #if ENABLE_HKT_INSIGHTS
             {
                 FString VMKey = FString::Printf(TEXT("VM_%d"), static_cast<int32>(Handle.Index));
@@ -553,8 +561,10 @@ void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRunt
         FHktVMRuntime* Runtime = Pool.Get(Handle);
         if (Runtime)
         {
-            UE_LOG(LogHktCore, Verbose, TEXT("VM finalized: %s"),
-                    Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("unknown"));
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM,
+                FString::Printf(TEXT("VM finalized: %s"),
+                    Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("unknown")),
+                Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId);
 
             if (Runtime->Program && Runtime->Context)
             {

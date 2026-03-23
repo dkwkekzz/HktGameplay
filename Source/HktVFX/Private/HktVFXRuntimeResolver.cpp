@@ -2,6 +2,7 @@
 
 #include "HktVFXRuntimeResolver.h"
 #include "HktVFXLog.h"
+#include "HktCoreEventLog.h"
 #include "NiagaraSystem.h"
 #include "Engine/World.h"
 
@@ -42,7 +43,8 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
     // 3. 런타임 파라미터 오버라이드
     ApplyRuntimeOverrides(Comp, Intent);
 
-    UE_LOG(LogHktVFX, Verbose, TEXT("PlayVFX at location"));
+    HKT_EVENT_LOG(HktLogTags::VFX, FString::Printf(TEXT("PlayVFX %s Loc=(%.1f,%.1f,%.1f)"),
+        *Intent.GetAssetKey(), Intent.Location.X, Intent.Location.Y, Intent.Location.Z));
 
     return Comp;
 }
@@ -72,7 +74,8 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFXAttached(
     if (Comp)
     {
         ApplyRuntimeOverrides(Comp, Intent);
-        UE_LOG(LogHktVFX, Verbose, TEXT("PlayVFXAttached"));
+        HKT_EVENT_LOG(HktLogTags::VFX, FString::Printf(TEXT("PlayVFXAttached %s Socket=%s"),
+            *Intent.GetAssetKey(), *SocketName.ToString()));
     }
     return Comp;
 }
