@@ -56,6 +56,11 @@ public:
 	virtual int32 GetCommandSlotIndex() const = 0;
 	virtual bool HasPendingSubmit() const = 0;
 	virtual FHktEvent ConsumePendingSubmit() = 0;
+
+	/** Pickup 판정: Rule이 설정, PlayerController가 소비 */
+	virtual void SetPendingItemPickup(FHktEntityId InItemEntity) = 0;
+	virtual bool HasPendingItemPickup() const = 0;
+	virtual FHktEntityId ConsumePendingItemPickup() = 0;
 };
 
 // ============================================================================

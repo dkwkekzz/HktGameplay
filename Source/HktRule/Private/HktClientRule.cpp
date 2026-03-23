@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktClientRule.h"
+#include "HktCoreProperties.h"
 
 FHktDefaultClientRule::FHktDefaultClientRule()
 {
@@ -38,6 +39,23 @@ void FHktDefaultClientRule::OnUserEvent_SubjectInputAction()
 
 	FHktEntityId SelectedEntity = CachedPolicy->ResolveSubject();
 	if (SelectedEntity == InvalidEntityId) return;
+
+	// 바닥 아이템 판단 → Subject 선택이 아닌 Pickup 처리
+	if (CachedSimulator && CachedSimulator->IsInitialized())
+	{
+		const FHktWorldState& WS = CachedSimulator->GetWorldState();
+		if (WS.IsValidEntity(SelectedEntity))
+		{
+			const int32 ItemId = WS.GetProperty(SelectedEntity, PropertyId::ItemId);
+			const int32 ItemState = WS.GetProperty(SelectedEntity, PropertyId::ItemState);
+			if (ItemId > 0 && ItemState == 0)
+			{
+				CachedBuilder->SetPendingItemPickup(SelectedEntity);
+				return;
+			}
+		}
+	}
+
 	CachedBuilder->SetSubject(SelectedEntity);
 	CachedBuilder->ResetCommand();
 }

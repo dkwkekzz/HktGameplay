@@ -149,29 +149,15 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 
     if (CachedIntentBuilder)
     {
-        const FHktEntityId ClickedEntity = CachedIntentBuilder->GetSubjectEntityId();
-
-        // 바닥 아이템 클릭 → Subject 선택이 아닌 Pickup 처리
-        if (ClickedEntity != InvalidEntityId && CachedProxySimulator && CachedProxySimulator->IsInitialized())
+        // Rule이 바닥 아이템으로 판정한 경우 → Pickup RPC 전달
+        if (CachedIntentBuilder->HasPendingItemPickup())
         {
-            const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
-            if (WS.IsValidEntity(ClickedEntity))
-            {
-                const int32 ItemState = WS.GetProperty(ClickedEntity, PropertyId::ItemState);
-                const int32 ItemId   = WS.GetProperty(ClickedEntity, PropertyId::ItemId);
-                if (ItemState == 0 && ItemId > 0)
-                {
-                    RequestItemPickup(ClickedEntity);
-                    // Subject를 기본(내 캐릭터)으로 복원
-                    CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
-                    SubjectChangedDelegate.Broadcast(DefaultSubjectEntityId);
-                    return;
-                }
-            }
+            RequestItemPickup(CachedIntentBuilder->ConsumePendingItemPickup());
+            return;
         }
 
         // 빈 공간 클릭 시 (Subject 미선택) → 기본 Subject로 복원
-        if (ClickedEntity == InvalidEntityId && DefaultSubjectEntityId != InvalidEntityId)
+        if (CachedIntentBuilder->GetSubjectEntityId() == InvalidEntityId && DefaultSubjectEntityId != InvalidEntityId)
         {
             CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
         }
