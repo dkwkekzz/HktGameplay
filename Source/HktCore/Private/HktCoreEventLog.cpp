@@ -110,11 +110,50 @@ void FHktCoreEventLog::Clear()
 
 FString FHktCoreEventLog::DumpToFile(const FString& OptionalPath) const
 {
-	FScopeLock ScopeLock(&Lock);
+	FString Content;
 
-	if (Entries.Num() == 0 || WriteIndex == 0)
+	// Lock 범위를 문자열 빌드까지로 제한 — 파일 I/O는 Lock 밖에서 수행
 	{
-		return FString();
+		FScopeLock ScopeLock(&Lock);
+
+		if (Entries.Num() == 0 || WriteIndex == 0)
+		{
+			return FString();
+		}
+
+		// 가장 오래된 유효 엔트리부터 순서대로 출력
+		uint32 StartIndex = 0;
+		if (WriteIndex > (uint32)MaxEntries)
+		{
+			StartIndex = WriteIndex - MaxEntries;
+		}
+
+		const uint32 EntryCount = FMath::Min(WriteIndex, (uint32)MaxEntries);
+
+		// 엔트리당 ~200자 추정으로 사전 할당
+		Content.Reserve(EntryCount * 200);
+		Content.Appendf(TEXT("=== HKT Event Log Dump ===\n"));
+		Content.Appendf(TEXT("Entries: %u (buffer capacity: %d)\n\n"), EntryCount, MaxEntries);
+
+		for (uint32 i = StartIndex; i < WriteIndex; ++i)
+		{
+			const FHktLogEntry& Entry = Entries[i % MaxEntries];
+			// [Frame:000123] [Category] Message | Entity:ID | Tag:EventTag
+			Content.Appendf(TEXT("[Frame:%06llu] [%s] %s"),
+				Entry.FrameNumber,
+				*Entry.Category.ToString(),
+				*Entry.Message);
+
+			if (Entry.EntityId != InvalidEntityId)
+			{
+				Content.Appendf(TEXT(" | Entity:%d"), Entry.EntityId);
+			}
+			if (Entry.EventTag.IsValid())
+			{
+				Content.Appendf(TEXT(" | Tag:%s"), *Entry.EventTag.ToString());
+			}
+			Content.AppendChar(TEXT('\n'));
+		}
 	}
 
 	// 경로 결정
@@ -125,41 +164,10 @@ FString FHktCoreEventLog::DumpToFile(const FString& OptionalPath) const
 	}
 	FilePath = FPaths::ConvertRelativePathToFull(FilePath);
 
-	// 가장 오래된 유효 엔트리부터 순서대로 출력
-	uint32 StartIndex = 0;
-	if (WriteIndex > (uint32)MaxEntries)
-	{
-		StartIndex = WriteIndex - MaxEntries;
-	}
-
-	FStringBuilderBase Builder;
-	Builder.Appendf(TEXT("=== HKT Event Log Dump ===\n"));
-	Builder.Appendf(TEXT("Entries: %u (buffer capacity: %d)\n\n"), FMath::Min(WriteIndex, (uint32)MaxEntries), MaxEntries);
-
-	for (uint32 i = StartIndex; i < WriteIndex; ++i)
-	{
-		const FHktLogEntry& Entry = Entries[i % MaxEntries];
-		// [Frame:000123] [Category] Message | Entity:ID | Tag:EventTag
-		Builder.Appendf(TEXT("[Frame:%06llu] [%s] %s"),
-			Entry.FrameNumber,
-			*Entry.Category.ToString(),
-			*Entry.Message);
-
-		if (Entry.EntityId != InvalidEntityId)
-		{
-			Builder.Appendf(TEXT(" | Entity:%d"), Entry.EntityId);
-		}
-		if (Entry.EventTag.IsValid())
-		{
-			Builder.Appendf(TEXT(" | Tag:%s"), *Entry.EventTag.ToString());
-		}
-		Builder.Append(TEXT("\n"));
-	}
-
-	const FString Content = Builder.ToString();
+	// 파일 쓰기 (Lock 밖)
 	if (FFileHelper::SaveStringToFile(Content, *FilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
 	{
-		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Dumped %u entries to %s"), FMath::Min(WriteIndex, (uint32)MaxEntries), *FilePath);
+		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Dumped to %s"), *FilePath);
 		return FilePath;
 	}
 
