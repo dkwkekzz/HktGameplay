@@ -7,6 +7,7 @@
 #include "HktCoreDefs.h"
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
+#include "HktServerRuleInterfaces.h"
 #include "HktRuntimeTypes.generated.h"
 
 // =========================================================================
