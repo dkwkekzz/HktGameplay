@@ -62,6 +62,7 @@ __pycache__/
 
 # Claude
 .claude/*
+!.claude/commands/
 
 # Etc
 working_changes.txt

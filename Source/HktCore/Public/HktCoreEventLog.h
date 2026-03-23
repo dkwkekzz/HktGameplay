@@ -126,6 +126,13 @@ public:
 	/** 전체 로그 초기화 */
 	void Clear();
 
+	/**
+	 * 현재 버퍼의 로그를 파일로 출력.
+	 * 기본 경로: {ProjectDir}/Saved/Logs/HktEventLog.log
+	 * @return 출력된 파일의 절대 경로. 실패 시 빈 문자열.
+	 */
+	FString DumpToFile(const FString& OptionalPath = TEXT("")) const;
+
 	/** 변경 감지용 버전 카운터 */
 	uint32 GetVersion() const { return Version; }
 
