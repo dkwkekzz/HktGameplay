@@ -308,15 +308,27 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 	if (MyCharacter == InvalidEntityId) return;
 
 	// 가방 아이템 수집 (ItemState == 1)
-	struct FBagItem { int32 BagSlot; FString Name; int32 AttackPower; };
+	struct FBagItem { FHktEntityId EntityId; int32 BagSlot; FString Name; int32 AttackPower; };
 	TArray<FBagItem> Items;
+
+	// 사용 중인 ActionSlot 수집 (Activate 시 빈 슬롯 자동 할당용)
+	TSet<int32> UsedSlots;
 
 	WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
 	{
 		if (WS->GetProperty(ItemId, PropertyId::OwnerEntity) != MyCharacter) return;
-		if (WS->GetProperty(ItemId, PropertyId::ItemState) != 1) return; // InBag만
+		const int32 State = WS->GetProperty(ItemId, PropertyId::ItemState);
+
+		if (State == 2) // Active — ActionSlot 사용 중
+		{
+			int32 Slot = WS->GetProperty(ItemId, PropertyId::ActionSlot);
+			if (Slot >= 0) UsedSlots.Add(Slot);
+		}
+
+		if (State != 1) return; // InBag만
 
 		Items.Add({
+			ItemId,
 			WS->GetProperty(ItemId, PropertyId::BagSlot),
 			GetEntityDisplayName(WS, ItemId),
 			WS->GetProperty(ItemId, PropertyId::AttackPower)
@@ -337,32 +349,60 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 		return;
 	}
 
+	// 빈 ActionSlot 찾기 함수
+	auto FindNextFreeSlot = [&UsedSlots]() -> int32
+	{
+		for (int32 S = 0; S < 10; ++S)
+		{
+			if (!UsedSlots.Contains(S)) return S;
+		}
+		return 0;
+	};
+
 	for (const FBagItem& Item : Items)
 	{
+		const FHktEntityId ItemEntityId = Item.EntityId;
+		const int32 NextSlot = FindNextFreeSlot();
+
 		InventoryListBox->AddSlot()
 		.AutoHeight().Padding(0.f, 2.f)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+			SNew(SButton)
+			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+			.OnClicked_Lambda([this, ItemEntityId, NextSlot]() -> FReply
+			{
+				if (APlayerController* PC = CachedPC.Get())
+				{
+					if (IHktPlayerInteractionInterface* I = Cast<IHktPlayerInteractionInterface>(PC))
+					{
+						I->RequestItemActivate(ItemEntityId, NextSlot);
+					}
+				}
+				return FReply::Handled();
+			})
 			[
-				SNew(SBox).WidthOverride(30.f)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+				[
+					SNew(SBox).WidthOverride(30.f)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(FString::Printf(TEXT("[%d]"), Item.BagSlot)))
+						.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
+					]
+				]
+				+ SHorizontalBox::Slot().FillWidth(1.f)
 				[
 					SNew(STextBlock)
-					.Text(FText::FromString(FString::Printf(TEXT("[%d]"), Item.BagSlot)))
-					.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
+					.Text(FText::FromString(Item.Name))
+					.ColorAndOpacity(FLinearColor::White)
 				]
-			]
-			+ SHorizontalBox::Slot().FillWidth(1.f)
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(Item.Name))
-				.ColorAndOpacity(FLinearColor::White)
-			]
-			+ SHorizontalBox::Slot().AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(Item.AttackPower > 0 ? FString::Printf(TEXT("ATK %d"), Item.AttackPower) : TEXT("")))
-				.ColorAndOpacity(FLinearColor(1.f, 0.6f, 0.3f))
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(Item.AttackPower > 0 ? FString::Printf(TEXT("ATK %d"), Item.AttackPower) : TEXT("")))
+					.ColorAndOpacity(FLinearColor(1.f, 0.6f, 0.3f))
+				]
 			]
 		];
 	}
@@ -401,7 +441,7 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 	if (MyCharacter == InvalidEntityId) return;
 
 	// 장착 아이템 수집 (ItemState == 2)
-	struct FEquipItem { int32 ActionSlot; FString Name; int32 AttackPower; };
+	struct FEquipItem { FHktEntityId EntityId; int32 ActionSlot; FString Name; int32 AttackPower; };
 	TArray<FEquipItem> Items;
 
 	WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
@@ -410,6 +450,7 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 		if (WS->GetProperty(ItemId, PropertyId::ItemState) != 2) return; // Active만
 
 		Items.Add({
+			ItemId,
 			WS->GetProperty(ItemId, PropertyId::ActionSlot),
 			GetEntityDisplayName(WS, ItemId),
 			WS->GetProperty(ItemId, PropertyId::AttackPower)
@@ -436,30 +477,47 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 			? FString::Printf(TEXT("Slot %d"), Item.ActionSlot)
 			: TEXT("Passive");
 
+		const FHktEntityId ItemEntityId = Item.EntityId;
+
 		EquipmentListBox->AddSlot()
 		.AutoHeight().Padding(0.f, 2.f)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+			SNew(SButton)
+			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+			.OnClicked_Lambda([this, ItemEntityId]() -> FReply
+			{
+				if (APlayerController* PC = CachedPC.Get())
+				{
+					if (IHktPlayerInteractionInterface* I = Cast<IHktPlayerInteractionInterface>(PC))
+					{
+						I->RequestItemDeactivate(ItemEntityId);
+					}
+				}
+				return FReply::Handled();
+			})
 			[
-				SNew(SBox).WidthOverride(60.f)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+				[
+					SNew(SBox).WidthOverride(60.f)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(SlotLabel))
+						.ColorAndOpacity(FLinearColor(0.5f, 0.8f, 1.f))
+					]
+				]
+				+ SHorizontalBox::Slot().FillWidth(1.f)
 				[
 					SNew(STextBlock)
-					.Text(FText::FromString(SlotLabel))
-					.ColorAndOpacity(FLinearColor(0.5f, 0.8f, 1.f))
+					.Text(FText::FromString(Item.Name))
+					.ColorAndOpacity(FLinearColor::White)
 				]
-			]
-			+ SHorizontalBox::Slot().FillWidth(1.f)
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(Item.Name))
-				.ColorAndOpacity(FLinearColor::White)
-			]
-			+ SHorizontalBox::Slot().AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(Item.AttackPower > 0 ? FString::Printf(TEXT("ATK %d"), Item.AttackPower) : TEXT("")))
-				.ColorAndOpacity(FLinearColor(1.f, 0.6f, 0.3f))
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(Item.AttackPower > 0 ? FString::Printf(TEXT("ATK %d"), Item.AttackPower) : TEXT("")))
+					.ColorAndOpacity(FLinearColor(1.f, 0.6f, 0.3f))
+				]
 			]
 		];
 	}
