@@ -216,7 +216,7 @@ void AHktGameMode::Logout(AController* Exiting)
     Super::Logout(Exiting);
 }
 
-void AHktGameMode::PushIntent(int64 PlayerUid, const FHktEvent& Event)
+void AHktGameMode::PushSlotRequest(int64 PlayerUid, const FHktSlotRequest& Request)
 {
     IHktServerRule* Rule = GetServerRule();
     if (!Rule) return;
@@ -229,9 +229,27 @@ void AHktGameMode::PushIntent(int64 PlayerUid, const FHktEvent& Event)
 
     // item 2: Graph/Builder 파라미터 없음 — Rule이 내부 캐싱된 컨텍스트 사용
     HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Server,
-        FString::Printf(TEXT("PushIntent PlayerUid=%lld %s"), PlayerUid, *Event.ToString()),
+        FString::Printf(TEXT("PushSlotRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString()),
         Event.SourceEntity, Event.EventTag);
-    Rule->OnReceived_FireIntentEvent(Event, *WorldPlayer);
+    Rule->OnReceived_SlotRequest(Request, *WorldPlayer);
+}
+
+void AHktGameMode::PushMoveRequest(int64 PlayerUid, const FHktMoveRequest& Request)
+{
+    IHktServerRule* Rule = GetServerRule();
+    if (!Rule) return;
+
+    IHktRelevancyGraph* Graph = CachedRelevancyGraph;
+    if (!Graph) return;
+
+    IHktWorldPlayer* WorldPlayer = Graph->GetWorldPlayer(PlayerUid);
+    if (!WorldPlayer) return;
+
+    // item 2: Graph/Builder 파라미터 없음 — Rule이 내부 캐싱된 컨텍스트 사용
+    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Server,
+        FString::Printf(TEXT("PushMoveRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString()),
+        Event.SourceEntity, Event.EventTag);
+    Rule->OnReceived_MoveRequest(Request, *WorldPlayer);
 }
 
 IHktServerRule* AHktGameMode::GetServerRule() const

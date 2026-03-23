@@ -7,6 +7,7 @@
 #include "HktCoreDefs.h"
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
+#include "HktServerRuleInterfaces.h"
 #include "HktRuntimeTypes.generated.h"
 
 // =========================================================================
@@ -254,6 +255,64 @@ struct HKTRUNTIME_API FHktRuntimeDiff
 
 template<>
 struct TStructOpsTypeTraits<FHktRuntimeDiff> : public TStructOpsTypeTraitsBase2<FHktRuntimeDiff>
+{
+	enum { WithNetSerializer = true };
+};
+
+//=============================================================================
+// FHktRuntimeSlotRequest — 슬롯 요청 네트워크 래퍼
+//=============================================================================
+USTRUCT()
+struct HKTRUNTIME_API FHktRuntimeSlotRequest
+{
+	GENERATED_BODY()
+
+	FHktSlotRequest Value;
+
+	FHktRuntimeSlotRequest() = default;
+	explicit FHktRuntimeSlotRequest(const FHktSlotRequest& In) : Value(In) {}
+
+	FORCEINLINE operator FHktSlotRequest&() { return Value; }
+	FORCEINLINE operator const FHktSlotRequest&() const { return Value; }
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		Ar << Value;
+		return bOutSuccess = true;
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeSlotRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeSlotRequest>
+{
+	enum { WithNetSerializer = true };
+};
+
+//=============================================================================
+// FHktRuntimeMoveRequest — 이동 요청 네트워크 래퍼
+//=============================================================================
+USTRUCT()
+struct HKTRUNTIME_API FHktRuntimeMoveRequest
+{
+	GENERATED_BODY()
+
+	FHktMoveRequest Value;
+
+	FHktRuntimeMoveRequest() = default;
+	explicit FHktRuntimeMoveRequest(const FHktMoveRequest& In) : Value(In) {}
+
+	FORCEINLINE operator FHktMoveRequest&() { return Value; }
+	FORCEINLINE operator const FHktMoveRequest&() const { return Value; }
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		Ar << Value;
+		return bOutSuccess = true;
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeMoveRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeMoveRequest>
 {
 	enum { WithNetSerializer = true };
 };

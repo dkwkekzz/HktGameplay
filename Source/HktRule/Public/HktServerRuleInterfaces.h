@@ -191,6 +191,55 @@ struct FHktEventGameModeTickResult
 	TArray<FGroupEventSend> EventSends;
 };
 
+// ============================================================================
+// FHktSlotRequest — 슬롯 커맨드 요청 (C2S)
+// ============================================================================
+
+struct HKTRULE_API FHktSlotRequest
+{
+	int32 SlotIndex = 0;
+	FHktEntityId SourceEntity = InvalidEntityId;
+	FHktEntityId TargetEntity = InvalidEntityId;
+	FVector TargetLocation = FVector::ZeroVector;
+
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("Slot=%d Src=%d Tgt=%d Loc=(%.0f,%.0f,%.0f)"),
+			SlotIndex, SourceEntity, TargetEntity,
+			TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FHktSlotRequest& R)
+	{
+		Ar << R.SlotIndex << R.SourceEntity << R.TargetEntity << R.TargetLocation;
+		return Ar;
+	}
+};
+
+// ============================================================================
+// FHktMoveRequest — 이동 요청 (C2S)
+// ============================================================================
+
+struct HKTRULE_API FHktMoveRequest
+{
+	FHktEntityId SourceEntity = InvalidEntityId;
+	FHktEntityId TargetEntity = InvalidEntityId;
+	FVector Location = FVector::ZeroVector;
+
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("Src=%d Tgt=%d Loc=(%.0f,%.0f,%.0f)"),
+			SourceEntity, TargetEntity,
+			Location.X, Location.Y, Location.Z);
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FHktMoveRequest& R)
+	{
+		Ar << R.SourceEntity << R.TargetEntity << R.Location;
+		return Ar;
+	}
+};
+
 //=============================================================================
 // IHktServerRule
 //=============================================================================
@@ -208,8 +257,11 @@ public:
 	virtual void OnReceived_Authentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal, TFunction<void(bool bSuccess, const FString& Token)> InResultCallback) {}
 	virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) {}
 
-	/** Intent 수신 — 내부 캐싱된 Graph/Builder 사용 (item 2) */
-	virtual void OnReceived_FireIntentEvent(const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer) {}
+	/** 슬롯 커맨드 요청 수신 — 서버가 WorldState에서 EventTag 해석 */
+	virtual void OnReceived_SlotRequest(const FHktSlotRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
+
+	/** 이동 요청 수신 — 서버가 Move EventTag 매핑 */
+	virtual void OnReceived_MoveRequest(const FHktMoveRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
 
 	/** 액터 이벤트 — 내부 캐싱된 DB 사용 (item 1, 2) */
 	virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) {}

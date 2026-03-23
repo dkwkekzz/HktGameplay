@@ -24,7 +24,8 @@ class IHktClientRule;
  *   PostLogin()    → Rule->OnEvent_GameModePostLogin()
  *   Logout()       → Rule->OnEvent_GameModeLogout()
  *   Tick()         → Rule->OnEvent_GameModeTick() → FHktEventGameModeTickResult
- *   ReceiveIntent  → Rule->OnReceived_FireIntentEvent()
+ *   ReceiveSlotRequest  → Rule->OnReceived_SlotRequest()
+ *   ReceiveMoveRequest  → Rule->OnReceived_MoveRequest()
  */
 UCLASS()
 class HKTRUNTIME_API AHktGameMode : public AGameModeBase
@@ -34,8 +35,11 @@ class HKTRUNTIME_API AHktGameMode : public AGameModeBase
 public:
     AHktGameMode();
 
-    /** Intent를 Rule에 전달 (PlayerController에서 호출) */
-    void PushIntent(int64 PlayerUid, const FHktEvent& Event);
+    /** 슬롯 커맨드 요청을 Rule에 전달 (PlayerController에서 호출) */
+    void PushSlotRequest(int64 PlayerUid, const FHktSlotRequest& Request);
+
+    /** 이동 요청을 Rule에 전달 (PlayerController에서 호출) */
+    void PushMoveRequest(int64 PlayerUid, const FHktMoveRequest& Request);
 
 protected:
     virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
@@ -60,7 +64,7 @@ private:
     /** 서버 규칙 (UHktRuleSubsystem이 소유) */
     IHktServerRule* CachedServerRule = nullptr;
 
-    /** Insights 및 PushIntent용 캐시 (Rule의 BindContext와 별개로 유지) */
+    /** Insights 및 요청 전달용 캐시 (Rule의 BindContext와 별개로 유지) */
     IHktFrameManager*           CachedFrameManager            = nullptr;
     IHktRelevancyGraph*         CachedRelevancyGraph          = nullptr;
     IHktWorldDatabase*          CachedWorldDatabase           = nullptr;

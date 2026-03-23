@@ -38,7 +38,10 @@ public:
 
     // === C2S RPC ===
     UFUNCTION(Server, Reliable, WithValidation)
-    void Server_ReceiveIntent(const FHktRuntimeEvent& Event);
+    void Server_ReceiveSlotRequest(const FHktRuntimeSlotRequest& Request);
+
+    UFUNCTION(Server, Reliable, WithValidation)
+    void Server_ReceiveMoveRequest(const FHktRuntimeMoveRequest& Request);
 
     // === 델리게이트 ===
     virtual FOnHktTargetChanged& OnTargetChanged() override { return TargetChangedDelegate; }

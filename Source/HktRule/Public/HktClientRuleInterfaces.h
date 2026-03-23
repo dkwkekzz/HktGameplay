@@ -53,6 +53,7 @@ public:
 	virtual FHktEntityId GetTargetEntityId() const = 0;
 	virtual FVector GetTargetLocation() const = 0;
 	virtual FGameplayTag GetEventTag() const = 0;
+	virtual int32 GetCommandSlotIndex() const = 0;
 	virtual bool HasPendingSubmit() const = 0;
 	virtual FHktEvent ConsumePendingSubmit() = 0;
 };

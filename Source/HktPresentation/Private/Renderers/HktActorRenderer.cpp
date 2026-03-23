@@ -41,7 +41,8 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 	{
 		FHktEntityId Id = *It;
 		const FHktEntityPresentation* E = State.Get(Id);
-		if (!E || !ActorMap.Contains(Id)) { It.RemoveCurrent(); continue; }
+		if (!E) { DestroyActor(Id); It.RemoveCurrent(); continue; }
+		if (!ActorMap.Contains(Id)) { It.RemoveCurrent(); continue; }
 		UpdateMotionTarget(Id, *E, Frame, /*bForceUpdate=*/true);
 		UpdateAnimation(Id, *E, Frame, /*bForceUpdate=*/true);
 		if (E->IsItemAttached())
@@ -197,7 +198,15 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 		if (SpawnedActor)
 		{
+			// 비동기 로드 중 엔티티가 제거되었거나 재사용된 경우 → 즉시 파괴
+			if (ActorMap.Contains(EntityId))
+			{
+				SpawnedActor->Destroy();
+				return;
+			}
+
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), *VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
+
 
 			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
