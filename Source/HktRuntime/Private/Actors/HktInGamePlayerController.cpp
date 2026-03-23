@@ -218,7 +218,8 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
                 if (WS.IsValidEntity(TargetEntity))
                 {
                     const int32 ItemState = WS.GetProperty(TargetEntity, PropertyId::ItemState);
-                    if (ItemState == 0)  // Ground 상태 아이템
+                    const int32 ItemId   = WS.GetProperty(TargetEntity, PropertyId::ItemId);
+                    if (ItemState == 0 && ItemId > 0)  // Ground 상태 아이템 (캐릭터 제외)
                     {
                         RequestItemPickup(TargetEntity);
                         CachedIntentBuilder->ResetCommand();
