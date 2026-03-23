@@ -4,6 +4,7 @@
 #include "HktUIElement.h"
 #include "HktWorldViewAnchorStrategy.h"
 #include "HktSlateView.h"
+#include "HktWidgetEntityHudDataAsset.h"
 #include "Widgets/SHktIngameHudWidget.h"
 #include "Widgets/SHktEntityHudWidget.h"
 #include "HktUITags.h"
@@ -11,6 +12,7 @@
 #include "HktUILog.h"
 #include "HktCoreEventLog.h"
 #include "HktUIHelpers.h"
+#include "HktAssetSubsystem.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "GameFramework/PlayerController.h"
 
@@ -29,6 +31,15 @@ void AHktIngameHUD::BeginPlay()
 	if (IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC))
 		WorldViewDelegateHandle = Interaction->OnWorldViewUpdated().AddUObject(this, &AHktIngameHUD::OnWorldViewUpdated);
 
+	// Entity HUD DataAsset 비동기 로드 및 캐싱
+	if (UHktAssetSubsystem* AssetSubsystem = UHktAssetSubsystem::Get(GetWorld()))
+	{
+		AssetSubsystem->LoadAssetAsync(EntityWidgetTag, [this](UHktTagDataAsset* Asset)
+		{
+			CachedEntityHudAsset = Cast<UHktWidgetEntityHudDataAsset>(Asset);
+		});
+	}
+
 	LoadAndCreateWidget(IngameWidgetTag, [PC](UHktUIElement* Element)
 	{
 		if (Element && Element->View.IsValid())
@@ -46,6 +57,7 @@ void AHktIngameHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	UnbindWorldViewDelegate();
 
 	TrackedEntities.Empty();
+	CachedEntityHudAsset = nullptr;
 	CachedWorldState = nullptr;
 	bWorldStateValid = false;
 	bInitialSyncDone = false;
@@ -150,8 +162,17 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId)
 	UHktUIElement* Element = GetOrAddEntityElement(EntityId);
 	if (!Element || Element->View.IsValid()) return;
 
-	TSharedRef<SHktEntityHudWidget> EntityWidget = SNew(SHktEntityHudWidget);
-	TSharedPtr<IHktUIView> View = MakeShared<FHktSlateView>(EntityWidget);
+	// DataAsset 팩토리를 통해 뷰 생성 (미로드 시 직접 생성 폴백)
+	TSharedPtr<IHktUIView> View;
+	if (CachedEntityHudAsset)
+	{
+		View = CachedEntityHudAsset->CreateView();
+	}
+	else
+	{
+		View = MakeShared<FHktSlateView>(SNew(SHktEntityHudWidget));
+	}
+	if (!View.IsValid()) return;
 
 	UHktWorldViewAnchorStrategy* Strategy = NewObject<UHktWorldViewAnchorStrategy>(this);
 	Strategy->SetTargetEntity(EntityId, EntityHudOffset);
@@ -159,6 +180,10 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId)
 
 	Element->InitializeElement(View, Strategy);
 	AddElementToCanvas(Element);
+
+	// 뷰에서 위젯을 꺼내 초기 프로퍼티 설정
+	TSharedPtr<SHktEntityHudWidget> EntityWidget = StaticCastSharedRef<SHktEntityHudWidget>(View->GetSlateWidget());
+	if (!EntityWidget.IsValid()) return;
 
 	int32 Health = CachedWorldState->GetProperty(EntityId, PropertyId::Health);
 	int32 MaxHealth = CachedWorldState->GetProperty(EntityId, PropertyId::MaxHealth);

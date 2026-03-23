@@ -9,6 +9,7 @@
 #include "HktWorldView.h"
 #include "HktIngameHUD.generated.h"
 
+class UHktWidgetEntityHudDataAsset;
 class UHktWorldViewAnchorStrategy;
 
 /**
@@ -47,6 +48,9 @@ private:
 	void SyncEntityElements();
 	void CreateEntityElement(FHktEntityId EntityId);
 	void UpdateEntityProperties();
+
+	UPROPERTY()
+	TObjectPtr<UHktWidgetEntityHudDataAsset> CachedEntityHudAsset;
 
 	const FHktWorldState* CachedWorldState = nullptr;
 	bool bWorldStateValid = false;
