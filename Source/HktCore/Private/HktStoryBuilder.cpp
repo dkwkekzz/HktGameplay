@@ -32,32 +32,27 @@ FHktStoryBuilder::FHktStoryBuilder(const FGameplayTag& Tag)
 
 void FHktStoryBuilder::Emit(FInstruction Inst)
 {
-    if (bPreconditionMode)
-        PreconditionCode.Add(Inst);
-    else
-        Program->Code.Add(Inst);
+    ActiveSection->Code.Add(Inst);
 }
 
 int32 FHktStoryBuilder::AddString(const FString& Str)
 {
-    TArray<FString>& Strings = bPreconditionMode ? PreconditionStrings : Program->Strings;
-    int32 Index = Strings.IndexOfByKey(Str);
+    int32 Index = ActiveSection->Strings.IndexOfByKey(Str);
     if (Index == INDEX_NONE)
     {
-        Index = Strings.Num();
-        Strings.Add(Str);
+        Index = ActiveSection->Strings.Num();
+        ActiveSection->Strings.Add(Str);
     }
     return Index;
 }
 
 int32 FHktStoryBuilder::AddConstant(int32 Value)
 {
-    TArray<int32>& Constants = bPreconditionMode ? PreconditionConstants : Program->Constants;
-    int32 Index = Constants.IndexOfByKey(Value);
+    int32 Index = ActiveSection->Constants.IndexOfByKey(Value);
     if (Index == INDEX_NONE)
     {
-        Index = Constants.Num();
-        Constants.Add(Value);
+        Index = ActiveSection->Constants.Num();
+        ActiveSection->Constants.Add(Value);
     }
     return Index;
 }
@@ -95,45 +90,16 @@ FHktStoryBuilder& FHktStoryBuilder::SetPrecondition(FHktEventPrecondition InPrec
 
 FHktStoryBuilder& FHktStoryBuilder::BeginPrecondition()
 {
-    check(!bPreconditionMode);
-    bPreconditionMode = true;
+    check(ActiveSection == &MainSection);
+    ActiveSection = &PreconditionSection;
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::EndPrecondition()
 {
-    check(bPreconditionMode);
-    bPreconditionMode = false;
-
-    // Precondition 라벨 resolve
-    for (const auto& Fixup : PreconditionFixups)
-    {
-        int32 CodeIndex = Fixup.Key;
-        const FString& LabelName = Fixup.Value;
-
-        if (const int32* Target = PreconditionLabels.Find(LabelName))
-        {
-            FInstruction& Inst = PreconditionCode[CodeIndex];
-            switch (Inst.GetOpCode())
-            {
-            case EOpCode::Jump:
-                Inst.Imm20 = *Target;
-                break;
-            case EOpCode::JumpIf:
-            case EOpCode::JumpIfNot:
-                Inst.Imm12 = static_cast<uint16>(*Target);
-                break;
-            default:
-                break;
-            }
-        }
-        else
-        {
-            UE_LOG(LogHktCore, Error, TEXT("Unresolved precondition label: %s in Flow %s"),
-                *LabelName, *Program->Tag.ToString());
-        }
-    }
-
+    check(ActiveSection == &PreconditionSection);
+    ResolveLabels(PreconditionSection, Program->Tag);
+    ActiveSection = &MainSection;
     return *this;
 }
 
@@ -143,39 +109,27 @@ FHktStoryBuilder& FHktStoryBuilder::EndPrecondition()
 
 FHktStoryBuilder& FHktStoryBuilder::Label(const FString& Name)
 {
-    if (bPreconditionMode)
-        PreconditionLabels.Add(Name, PreconditionCode.Num());
-    else
-        Labels.Add(Name, Program->Code.Num());
+    ActiveSection->Labels.Add(Name, ActiveSection->Code.Num());
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::Jump(const FString& LabelName)
 {
-    if (bPreconditionMode)
-        PreconditionFixups.Add({PreconditionCode.Num(), LabelName});
-    else
-        Fixups.Add({Program->Code.Num(), LabelName});
+    ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
     Emit(FInstruction::MakeImm(EOpCode::Jump, 0, 0));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::JumpIf(RegisterIndex Cond, const FString& LabelName)
 {
-    if (bPreconditionMode)
-        PreconditionFixups.Add({PreconditionCode.Num(), LabelName});
-    else
-        Fixups.Add({Program->Code.Num(), LabelName});
+    ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
     Emit(FInstruction::Make(EOpCode::JumpIf, 0, Cond, 0, 0));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::JumpIfNot(RegisterIndex Cond, const FString& LabelName)
 {
-    if (bPreconditionMode)
-        PreconditionFixups.Add({PreconditionCode.Num(), LabelName});
-    else
-        Fixups.Add({Program->Code.Num(), LabelName});
+    ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
     Emit(FInstruction::Make(EOpCode::JumpIfNot, 0, Cond, 0, 0));
     return *this;
 }
@@ -688,16 +642,16 @@ FHktStoryBuilder& FHktStoryBuilder::Log(const FString& Message)
 // Build
 // ============================================================================
 
-void FHktStoryBuilder::ResolveLabels()
+void FHktStoryBuilder::ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag)
 {
-    for (const auto& Fixup : Fixups)
+    for (const auto& Fixup : Section.Fixups)
     {
         int32 CodeIndex = Fixup.Key;
         const FString& LabelName = Fixup.Value;
 
-        if (const int32* Target = Labels.Find(LabelName))
+        if (const int32* Target = Section.Labels.Find(LabelName))
         {
-            FInstruction& Inst = Program->Code[CodeIndex];
+            FInstruction& Inst = Section.Code[CodeIndex];
 
             switch (Inst.GetOpCode())
             {
@@ -714,19 +668,24 @@ void FHktStoryBuilder::ResolveLabels()
         }
         else
         {
-            UE_LOG(LogHktCore, Error, TEXT("Unresolved label: %s in Flow %s"), *LabelName, *Program->Tag.ToString());
+            UE_LOG(LogHktCore, Error, TEXT("Unresolved label: %s in Flow %s"), *LabelName, *Tag.ToString());
         }
     }
 }
 
 TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
 {
-    if (Program->Code.Num() == 0 || Program->Code.Last().GetOpCode() != EOpCode::Halt)
+    if (MainSection.Code.Num() == 0 || MainSection.Code.Last().GetOpCode() != EOpCode::Halt)
     {
         Halt();
     }
 
-    ResolveLabels();
+    ResolveLabels(MainSection, Program->Tag);
+
+    // MainSection → Program
+    Program->Code = MoveTemp(MainSection.Code);
+    Program->Constants = MoveTemp(MainSection.Constants);
+    Program->Strings = MoveTemp(MainSection.Strings);
 
     if (!ValidateEntityFlow())
     {
@@ -736,12 +695,12 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
         return nullptr;
     }
 
-    // Precondition 바이트코드 복사
-    if (PreconditionCode.Num() > 0)
+    // PreconditionSection → Program
+    if (PreconditionSection.Code.Num() > 0)
     {
-        Program->PreconditionCode = MoveTemp(PreconditionCode);
-        Program->PreconditionConstants = MoveTemp(PreconditionConstants);
-        Program->PreconditionStrings = MoveTemp(PreconditionStrings);
+        Program->PreconditionCode = MoveTemp(PreconditionSection.Code);
+        Program->PreconditionConstants = MoveTemp(PreconditionSection.Constants);
+        Program->PreconditionStrings = MoveTemp(PreconditionSection.Strings);
     }
 
     return Program;

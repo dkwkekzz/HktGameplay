@@ -48,6 +48,21 @@ using FHktEventPrecondition = TFunction<bool(const FHktWorldState& WorldState, c
  *       .RemoveTag(Self, TAG_Anim_UpperBody_Cast_Fireball)
  *       .End();
  */
+/**
+ * FCodeSection — Builder 내부 코드 섹션 (Main / Precondition 공용)
+ *
+ * Emit, AddString, AddConstant, Label, Jump 등이 모두 ActiveSection 포인터를 통해
+ * 이 구조체에 쓰기하므로, 새로운 섹션 추가 시 분기 코드가 불필요하다.
+ */
+struct FCodeSection
+{
+    TArray<FInstruction> Code;
+    TArray<int32> Constants;
+    TArray<FString> Strings;
+    TMap<FString, int32> Labels;
+    TArray<TPair<int32, FString>> Fixups;
+};
+
 class HKTCORE_API FHktStoryBuilder
 {
 public:
@@ -285,7 +300,7 @@ private:
     int32 AddString(const FString& Str);
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
-    void ResolveLabels();
+    static void ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag);
 
     /** 빌드 타임 엔티티 레지스터 초기화 순서 검증 — 실패 시 false */
     bool ValidateEntityFlow();
@@ -295,8 +310,10 @@ private:
 
 private:
     TSharedRef<FHktVMProgram> Program;
-    TMap<FString, int32> Labels;
-    TArray<TPair<int32, FString>> Fixups;
+
+    FCodeSection MainSection;
+    FCodeSection PreconditionSection;
+    FCodeSection* ActiveSection = &MainSection;
 
     // ForEach 스택 (중첩 지원)
     struct FForEachContext
@@ -307,14 +324,6 @@ private:
     TArray<FForEachContext> ForEachStack;
     int32 ForEachCounter = 0;
     int32 InternalLabelCounter = 0;
-
-    // Precondition 모드
-    bool bPreconditionMode = false;
-    TArray<FInstruction> PreconditionCode;
-    TArray<int32> PreconditionConstants;
-    TArray<FString> PreconditionStrings;
-    TMap<FString, int32> PreconditionLabels;
-    TArray<TPair<int32, FString>> PreconditionFixups;
 };
 
 // ============================================================================
