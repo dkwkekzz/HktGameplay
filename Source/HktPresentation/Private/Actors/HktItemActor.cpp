@@ -8,7 +8,10 @@ AHktItemActor::AHktItemActor()
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
 	RootComponent = MeshComponent;
 
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// QueryOnly: 커서 트레이스(Visibility 채널)에 응답, 물리 충돌은 없음
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 }
 
 void AHktItemActor::SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName)

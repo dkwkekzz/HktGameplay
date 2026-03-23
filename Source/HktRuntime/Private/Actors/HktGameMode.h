@@ -26,6 +26,7 @@ class IHktClientRule;
  *   Tick()         → Rule->OnEvent_GameModeTick() → FHktEventGameModeTickResult
  *   ReceiveSlotRequest  → Rule->OnReceived_SlotRequest()
  *   ReceiveMoveRequest  → Rule->OnReceived_MoveRequest()
+ *   ReceiveItemRequest  → Rule->OnReceived_ItemRequest()
  */
 UCLASS()
 class HKTRUNTIME_API AHktGameMode : public AGameModeBase
@@ -40,6 +41,9 @@ public:
 
     /** 이동 요청을 Rule에 전달 (PlayerController에서 호출) */
     void PushMoveRequest(int64 PlayerUid, const FHktMoveRequest& Request);
+
+    /** 아이템 상호작용 요청을 Rule에 전달 (PlayerController에서 호출) */
+    void PushItemRequest(int64 PlayerUid, const FHktItemRequest& Request);
 
 protected:
     virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;

@@ -160,6 +160,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			if (ItemActor)
 			{
 				ItemActor->SetupMesh(ItemAsset->Mesh, ItemAsset->MeshScale, ItemAsset->AttachRotationOffset, ItemAsset->AttachSocketName);
+				ItemActor->SetEntityId(EntityId);
 			}
 			SpawnedActor = ItemActor;
 		}
@@ -433,6 +434,7 @@ void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresenta
 		return;
 	}
 
+	ItemActor->SetActorEnableCollision(false);
 	ItemActor->AttachToComponent(SkelMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketName);
 	AttachedItems.Add(ItemId);
 	PendingAttachments.Remove(ItemId);
@@ -448,6 +450,7 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 	if (ItemActor)
 	{
 		ItemActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		ItemActor->SetActorEnableCollision(true);
 	}
 
 	AttachedItems.Remove(ItemId);

@@ -43,6 +43,23 @@ public:
     UFUNCTION(Server, Reliable, WithValidation)
     void Server_ReceiveMoveRequest(const FHktRuntimeMoveRequest& Request);
 
+    UFUNCTION(Server, Reliable, WithValidation)
+    void Server_ReceiveItemRequest(const FHktRuntimeItemRequest& Request);
+
+    // === 아이템 상호작용 (UI/입력에서 호출) ===
+
+    /** 주변 아이템 줍기 (TargetEntity = 바닥 아이템) */
+    void RequestItemPickup(FHktEntityId ItemEntity);
+
+    /** 인벤토리 아이템 활성화 (Equipment 슬롯으로 이동) */
+    void RequestItemActivate(FHktEntityId ItemEntity, int32 ActionSlot);
+
+    /** 장비 아이템 비활성화 (인벤토리로 이동) */
+    void RequestItemDeactivate(FHktEntityId ItemEntity);
+
+    /** 아이템 드롭 (바닥에 놓기) */
+    void RequestItemDrop(FHktEntityId ItemEntity);
+
     // === 델리게이트 ===
     virtual FOnHktTargetChanged& OnTargetChanged() override { return TargetChangedDelegate; }
     FOnHktCommandChanged& OnCommandChanged() { return CommandChangedDelegate; }

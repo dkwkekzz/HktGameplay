@@ -289,6 +289,35 @@ struct TStructOpsTypeTraits<FHktRuntimeSlotRequest> : public TStructOpsTypeTrait
 };
 
 //=============================================================================
+// FHktRuntimeItemRequest — 아이템 요청 네트워크 래퍼
+//=============================================================================
+USTRUCT()
+struct HKTRUNTIME_API FHktRuntimeItemRequest
+{
+	GENERATED_BODY()
+
+	FHktItemRequest Value;
+
+	FHktRuntimeItemRequest() = default;
+	explicit FHktRuntimeItemRequest(const FHktItemRequest& In) : Value(In) {}
+
+	FORCEINLINE operator FHktItemRequest&() { return Value; }
+	FORCEINLINE operator const FHktItemRequest&() const { return Value; }
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		Ar << Value;
+		return bOutSuccess = true;
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeItemRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeItemRequest>
+{
+	enum { WithNetSerializer = true };
+};
+
+//=============================================================================
 // FHktRuntimeMoveRequest — 이동 요청 네트워크 래퍼
 //=============================================================================
 USTRUCT()

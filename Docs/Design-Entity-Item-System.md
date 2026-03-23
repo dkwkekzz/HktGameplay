@@ -246,7 +246,39 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 - Pickup: 이미 존재하는 Ground 아이템(Target)의 소유권을 가져온다. 거리 검증 필요. 그 자체가 Event.
 - Grant: 새 아이템을 SpawnEntity로 생성하여 바로 InBag에 넣는다. 거리 검증 불필요. Event의 Story 내부 로직.
 
-### 3.5 소유 제한 사항
+### 3.5 아이템 상호작용 요청 경로 (Client → Server)
+
+아이템 이벤트는 `FHktItemRequest` 구조체를 통해 클라이언트에서 서버로 전달된다.
+
+```
+클라이언트 입력                           서버 처리
+─────────────────────────                 ──────────────────────
+[바닥 아이템 클릭]
+  OnTargetAction()
+    ItemState==0 감지
+      → RequestItemPickup()
+        → Server_ReceiveItemRequest()  → OnReceived_ItemRequest()
+                                           Action=Pickup → Story.Event.Item.Pickup
+
+[인벤토리 위젯에서 아이템 선택]
+  RequestItemActivate(Item, Slot)
+    → Server_ReceiveItemRequest()      → OnReceived_ItemRequest()
+                                           Action=Activate → Story.Event.Item.Activate (Param0=Slot)
+
+[장비 위젯에서 아이템 선택]
+  RequestItemDeactivate(Item)
+    → Server_ReceiveItemRequest()      → OnReceived_ItemRequest()
+                                           Action=Deactivate → Story.Event.Item.Deactivate
+
+[드롭 요청]
+  RequestItemDrop(Item)
+    → Server_ReceiveItemRequest()      → OnReceived_ItemRequest()
+                                           Action=Drop → Story.Event.Item.Drop
+```
+
+**서버 검증**: `OnReceived_ItemRequest`에서 SourceEntity 소유권 검증 + TargetEntity 존재 검증. Story VM의 Precondition이 ItemState 등 세부 조건을 이중 검증.
+
+### 3.6 소유 제한 사항
 
 | 제한 | 현재 값 | 근거 |
 |------|---------|------|
@@ -432,9 +464,8 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 2. 클라이언트가 자기 Entity를 포커싱하여 게임 진행
 3. 우클릭으로 이동
 4. PrototypeMap에 WoodSpear가 하나 스폰되어 있음
-5. 플레이어가 WoodSpear를 Pickup (Client Intent → Story.Event.Item.Pickup)
-6. Command로 Activate 실행 (Client Intent → Story.Event.Item.Activate)
-   - UI 미구현이므로 Command로 대체
+5. 플레이어가 WoodSpear를 클릭 → 자동 Pickup (OnTargetAction에서 Ground 아이템 감지 → RequestItemPickup)
+6. 인벤토리 위젯에서 아이템 선택 → Activate (RequestItemActivate → Server_ReceiveItemRequest)
 7. Activate 시:
    - ItemState: 1(InBag) → 2(Active)
    - ActionSlot 할당
@@ -447,8 +478,10 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 | 항목 | 상태 | 설명 |
 |------|------|------|
 | WoodSpear 맵 스폰 Story | 미구현 | PrototypeMap 로드 시 고정 위치에 WoodSpear 1개 스폰하는 Map Event |
-| Command → Activate 연결 | 미구현 | 클라이언트에서 키/커맨드로 Event.Item.Activate를 fire하는 입력 경로 |
+| Pickup 클릭 | ✅ 구현 완료 | OnTargetAction에서 Ground 아이템(ItemState==0) 감지 → RequestItemPickup → Server_ReceiveItemRequest |
+| Activate/Deactivate 입력 | ✅ 구현 완료 | `RequestItemActivate`/`RequestItemDeactivate` → `Server_ReceiveItemRequest` RPC → `OnReceived_ItemRequest` |
 | 무기 메쉬 소켓 부착 | ✅ 구현 완료 | `UHktItemVisualDataAsset.AttachSocketName`으로 소켓 지정, `FHktActorRenderer`에서 OwnerEntity/ActionSlot 변경 감지 → 자동 부착/분리 |
+| Inventory/Equipment 위젯 | 미구현 | `IHktPlayerInteractionInterface`의 `RequestItemActivate`/`RequestItemDeactivate` 호출하는 Slate 위젯 |
 
 ---
 

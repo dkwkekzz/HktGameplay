@@ -217,6 +217,44 @@ struct HKTRULE_API FHktSlotRequest
 };
 
 // ============================================================================
+// EHktItemAction — 아이템 요청 액션 타입
+// ============================================================================
+
+enum class EHktItemAction : uint8
+{
+	Pickup     = 0,
+	Activate   = 1,
+	Deactivate = 2,
+	Drop       = 3,
+};
+
+// ============================================================================
+// FHktItemRequest — 아이템 상호작용 요청 (C2S)
+// ============================================================================
+
+struct HKTRULE_API FHktItemRequest
+{
+	EHktItemAction Action = EHktItemAction::Pickup;
+	FHktEntityId SourceEntity = InvalidEntityId;
+	FHktEntityId TargetEntity = InvalidEntityId;
+	int32 Param0 = 0;  // Activate: ActionSlot
+
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("Action=%d Src=%d Tgt=%d Param0=%d"),
+			static_cast<uint8>(Action), SourceEntity, TargetEntity, Param0);
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FHktItemRequest& R)
+	{
+		uint8 ActionByte = static_cast<uint8>(R.Action);
+		Ar << ActionByte << R.SourceEntity << R.TargetEntity << R.Param0;
+		if (Ar.IsLoading()) R.Action = static_cast<EHktItemAction>(ActionByte);
+		return Ar;
+	}
+};
+
+// ============================================================================
 // FHktMoveRequest — 이동 요청 (C2S)
 // ============================================================================
 
@@ -262,6 +300,9 @@ public:
 
 	/** 이동 요청 수신 — 서버가 Move EventTag 매핑 */
 	virtual void OnReceived_MoveRequest(const FHktMoveRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
+
+	/** 아이템 상호작용 요청 수신 — 서버가 ItemState 검증 후 EventTag 매핑 */
+	virtual void OnReceived_ItemRequest(const FHktItemRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
 
 	/** 액터 이벤트 — 내부 캐싱된 DB 사용 (item 1, 2) */
 	virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) {}

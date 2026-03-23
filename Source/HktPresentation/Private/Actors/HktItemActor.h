@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "HktSelectable.h"
 #include "HktItemActor.generated.h"
 
 /**
@@ -12,7 +13,7 @@
  * DataAsset(UHktItemVisualDataAsset)으로부터 메시를 받아 설정합니다.
  */
 UCLASS(NotBlueprintable)
-class AHktItemActor : public AActor
+class AHktItemActor : public AActor, public IHktSelectable
 {
 	GENERATED_BODY()
 
@@ -25,10 +26,19 @@ public:
 	/** 이 아이템이 부착될 소켓 이름 (DataAsset에서 지정) */
 	FName GetAttachSocketName() const { return AttachSocketName; }
 
+	/** 이 아이템의 EntityId 설정 (ActorRenderer에서 스폰 후 호출) */
+	void SetEntityId(FHktEntityId InEntityId) { CachedEntityId = InEntityId; }
+
+	// IHktSelectable
+	virtual FHktEntityId GetEntityId() const override { return CachedEntityId; }
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Item")
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
 
 	/** 캐릭터 소켓 이름 (DataAsset에서 복사) */
 	FName AttachSocketName = NAME_None;
+
+	/** 이 Actor가 나타내는 WorldState 엔티티 ID */
+	FHktEntityId CachedEntityId = InvalidEntityId;
 };

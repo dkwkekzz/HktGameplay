@@ -51,6 +51,18 @@ public:
 	/** 아이템 장착/해제로 액션 슬롯 바인딩이 변경될 때 브로드캐스트. */
 	virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() { static FOnHktSlotBindingChanged Dummy; return Dummy; }
 
+	/** 아이템 줍기 요청 (바닥 아이템 클릭). */
+	virtual void RequestItemPickup(FHktEntityId ItemEntity) {}
+
+	/** 아이템 활성화 요청 (인벤토리 → 장비). */
+	virtual void RequestItemActivate(FHktEntityId ItemEntity, int32 ActionSlot) {}
+
+	/** 아이템 비활성화 요청 (장비 → 인벤토리). */
+	virtual void RequestItemDeactivate(FHktEntityId ItemEntity) {}
+
+	/** 아이템 드롭 요청 (바닥에 놓기). */
+	virtual void RequestItemDrop(FHktEntityId ItemEntity) {}
+
 	/** 이 플레이어의 고유 UID. 소유권 검증 등에 사용. 미지원 시 0 반환. */
 	virtual int64 GetPlayerUid() const { return 0; }
 };

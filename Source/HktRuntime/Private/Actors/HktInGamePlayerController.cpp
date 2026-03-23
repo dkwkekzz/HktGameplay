@@ -209,10 +209,28 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
         }
         else
         {
+            const FHktEntityId TargetEntity = CachedIntentBuilder->GetTargetEntityId();
+
+            // 클릭 대상이 아이템인지 확인 → 자동 픽업
+            if (TargetEntity != InvalidEntityId && CachedProxySimulator && CachedProxySimulator->IsInitialized())
+            {
+                const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
+                if (WS.IsValidEntity(TargetEntity))
+                {
+                    const int32 ItemState = WS.GetProperty(TargetEntity, PropertyId::ItemState);
+                    if (ItemState == 0)  // Ground 상태 아이템
+                    {
+                        RequestItemPickup(TargetEntity);
+                        CachedIntentBuilder->ResetCommand();
+                        return;
+                    }
+                }
+            }
+
             // 커맨드 없음 → 이동 요청
             FHktMoveRequest MoveReq;
             MoveReq.SourceEntity = SourceEntity;
-            MoveReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();
+            MoveReq.TargetEntity = TargetEntity;
             MoveReq.Location = CachedIntentBuilder->GetTargetLocation();
 
             FHktRuntimeMoveRequest RuntimeReq(MoveReq);
@@ -464,6 +482,80 @@ void AHktIngamePlayerController::Server_ReceiveMoveRequest_Implementation(const 
     {
         GM->PushMoveRequest(GetPlayerUid(), Request.Value);
     }
+}
+
+bool AHktIngamePlayerController::Server_ReceiveItemRequest_Validate(const FHktRuntimeItemRequest& Request)
+{
+    return Request.Value.SourceEntity != InvalidEntityId && Request.Value.TargetEntity != InvalidEntityId;
+}
+
+void AHktIngamePlayerController::Server_ReceiveItemRequest_Implementation(const FHktRuntimeItemRequest& Request)
+{
+#if ENABLE_HKT_INSIGHTS
+    InsightSentIntentCount++;
+#endif
+
+    if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
+    {
+        GM->PushItemRequest(GetPlayerUid(), Request.Value);
+    }
+}
+
+void AHktIngamePlayerController::RequestItemPickup(FHktEntityId ItemEntity)
+{
+    if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
+
+    FHktItemRequest Req;
+    Req.Action = EHktItemAction::Pickup;
+    Req.SourceEntity = DefaultSubjectEntityId;
+    Req.TargetEntity = ItemEntity;
+    Server_ReceiveItemRequest(FHktRuntimeItemRequest(Req));
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+        FString::Printf(TEXT("RequestItemPickup Item=%d"), ItemEntity), DefaultSubjectEntityId);
+}
+
+void AHktIngamePlayerController::RequestItemActivate(FHktEntityId ItemEntity, int32 ActionSlot)
+{
+    if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
+
+    FHktItemRequest Req;
+    Req.Action = EHktItemAction::Activate;
+    Req.SourceEntity = DefaultSubjectEntityId;
+    Req.TargetEntity = ItemEntity;
+    Req.Param0 = ActionSlot;
+    Server_ReceiveItemRequest(FHktRuntimeItemRequest(Req));
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+        FString::Printf(TEXT("RequestItemActivate Item=%d Slot=%d"), ItemEntity, ActionSlot), DefaultSubjectEntityId);
+}
+
+void AHktIngamePlayerController::RequestItemDeactivate(FHktEntityId ItemEntity)
+{
+    if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
+
+    FHktItemRequest Req;
+    Req.Action = EHktItemAction::Deactivate;
+    Req.SourceEntity = DefaultSubjectEntityId;
+    Req.TargetEntity = ItemEntity;
+    Server_ReceiveItemRequest(FHktRuntimeItemRequest(Req));
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+        FString::Printf(TEXT("RequestItemDeactivate Item=%d"), ItemEntity), DefaultSubjectEntityId);
+}
+
+void AHktIngamePlayerController::RequestItemDrop(FHktEntityId ItemEntity)
+{
+    if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
+
+    FHktItemRequest Req;
+    Req.Action = EHktItemAction::Drop;
+    Req.SourceEntity = DefaultSubjectEntityId;
+    Req.TargetEntity = ItemEntity;
+    Server_ReceiveItemRequest(FHktRuntimeItemRequest(Req));
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+        FString::Printf(TEXT("RequestItemDrop Item=%d"), ItemEntity), DefaultSubjectEntityId);
 }
 
 void AHktIngamePlayerController::ResolveDefaultSubject()
