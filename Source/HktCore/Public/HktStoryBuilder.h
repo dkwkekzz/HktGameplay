@@ -69,6 +69,13 @@ public:
     static FHktStoryBuilder Create(const FGameplayTag& Tag);
     static FHktStoryBuilder Create(const FName& TagName);
 
+    // ActiveSection이 자기 멤버(MainSection/PreconditionSection)를 가리키므로
+    // implicit copy/move는 댕글링 포인터를 만든다. 복사 금지, move는 재조정.
+    FHktStoryBuilder(const FHktStoryBuilder&) = delete;
+    FHktStoryBuilder& operator=(const FHktStoryBuilder&) = delete;
+    FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept;
+    FHktStoryBuilder& operator=(FHktStoryBuilder&&) = delete;
+
     // ========== Story Policy ==========
 
     /** 같은 엔티티에 동일 이벤트가 중복 발생 시 기존 VM을 취소 (예: MoveTo) */

@@ -30,6 +30,20 @@ FHktStoryBuilder::FHktStoryBuilder(const FGameplayTag& Tag)
     Program->Tag = Tag;
 }
 
+FHktStoryBuilder::FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept
+    : Program(MoveTemp(Other.Program))
+    , MainSection(MoveTemp(Other.MainSection))
+    , PreconditionSection(MoveTemp(Other.PreconditionSection))
+    , ForEachStack(MoveTemp(Other.ForEachStack))
+    , ForEachCounter(Other.ForEachCounter)
+    , InternalLabelCounter(Other.InternalLabelCounter)
+{
+    // ActiveSection 포인터 재조정: 원본이 어느 섹션을 가리키고 있었는지에 따라 결정
+    ActiveSection = (Other.ActiveSection == &Other.PreconditionSection)
+        ? &PreconditionSection
+        : &MainSection;
+}
+
 void FHktStoryBuilder::Emit(FInstruction Inst)
 {
     ActiveSection->Code.Add(Inst);
