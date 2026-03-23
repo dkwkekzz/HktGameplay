@@ -135,7 +135,9 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 	}
 	else
 	{
-		ProcessInitialSync(View);
+		// Diff 없는 프레임 — 상태 변경 없으므로 렌더러 동기화만 수행
+		SyncRenderers();
+		return;
 	}
 	SyncRenderers();
 }

@@ -14,6 +14,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "GameplayTagsManager.h"
+#include "HktRuntimeTags.h"
 
 AHktIngamePlayerController::AHktIngamePlayerController()
 {
@@ -183,6 +184,18 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 
             FHktRuntimeSlotRequest RuntimeReq(SlotReq);
             Server_ReceiveSlotRequest(RuntimeReq);
+
+            // Presentation에 Intent 브로드캐스트 (클라 즉시 VFX)
+            if (CachedCommandContainer)
+            {
+                FHktEvent IntentEvent;
+                IntentEvent.EventTag = CachedCommandContainer->GetEventTagAtSlot(PendingSlot);
+                IntentEvent.SourceEntity = SlotReq.SourceEntity;
+                IntentEvent.TargetEntity = SlotReq.TargetEntity;
+                IntentEvent.Location = SlotReq.TargetLocation;
+                IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(IntentEvent));
+            }
+
             UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction SlotRequest (pending) %s"), *SlotReq.ToString());
         }
         else
@@ -195,6 +208,15 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 
             FHktRuntimeMoveRequest RuntimeReq(MoveReq);
             Server_ReceiveMoveRequest(RuntimeReq);
+
+            // Presentation에 Intent 브로드캐스트 (클라 즉시 VFX — 이동 인디케이터)
+            FHktEvent IntentEvent;
+            IntentEvent.EventTag = HktGameplayTags::Story_Event_Move_ToLocation;
+            IntentEvent.SourceEntity = MoveReq.SourceEntity;
+            IntentEvent.TargetEntity = MoveReq.TargetEntity;
+            IntentEvent.Location = MoveReq.Location;
+            IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(IntentEvent));
+
             UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction MoveRequest %s"), *MoveReq.ToString());
         }
 
@@ -235,6 +257,18 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
 
             FHktRuntimeSlotRequest RuntimeReq(SlotReq);
             Server_ReceiveSlotRequest(RuntimeReq);
+
+            // Presentation에 Intent 브로드캐스트 (클라 즉시 VFX)
+            if (CachedCommandContainer)
+            {
+                FHktEvent IntentEvent;
+                IntentEvent.EventTag = CachedCommandContainer->GetEventTagAtSlot(SlotIndex);
+                IntentEvent.SourceEntity = SlotReq.SourceEntity;
+                IntentEvent.TargetEntity = SlotReq.TargetEntity;
+                IntentEvent.Location = SlotReq.TargetLocation;
+                IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(IntentEvent));
+            }
+
             UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction SlotRequest %s"), *SlotReq.ToString());
         }
 
