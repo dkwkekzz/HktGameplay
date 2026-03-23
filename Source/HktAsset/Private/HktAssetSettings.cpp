@@ -24,6 +24,9 @@ UHktAssetSettings::UHktAssetSettings()
 
 		// Anim.{...} → {Root}/Animations/{TagPath}
 		{ TEXT("Anim."), TEXT("{Root}/Animations/{TagPath}") },
+
+		// Widget.{Name} → {Root}/UI/DA_{Leaf}
+		{ TEXT("Widget."), TEXT("{Root}/UI/DA_{Leaf}") },
 	};
 }
 

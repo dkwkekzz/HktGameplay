@@ -141,14 +141,15 @@ void AHktHUD::AddElementToCanvas(UHktUIElement* Element)
 	}
 	else
 	{
-		// 엔티티 HUD: 좌상단 기준 점 위치. 슬롯에 최소 크기(1,1)를 주어 레이아웃이 0x0이 되지 않게 함.
+		// 엔티티 HUD: 좌상단 기준 절대 위치. AutoSize로 위젯이 DesiredSize(100px 등)를 유지하게 함.
 		const float X = Element->CachedScreenPosition.X;
 		const float Y = Element->CachedScreenPosition.Y;
 		MainCanvasWidget->AddSlot()
 			.Expose(Element->CanvasSlot)
-			.Offset(FMargin(X, Y, X + 1.f, Y + 1.f))
+			.Offset(FMargin(X, Y, 0.f, 0.f))
 			.Anchors(FAnchors(0.f, 0.f, 0.f, 0.f))
-			.Alignment(FVector2D::ZeroVector)
+			.AutoSize(true)
+			.Alignment(FVector2D(0.5f, 1.f))
 			[
 				SlateWidget
 			];
