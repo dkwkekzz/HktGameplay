@@ -1,6 +1,9 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktCoreEventLog.h"
+#include "HAL/PlatformFileManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 
 // ============================================================================
 // 로그 카테고리 GameplayTag 정의
@@ -105,8 +108,122 @@ void FHktCoreEventLog::Clear()
 	++Version;
 }
 
+FString FHktCoreEventLog::DumpToFile(const FString& OptionalPath) const
+{
+	FScopeLock ScopeLock(&Lock);
+
+	if (Entries.Num() == 0 || WriteIndex == 0)
+	{
+		return FString();
+	}
+
+	// 경로 결정
+	FString FilePath = OptionalPath;
+	if (FilePath.IsEmpty())
+	{
+		FilePath = FPaths::ProjectSavedDir() / TEXT("Logs") / TEXT("HktEventLog.log");
+	}
+	FilePath = FPaths::ConvertRelativePathToFull(FilePath);
+
+	// 가장 오래된 유효 엔트리부터 순서대로 출력
+	uint32 StartIndex = 0;
+	if (WriteIndex > (uint32)MaxEntries)
+	{
+		StartIndex = WriteIndex - MaxEntries;
+	}
+
+	FStringBuilderBase Builder;
+	Builder.Appendf(TEXT("=== HKT Event Log Dump ===\n"));
+	Builder.Appendf(TEXT("Entries: %u (buffer capacity: %d)\n\n"), FMath::Min(WriteIndex, (uint32)MaxEntries), MaxEntries);
+
+	for (uint32 i = StartIndex; i < WriteIndex; ++i)
+	{
+		const FHktLogEntry& Entry = Entries[i % MaxEntries];
+		// [Frame:000123] [Category] Message | Entity:ID | Tag:EventTag
+		Builder.Appendf(TEXT("[Frame:%06llu] [%s] %s"),
+			Entry.FrameNumber,
+			*Entry.Category.ToString(),
+			*Entry.Message);
+
+		if (Entry.EntityId != InvalidEntityId)
+		{
+			Builder.Appendf(TEXT(" | Entity:%d"), Entry.EntityId);
+		}
+		if (Entry.EventTag.IsValid())
+		{
+			Builder.Appendf(TEXT(" | Tag:%s"), *Entry.EventTag.ToString());
+		}
+		Builder.Append(TEXT("\n"));
+	}
+
+	const FString Content = Builder.ToString();
+	if (FFileHelper::SaveStringToFile(Content, *FilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+	{
+		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Dumped %u entries to %s"), FMath::Min(WriteIndex, (uint32)MaxEntries), *FilePath);
+		return FilePath;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("HktEventLog: Failed to write to %s"), *FilePath);
+	return FString();
+}
+
 FGameplayTagContainer FHktCoreEventLog::GetCategories() const
 {
 	FScopeLock ScopeLock(&Lock);
 	return KnownCategories;
 }
+
+// ============================================================================
+// 콘솔 커맨드
+// ============================================================================
+
+#if ENABLE_HKT_INSIGHTS
+
+static FAutoConsoleCommand GHktEventLogStartCmd(
+	TEXT("hkt.EventLog.Start"),
+	TEXT("HKT 이벤트 로그 수집을 시작합니다. 패널 없이도 독립적으로 수집 가능."),
+	FConsoleCommandDelegate::CreateLambda([]()
+	{
+		FHktCoreEventLog::Get().SetActive(true);
+		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Collection started."));
+	})
+);
+
+static FAutoConsoleCommand GHktEventLogStopCmd(
+	TEXT("hkt.EventLog.Stop"),
+	TEXT("HKT 이벤트 로그 수집을 중지합니다."),
+	FConsoleCommandDelegate::CreateLambda([]()
+	{
+		FHktCoreEventLog::Get().SetActive(false);
+		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Collection stopped."));
+	})
+);
+
+static FAutoConsoleCommand GHktEventLogDumpCmd(
+	TEXT("hkt.EventLog.Dump"),
+	TEXT("현재 버퍼의 이벤트 로그를 파일로 출력합니다. Saved/Logs/HktEventLog.log"),
+	FConsoleCommandDelegate::CreateLambda([]()
+	{
+		const FString Path = FHktCoreEventLog::Get().DumpToFile();
+		if (!Path.IsEmpty())
+		{
+			UE_LOG(LogTemp, Log, TEXT("HktEventLog: Dump complete -> %s"), *Path);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("HktEventLog: No entries to dump or write failed."));
+		}
+	})
+);
+
+static FAutoConsoleCommand GHktEventLogClearCmd(
+	TEXT("hkt.EventLog.Clear"),
+	TEXT("이벤트 로그 버퍼를 초기화합니다."),
+	FConsoleCommandDelegate::CreateLambda([]()
+	{
+		FHktCoreEventLog::Get().Clear();
+		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Buffer cleared."));
+	})
+);
+
+#endif // ENABLE_HKT_INSIGHTS
