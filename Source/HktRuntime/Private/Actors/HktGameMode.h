@@ -36,10 +36,10 @@ public:
     AHktGameMode();
 
     /** 슬롯 커맨드 요청을 Rule에 전달 (PlayerController에서 호출) */
-    void PushSlotRequest(int64 PlayerUid, const FHktClientSlotRequest& Request);
+    void PushSlotRequest(int64 PlayerUid, const FHktSlotRequest& Request);
 
     /** 이동 요청을 Rule에 전달 (PlayerController에서 호출) */
-    void PushMoveRequest(int64 PlayerUid, const FHktClientMoveRequest& Request);
+    void PushMoveRequest(int64 PlayerUid, const FHktMoveRequest& Request);
 
 protected:
     virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;

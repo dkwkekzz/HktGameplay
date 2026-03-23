@@ -213,7 +213,7 @@ void AHktGameMode::Logout(AController* Exiting)
     Super::Logout(Exiting);
 }
 
-void AHktGameMode::PushSlotRequest(int64 PlayerUid, const FHktClientSlotRequest& Request)
+void AHktGameMode::PushSlotRequest(int64 PlayerUid, const FHktSlotRequest& Request)
 {
     IHktServerRule* Rule = GetServerRule();
     if (!Rule) return;
@@ -228,7 +228,7 @@ void AHktGameMode::PushSlotRequest(int64 PlayerUid, const FHktClientSlotRequest&
     Rule->OnReceived_SlotRequest(Request, *WorldPlayer);
 }
 
-void AHktGameMode::PushMoveRequest(int64 PlayerUid, const FHktClientMoveRequest& Request)
+void AHktGameMode::PushMoveRequest(int64 PlayerUid, const FHktMoveRequest& Request)
 {
     IHktServerRule* Rule = GetServerRule();
     if (!Rule) return;

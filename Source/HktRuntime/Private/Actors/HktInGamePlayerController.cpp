@@ -175,7 +175,7 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
         if (PendingSlot >= 0)
         {
             // 커맨드 대기 중 → 타겟 지정 완료 → SlotRequest 전송
-            FHktClientSlotRequest SlotReq;
+            FHktSlotRequest SlotReq;
             SlotReq.SlotIndex = PendingSlot;
             SlotReq.SourceEntity = SourceEntity;
             SlotReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();
@@ -188,7 +188,7 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
         else
         {
             // 커맨드 없음 → 이동 요청
-            FHktClientMoveRequest MoveReq;
+            FHktMoveRequest MoveReq;
             MoveReq.SourceEntity = SourceEntity;
             MoveReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();
             MoveReq.Location = CachedIntentBuilder->GetTargetLocation();
@@ -212,7 +212,7 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
     if (CachedIntentBuilder)
     {
         // 슬롯 요청: EventTag 없이 SlotIndex + SourceEntity + Target만 전송
-        FHktClientSlotRequest SlotReq;
+        FHktSlotRequest SlotReq;
         SlotReq.SlotIndex = SlotIndex;
         SlotReq.SourceEntity = CachedIntentBuilder->GetSubjectEntityId();
         SlotReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();

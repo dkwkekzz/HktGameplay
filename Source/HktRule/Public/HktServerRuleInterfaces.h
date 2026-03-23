@@ -8,7 +8,6 @@
 #include "HktCoreEvents.h"
 #include "HktCoreSimulator.h"
 #include "HktWorldState.h"
-#include "HktClientRequestTypes.h"
 #include "Containers/ArrayView.h"
 #include "HktServerRuleInterfaces.generated.h"
 
@@ -210,10 +209,10 @@ public:
 	virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) {}
 
 	/** 슬롯 커맨드 요청 수신 — 서버가 WorldState에서 EventTag 해석 */
-	virtual void OnReceived_SlotRequest(const FHktClientSlotRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
+	virtual void OnReceived_SlotRequest(const FHktSlotRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
 
 	/** 이동 요청 수신 — 서버가 Move EventTag 매핑 */
-	virtual void OnReceived_MoveRequest(const FHktClientMoveRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
+	virtual void OnReceived_MoveRequest(const FHktMoveRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
 
 	/** 액터 이벤트 — 내부 캐싱된 DB 사용 (item 1, 2) */
 	virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) {}

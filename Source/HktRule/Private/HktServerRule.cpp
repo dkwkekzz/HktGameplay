@@ -88,7 +88,7 @@ static constexpr uint16 ServerItemSlotPropertyIds[] =
 static constexpr int32 MaxServerItemSlots = UE_ARRAY_COUNT(ServerItemSlotPropertyIds);
 
 void FHktDefaultServerRule::OnReceived_SlotRequest(
-	const FHktClientSlotRequest& InRequest, const IHktWorldPlayer& InPlayer)
+	const FHktSlotRequest& InRequest, const IHktWorldPlayer& InPlayer)
 {
 	if (!CachedGraph) return;
 
@@ -131,7 +131,7 @@ void FHktDefaultServerRule::OnReceived_SlotRequest(
 }
 
 void FHktDefaultServerRule::OnReceived_MoveRequest(
-	const FHktClientMoveRequest& InRequest, const IHktWorldPlayer& InPlayer)
+	const FHktMoveRequest& InRequest, const IHktWorldPlayer& InPlayer)
 {
 	if (!CachedGraph) return;
 

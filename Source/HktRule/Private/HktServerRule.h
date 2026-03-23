@@ -22,8 +22,8 @@ public:
 
     virtual void OnReceived_Authentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal, TFunction<void(bool bSuccess, const FString& Token)> InResultCallback) override;
     virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) override {}
-    virtual void OnReceived_SlotRequest(const FHktClientSlotRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
-    virtual void OnReceived_MoveRequest(const FHktClientMoveRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
+    virtual void OnReceived_SlotRequest(const FHktSlotRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
+    virtual void OnReceived_MoveRequest(const FHktMoveRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
 
     // 액터 이벤트 (item 1)
     virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) override;
