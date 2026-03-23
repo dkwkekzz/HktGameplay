@@ -62,6 +62,10 @@ private:
 	void ProcessDiff(const FHktWorldView& View);
 	void SyncRenderers();
 
+	/** State 변경 시 전체 Sync, 아니면 NeedsTick인 렌더러만 Sync */
+	void OnTick(float DeltaSeconds);
+
+	FDelegateHandle TickHandle;
 	FHktPresentationState State;
 	TUniquePtr<FHktActorRenderer> ActorRenderer;
 	TUniquePtr<FHktMassEntityRenderer> MassEntityRenderer;
@@ -79,4 +83,5 @@ private:
 	FHktEntityId CurrentTargetEntityId = InvalidEntityId;
 
 	bool bInitialSyncDone = false;
+	bool bStateDirty = false;
 };

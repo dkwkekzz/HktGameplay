@@ -11,6 +11,7 @@
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
 #include "HktRuntimeTags.h"
+#include "Engine/World.h"
 
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
@@ -88,6 +89,16 @@ void UHktPresentationSubsystem::BindInteraction(IHktPlayerInteractionInterface* 
 			this, &UHktPresentationSubsystem::OnSubjectChanged);
 		TargetChangedHandle = BoundInteraction->OnTargetChanged().AddUObject(
 			this, &UHktPresentationSubsystem::OnTargetChanged);
+
+		// 렌더러 pending 작업 처리용 틱 등록
+		if (!TickHandle.IsValid())
+		{
+			if (UWorld* World = GetLocalPlayer()->GetWorld())
+			{
+				TickHandle = World->OnTickDispatch().AddUObject(
+					this, &UHktPresentationSubsystem::OnTick);
+			}
+		}
 	}
 }
 
@@ -116,6 +127,17 @@ void UHktPresentationSubsystem::UnbindInteraction()
 			TargetChangedHandle.Reset();
 		}
 	}
+	if (TickHandle.IsValid())
+	{
+		if (ULocalPlayer* LP = GetLocalPlayer())
+		{
+			if (UWorld* World = LP->GetWorld())
+			{
+				World->OnTickDispatch().Remove(TickHandle);
+			}
+		}
+		TickHandle.Reset();
+	}
 	BoundInteraction = nullptr;
 }
 
@@ -130,18 +152,13 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 				View.FrameNumber, View.WorldState->GetEntityCount()));
 		ProcessInitialSync(View);
 		bInitialSyncDone = true;
+		bStateDirty = true;
 	}
 	else if (View.SpawnedEntities || View.RemovedEntities || View.PropertyDeltas || View.TagDeltas || View.OwnerDeltas)
 	{
 		ProcessDiff(View);
+		bStateDirty = true;
 	}
-	else
-	{
-		// Diff 없는 프레임 — 상태 변경 없으므로 렌더러 동기화만 수행
-		SyncRenderers();
-		return;
-	}
-	SyncRenderers();
 }
 
 void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
@@ -200,6 +217,23 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 			}
 		}
 	});
+}
+
+void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
+{
+	if (!bInitialSyncDone) return;
+
+	if (bStateDirty)
+	{
+		bStateDirty = false;
+		SyncRenderers();
+	}
+	else
+	{
+		if (ActorRenderer && ActorRenderer->NeedsTick())           ActorRenderer->Sync(State);
+		if (MassEntityRenderer && MassEntityRenderer->NeedsTick()) MassEntityRenderer->Sync(State);
+		if (UIRenderer && UIRenderer->NeedsTick())                 UIRenderer->Sync(State);
+	}
 }
 
 void UHktPresentationSubsystem::SyncRenderers()

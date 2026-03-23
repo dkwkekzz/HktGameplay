@@ -78,10 +78,11 @@ void UHktCameraMode_SubjectFollow::TickMode(AHktRtsCameraPawn* Pawn, float Delta
 		EntityLoc = E->Location.Get();
 	}
 
-	FVector TargetLoc = FVector(EntityLoc.X + ManualOffset.X, EntityLoc.Y + ManualOffset.Y, Pawn->GetActorLocation().Z);
-	FVector CurrentLoc = Pawn->GetActorLocation();
-	FVector NewLoc = FMath::VInterpTo(CurrentLoc, TargetLoc, DeltaTime, FollowInterpSpeed);
-	Pawn->SetActorLocation(NewLoc);
+	//FVector TargetLoc = FVector(EntityLoc.X + ManualOffset.X, EntityLoc.Y + ManualOffset.Y, Pawn->GetActorLocation().Z);
+	//FVector CurrentLoc = Pawn->GetActorLocation();
+	//FVector NewLoc = FMath::VInterpTo(CurrentLoc, TargetLoc, DeltaTime, FollowInterpSpeed);
+	//Pawn->SetActorLocation(NewLoc);
+	Pawn->SetActorLocation(EntityLoc);
 }
 
 void UHktCameraMode_SubjectFollow::OnSubjectChanged(AHktRtsCameraPawn* Pawn, FHktEntityId EntityId)

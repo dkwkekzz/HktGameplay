@@ -4,7 +4,7 @@
 #include "HktUIElement.h"
 #include "HktWorldViewAnchorStrategy.h"
 #include "HktSlateView.h"
-#include "HktWidgetEntityHudDataAsset.h"
+#include "DataAssets/HktWidgetEntityHudDataAsset.h"
 #include "Widgets/SHktIngameHudWidget.h"
 #include "Widgets/SHktEntityHudWidget.h"
 #include "HktUITags.h"

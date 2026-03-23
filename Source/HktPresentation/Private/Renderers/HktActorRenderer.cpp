@@ -7,11 +7,25 @@
 #include "DataAssets/HktActorVisualDataAsset.h"
 #include "DataAssets/HktItemVisualDataAsset.h"
 #include "Actors/HktItemActor.h"
+#include "Actors/HktUnitActor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Components/CapsuleComponent.h"
 #include "HktCoreEventLog.h"
+
+/** 모든 PrimitiveComponent를 QueryOnly + Visibility만 Block으로 설정 (밀어내기 없이 커서 선택만 가능) */
+static void ConfigureCollisionForSelection(AActor* Actor)
+{
+	TInlineComponentArray<UPrimitiveComponent*> Primitives;
+	Actor->GetComponents(Primitives);
+	for (UPrimitiveComponent* Prim : Primitives)
+	{
+		Prim->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		Prim->SetCollisionResponseToAllChannels(ECR_Ignore);
+		Prim->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	}
+}
 
 FHktActorRenderer::FHktActorRenderer(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
@@ -209,7 +223,14 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), *VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
 
 
-			SpawnedActor->SetActorEnableCollision(false);
+			ConfigureCollisionForSelection(SpawnedActor);
+
+			// 캐릭터 Actor에 EntityId 설정 (IHktSelectable 커서 선택용)
+			if (AHktUnitActor* Unit = Cast<AHktUnitActor>(SpawnedActor))
+			{
+				Unit->SetEntityId(EntityId);
+			}
+
 			ActorMap.Add(EntityId, SpawnedActor);
 			PendingInitSync.Add(EntityId);
 
@@ -450,7 +471,7 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 	if (ItemActor)
 	{
 		ItemActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-		ItemActor->SetActorEnableCollision(true);
+		ConfigureCollisionForSelection(ItemActor);
 	}
 
 	AttachedItems.Remove(ItemId);

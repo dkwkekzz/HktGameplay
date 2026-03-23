@@ -228,9 +228,9 @@ void AHktGameMode::PushSlotRequest(int64 PlayerUid, const FHktSlotRequest& Reque
     if (!WorldPlayer) return;
 
     // item 2: Graph/Builder 파라미터 없음 — Rule이 내부 캐싱된 컨텍스트 사용
-    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Server,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Server,
         FString::Printf(TEXT("PushSlotRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString()),
-        Event.SourceEntity, Event.EventTag);
+        Request.SourceEntity);
     Rule->OnReceived_SlotRequest(Request, *WorldPlayer);
 }
 
@@ -246,9 +246,9 @@ void AHktGameMode::PushMoveRequest(int64 PlayerUid, const FHktMoveRequest& Reque
     if (!WorldPlayer) return;
 
     // item 2: Graph/Builder 파라미터 없음 — Rule이 내부 캐싱된 컨텍스트 사용
-    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Server,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Server,
         FString::Printf(TEXT("PushMoveRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString()),
-        Event.SourceEntity, Event.EventTag);
+        Request.SourceEntity);
     Rule->OnReceived_MoveRequest(Request, *WorldPlayer);
 }
 

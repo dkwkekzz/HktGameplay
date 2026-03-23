@@ -251,24 +251,6 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 		Builder.CancelOnDuplicate();
 	}
 
-	// Preconditions 배열 (선택)
-	const TArray<TSharedPtr<FJsonValue>>* Preconditions;
-	if (Root->TryGetArrayField(TEXT("preconditions"), Preconditions))
-	{
-		if (!ParsePreconditions(*Preconditions, ResolveTagWithAlias, Builder, Result))
-		{
-			return Result;
-		}
-	}
-
-	// Steps 배열
-	const TArray<TSharedPtr<FJsonValue>>* Steps;
-	if (!Root->TryGetArrayField(TEXT("steps"), Steps))
-	{
-		Result.Errors.Add(TEXT("Missing 'steps' array"));
-		return Result;
-	}
-
 	// Alias 해결 + 참조 태그 수집을 포함하는 태그 해석기
 	auto ResolveTagWithAlias = [&](const FString& TagStr) -> FGameplayTag
 	{
@@ -287,6 +269,24 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 		}
 		return Tag;
 	};
+
+	// Preconditions 배열 (선택)
+	const TArray<TSharedPtr<FJsonValue>>* Preconditions;
+	if (Root->TryGetArrayField(TEXT("preconditions"), Preconditions))
+	{
+		if (!ParsePreconditions(*Preconditions, ResolveTagWithAlias, Builder, Result))
+		{
+			return Result;
+		}
+	}
+
+	// Steps 배열
+	const TArray<TSharedPtr<FJsonValue>>* Steps;
+	if (!Root->TryGetArrayField(TEXT("steps"), Steps))
+	{
+		Result.Errors.Add(TEXT("Missing 'steps' array"));
+		return Result;
+	}
 
 	// 각 step을 커맨드 맵으로 디스패치
 	for (int32 i = 0; i < Steps->Num(); ++i)
