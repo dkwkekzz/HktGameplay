@@ -69,7 +69,8 @@ void AHktIngameHUD::OnWorldViewUpdated(const FHktWorldView& View)
 {
 	if (View.bIsInitialSync)
 	{
-		HKT_EVENT_LOG(HktLogTags::UI, FString::Printf(TEXT("HUD: InitialSync Frame=%lld"), View.FrameNumber));
+		HKT_EVENT_LOG(HktLogTags::UI, FString::Printf(TEXT("HUD: InitialSync Frame=%lld Entities=%d"),
+			View.FrameNumber, View.WorldState ? View.WorldState->GetEntityCount() : 0));
 	}
 	else if (View.SpawnedEntities && View.SpawnedEntities->Num() > 0)
 	{

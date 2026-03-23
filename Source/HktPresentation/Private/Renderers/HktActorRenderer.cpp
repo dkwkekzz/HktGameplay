@@ -448,7 +448,8 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 	AttachedItems.Remove(ItemId);
 	PendingAttachments.Remove(ItemId);
 
-	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, TEXT("DetachItem"), ItemId);
+	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
+		FString::Printf(TEXT("DetachItem ItemId=%d"), ItemId), ItemId);
 }
 
 bool FHktActorRenderer::TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const
