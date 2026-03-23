@@ -30,29 +30,43 @@ FHktStoryBuilder::FHktStoryBuilder(const FGameplayTag& Tag)
     Program->Tag = Tag;
 }
 
+FHktStoryBuilder::FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept
+    : Program(MoveTemp(Other.Program))
+    , MainSection(MoveTemp(Other.MainSection))
+    , PreconditionSection(MoveTemp(Other.PreconditionSection))
+    , ForEachStack(MoveTemp(Other.ForEachStack))
+    , ForEachCounter(Other.ForEachCounter)
+    , InternalLabelCounter(Other.InternalLabelCounter)
+{
+    // ActiveSection 포인터 재조정: 원본이 어느 섹션을 가리키고 있었는지에 따라 결정
+    ActiveSection = (Other.ActiveSection == &Other.PreconditionSection)
+        ? &PreconditionSection
+        : &MainSection;
+}
+
 void FHktStoryBuilder::Emit(FInstruction Inst)
 {
-    Program->Code.Add(Inst);
+    ActiveSection->Code.Add(Inst);
 }
 
 int32 FHktStoryBuilder::AddString(const FString& Str)
 {
-    int32 Index = Program->Strings.IndexOfByKey(Str);
+    int32 Index = ActiveSection->Strings.IndexOfByKey(Str);
     if (Index == INDEX_NONE)
     {
-        Index = Program->Strings.Num();
-        Program->Strings.Add(Str);
+        Index = ActiveSection->Strings.Num();
+        ActiveSection->Strings.Add(Str);
     }
     return Index;
 }
 
 int32 FHktStoryBuilder::AddConstant(int32 Value)
 {
-    int32 Index = Program->Constants.IndexOfByKey(Value);
+    int32 Index = ActiveSection->Constants.IndexOfByKey(Value);
     if (Index == INDEX_NONE)
     {
-        Index = Program->Constants.Num();
-        Program->Constants.Add(Value);
+        Index = ActiveSection->Constants.Num();
+        ActiveSection->Constants.Add(Value);
     }
     return Index;
 }
@@ -88,33 +102,48 @@ FHktStoryBuilder& FHktStoryBuilder::SetPrecondition(FHktEventPrecondition InPrec
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::BeginPrecondition()
+{
+    check(ActiveSection == &MainSection);
+    ActiveSection = &PreconditionSection;
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::EndPrecondition()
+{
+    check(ActiveSection == &PreconditionSection);
+    ResolveLabels(PreconditionSection, Program->Tag);
+    ActiveSection = &MainSection;
+    return *this;
+}
+
 // ============================================================================
 // Control Flow
 // ============================================================================
 
 FHktStoryBuilder& FHktStoryBuilder::Label(const FString& Name)
 {
-    Labels.Add(Name, Program->Code.Num());
+    ActiveSection->Labels.Add(Name, ActiveSection->Code.Num());
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::Jump(const FString& LabelName)
 {
-    Fixups.Add({Program->Code.Num(), LabelName});
+    ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
     Emit(FInstruction::MakeImm(EOpCode::Jump, 0, 0));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::JumpIf(RegisterIndex Cond, const FString& LabelName)
 {
-    Fixups.Add({Program->Code.Num(), LabelName});
+    ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
     Emit(FInstruction::Make(EOpCode::JumpIf, 0, Cond, 0, 0));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::JumpIfNot(RegisterIndex Cond, const FString& LabelName)
 {
-    Fixups.Add({Program->Code.Num(), LabelName});
+    ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
     Emit(FInstruction::Make(EOpCode::JumpIfNot, 0, Cond, 0, 0));
     return *this;
 }
@@ -627,16 +656,16 @@ FHktStoryBuilder& FHktStoryBuilder::Log(const FString& Message)
 // Build
 // ============================================================================
 
-void FHktStoryBuilder::ResolveLabels()
+void FHktStoryBuilder::ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag)
 {
-    for (const auto& Fixup : Fixups)
+    for (const auto& Fixup : Section.Fixups)
     {
         int32 CodeIndex = Fixup.Key;
         const FString& LabelName = Fixup.Value;
 
-        if (const int32* Target = Labels.Find(LabelName))
+        if (const int32* Target = Section.Labels.Find(LabelName))
         {
-            FInstruction& Inst = Program->Code[CodeIndex];
+            FInstruction& Inst = Section.Code[CodeIndex];
 
             switch (Inst.GetOpCode())
             {
@@ -653,19 +682,24 @@ void FHktStoryBuilder::ResolveLabels()
         }
         else
         {
-            UE_LOG(LogHktCore, Error, TEXT("Unresolved label: %s in Flow %s"), *LabelName, *Program->Tag.ToString());
+            UE_LOG(LogHktCore, Error, TEXT("Unresolved label: %s in Flow %s"), *LabelName, *Tag.ToString());
         }
     }
 }
 
 TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
 {
-    if (Program->Code.Num() == 0 || Program->Code.Last().GetOpCode() != EOpCode::Halt)
+    if (MainSection.Code.Num() == 0 || MainSection.Code.Last().GetOpCode() != EOpCode::Halt)
     {
         Halt();
     }
 
-    ResolveLabels();
+    ResolveLabels(MainSection, Program->Tag);
+
+    // MainSection → Program
+    Program->Code = MoveTemp(MainSection.Code);
+    Program->Constants = MoveTemp(MainSection.Constants);
+    Program->Strings = MoveTemp(MainSection.Strings);
 
     if (!ValidateEntityFlow())
     {
@@ -673,6 +707,14 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
             TEXT("Story BUILD FAILED: %s — 엔티티 레지스터 검증 실패. 이 Story는 등록되지 않습니다."),
             *Program->Tag.ToString());
         return nullptr;
+    }
+
+    // PreconditionSection → Program
+    if (PreconditionSection.Code.Num() > 0)
+    {
+        Program->PreconditionCode = MoveTemp(PreconditionSection.Code);
+        Program->PreconditionConstants = MoveTemp(PreconditionSection.Constants);
+        Program->PreconditionStrings = MoveTemp(PreconditionSection.Strings);
     }
 
     return Program;

@@ -4,6 +4,8 @@
 #include "HktVMProgram.h"
 #include "HktVMContext.h"
 #include "HktVMWorldStateProxy.h"
+#include "HktCoreEvents.h"
+#include "HktCoreLog.h"
 
 void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy)
 {
@@ -280,4 +282,106 @@ void FHktVMInterpreter::Op_CmpGt(FHktVMRuntime& Runtime, RegisterIndex Dst, Regi
 void FHktVMInterpreter::Op_CmpGe(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Runtime.SetReg(Dst, Runtime.GetReg(Src1) >= Runtime.GetReg(Src2) ? 1 : 0);
+}
+
+// ============================================================================
+// ExecutePrecondition — 읽기 전용 바이트코드 실행
+// ============================================================================
+
+bool FHktVMInterpreter::ExecutePrecondition(
+    const TArray<FInstruction>& Code,
+    const TArray<int32>& Constants,
+    const TArray<FString>& Strings,
+    const FHktWorldState& WorldState,
+    const FHktEvent& Event)
+{
+    if (Code.Num() == 0)
+        return true;
+
+    // 임시 프로그램 (스택에 구성, 바이트코드는 참조)
+    FHktVMProgram TempProgram;
+    TempProgram.Code = Code;       // 복사 (const → non-const 필요)
+    TempProgram.Constants = Constants;
+    TempProgram.Strings = Strings;
+
+    // 읽기 전용 Context (VMProxy=nullptr → Write 호출 시 no-op)
+    FHktVMContext TempContext;
+    TempContext.SourceEntity = Event.SourceEntity;
+    TempContext.TargetEntity = Event.TargetEntity;
+    TempContext.WorldState = const_cast<FHktWorldState*>(&WorldState);
+    TempContext.VMProxy = nullptr;  // 쓰기 차단
+    TempContext.EventParam0 = Event.Param0;
+    TempContext.EventParam1 = Event.Param1;
+    TempContext.EventTargetPosX = static_cast<int32>(Event.Location.X);
+    TempContext.EventTargetPosY = static_cast<int32>(Event.Location.Y);
+    TempContext.EventTargetPosZ = static_cast<int32>(Event.Location.Z);
+
+    // 임시 Runtime
+    FHktVMRuntime TempRuntime;
+    TempRuntime.Program = &TempProgram;
+    TempRuntime.Context = &TempContext;
+    TempRuntime.PC = 0;
+    TempRuntime.Status = EVMStatus::Ready;
+    TempRuntime.PlayerUid = Event.PlayerUid;
+    FMemory::Memzero(TempRuntime.Registers, sizeof(TempRuntime.Registers));
+    TempRuntime.SetRegEntity(Reg::Self, Event.SourceEntity);
+    TempRuntime.SetRegEntity(Reg::Target, Event.TargetEntity);
+
+    // Interpreter (WorldState 읽기 전용 — VMProxy=nullptr)
+    FHktVMInterpreter Interpreter;
+    Interpreter.Initialize(const_cast<FHktWorldState*>(&WorldState), nullptr);
+
+    // 실행 (최대 1000 instructions)
+    constexpr int32 MaxPreconditionInstructions = 1000;
+    int32 InstructionCount = 0;
+
+    while (InstructionCount < MaxPreconditionInstructions)
+    {
+        if (TempRuntime.PC < 0 || TempRuntime.PC >= TempProgram.CodeSize())
+            break;
+
+        const FInstruction& Inst = TempProgram.Code[TempRuntime.PC];
+        TempRuntime.PC++;
+        InstructionCount++;
+
+        EOpCode Op = Inst.GetOpCode();
+
+        // 쓰기/대기 opcode는 skip (JSON 파서에서 이미 걸러지지만 방어적 처리)
+        switch (Op)
+        {
+        case EOpCode::SaveStore:
+        case EOpCode::SaveStoreEntity:
+        case EOpCode::SpawnEntity:
+        case EOpCode::DestroyEntity:
+        case EOpCode::AddTag:
+        case EOpCode::RemoveTag:
+        case EOpCode::ApplyEffect:
+        case EOpCode::RemoveEffect:
+        case EOpCode::PlayVFX:
+        case EOpCode::PlayVFXAttached:
+        case EOpCode::PlaySound:
+        case EOpCode::PlaySoundAtLocation:
+        case EOpCode::SetOwnerUid:
+        case EOpCode::ClearOwnerUid:
+        case EOpCode::FindInRadius:
+        case EOpCode::NextFound:
+        case EOpCode::FindByOwner:
+            continue;  // skip
+        case EOpCode::Yield:
+        case EOpCode::YieldSeconds:
+        case EOpCode::WaitCollision:
+        case EOpCode::WaitMoveEnd:
+            continue;  // skip
+        default:
+            break;
+        }
+
+        EVMStatus Status = Interpreter.ExecuteInstruction(TempRuntime, Inst);
+        if (Status == EVMStatus::Failed)
+            return false;
+        if (Status == EVMStatus::Completed)
+            break;
+    }
+
+    return TempRuntime.GetReg(Reg::Flag) != 0;
 }

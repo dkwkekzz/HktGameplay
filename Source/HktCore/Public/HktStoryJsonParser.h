@@ -120,9 +120,19 @@ public:
 	/** PropertyId 이름 → uint16 변환. 실패 시 0xFFFF */
 	static uint16 ParsePropertyId(const FString& PropStr);
 
+	/** 읽기 전용 op인지 검증 (precondition에서 허용되는 op) */
+	static bool IsReadOnlyOp(const FString& OpName);
+
 private:
 	FHktStoryJsonParser();
 	void InitializeCoreCommands();
+
+	/** preconditions 배열 파싱 — Builder의 BeginPrecondition/EndPrecondition 사이로 디스패치 */
+	bool ParsePreconditions(
+		const TArray<TSharedPtr<FJsonValue>>& PreconditionArray,
+		const TFunction<FGameplayTag(const FString&)>& ResolveTag,
+		FHktStoryBuilder& Builder,
+		FHktStoryParseResult& Result);
 
 	TMap<FString, FHktStoryCommandHandler> CommandMap;
 };

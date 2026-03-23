@@ -48,11 +48,33 @@ using FHktEventPrecondition = TFunction<bool(const FHktWorldState& WorldState, c
  *       .RemoveTag(Self, TAG_Anim_UpperBody_Cast_Fireball)
  *       .End();
  */
+/**
+ * FCodeSection — Builder 내부 코드 섹션 (Main / Precondition 공용)
+ *
+ * Emit, AddString, AddConstant, Label, Jump 등이 모두 ActiveSection 포인터를 통해
+ * 이 구조체에 쓰기하므로, 새로운 섹션 추가 시 분기 코드가 불필요하다.
+ */
+struct FCodeSection
+{
+    TArray<FInstruction> Code;
+    TArray<int32> Constants;
+    TArray<FString> Strings;
+    TMap<FString, int32> Labels;
+    TArray<TPair<int32, FString>> Fixups;
+};
+
 class HKTCORE_API FHktStoryBuilder
 {
 public:
     static FHktStoryBuilder Create(const FGameplayTag& Tag);
     static FHktStoryBuilder Create(const FName& TagName);
+
+    // ActiveSection이 자기 멤버(MainSection/PreconditionSection)를 가리키므로
+    // implicit copy/move는 댕글링 포인터를 만든다. 복사 금지, move는 재조정.
+    FHktStoryBuilder(const FHktStoryBuilder&) = delete;
+    FHktStoryBuilder& operator=(const FHktStoryBuilder&) = delete;
+    FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept;
+    FHktStoryBuilder& operator=(FHktStoryBuilder&&) = delete;
 
     // ========== Story Policy ==========
 
@@ -61,6 +83,14 @@ public:
 
     /** Story 사전조건 등록 — 클라이언트/서버 양측에서 호출 가능한 검증 함수 */
     FHktStoryBuilder& SetPrecondition(FHktEventPrecondition InPrecondition);
+
+    /**
+     * Precondition 바이트코드 모드 — Begin/End 사이의 모든 Emit은 PreconditionCode로 전달.
+     * 기존 step ops와 동일한 fluent API를 사용하되, 읽기 전용 ops만 허용.
+     * 실행 후 Flag 레지스터 != 0이면 precondition pass.
+     */
+    FHktStoryBuilder& BeginPrecondition();
+    FHktStoryBuilder& EndPrecondition();
 
     // ========== Control Flow ==========
 
@@ -277,7 +307,7 @@ private:
     int32 AddString(const FString& Str);
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
-    void ResolveLabels();
+    static void ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag);
 
     /** 빌드 타임 엔티티 레지스터 초기화 순서 검증 — 실패 시 false */
     bool ValidateEntityFlow();
@@ -287,8 +317,10 @@ private:
 
 private:
     TSharedRef<FHktVMProgram> Program;
-    TMap<FString, int32> Labels;
-    TArray<TPair<int32, FString>> Fixups;
+
+    FCodeSection MainSection;
+    FCodeSection PreconditionSection;
+    FCodeSection* ActiveSection = &MainSection;
 
     // ForEach 스택 (중첩 지원)
     struct FForEachContext
