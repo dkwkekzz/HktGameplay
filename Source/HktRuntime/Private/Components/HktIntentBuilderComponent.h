@@ -43,6 +43,7 @@ public:
 
     virtual void SetSubject(FHktEntityId InSubject) override;
     virtual void SetCommand(FGameplayTag InEventTag, bool bInTargetRequired) override;
+    virtual void SetCommandSlot(int32 InSlotIndex) override;
     virtual void SetTarget(FHktEntityId InTarget, FVector InLocation) override;
     virtual void ResetCommand() override;
     virtual bool IsReadyToSubmit() const override;
@@ -63,6 +64,7 @@ private:
     FHktEntityId TargetEntityId = InvalidEntityId;
     FVector TargetLocation = FVector::ZeroVector;
     bool bTargetRequired = true;
+    int32 CommandSlotIndex = -1;
 
     // Submit 결과 (Actor가 소비)
     bool bHasPendingSubmit = false;

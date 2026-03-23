@@ -7,50 +7,42 @@
 #include "HktClientRuleInterfaces.h"
 #include "HktCommandContainerComponent.generated.h"
 
-class UHktInputAction;
-
 /**
  * UHktCommandContainerComponent - IHktCommandContainer 구현
  *
- * 아키텍처:
- *   - 컴포넌트는 인터페이스 구현에 집중
- *   - Actor(PlayerController)는 이 컴포넌트를 Rule에 IHktCommandContainer로 전달
- *
- * 역할:
- *   - SlotActions(UHktInputAction 배열)를 IHktCommandContainer 인터페이스로 래핑
- *   - 슬롯별 EventTag 및 TargetRequired 조회 제공
+ * 슬롯 기반 스킬 바인딩을 단일 배열(SlotBindings)로 관리.
+ * PlayerController가 캐릭터 기본 스킬과 아이템 스킬을 SetSlotBinding()으로 설정하며,
+ * 우선순위 로직은 호출자(PlayerController) 책임.
  */
-/** 동적 슬롯 오버라이드 데이터 (아이템 장착에 의해 설정) */
-struct FHktSlotOverride
+
+/** 슬롯 바인딩 데이터 */
+struct FHktSlotBinding
 {
-    FGameplayTag EventTag;
-    bool bTargetRequired = false;
-    bool bActive = false;
+	FGameplayTag EventTag;
+	bool bTargetRequired = false;
+	bool bBound = false;
 };
 
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktCommandContainerComponent : public UActorComponent, public IHktCommandContainer
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    UHktCommandContainerComponent();
+	UHktCommandContainerComponent();
 
-    // === IHktCommandContainer 구현 ===
+	// === IHktCommandContainer 구현 ===
 
-    virtual FGameplayTag GetEventTagAtSlot(int32 SlotIndex) const override;
-    virtual bool IsTargetRequiredAtSlot(int32 SlotIndex) const override;
-    virtual int32 GetNumSlots() const override;
-    virtual void SetSlotActions(const TArray<TObjectPtr<UObject>>& InSlotActions) override;
-    virtual void OverrideSlotBinding(int32 SlotIndex, FGameplayTag EventTag, bool bTargetRequired) override;
-    virtual FOnSlotBindingChanged& OnSlotBindingChanged() override { return SlotBindingChangedDelegate; }
+	virtual FGameplayTag GetEventTagAtSlot(int32 SlotIndex) const override;
+	virtual bool IsTargetRequiredAtSlot(int32 SlotIndex) const override;
+	virtual int32 GetNumSlots() const override;
+	virtual void InitializeSlots(int32 NumSlots) override;
+	virtual void SetSlotBinding(int32 SlotIndex, FGameplayTag EventTag, bool bTargetRequired) override;
+	virtual void ClearSlotBinding(int32 SlotIndex) override;
+	virtual FOnSlotBindingChanged& OnSlotBindingChanged() override { return SlotBindingChangedDelegate; }
 
 private:
-    UPROPERTY()
-    TArray<TObjectPtr<UHktInputAction>> SlotActions;
+	TArray<FHktSlotBinding> SlotBindings;
 
-    /** 아이템 장착에 의한 동적 오버라이드 (SlotActions보다 우선) */
-    TArray<FHktSlotOverride> SlotOverrides;
-
-    FOnSlotBindingChanged SlotBindingChangedDelegate;
+	FOnSlotBindingChanged SlotBindingChangedDelegate;
 };

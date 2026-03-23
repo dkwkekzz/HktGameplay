@@ -77,7 +77,18 @@
     /* 아이템 스킬 */         \
     X(ItemSkillTag)           \
     X(SkillCPCost)            \
-    X(RecoveryFrame)
+    X(RecoveryFrame)          \
+    X(SkillTargetRequired)    \
+    /* 캐릭터 아이템 슬롯 (EntityId 참조) */ \
+    X(ItemSlot0)              \
+    X(ItemSlot1)              \
+    X(ItemSlot2)              \
+    X(ItemSlot3)              \
+    X(ItemSlot4)              \
+    X(ItemSlot5)              \
+    X(ItemSlot6)              \
+    X(ItemSlot7)              \
+    X(ItemSlot8)
 
 #define HKT_PROPERTY_LIST(X) \
     HKT_HOT_PROPERTY_LIST(X) \

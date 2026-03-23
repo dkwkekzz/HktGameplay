@@ -62,6 +62,30 @@ namespace HktStoryItemDeactivate
 			.CmpNe(Flag, R0, Self)
 			.JumpIf(Flag, TEXT("fail"))
 
+			// 비활성화 전 ActionSlot 값 보존 → 캐릭터의 ItemSlot[N] 클리어
+			.LoadEntityProperty(R2, Target, PropertyId::ActionSlot)         // R2 = ActionSlot
+			.LoadConst(R3, 0).CmpEq(Flag, R2, R3).JumpIf(Flag, TEXT("clear_slot_0"))
+			.LoadConst(R3, 1).CmpEq(Flag, R2, R3).JumpIf(Flag, TEXT("clear_slot_1"))
+			.LoadConst(R3, 2).CmpEq(Flag, R2, R3).JumpIf(Flag, TEXT("clear_slot_2"))
+			.LoadConst(R3, 3).CmpEq(Flag, R2, R3).JumpIf(Flag, TEXT("clear_slot_3"))
+			.LoadConst(R3, 4).CmpEq(Flag, R2, R3).JumpIf(Flag, TEXT("clear_slot_4"))
+			.LoadConst(R3, 5).CmpEq(Flag, R2, R3).JumpIf(Flag, TEXT("clear_slot_5"))
+			.LoadConst(R3, 6).CmpEq(Flag, R2, R3).JumpIf(Flag, TEXT("clear_slot_6"))
+			.LoadConst(R3, 7).CmpEq(Flag, R2, R3).JumpIf(Flag, TEXT("clear_slot_7"))
+			.LoadConst(R3, 8).CmpEq(Flag, R2, R3).JumpIf(Flag, TEXT("clear_slot_8"))
+			.Jump(TEXT("clear_slot_done"))
+
+		.Label(TEXT("clear_slot_0")).SaveConstEntity(Self, PropertyId::ItemSlot0, 0).Jump(TEXT("clear_slot_done"))
+		.Label(TEXT("clear_slot_1")).SaveConstEntity(Self, PropertyId::ItemSlot1, 0).Jump(TEXT("clear_slot_done"))
+		.Label(TEXT("clear_slot_2")).SaveConstEntity(Self, PropertyId::ItemSlot2, 0).Jump(TEXT("clear_slot_done"))
+		.Label(TEXT("clear_slot_3")).SaveConstEntity(Self, PropertyId::ItemSlot3, 0).Jump(TEXT("clear_slot_done"))
+		.Label(TEXT("clear_slot_4")).SaveConstEntity(Self, PropertyId::ItemSlot4, 0).Jump(TEXT("clear_slot_done"))
+		.Label(TEXT("clear_slot_5")).SaveConstEntity(Self, PropertyId::ItemSlot5, 0).Jump(TEXT("clear_slot_done"))
+		.Label(TEXT("clear_slot_6")).SaveConstEntity(Self, PropertyId::ItemSlot6, 0).Jump(TEXT("clear_slot_done"))
+		.Label(TEXT("clear_slot_7")).SaveConstEntity(Self, PropertyId::ItemSlot7, 0).Jump(TEXT("clear_slot_done"))
+		.Label(TEXT("clear_slot_8")).SaveConstEntity(Self, PropertyId::ItemSlot8, 0).Jump(TEXT("clear_slot_done"))
+
+		.Label(TEXT("clear_slot_done"))
 			// InBag 상태로 전환 + ActionSlot 해제
 			.SaveConstEntity(Target, PropertyId::ItemState, 1)              // InBag
 			.SaveConstEntity(Target, PropertyId::ActionSlot, -1)            // 액션 해제

@@ -33,6 +33,11 @@ void UHktIntentBuilderComponent::SetCommand(FGameplayTag InEventTag, bool bInTar
     TargetLocation = FVector::ZeroVector;
 }
 
+void UHktIntentBuilderComponent::SetCommandSlot(int32 InSlotIndex)
+{
+    CommandSlotIndex = InSlotIndex;
+}
+
 void UHktIntentBuilderComponent::SetTarget(FHktEntityId InTarget, FVector InLocation)
 {
     TargetEntityId = InTarget;
@@ -45,6 +50,7 @@ void UHktIntentBuilderComponent::ResetCommand()
     TargetEntityId = InvalidEntityId;
     TargetLocation = FVector::ZeroVector;
     bTargetRequired = true;
+    CommandSlotIndex = -1;
 }
 
 bool UHktIntentBuilderComponent::IsReadyToSubmit() const
@@ -77,7 +83,7 @@ bool UHktIntentBuilderComponent::Submit()
     CoreEvent.TargetEntity = TargetEntityId;
     CoreEvent.Location = TargetLocation;
     CoreEvent.Param0 = 0;
-    CoreEvent.Param1 = 0;
+    CoreEvent.Param1 = CommandSlotIndex;
 
     PendingSubmitEvent = CoreEvent; // 복사 생성자 사용
 

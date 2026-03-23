@@ -61,6 +61,7 @@ void FHktDefaultClientRule::OnUserEvent_CommandInputAction(int32 InSlotIndex)
 	if (!EventTag.IsValid()) return;
 	bool bTargetRequired = CachedContainer->IsTargetRequiredAtSlot(InSlotIndex);
 	CachedBuilder->SetCommand(EventTag, bTargetRequired);
+	CachedBuilder->SetCommandSlot(InSlotIndex);
 	if (!bTargetRequired && CachedBuilder->IsReadyToSubmit()) { CachedBuilder->Submit(); }
 }
 

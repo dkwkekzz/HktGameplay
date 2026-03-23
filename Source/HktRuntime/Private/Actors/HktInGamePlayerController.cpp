@@ -14,7 +14,6 @@
 #include "HktCoreProperties.h"
 #include "HktCoreEvents.h"
 #include "HktWorldView.h"
-#include "DataAssets/HktInputAction.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "GameplayTagsManager.h"
@@ -65,12 +64,7 @@ void AHktIngamePlayerController::BeginPlay()
         else if (IHktCommandContainer* CommandContainer = Cast<IHktCommandContainer>(Comp))
         {
             CachedCommandContainer = CommandContainer;
-            TArray<TObjectPtr<UObject>> AsObjects;
-            for (const TObjectPtr<UHktInputAction>& A : SlotActions)
-            {
-                AsObjects.Add(A.Get());
-            }
-            CommandContainer->SetSlotActions(AsObjects);
+            CommandContainer->InitializeSlots(SlotInputActions.Num());
         }
         else if (IHktWorldPlayer* WorldPlayer = Cast<IHktWorldPlayer>(Comp))
         {
@@ -135,9 +129,9 @@ void AHktIngamePlayerController::SetupInputComponent()
     if (TargetAction)  EnhancedInput->BindAction(TargetAction,  ETriggerEvent::Started, this, &AHktIngamePlayerController::OnTargetAction);
     if (ZoomAction)    EnhancedInput->BindAction(ZoomAction,    ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnZoom);
 
-    for (int32 i = 0; i < SlotActions.Num(); ++i)
+    for (int32 i = 0; i < SlotInputActions.Num(); ++i)
     {
-        if (SlotActions[i]) EnhancedInput->BindAction(SlotActions[i], ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSlotAction, i);
+        if (SlotInputActions[i]) EnhancedInput->BindAction(SlotInputActions[i], ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSlotAction, i);
     }
 }
 
@@ -433,73 +427,75 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
     }
 }
 
+/** ItemSlot0~8에 대응하는 PropertyId 테이블 */
+static constexpr uint16 ItemSlotPropertyIds[] =
+{
+    PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
+    PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
+    PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+};
+static constexpr int32 MaxItemSlots = UE_ARRAY_COUNT(ItemSlotPropertyIds);
+
 void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldView& View)
 {
     if (!CachedCommandContainer || !View.WorldState) return;
     if (DefaultSubjectEntityId == InvalidEntityId) return;
 
     const FHktWorldState& WS = *View.WorldState;
-    const int64 MyUid = GetPlayerUid();
-    if (MyUid == 0) return;
 
-    // InitialSync 또는 ActionSlot 변경이 포함된 경우 전체 스캔
-    bool bNeedsFullScan = View.bIsInitialSync;
-    if (!bNeedsFullScan && View.PropertyDeltas)
+    // InitialSync 또는 ItemSlot/ItemSkillTag 프로퍼티 변경 시 동기화
+    bool bNeedsSync = View.bIsInitialSync;
+    if (!bNeedsSync && View.PropertyDeltas)
     {
         for (const FHktPropertyDelta& D : *View.PropertyDeltas)
         {
-            if (D.PropertyId == PropertyId::ActionSlot || D.PropertyId == PropertyId::ItemState)
+            if (D.PropertyId >= PropertyId::ItemSlot0 && D.PropertyId <= PropertyId::ItemSlot8)
             {
-                bNeedsFullScan = true;
+                bNeedsSync = true;
+                break;
+            }
+            if (D.PropertyId == PropertyId::ItemSkillTag || D.PropertyId == PropertyId::ItemState)
+            {
+                bNeedsSync = true;
                 break;
             }
         }
     }
+    if (!bNeedsSync) return;
 
-    if (!bNeedsFullScan) return;
-
-    // 기존 오버라이드 클리어 (최대 슬롯 수만큼)
-    const int32 MaxSlots = CachedCommandContainer->GetNumSlots();
-    for (int32 i = 0; i < MaxSlots; ++i)
+    // 모든 슬롯 클리어
+    const int32 NumSlots = FMath::Min(CachedCommandContainer->GetNumSlots(), MaxItemSlots);
+    for (int32 i = 0; i < NumSlots; ++i)
     {
-        CachedCommandContainer->OverrideSlotBinding(i, FGameplayTag(), false);
+        CachedCommandContainer->ClearSlotBinding(i);
     }
 
-    // 내 엔티티 소유 아이템 중 Active(State=2)인 것을 찾아 슬롯 바인딩
-    WS.ForEachEntityByOwner(MyUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
+    // 캐릭터 엔티티의 ItemSlot0~8에서 아이템 EntityId 읽기 → 스킬 바인딩
+    for (int32 i = 0; i < NumSlots; ++i)
     {
-        // 내 캐릭터가 소유한 아이템만
-        if (WS.GetProperty(ItemId, PropertyId::OwnerEntity) != DefaultSubjectEntityId)
-            return;
-
-        // Active 상태만
-        if (WS.GetProperty(ItemId, PropertyId::ItemState) != 2)
-            return;
-
-        int32 ActionSlot = WS.GetProperty(ItemId, PropertyId::ActionSlot);
-        if (ActionSlot < 0)
-            return;
+        const FHktEntityId ItemId = WS.GetProperty(DefaultSubjectEntityId, ItemSlotPropertyIds[i]);
+        if (ItemId == 0 || !WS.IsValidEntity(ItemId))
+            continue;
 
         // ItemSkillTag (NetIndex → FGameplayTag)
         int32 SkillTagNetIndex = WS.GetProperty(ItemId, PropertyId::ItemSkillTag);
-        FGameplayTag SkillTag;
-        if (SkillTagNetIndex > 0)
-        {
-            FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillTagNetIndex));
-            if (!TagName.IsNone())
-            {
-                SkillTag = FGameplayTag::RequestGameplayTag(TagName, false);
-            }
-        }
+        if (SkillTagNetIndex <= 0)
+            continue;
 
-        if (SkillTag.IsValid())
-        {
-            // 아이템 스킬은 기본적으로 Enemy 타겟 필요
-            CachedCommandContainer->OverrideSlotBinding(ActionSlot, SkillTag, /*bTargetRequired=*/true);
-            UE_LOG(LogHktRuntime, Log, TEXT("SyncSlotBindings: Slot %d -> %s (Item %d)"),
-                ActionSlot, *SkillTag.ToString(), ItemId);
-        }
-    });
+        FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(SkillTagNetIndex));
+        if (TagName.IsNone())
+            continue;
+
+        FGameplayTag SkillTag = FGameplayTag::RequestGameplayTag(TagName, false);
+        if (!SkillTag.IsValid())
+            continue;
+
+        // 아이템의 SkillTargetRequired 프로퍼티로 타겟 필요 여부 결정 (기본값: 필요)
+        bool bTargetRequired = WS.GetProperty(ItemId, PropertyId::SkillTargetRequired) != 0;
+        CachedCommandContainer->SetSlotBinding(i, SkillTag, bTargetRequired);
+        UE_LOG(LogHktRuntime, Log, TEXT("SyncSlotBindings: Slot %d -> %s (Item %d)"),
+            i, *SkillTag.ToString(), ItemId);
+    }
 
     // 배치 완료 후 한 번만 broadcast — UI 갱신 트리거
     SlotBindingChangedDelegate.Broadcast(-1);
