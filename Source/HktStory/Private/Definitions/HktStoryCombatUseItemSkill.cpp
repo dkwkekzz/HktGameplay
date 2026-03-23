@@ -59,8 +59,8 @@ namespace HktStoryCombatUseItemSkill
 	{
 		using namespace Reg;
 
-		auto B = Story(Event_Combat_UseItemSkill)
-			.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
+		auto B = Story(Event_Combat_UseItemSkill);
+		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity))
 					return false;
@@ -84,7 +84,6 @@ namespace HktStoryCombatUseItemSkill
 				int32 CurrentCP = WS.GetProperty(E.SourceEntity, PropertyId::CP);
 				return CurrentCP >= CpCost;
 			})
-
 			.Log(TEXT("UseItemSkill: 스킬 시작"));
 
 		// === 공속 기반 쿨타임 검증 (서버 이중 검증) ===

@@ -38,8 +38,8 @@ namespace HktStoryPlayerInWorld
 	{
 		using namespace Reg;
 
-		auto B = Story(Story_PlayerInWorld)
-			.Log(TEXT("PlayerInWorld: 플레이어 캐릭터 생성"))
+		auto B = Story(Story_PlayerInWorld);
+		B.Log(TEXT("PlayerInWorld: 플레이어 캐릭터 생성"))
 
 			// 캐릭터 엔티티 생성
 			.SpawnEntity(Entity_Character_Player)

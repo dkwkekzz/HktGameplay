@@ -31,8 +31,8 @@ namespace HktStoryNPCSpawnerProximity
 	{
 		using namespace Reg;
 
-		auto B = Story(Story_Spawner_DungeonEntrance)
-			.Log(TEXT("DungeonEntrance proximity spawner: monitoring"))
+		auto B = Story(Story_Spawner_DungeonEntrance);
+		B.Log(TEXT("DungeonEntrance proximity spawner: monitoring"))
 
 			.Label(TEXT("check"))
 				// 플레이어 존재 확인
