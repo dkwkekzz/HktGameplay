@@ -9,6 +9,41 @@
 
 
 // ============================================================================
+// HKT_EVENT_LOG 매크로
+//
+// ENABLE_HKT_INSIGHTS 매크로 활용 (HktCore.Build.cs 에서 비-Shipping 빌드 시 정의).
+// bActive 플래그를 먼저 확인하여 패널이 닫혀 있으면 즉시 반환 (성능 최적화).
+// FString::Printf 호출도 bActive 체크 이후에만 실행되므로 메모리 할당 없음.
+//
+// HKT_EVENT_LOG       — 카테고리 + 메시지만 기록
+// HKT_EVENT_LOG_ENTITY — 카테고리 + 메시지 + 엔티티 ID
+// HKT_EVENT_LOG_TAG   — 카테고리 + 메시지 + 엔티티 ID + GameplayTag
+// ============================================================================
+
+#if ENABLE_HKT_INSIGHTS
+
+#define HKT_EVENT_LOG(Category, Message) \
+	do { if (FHktCoreEventLog::Get().IsActive()) \
+		FHktCoreEventLog::Get().Log(TEXT(Category), Message); } while(0)
+
+#define HKT_EVENT_LOG_ENTITY(Category, Message, EntityId) \
+	do { if (FHktCoreEventLog::Get().IsActive()) \
+		FHktCoreEventLog::Get().Log(TEXT(Category), Message, EntityId); } while(0)
+
+#define HKT_EVENT_LOG_TAG(Category, Message, EntityId, Tag) \
+	do { if (FHktCoreEventLog::Get().IsActive()) \
+		FHktCoreEventLog::Get().Log(TEXT(Category), Message, EntityId, Tag); } while(0)
+
+#else
+
+#define HKT_EVENT_LOG(Category, Message)                            do {} while(0)
+#define HKT_EVENT_LOG_ENTITY(Category, Message, EntityId)           do {} while(0)
+#define HKT_EVENT_LOG_TAG(Category, Message, EntityId, Tag)         do {} while(0)
+
+#endif // ENABLE_HKT_INSIGHTS
+
+
+// ============================================================================
 // FHktLogEntry — 개별 로그 엔트리
 // ============================================================================
 
@@ -27,6 +62,7 @@ struct HKTCORE_API FHktLogEntry
 // FHktCoreEventLog
 //
 // 순수 C++ 싱글톤. 링 버퍼 기반 이벤트 로그 저장소.
+// HktGameplay 내부에서 HKT_EVENT_LOG 매크로를 통해 이벤트를 기록하고,
 // HktGameplayDeveloper의 패널이 Consume()으로 읽어 표시한다.
 //
 // - 패널 열림/닫힘에 따라 SetActive(true/false)로 수집 제어

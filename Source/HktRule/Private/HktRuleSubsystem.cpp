@@ -4,6 +4,7 @@
 #include "HktServerRule.h"
 #include "HktClientRule.h"
 #include "HktRuleLog.h"
+#include "HktCoreEventLog.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
@@ -16,7 +17,7 @@ void UHktRuleSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	ServerRule = MakeUnique<FHktDefaultServerRule>();
 	ClientRule = MakeUnique<FHktDefaultClientRule>();
 
-	UE_LOG(LogHktRule, Verbose, TEXT("RuleSubsystem initialized"));
+	HKT_EVENT_LOG("Rule", TEXT("RuleSubsystem initialized"));
 }
 
 void UHktRuleSubsystem::Deinitialize()
