@@ -161,7 +161,7 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
         }
 
         SubjectChangedDelegate.Broadcast(CachedIntentBuilder->GetSubjectEntityId());
-        HKT_EVENT_LOG_ENTITY("Runtime.Intent",
+        HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
             FString::Printf(TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId()),
             CachedIntentBuilder->GetSubjectEntityId());
     }
@@ -202,7 +202,7 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
             {
                 Server_ReceiveIntent(Event);
                 IntentSubmittedDelegate.Broadcast(Event);
-                HKT_EVENT_LOG_TAG("Runtime.Intent",
+                HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
                     FString::Printf(TEXT("OnTargetAction Submit %s"), *Event.Value.ToString()),
                     Event.Value.SourceEntity, Event.Value.EventTag);
             }
@@ -239,7 +239,7 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
             {
                 Server_ReceiveIntent(Event);
                 IntentSubmittedDelegate.Broadcast(Event);
-                HKT_EVENT_LOG_TAG("Runtime.Intent",
+                HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
                     FString::Printf(TEXT("OnSlotAction Submit Slot=%d %s"), SlotIndex, *Event.Value.ToString()),
                     Event.Value.SourceEntity, Event.Value.EventTag);
             }
@@ -270,7 +270,7 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
     InsightReceivedInitialStateCount++;
 #endif
 
-    HKT_EVENT_LOG("Runtime.Client", FString::Printf(TEXT("ReceiveInitialState GroupIndex=%d"), GroupIndex));
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client, FString::Printf(TEXT("ReceiveInitialState GroupIndex=%d"), GroupIndex));
     bIsInitialSync = false;
 
     IHktClientRule* Rule = GetClientRule();
@@ -289,7 +289,7 @@ void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
     InsightReceivedBatchCount++;
 #endif
 
-    HKT_EVENT_LOG("Runtime.Client",
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client,
         FString::Printf(TEXT("ReceiveFrameBatch Frame=%lld Events=%d"),
             Batch.Value.FrameNumber, Batch.Value.NewEvents.Num()));
     Rule->OnReceived_FrameBatch(static_cast<const FHktSimulationEvent&>(Batch));

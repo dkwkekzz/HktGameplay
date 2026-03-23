@@ -191,7 +191,7 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
     // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
     Rule->OnEvent_GameModePostLogin(*WorldPlayer);
 
-    HKT_EVENT_LOG("Runtime.Server",
+    HKT_EVENT_LOG(HktLogTags::Runtime_Server,
         FString::Printf(TEXT("PostLogin PlayerUid=%lld"), WorldPlayer->GetPlayerUid()));
 }
 
@@ -207,7 +207,7 @@ void AHktGameMode::Logout(AController* Exiting)
     if (!WorldPlayer || !WorldPlayer->IsInitialized()) return;
 
     const int64 PlayerUid = WorldPlayer->GetPlayerUid();
-    HKT_EVENT_LOG("Runtime.Server",
+    HKT_EVENT_LOG(HktLogTags::Runtime_Server,
         FString::Printf(TEXT("Logout PlayerUid=%lld"), PlayerUid));
 
     // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
@@ -228,7 +228,7 @@ void AHktGameMode::PushIntent(int64 PlayerUid, const FHktEvent& Event)
     if (!WorldPlayer) return;
 
     // item 2: Graph/Builder 파라미터 없음 — Rule이 내부 캐싱된 컨텍스트 사용
-    HKT_EVENT_LOG_TAG("Runtime.Server",
+    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Server,
         FString::Printf(TEXT("PushIntent PlayerUid=%lld %s"), PlayerUid, *Event.ToString()),
         Event.SourceEntity, Event.EventTag);
     Rule->OnReceived_FireIntentEvent(Event, *WorldPlayer);

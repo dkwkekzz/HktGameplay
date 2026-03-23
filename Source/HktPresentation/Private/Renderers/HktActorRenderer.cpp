@@ -197,7 +197,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 		if (SpawnedActor)
 		{
-			HKT_EVENT_LOG_ENTITY("Presentation", FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), *VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), *VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
 
 			SpawnedActor->SetActorEnableCollision(false);
 			ActorMap.Add(EntityId, SpawnedActor);
@@ -432,7 +432,7 @@ void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresenta
 	AttachedItems.Add(ItemId);
 	PendingAttachments.Remove(ItemId);
 
-	HKT_EVENT_LOG_ENTITY("Presentation", FString::Printf(TEXT("AttachItem Slot=%d Socket=%s Owner=%d"), Slot, *SocketName.ToString(), OwnerId), ItemId);
+	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, FString::Printf(TEXT("AttachItem Slot=%d Socket=%s Owner=%d"), Slot, *SocketName.ToString(), OwnerId), ItemId);
 }
 
 void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
@@ -448,7 +448,7 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 	AttachedItems.Remove(ItemId);
 	PendingAttachments.Remove(ItemId);
 
-	HKT_EVENT_LOG_ENTITY("Presentation", TEXT("DetachItem"), ItemId);
+	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, TEXT("DetachItem"), ItemId);
 }
 
 bool FHktActorRenderer::TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const
