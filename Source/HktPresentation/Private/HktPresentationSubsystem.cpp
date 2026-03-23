@@ -123,8 +123,6 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 {
 	if (!View.WorldState) return;
 
-	HKT_EVENT_LOG("Presentation", FString::Printf(TEXT("WorldViewUpdated Frame=%lld IsInitialSync=%s"), View.FrameNumber, View.bIsInitialSync ? TEXT("true") : TEXT("false")));
-
 	if (View.bIsInitialSync || !bInitialSyncDone)
 	{
 		ProcessInitialSync(View);
