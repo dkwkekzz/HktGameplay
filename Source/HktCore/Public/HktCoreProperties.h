@@ -78,6 +78,7 @@
     X(ItemSkillTag)           \
     X(SkillCPCost)            \
     X(RecoveryFrame)          \
+    X(SkillTargetRequired)    \
     /* 캐릭터 아이템 슬롯 (EntityId 참조) */ \
     X(ItemSlot0)              \
     X(ItemSlot1)              \

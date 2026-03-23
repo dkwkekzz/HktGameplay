@@ -44,6 +44,7 @@ class HKTRULE_API IHktIntentBuilder
 public:
 	virtual void SetSubject(FHktEntityId InSubject) = 0;
 	virtual void SetCommand(FGameplayTag InEventTag, bool bInTargetRequired) = 0;
+	virtual void SetCommandSlot(int32 InSlotIndex) = 0;
 	virtual void SetTarget(FHktEntityId InTarget, FVector InLocation) = 0;
 	virtual void ResetCommand() = 0;
 	virtual bool IsReadyToSubmit() const = 0;

@@ -482,8 +482,9 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
         if (!SkillTag.IsValid())
             continue;
 
-        // 아이템 스킬은 기본적으로 타겟 필요
-        CachedCommandContainer->SetSlotBinding(i, SkillTag, /*bTargetRequired=*/true);
+        // 아이템의 SkillTargetRequired 프로퍼티로 타겟 필요 여부 결정 (기본값: 필요)
+        bool bTargetRequired = WS.GetProperty(ItemId, PropertyId::SkillTargetRequired) != 0;
+        CachedCommandContainer->SetSlotBinding(i, SkillTag, bTargetRequired);
         UE_LOG(LogHktRuntime, Log, TEXT("SyncSlotBindings: Slot %d -> %s (Item %d)"),
             i, *SkillTag.ToString(), ItemId);
     }
