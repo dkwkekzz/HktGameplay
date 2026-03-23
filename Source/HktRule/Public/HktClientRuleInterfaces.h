@@ -93,10 +93,6 @@ public:
 	/** 슬롯 바인딩 해제 */
 	virtual void ClearSlotBinding(int32 SlotIndex) = 0;
 
-	/** 슬롯 사용 가능 여부 (태그 기반) */
-	virtual bool IsSlotAvailable(int32 SlotIndex) const { return true; }
-	virtual void SetSlotAvailable(int32 SlotIndex, bool bAvailable) {}
-
 	/** 슬롯 바인딩이 변경되었을 때 브로드캐스트 (SlotIndex) */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSlotBindingChanged, int32);
 	virtual FOnSlotBindingChanged& OnSlotBindingChanged() { static FOnSlotBindingChanged Dummy; return Dummy; }

@@ -65,20 +65,3 @@ int32 UHktCommandContainerComponent::GetNumSlots() const
 {
 	return SlotBindings.Num();
 }
-
-bool UHktCommandContainerComponent::IsSlotAvailable(int32 SlotIndex) const
-{
-	if (SlotBindings.IsValidIndex(SlotIndex) && SlotBindings[SlotIndex].bBound)
-	{
-		return SlotBindings[SlotIndex].bAvailable;
-	}
-	return false;
-}
-
-void UHktCommandContainerComponent::SetSlotAvailable(int32 SlotIndex, bool bAvailable)
-{
-	if (SlotBindings.IsValidIndex(SlotIndex))
-	{
-		SlotBindings[SlotIndex].bAvailable = bAvailable;
-	}
-}

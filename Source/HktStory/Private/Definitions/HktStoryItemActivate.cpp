@@ -105,6 +105,30 @@ namespace HktStoryItemActivate
 			.SaveConstEntity(Target, PropertyId::ItemState, 2)              // Active
 			.SaveEntityProperty(Target, PropertyId::ActionSlot, R2)
 
+			// 캐릭터의 ItemSlot[N]에 아이템 EntityId 저장 (R2 = ActionSlot, Target = ItemEntity)
+			.Move(R3, Target)                                               // R3 = 아이템 EntityId
+			.LoadConst(R4, 0).CmpEq(Flag, R2, R4).JumpIf(Flag, TEXT("set_slot_0"))
+			.LoadConst(R4, 1).CmpEq(Flag, R2, R4).JumpIf(Flag, TEXT("set_slot_1"))
+			.LoadConst(R4, 2).CmpEq(Flag, R2, R4).JumpIf(Flag, TEXT("set_slot_2"))
+			.LoadConst(R4, 3).CmpEq(Flag, R2, R4).JumpIf(Flag, TEXT("set_slot_3"))
+			.LoadConst(R4, 4).CmpEq(Flag, R2, R4).JumpIf(Flag, TEXT("set_slot_4"))
+			.LoadConst(R4, 5).CmpEq(Flag, R2, R4).JumpIf(Flag, TEXT("set_slot_5"))
+			.LoadConst(R4, 6).CmpEq(Flag, R2, R4).JumpIf(Flag, TEXT("set_slot_6"))
+			.LoadConst(R4, 7).CmpEq(Flag, R2, R4).JumpIf(Flag, TEXT("set_slot_7"))
+			.LoadConst(R4, 8).CmpEq(Flag, R2, R4).JumpIf(Flag, TEXT("set_slot_8"))
+			.Jump(TEXT("slot_done"))
+
+		.Label(TEXT("set_slot_0")).SaveEntityProperty(Self, PropertyId::ItemSlot0, R3).Jump(TEXT("slot_done"))
+		.Label(TEXT("set_slot_1")).SaveEntityProperty(Self, PropertyId::ItemSlot1, R3).Jump(TEXT("slot_done"))
+		.Label(TEXT("set_slot_2")).SaveEntityProperty(Self, PropertyId::ItemSlot2, R3).Jump(TEXT("slot_done"))
+		.Label(TEXT("set_slot_3")).SaveEntityProperty(Self, PropertyId::ItemSlot3, R3).Jump(TEXT("slot_done"))
+		.Label(TEXT("set_slot_4")).SaveEntityProperty(Self, PropertyId::ItemSlot4, R3).Jump(TEXT("slot_done"))
+		.Label(TEXT("set_slot_5")).SaveEntityProperty(Self, PropertyId::ItemSlot5, R3).Jump(TEXT("slot_done"))
+		.Label(TEXT("set_slot_6")).SaveEntityProperty(Self, PropertyId::ItemSlot6, R3).Jump(TEXT("slot_done"))
+		.Label(TEXT("set_slot_7")).SaveEntityProperty(Self, PropertyId::ItemSlot7, R3).Jump(TEXT("slot_done"))
+		.Label(TEXT("set_slot_8")).SaveEntityProperty(Self, PropertyId::ItemSlot8, R3).Jump(TEXT("slot_done"))
+
+		.Label(TEXT("slot_done"))
 			// 아이템 스탯을 캐릭터에 합산 (Gap 4)
 			.LoadEntityProperty(R3, Target, PropertyId::AttackPower)
 			.LoadEntityProperty(R4, Self, PropertyId::AttackPower)

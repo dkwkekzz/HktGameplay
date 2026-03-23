@@ -208,13 +208,6 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
 
-    // 태그에 의해 비활성화된 슬롯은 사용 불가
-    if (CachedCommandContainer && !CachedCommandContainer->IsSlotAvailable(SlotIndex))
-    {
-        UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction: Slot %d is disabled by tag"), SlotIndex);
-        return;
-    }
-
     Rule->OnUserEvent_CommandInputAction(SlotIndex);
 
     if (CachedIntentBuilder)
@@ -435,20 +428,6 @@ static constexpr uint16 ItemSlotPropertyIds[] =
 };
 static constexpr int32 MaxItemSlots = UE_ARRAY_COUNT(ItemSlotPropertyIds);
 
-/** Skill.Slot.Disabled.N 태그 테이블 (슬롯별 비활성화 태그 조회용) */
-static const FGameplayTag& GetSlotDisabledTag(int32 SlotIndex)
-{
-    using namespace HktGameplayTags;
-    static const FGameplayTag* Table[] =
-    {
-        &Skill_Slot_Disabled_0, &Skill_Slot_Disabled_1, &Skill_Slot_Disabled_2,
-        &Skill_Slot_Disabled_3, &Skill_Slot_Disabled_4, &Skill_Slot_Disabled_5,
-        &Skill_Slot_Disabled_6, &Skill_Slot_Disabled_7, &Skill_Slot_Disabled_8,
-    };
-    check(SlotIndex >= 0 && SlotIndex < UE_ARRAY_COUNT(Table));
-    return *Table[SlotIndex];
-}
-
 void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldView& View)
 {
     if (!CachedCommandContainer || !View.WorldState) return;
@@ -474,19 +453,6 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
             }
         }
     }
-    if (!bNeedsSync && View.TagDeltas)
-    {
-        for (const FHktTagDelta& TD : *View.TagDeltas)
-        {
-            if (TD.EntityId == DefaultSubjectEntityId
-                && TD.Tags.HasTag(HktGameplayTags::Skill_Slot_Disabled))
-            {
-                bNeedsSync = true;
-                break;
-            }
-        }
-    }
-
     if (!bNeedsSync) return;
 
     // 모든 슬롯 클리어
@@ -518,13 +484,8 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
 
         // 아이템 스킬은 기본적으로 타겟 필요
         CachedCommandContainer->SetSlotBinding(i, SkillTag, /*bTargetRequired=*/true);
-
-        // 태그 기반 사용 가능 여부 — Skill.Slot.Disabled.N 태그가 있으면 비활성화
-        bool bDisabled = WS.HasTag(DefaultSubjectEntityId, GetSlotDisabledTag(i));
-        CachedCommandContainer->SetSlotAvailable(i, !bDisabled);
-
-        UE_LOG(LogHktRuntime, Log, TEXT("SyncSlotBindings: Slot %d -> %s (Item %d) Available=%s"),
-            i, *SkillTag.ToString(), ItemId, bDisabled ? TEXT("No") : TEXT("Yes"));
+        UE_LOG(LogHktRuntime, Log, TEXT("SyncSlotBindings: Slot %d -> %s (Item %d)"),
+            i, *SkillTag.ToString(), ItemId);
     }
 
     // 배치 완료 후 한 번만 broadcast — UI 갱신 트리거
