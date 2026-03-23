@@ -435,7 +435,7 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
 
     const FHktWorldState& WS = *View.WorldState;
 
-    // InitialSync, ItemSlot/ItemSkillTag 프로퍼티 변경, 또는 Skill.Slot.Disabled 태그 변경 시 동기화
+    // InitialSync 또는 ItemSlot/ItemSkillTag 프로퍼티 변경 시 동기화
     bool bNeedsSync = View.bIsInitialSync;
     if (!bNeedsSync && View.PropertyDeltas)
     {
