@@ -7,6 +7,7 @@
 #include "HktStoryTags.h"
 #include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetNPC.h"
 
 namespace HktStoryNPCSpawnerProximity
 {
@@ -24,16 +25,13 @@ namespace HktStoryNPCSpawnerProximity
 	 * "Self(앵커 엔티티) 반경 20m 안에 적이 있을 때
 	 *  스켈레톤 인구가 3마리 미만이면 스켈레톤을 생성한다.
 	 *  5초마다 체크한다."
-	 *
-	 * 서버가 EventTag "Story.Flow.Spawner.DungeonEntrance" 을 fire.
-	 * Self = zone 앵커 엔티티 (위치만 있는 Unit)
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Story(Story_Spawner_DungeonEntrance)
+		auto B = Story(Story_Spawner_DungeonEntrance)
 			.Log(TEXT("DungeonEntrance proximity spawner: monitoring"))
 
 			.Label(TEXT("check"))
@@ -52,30 +50,21 @@ namespace HktStoryNPCSpawnerProximity
 				.CmpGe(Flag, R0, R1)
 				.JumpIf(Flag, TEXT("sleep"))
 
-				// 스켈레톤 NPC 직접 생성
-				.SpawnEntity(Entity_NPC_Skeleton)
-				.SaveConstEntity(Spawned, PropertyId::IsNPC, 1)
-				.SaveConstEntity(Spawned, PropertyId::Health, 60)
-				.SaveConstEntity(Spawned, PropertyId::MaxHealth, 60)
-				.SaveConstEntity(Spawned, PropertyId::AttackPower, 20)
-				.SaveConstEntity(Spawned, PropertyId::Defense, 2)
-				.SaveConstEntity(Spawned, PropertyId::MaxSpeed, 100)
-				.SaveConstEntity(Spawned, PropertyId::Team, 0)
+				// 스켈레톤 NPC 생성
+				.SpawnEntity(Entity_NPC_Skeleton);
 
-				// 태그 부여
-				.AddTag(Spawned, Entity_NPC)
-				.AddTag(Spawned, Entity_NPC_Skeleton)
-				.AddTag(Spawned, Tag_NPC_Hostile)
+		// NPC 스탯 설정
+		HktSnippetNPC::SetupNPCStats(B, Entity_NPC_Skeleton, { 60, 20, 2, 100, 0 });
 
-				// 위치: 앵커 위치에 스폰
-				.GetPosition(R3, Self)
-				.SetPosition(Spawned, R3)
+		B	// 위치: 앵커 위치에 스폰
+			.GetPosition(R3, Self)
+			.SetPosition(Spawned, R3)
 
-				.Log(TEXT("DungeonEntrance: skeleton spawned"))
+			.Log(TEXT("DungeonEntrance: skeleton spawned"))
 
-			.Label(TEXT("sleep"))
-				.WaitSeconds(5.0f)
-				.Jump(TEXT("check"))
-			.BuildAndRegister();
+		.Label(TEXT("sleep"))
+			.WaitSeconds(5.0f)
+			.Jump(TEXT("check"))
+		.BuildAndRegister();
 	}
 }

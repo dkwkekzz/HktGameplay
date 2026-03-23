@@ -7,6 +7,7 @@
 #include "HktStoryTags.h"
 #include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetNPC.h"
 
 namespace HktStoryNPCSpawnerGoblinCamp
 {
@@ -24,55 +25,35 @@ namespace HktStoryNPCSpawnerGoblinCamp
 	 * "플레이어가 그룹에 있을 때만 고블린을 생성한다.
 	 *  인구 상한(5마리)에 도달하면 대기한다.
 	 *  10초마다 한 마리씩 스폰한다."
-	 *
-	 * 서버가 EventTag "Story.Flow.Spawner.GoblinCamp" 을 fire하면 실행.
-	 * Param0 = SpawnPosX, Param1 = SpawnPosY
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
 	{
 		using namespace Reg;
 
-		Story(Story_Spawner_GoblinCamp)
-			.Log(TEXT("GoblinCamp spawner: activated"))
+		auto B = Story(Story_Spawner_GoblinCamp)
+			.Log(TEXT("GoblinCamp spawner: activated"));
 
-			.Label(TEXT("loop"))
-				// Lazy: 플레이어가 그룹에 있을 때만 스폰
-				.HasPlayerInGroup(Flag)
-				.JumpIfNot(Flag, TEXT("wait"))
+		// 주기적 스포너 루프 시작 (플레이어 체크 + 인구 5마리 상한)
+		HktSnippetNPC::SpawnerLoopBegin(B, TEXT("loop"), TEXT("wait"), Entity_NPC_Goblin, 5);
 
-				// 인구 체크: 고블린 수 카운트
-				.CountByTag(R0, Entity_NPC_Goblin)
-				.LoadConst(R1, 5)                           // cap = 5
-				.CmpGe(Flag, R0, R1)
-				.JumpIf(Flag, TEXT("wait"))
+		B	// NPC 생성
+			.SpawnEntity(Entity_NPC_Goblin);
 
-				// NPC 생성 — 스탯을 Flow에서 직접 설정
-				.SpawnEntity(Entity_NPC_Goblin)
-				.SaveConstEntity(Spawned, PropertyId::IsNPC, 1)
-				.SaveConstEntity(Spawned, PropertyId::Health, 80)
-				.SaveConstEntity(Spawned, PropertyId::MaxHealth, 80)
-				.SaveConstEntity(Spawned, PropertyId::AttackPower, 15)
-				.SaveConstEntity(Spawned, PropertyId::Defense, 3)
-				.SaveConstEntity(Spawned, PropertyId::MaxSpeed, 120)
-				.SaveConstEntity(Spawned, PropertyId::Team, 0)
+		// NPC 스탯 설정
+		HktSnippetNPC::SetupNPCStats(B, Entity_NPC_Goblin, { 80, 15, 3, 120, 0 });
 
-				// 태그 부여
-				.AddTag(Spawned, Entity_NPC)
-				.AddTag(Spawned, Entity_NPC_Goblin)
-				.AddTag(Spawned, Tag_NPC_Hostile)
+		B	// 위치 설정 (이벤트 파라미터에서 읽기)
+			.LoadStore(R3, PropertyId::Param0)          // SpawnPosX
+			.LoadStore(R4, PropertyId::Param1)          // SpawnPosY
+			.LoadConst(R5, 0)                           // Z = ground
+			.SetPosition(Spawned, R3)
 
-				// 위치 설정 (이벤트 파라미터에서 읽기)
-				.LoadStore(R3, PropertyId::Param0)          // SpawnPosX
-				.LoadStore(R4, PropertyId::Param1)          // SpawnPosY
-				.LoadConst(R5, 0)                           // Z = ground
-				.SetPosition(Spawned, R3)
+			.Log(TEXT("GoblinCamp: goblin spawned"));
 
-				.Log(TEXT("GoblinCamp: goblin spawned"))
+		// 주기적 스포너 루프 종결 (10초 대기)
+		HktSnippetNPC::SpawnerLoopEnd(B, TEXT("loop"), TEXT("wait"), 10.0f);
 
-			.Label(TEXT("wait"))
-				.WaitSeconds(10.0f)
-				.Jump(TEXT("loop"))
-			.BuildAndRegister();
+		B.BuildAndRegister();
 	}
 }

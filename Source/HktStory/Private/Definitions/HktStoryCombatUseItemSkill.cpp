@@ -9,6 +9,8 @@
 #include "HktStoryTags.h"
 #include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetCombat.h"
+#include "Snippets/HktSnippetItem.h"
 
 namespace HktStoryCombatUseItemSkill
 {
@@ -57,7 +59,7 @@ namespace HktStoryCombatUseItemSkill
 	{
 		using namespace Reg;
 
-		Story(Event_Combat_UseItemSkill)
+		auto B = Story(Event_Combat_UseItemSkill)
 			.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity))
@@ -83,44 +85,15 @@ namespace HktStoryCombatUseItemSkill
 				return CurrentCP >= CpCost;
 			})
 
-			.Log(TEXT("UseItemSkill: 스킬 시작"))
+			.Log(TEXT("UseItemSkill: 스킬 시작"));
 
-			// === 공속 기반 쿨타임 검증 (서버 이중 검증) ===
-			.GetWorldTime(R0)                                           // R0 = 현재 프레임
-			.LoadStore(R1, PropertyId::NextActionFrame)                 // R1 = NextActionFrame
-			.CmpLt(Flag, R0, R1)
-			.JumpIf(Flag, TEXT("fail"))
+		// === 공속 기반 쿨타임 검증 (서버 이중 검증) ===
+		HktSnippetCombat::CooldownCheck(B, TEXT("fail"));
 
-			// === Param1(슬롯 인덱스)로 ItemSlot[N]에서 아이템 엔티티 조회 ===
-			.LoadStore(R0, PropertyId::Param1)                          // R0 = 슬롯 인덱스
-			.LoadConst(R1, 0).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_0"))
-			.LoadConst(R1, 1).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_1"))
-			.LoadConst(R1, 2).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_2"))
-			.LoadConst(R1, 3).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_3"))
-			.LoadConst(R1, 4).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_4"))
-			.LoadConst(R1, 5).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_5"))
-			.LoadConst(R1, 6).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_6"))
-			.LoadConst(R1, 7).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_7"))
-			.LoadConst(R1, 8).CmpEq(Flag, R0, R1).JumpIf(Flag, TEXT("load_slot_8"))
-			.Jump(TEXT("fail"))                                         // 유효하지 않은 슬롯
+		// === Param1(슬롯 인덱스)로 ItemSlot[N]에서 아이템 엔티티 조회 ===
+		HktSnippetItem::LoadItemFromSlot(B, R2, TEXT("fail"));
 
-		.Label(TEXT("load_slot_0")).LoadStore(R2, PropertyId::ItemSlot0).Jump(TEXT("item_found"))
-		.Label(TEXT("load_slot_1")).LoadStore(R2, PropertyId::ItemSlot1).Jump(TEXT("item_found"))
-		.Label(TEXT("load_slot_2")).LoadStore(R2, PropertyId::ItemSlot2).Jump(TEXT("item_found"))
-		.Label(TEXT("load_slot_3")).LoadStore(R2, PropertyId::ItemSlot3).Jump(TEXT("item_found"))
-		.Label(TEXT("load_slot_4")).LoadStore(R2, PropertyId::ItemSlot4).Jump(TEXT("item_found"))
-		.Label(TEXT("load_slot_5")).LoadStore(R2, PropertyId::ItemSlot5).Jump(TEXT("item_found"))
-		.Label(TEXT("load_slot_6")).LoadStore(R2, PropertyId::ItemSlot6).Jump(TEXT("item_found"))
-		.Label(TEXT("load_slot_7")).LoadStore(R2, PropertyId::ItemSlot7).Jump(TEXT("item_found"))
-		.Label(TEXT("load_slot_8")).LoadStore(R2, PropertyId::ItemSlot8).Jump(TEXT("item_found"))
-
-		.Label(TEXT("item_found"))
-			// R2 = 아이템 엔티티 ID — 유효성 검증
-			.LoadConst(R3, 0)
-			.CmpEq(Flag, R2, R3)
-			.JumpIf(Flag, TEXT("fail"))
-
-			// === CP 검증 및 차감 ===
+		B	// === CP 검증 및 차감 ===
 			.LoadEntityProperty(R3, R2, PropertyId::SkillCPCost)        // R3 = CP 소모량
 			.LoadStore(R4, PropertyId::CP)                              // R4 = 현재 CP
 			.CmpLt(Flag, R4, R3)                                        // CP < Cost?
@@ -144,20 +117,12 @@ namespace HktStoryCombatUseItemSkill
 			.Mul(R0, R0, R1)                                            // R0 = 공격력 * 2
 			.ApplyDamage(Target, R0)
 			.PlayVFXAttached(Target, VFX_SkillHit)
-			.PlaySound(Sound_SkillHit)
+			.PlaySound(Sound_SkillHit);
 
-			// === NextActionFrame 갱신 (공속 기반) ===
-			// NextActionFrame = 현재프레임 + (RecoveryFrame * 100 / AttackSpeed)
-			.GetWorldTime(R0)                                           // R0 = 현재 프레임
-			.LoadEntityProperty(R1, R2, PropertyId::RecoveryFrame)      // R1 = 아이템의 기본 후딜레이
-			.LoadConst(R3, 100)
-			.Mul(R1, R1, R3)                                            // R1 = RecoveryFrame * 100
-			.LoadStore(R3, PropertyId::AttackSpeed)                     // R3 = AttackSpeed
-			.Div(R1, R1, R3)                                            // R1 = delay (프레임 수)
-			.Add(R0, R0, R1)                                            // R0 = 현재프레임 + delay
-			.SaveStore(PropertyId::NextActionFrame, R0)
+		// === NextActionFrame 갱신 (공속 기반) ===
+		HktSnippetCombat::CooldownUpdateFromEntity(B, R2);
 
-			// 스킬 태그 제거
+		B	// 스킬 태그 제거
 			.RemoveTag(Self, Tag_Anim_UpperBody_Combat_Skill)
 			.RemoveTag(Self, Tag_Anim_Montage_Skill)
 

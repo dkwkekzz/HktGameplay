@@ -292,6 +292,11 @@ public:
 
     FHktStoryBuilder& Log(const FString& Message);
 
+    // ========== Internal Label (Snippet용 고유 라벨 생성) ==========
+
+    /** 고유 내부 라벨 생성 — Snippet 함수에서 라벨 충돌 방지에 사용 */
+    FString MakeInternalLabel(const TCHAR* Prefix);
+
     // ========== Build ==========
 
     /** 빌드 — 검증 실패 시 nullptr 반환, 실패한 Story는 등록되지 않음 */
@@ -311,9 +316,6 @@ private:
 
     /** 빌드 타임 엔티티 레지스터 초기화 순서 검증 — 실패 시 false */
     bool ValidateEntityFlow();
-
-    /** 내부 라벨용 고유 카운터 */
-    FString MakeInternalLabel(const TCHAR* Prefix);
 
 private:
     TSharedRef<FHktVMProgram> Program;

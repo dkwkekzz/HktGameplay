@@ -8,6 +8,7 @@
 #include "HktStoryTags.h"
 #include "HktRuntimeTags.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetItem.h"
 
 namespace HktStoryPlayerInWorld
 {
@@ -37,7 +38,7 @@ namespace HktStoryPlayerInWorld
 	{
 		using namespace Reg;
 
-		Story(Story_PlayerInWorld)
+		auto B = Story(Story_PlayerInWorld)
 			.Log(TEXT("PlayerInWorld: 플레이어 캐릭터 생성"))
 
 			// 캐릭터 엔티티 생성
@@ -62,8 +63,7 @@ namespace HktStoryPlayerInWorld
 			.SaveConstEntity(Self, PropertyId::AttackSpeed, 100)        // 공속 기본 1.0x (100 = 1.0)
 			.SaveConstEntity(Self, PropertyId::NextActionFrame, 0)      // 즉시 행동 가능
 
-			// === 복귀 플레이어 검사 (Gap 8) ===
-			// DB에서 복원된 엔티티가 이미 존재하면 초기 아이템 지급 건너뜀
+			// === 복귀 플레이어 검사 ===
 			.CountByOwner(R0, Self, Entity_Item)
 			.LoadConst(R1, 0)
 			.CmpNe(Flag, R0, R1)
@@ -84,14 +84,12 @@ namespace HktStoryPlayerInWorld
 			// 아이템 스킬 데이터
 			.SetItemSkillTag(Spawned, Event_Combat_UseItemSkill_Ref)            // 범용 아이템 스킬 Story로 라우팅
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 30)             // 스킬 CP 소모 30
-			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 60)           // 기본 후딜레이 60프레임
+			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 60);          // 기본 후딜레이 60프레임
 
-			// 자동 장착: 아이템 스탯을 캐릭터에 적용
-			.LoadEntityProperty(R3, Spawned, PropertyId::AttackPower)
-			.LoadEntityProperty(R4, Self, PropertyId::AttackPower)
-			.Add(R4, R4, R3)
-			.SaveEntityProperty(Self, PropertyId::AttackPower, R4)
-			.SetStance(Self, HktStance::Sword1H)
+		// 자동 장착: 아이템 스탯을 캐릭터에 적용
+		HktSnippetItem::ApplyItemStats(B, Spawned, Self);
+
+		B	.SetStance(Self, HktStance::Sword1H)
 
 		.Label(TEXT("skip_grant"))
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))
