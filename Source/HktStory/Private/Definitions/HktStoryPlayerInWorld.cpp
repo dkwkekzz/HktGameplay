@@ -86,12 +86,10 @@ namespace HktStoryPlayerInWorld
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 30)             // 스킬 CP 소모 30
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 60);          // 기본 후딜레이 60프레임
 
-		// 자동 장착: 아이템 스탯을 캐릭터에 적용
+		// 자동 장착: 아이템 스탯 + Stance를 캐릭터에 적용
 		HktSnippetItem::ApplyItemStats(B, Spawned, Self);
 
-		B	.SetStance(Self, HktStance::Sword1H)
-
-		.Label(TEXT("skip_grant"))
+		B.Label(TEXT("skip_grant"))
 			.Log(TEXT("PlayerInWorld: 준비 완료, 상태 유지"))
 
 			.BuildAndRegister();

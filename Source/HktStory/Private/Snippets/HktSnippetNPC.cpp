@@ -17,9 +17,14 @@ FHktStoryBuilder& HktSnippetNPC::SetupNPCStats(
 	B.SaveConstEntity(Spawned, PropertyId::IsNPC, 1)
 	 .SaveConstEntity(Spawned, PropertyId::Health, Stats.Health)
 	 .SaveConstEntity(Spawned, PropertyId::MaxHealth, Stats.Health)
-	 .SaveConstEntity(Spawned, PropertyId::AttackPower, Stats.AttackPower)
-	 .SaveConstEntity(Spawned, PropertyId::Defense, Stats.Defense)
-	 .SaveConstEntity(Spawned, PropertyId::Team, Stats.Team)
+	 .SaveConstEntity(Spawned, PropertyId::AttackPower, Stats.AttackPower);
+
+	if (Stats.Defense > 0)
+	{
+		B.SaveConstEntity(Spawned, PropertyId::Defense, Stats.Defense);
+	}
+
+	B.SaveConstEntity(Spawned, PropertyId::Team, Stats.Team)
 	 .AddTag(Spawned, Entity_NPC)
 	 .AddTag(Spawned, SpecificTag)
 	 .AddTag(Spawned, Tag_NPC_Hostile);

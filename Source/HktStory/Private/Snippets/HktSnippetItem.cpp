@@ -119,7 +119,10 @@ FHktStoryBuilder& HktSnippetItem::ApplyItemStats(
 	 .LoadEntityProperty(R3, ItemEntity, PropertyId::Defense)
 	 .LoadEntityProperty(R4, CharEntity, PropertyId::Defense)
 	 .Add(R4, R4, R3)
-	 .SaveEntityProperty(CharEntity, PropertyId::Defense, R4);
+	 .SaveEntityProperty(CharEntity, PropertyId::Defense, R4)
+	 // Stance: 아이템의 Stance를 캐릭터에 적용
+	 .LoadEntityProperty(R3, ItemEntity, PropertyId::Stance)
+	 .SaveEntityProperty(CharEntity, PropertyId::Stance, R3);
 
 	return B;
 }

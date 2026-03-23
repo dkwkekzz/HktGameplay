@@ -95,14 +95,10 @@ namespace HktStoryItemActivate
 		// ItemSlot[ActionSlot] = 아이템 EntityId
 		HktSnippetItem::SaveItemToSlot(B, R2, R3);
 
-		// 아이템 스탯을 캐릭터에 합산
+		// 아이템 스탯 + Stance를 캐릭터에 적용
 		HktSnippetItem::ApplyItemStats(B, Target, Self);
 
-		B	// 아이템의 Stance를 캐릭터에 적용
-			.LoadEntityProperty(R3, Target, PropertyId::Stance)
-			.SaveEntityProperty(Self, PropertyId::Stance, R3)
-
-			.Log(TEXT("Item activated"))
+		B	.Log(TEXT("Item activated"))
 			.Halt()
 
 		.Label(TEXT("fail"))

@@ -43,7 +43,8 @@ namespace HktSnippetItem
 		RegisterIndex SlotIndexReg);
 
 	/**
-	 * 아이템 스탯(AttackPower, Defense)을 캐릭터에 합산
+	 * 아이템 스탯(AttackPower, Defense, Stance)을 캐릭터에 합산
+	 * Stance는 아이템의 Stance 값을 캐릭터에 복사한다.
 	 *
 	 * Clobbers: R3, R4
 	 */
@@ -54,6 +55,7 @@ namespace HktSnippetItem
 
 	/**
 	 * 아이템 스탯(AttackPower, Defense)을 캐릭터에서 차감
+	 * Note: Stance 복원은 컨텍스트마다 다르므로 (다른 활성 아이템 검색 등) 포함하지 않는다.
 	 *
 	 * Clobbers: R0, R1
 	 */
