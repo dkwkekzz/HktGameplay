@@ -252,6 +252,22 @@ void AHktGameMode::PushMoveRequest(int64 PlayerUid, const FHktMoveRequest& Reque
     Rule->OnReceived_MoveRequest(Request, *WorldPlayer);
 }
 
+void AHktGameMode::PushItemRequest(int64 PlayerUid, const FHktItemRequest& Request)
+{
+    IHktServerRule* Rule = GetServerRule();
+    if (!Rule) return;
+
+    IHktRelevancyGraph* Graph = CachedRelevancyGraph;
+    if (!Graph) return;
+
+    IHktWorldPlayer* WorldPlayer = Graph->GetWorldPlayer(PlayerUid);
+    if (!WorldPlayer) return;
+
+    HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+        FString::Printf(TEXT("PushItemRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString()));
+    Rule->OnReceived_ItemRequest(Request, *WorldPlayer);
+}
+
 IHktServerRule* AHktGameMode::GetServerRule() const
 {
     return CachedServerRule;

@@ -59,7 +59,7 @@ Flow 정의 파일(`HktStory/Private/Definitions/*.cpp`)에서 GameplayTag를 �
 | `Anim.Montage.*` | 원샷 몽타주 | `.PlayAnimMontage(Entity, Tag)` | `UHktAnimInstance::PlayMontageByTag()` |
 | `VFX.*` | 이펙트 | `.PlayVFXAttached(Entity, Tag)` | `FHktVFXRenderer::PlayVFXAtLocation()` |
 | `Sound.*` | 사운드 | `.PlaySound(Tag)` | (TODO) |
-| `Entity.Item.*` | 아이템/장비 | `.SpawnEntity(Tag)` + ActionSlot 프로퍼티 | Actor 렌더링 |
+| `Entity.Item.*` | 아이템/장비 | `.SpawnEntity(Tag)` + ActionSlot 프로퍼티 | `AHktItemActor` 렌더링, `AttachSocketName`으로 캐릭터 소켓 부착 |
 
 ### 예시: HktStoryCharacterSpawn.cpp
 
@@ -293,6 +293,7 @@ Flow에서 새로운 태그를 사용할 때, Presentation에서 올바르게 �
 - [ ] UE 에디터에서 `UHktActorVisualDataAsset` 생성
   - [ ] `IdentifierTag` = `"Entity.Item.XXX"` (Flow 태그와 정확히 일치)
   - [ ] `ActorClass` = 스폰할 블루프린트/액터 클래스 지정
+- [ ] `AttachSocketName` = 캐릭터에 부착할 소켓 이름 지정 (예: `weapon_r`, `shield_l`)
 - [ ] Flow에서 `SpawnEntity(Entity_Item_XXX)` 사용, ActionSlot 등은 프로퍼티로 설정
 
 ---

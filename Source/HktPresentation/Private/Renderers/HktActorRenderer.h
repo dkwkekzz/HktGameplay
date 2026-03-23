@@ -39,8 +39,6 @@ private:
 	void TryAttachToOwner(FHktEntityId ItemId, const FHktPresentationState& State);
 	/** 소켓에서 분리하여 독립 Actor로 복원 */
 	void DetachFromOwner(FHktEntityId ItemId);
-	/** ActionSlot → 소켓 이름 매핑 */
-	static FName GetSocketName(int32 ActionSlot);
 
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
 	TMap<FHktEntityId, FHktActorMotionState> MotionStates;

@@ -28,6 +28,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Item")
 	TObjectPtr<UTexture2D> Icon;
 
+	/** 캐릭터 SkeletalMesh에서 부착할 소켓 이름 (예: weapon_r, shield_l) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Item")
+	FName AttachSocketName = NAME_None;
+
 	/** 소켓 부착 시 회전 오프셋 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Item")
 	FRotator AttachRotationOffset = FRotator::ZeroRotator;
