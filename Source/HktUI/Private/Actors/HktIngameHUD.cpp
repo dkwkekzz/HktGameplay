@@ -162,19 +162,24 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId)
 	UHktUIElement* Element = GetOrAddEntityElement(EntityId);
 	if (!Element || Element->View.IsValid()) return;
 
-	// DataAsset 팩토리를 통해 뷰 생성 (미로드 시 직접 생성 폴백)
+	// DataAsset 팩토리를 통해 뷰 + 앵커 전략 생성 (미로드 시 직접 생성 폴백)
 	TSharedPtr<IHktUIView> View;
+	UHktWorldViewAnchorStrategy* Strategy = nullptr;
 	if (CachedEntityHudAsset)
 	{
 		View = CachedEntityHudAsset->CreateView();
+		Strategy = Cast<UHktWorldViewAnchorStrategy>(CachedEntityHudAsset->CreateStrategy(this));
 	}
-	else
+
+	if (!View.IsValid())
 	{
 		View = MakeShared<FHktSlateView>(SNew(SHktEntityHudWidget));
 	}
-	if (!View.IsValid()) return;
+	if (!Strategy)
+	{
+		Strategy = NewObject<UHktWorldViewAnchorStrategy>(this);
+	}
 
-	UHktWorldViewAnchorStrategy* Strategy = NewObject<UHktWorldViewAnchorStrategy>(this);
 	Strategy->SetTargetEntity(EntityId, EntityHudOffset);
 	Strategy->SetWorldState(CachedWorldState);
 
