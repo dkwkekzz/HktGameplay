@@ -159,7 +159,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			AHktItemActor* ItemActor = CallbackWorld->SpawnActor<AHktItemActor>(AHktItemActor::StaticClass(), Location, Rotation, SpawnParams);
 			if (ItemActor)
 			{
-				ItemActor->SetupMesh(ItemAsset->Mesh, ItemAsset->MeshScale, ItemAsset->AttachRotationOffset);
+				ItemActor->SetupMesh(ItemAsset->Mesh, ItemAsset->MeshScale, ItemAsset->AttachRotationOffset, ItemAsset->AttachSocketName);
 			}
 			SpawnedActor = ItemActor;
 		}
@@ -391,28 +391,24 @@ void FHktActorRenderer::InterpolateActors(float DeltaSeconds)
 	}
 }
 
-FName FHktActorRenderer::GetSocketName(int32 ActionSlot)
-{
-	switch (ActionSlot)
-	{
-	case 0:  return FName(TEXT("weapon_r"));
-	case 1:  return FName(TEXT("shield_l"));
-	default: return FName(*FString::Printf(TEXT("slot_%d"), ActionSlot));
-	}
-}
-
 void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresentationState& State)
 {
 	const FHktEntityPresentation* ItemEntity = State.Get(ItemId);
 	if (!ItemEntity || !ItemEntity->IsItemAttached()) return;
 
 	FHktEntityId OwnerId = static_cast<FHktEntityId>(ItemEntity->OwnerEntity.Get());
-	int32 Slot = ItemEntity->ActionSlot.Get();
 
 	AActor* ItemActor = GetActor(ItemId);
 	if (!ItemActor)
 	{
 		PendingAttachments.Add(ItemId);
+		return;
+	}
+
+	// 아이템 Actor에서 DataAsset이 지정한 소켓 이름을 가져옴
+	AHktItemActor* HktItem = Cast<AHktItemActor>(ItemActor);
+	if (!HktItem || HktItem->GetAttachSocketName().IsNone())
+	{
 		return;
 	}
 
@@ -430,7 +426,7 @@ void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresenta
 		return;
 	}
 
-	FName SocketName = GetSocketName(Slot);
+	FName SocketName = HktItem->GetAttachSocketName();
 	if (!SkelMesh->DoesSocketExist(SocketName))
 	{
 		UE_LOG(LogHktPresentation, Warning, TEXT("Socket '%s' not found on owner %d for item %d"), *SocketName.ToString(), OwnerId, ItemId);
@@ -441,7 +437,7 @@ void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresenta
 	AttachedItems.Add(ItemId);
 	PendingAttachments.Remove(ItemId);
 
-	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, FString::Printf(TEXT("AttachItem Slot=%d Socket=%s Owner=%d"), Slot, *SocketName.ToString(), OwnerId), ItemId);
+	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, FString::Printf(TEXT("AttachItem Socket=%s Owner=%d"), *SocketName.ToString(), OwnerId), ItemId);
 }
 
 void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)

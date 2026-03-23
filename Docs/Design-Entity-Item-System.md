@@ -402,10 +402,10 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 - **영향**: 아이템 활성화가 실질적인 전투력 변화를 일으키지 않음.
 - **구현**: Activate Story에서 아이템 스탯을 캐릭터에 합산, Deactivate/Drop/Evict 시 차감. `HktStoryItemActivate.cpp`, `HktStoryItemDeactivate.cpp`, `HktStoryItemDrop.cpp` 수정.
 
-### Gap 5: 무기 메쉬 소켓 부착 시스템 부재 — 우선순위: 높음
+### Gap 5: 무기 메쉬 소켓 부착 시스템 부재 — 우선순위: 높음 ✅ 구현 완료
 - **현상**: Presentation 레이어에 무기 소켓 부착 시스템이 없다. 아이템은 독립 Actor로 렌더링되며 캐릭터에 붙지 않는다.
 - **영향**: ActionSlot이 변경되어도 시각적으로 무기가 캐릭터에 표시되지 않음.
-- **제안**: 캐릭터 SkeletalMesh에 무기 소켓 정의, Activate 시 해당 아이템의 Mesh를 소켓에 Attach, HktActorRenderer에서 ActionSlot 변경 감지.
+- **구현**: `UHktItemVisualDataAsset`에 `AttachSocketName` 프로퍼티 추가. 소켓 이름은 아이템 DataAsset이 정의하며 ActionSlot 값과 무관. `AHktItemActor`가 스폰 시 소켓 이름을 캐싱하고, `FHktActorRenderer::TryAttachToOwner()`가 아이템 Actor에서 소켓 이름을 읽어 부착. OwnerEntity/ActionSlot 변경 감지 → 자동 재부착, PendingAttachments로 스폰 순서 독립 처리. `HktItemVisualDataAsset.h`, `HktItemActor.h/.cpp`, `HktActorRenderer.h/.cpp` 수정.
 
 ### Gap 6: Drop 시 OwnerUid 미해제 — 우선순위: 높음 ✅ 구현 완료
 - **현상**: `Story.Event.Item.Drop`에서 `OwnerEntity=0`으로 초기화하지만 `OwnerUid`는 해제하지 않는다.
@@ -439,7 +439,7 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
    - ItemState: 1(InBag) → 2(Active)
    - ActionSlot 할당
    - 아이템의 Stance Property를 읽어 캐릭터 Stance 자동 변경
-   - 캐릭터 무기 소켓에 해당 아이템 Mesh 부착 (Gap 5)
+   - 캐릭터 무기 소켓에 해당 아이템 Mesh 부착 (Gap 5 ✅)
 ```
 
 ### 7.2 미구현 항목 (프로토타입용)
@@ -448,7 +448,7 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 |------|------|------|
 | WoodSpear 맵 스폰 Story | 미구현 | PrototypeMap 로드 시 고정 위치에 WoodSpear 1개 스폰하는 Map Event |
 | Command → Activate 연결 | 미구현 | 클라이언트에서 키/커맨드로 Event.Item.Activate를 fire하는 입력 경로 |
-| 무기 메쉬 소켓 부착 | 미구현 | Presentation 레이어에서 ActionSlot 변경 감지 → 무기 Mesh를 캐릭터 소켓에 Attach |
+| 무기 메쉬 소켓 부착 | ✅ 구현 완료 | `UHktItemVisualDataAsset.AttachSocketName`으로 소켓 지정, `FHktActorRenderer`에서 OwnerEntity/ActionSlot 변경 감지 → 자동 부착/분리 |
 
 ---
 

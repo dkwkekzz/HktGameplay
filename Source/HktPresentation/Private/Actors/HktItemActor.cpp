@@ -11,7 +11,7 @@ AHktItemActor::AHktItemActor()
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
-void AHktItemActor::SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset)
+void AHktItemActor::SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName)
 {
 	if (!MeshComponent) return;
 
@@ -22,4 +22,5 @@ void AHktItemActor::SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator Attac
 
 	MeshComponent->SetRelativeScale3D(Scale);
 	MeshComponent->SetRelativeRotation(AttachRotOffset);
+	AttachSocketName = InAttachSocketName;
 }

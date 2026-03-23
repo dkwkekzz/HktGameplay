@@ -20,9 +20,15 @@ public:
 	AHktItemActor();
 
 	/** DataAsset에서 메시/스케일/회전 오프셋을 받아 컴포넌트에 적용 */
-	void SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset);
+	void SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName);
+
+	/** 이 아이템이 부착될 소켓 이름 (DataAsset에서 지정) */
+	FName GetAttachSocketName() const { return AttachSocketName; }
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Item")
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
+
+	/** 캐릭터 소켓 이름 (DataAsset에서 복사) */
+	FName AttachSocketName = NAME_None;
 };
