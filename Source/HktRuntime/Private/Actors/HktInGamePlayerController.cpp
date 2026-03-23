@@ -149,8 +149,29 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 
     if (CachedIntentBuilder)
     {
+        const FHktEntityId ClickedEntity = CachedIntentBuilder->GetSubjectEntityId();
+
+        // 바닥 아이템 클릭 → Subject 선택이 아닌 Pickup 처리
+        if (ClickedEntity != InvalidEntityId && CachedProxySimulator && CachedProxySimulator->IsInitialized())
+        {
+            const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
+            if (WS.IsValidEntity(ClickedEntity))
+            {
+                const int32 ItemState = WS.GetProperty(ClickedEntity, PropertyId::ItemState);
+                const int32 ItemId   = WS.GetProperty(ClickedEntity, PropertyId::ItemId);
+                if (ItemState == 0 && ItemId > 0)
+                {
+                    RequestItemPickup(ClickedEntity);
+                    // Subject를 기본(내 캐릭터)으로 복원
+                    CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
+                    SubjectChangedDelegate.Broadcast(DefaultSubjectEntityId);
+                    return;
+                }
+            }
+        }
+
         // 빈 공간 클릭 시 (Subject 미선택) → 기본 Subject로 복원
-        if (CachedIntentBuilder->GetSubjectEntityId() == InvalidEntityId && DefaultSubjectEntityId != InvalidEntityId)
+        if (ClickedEntity == InvalidEntityId && DefaultSubjectEntityId != InvalidEntityId)
         {
             CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
         }
@@ -210,23 +231,6 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
         else
         {
             const FHktEntityId TargetEntity = CachedIntentBuilder->GetTargetEntityId();
-
-            // 클릭 대상이 아이템인지 확인 → 자동 픽업
-            if (TargetEntity != InvalidEntityId && CachedProxySimulator && CachedProxySimulator->IsInitialized())
-            {
-                const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
-                if (WS.IsValidEntity(TargetEntity))
-                {
-                    const int32 ItemState = WS.GetProperty(TargetEntity, PropertyId::ItemState);
-                    const int32 ItemId   = WS.GetProperty(TargetEntity, PropertyId::ItemId);
-                    if (ItemState == 0 && ItemId > 0)  // Ground 상태 아이템 (캐릭터 제외)
-                    {
-                        RequestItemPickup(TargetEntity);
-                        CachedIntentBuilder->ResetCommand();
-                        return;
-                    }
-                }
-            }
 
             // 커맨드 없음 → 이동 요청
             FHktMoveRequest MoveReq;
