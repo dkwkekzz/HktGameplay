@@ -9,10 +9,10 @@
 // FHktBagItem — 가방 내 아이템 스냅샷 (엔티티가 아닌 경량 데이터)
 //
 // Entity의 프로퍼티를 스냅샷하여 보관. Bag ↔ Entity 전환 시 사용.
-// HktCore에 위치하므로 UObject 의존 없이 순수 C++ 직렬화만 지원.
+// Bag은 VM 시뮬레이션과 무관한 플레이어 레벨 개념이므로 HktRule에 위치.
 // ============================================================================
 
-struct HKTCORE_API FHktBagItem
+struct HKTRULE_API FHktBagItem
 {
 	int32 BagSlot = -1;                // 가방 내 슬롯 위치
 	int32 ItemId = 0;                  // 아이템 템플릿 ID
@@ -59,7 +59,7 @@ struct TStructOpsTypeTraits<FHktBagItem> : public TStructOpsTypeTraitsBase2<FHkt
 // FHktBagState — 플레이어 가방 전체 상태
 // ============================================================================
 
-struct HKTCORE_API FHktBagState
+struct HKTRULE_API FHktBagState
 {
 	TArray<FHktBagItem> Items;
 	int32 Capacity = 20;
@@ -154,7 +154,7 @@ enum class EHktBagOp : uint8
 	FullSync = 2,    // 전체 가방 상태 동기화 (로그인/그룹 이동)
 };
 
-struct HKTCORE_API FHktBagDelta
+struct HKTRULE_API FHktBagDelta
 {
 	EHktBagOp Op = EHktBagOp::Added;
 	FHktBagItem Item;                  // Added/Removed 대상
