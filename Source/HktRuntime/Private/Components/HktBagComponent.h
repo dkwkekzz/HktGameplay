@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "HktBagTypes.h"
-#include "HktServerRuleInterfaces.h"
 #include "HktWorldState.h"
 #include "HktRuntimeDelegates.h"
 #include "HktRuntimeTypes.h"
@@ -13,7 +12,7 @@
 #include "HktBagComponent.generated.h"
 
 /**
- * UHktBagComponent — 플레이어 가방 관리 컴포넌트 (IHktPlayerBag 구현)
+ * UHktBagComponent — 플레이어 가방 관리 컴포넌트
  *
  * PlayerController에 부착. 서버에서 가방 상태를 관리하고,
  * Client RPC로 소유자 클라이언트에게만 가방 변경을 전달한다.
@@ -21,10 +20,10 @@
  * 아키텍처:
  *   - 서버: ServerBagState에 아이템 저장/제거, Client_ReceiveBagUpdate RPC 전송
  *   - 클라: LocalBagState 캐시, FOnHktBagChanged 델리게이트 브로드캐스트
- *   - Entity ↔ Bag 전환은 ServerRule이 IHktPlayerBag 인터페이스를 통해 수행
+ *   - Entity ↔ Bag 전환은 ServerRule이 이 컴포넌트의 서버 API를 호출하여 수행
  */
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
-class HKTRUNTIME_API UHktBagComponent : public UActorComponent, public IHktPlayerBag
+class HKTRUNTIME_API UHktBagComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
@@ -32,17 +31,7 @@ public:
 	UHktBagComponent();
 
 	// =================================================================
-	// IHktPlayerBag 구현
-	// =================================================================
-	virtual const FHktBagState& GetBagState() const override { return ServerBagState; }
-	virtual bool StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot) override;
-	virtual bool TakeFromBag(int32 BagSlot, FHktBagItem& OutItem) override;
-	virtual void RestoreFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity = 20) override;
-	virtual TArray<FHktBagItem> ExportForRecord() const override { return ServerBagState.Items; }
-	virtual void SendFullSync() override;
-
-	// =================================================================
-	// 서버 전용 API — 엔티티 레벨 조작 (ServerRule에서 호출)
+	// 서버 전용 API — ServerRule에서 호출
 	// =================================================================
 
 	/**
@@ -53,6 +42,30 @@ public:
 	 * @return 성공시 true
 	 */
 	bool Server_StoreFromEntity(const FHktWorldState& WS, FHktEntityId ItemEntity, int32& OutBagSlot);
+
+	/** 이미 만들어진 FHktBagItem을 가방에 저장 (IHktWorldPlayer 위임용) */
+	bool Server_StoreBagItem(const FHktBagItem& InItem, int32& OutBagSlot);
+
+	/**
+	 * 가방에서 아이템을 꺼내 엔티티로 복원하기 위한 데이터 반환.
+	 * 가방에서는 제거됨.
+	 * @param BagSlot 가방 슬롯
+	 * @param OutItem 복원할 아이템 데이터 (out)
+	 * @return 성공시 true
+	 */
+	bool Server_RestoreFromBag(int32 BagSlot, FHktBagItem& OutItem);
+
+	/** 서버 가방 상태 읽기 (ServerRule에서 검증용) */
+	const FHktBagState& GetServerBagState() const { return ServerBagState; }
+
+	/** DB에서 로드한 데이터로 서버 가방 초기화 */
+	void Server_RestoreFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity = 20);
+
+	/** 가방 데이터를 DB 저장용으로 내보내기 */
+	TArray<FHktBagItem> Server_ExportForRecord() const { return ServerBagState.Items; }
+
+	/** 전체 동기화 델타를 소유자 클라이언트에 전송 */
+	void Server_SendFullSync();
 
 	/** 단일 아이템 변경 델타를 소유자 클라이언트에 전송 */
 	void Server_SendDelta(EHktBagOp Op, const FHktBagItem& Item);

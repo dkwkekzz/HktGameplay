@@ -12,81 +12,7 @@ UHktBagComponent::UHktBagComponent()
 }
 
 // ============================================================================
-// IHktPlayerBag 구현
-// ============================================================================
-
-bool UHktBagComponent::StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot)
-{
-	if (ServerBagState.IsFull())
-	{
-		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreToBag — bag is full"));
-		return false;
-	}
-
-	if (!InItem.IsValid())
-	{
-		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreToBag — invalid item"));
-		return false;
-	}
-
-	FHktBagItem ItemCopy = InItem;
-	ItemCopy.BagSlot = ServerBagState.FindEmptySlot();
-	if (ItemCopy.BagSlot < 0)
-	{
-		return false;
-	}
-
-	OutBagSlot = ItemCopy.BagSlot;
-	ServerBagState.Items.Add(ItemCopy);
-
-	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
-		FString::Printf(TEXT("BagStore: BagSlot=%d ItemId=%d"),
-			ItemCopy.BagSlot, ItemCopy.ItemId));
-
-	Server_SendDelta(EHktBagOp::Added, ItemCopy);
-	return true;
-}
-
-bool UHktBagComponent::TakeFromBag(int32 BagSlot, FHktBagItem& OutItem)
-{
-	if (!ServerBagState.RemoveBySlot(BagSlot, OutItem))
-	{
-		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::TakeFromBag — BagSlot=%d not found"), BagSlot);
-		return false;
-	}
-
-	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
-		FString::Printf(TEXT("BagTake: BagSlot=%d ItemId=%d"),
-			BagSlot, OutItem.ItemId));
-
-	Server_SendDelta(EHktBagOp::Removed, OutItem);
-	return true;
-}
-
-void UHktBagComponent::RestoreFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity)
-{
-	ServerBagState.Items = InBagItems;
-	ServerBagState.Capacity = InCapacity;
-
-	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
-		FString::Printf(TEXT("BagRestoreFromRecord: %d items, capacity=%d"),
-			InBagItems.Num(), InCapacity));
-}
-
-void UHktBagComponent::SendFullSync()
-{
-	FHktBagDelta Delta;
-	Delta.Op = EHktBagOp::FullSync;
-	Delta.FullState = ServerBagState;
-
-	Client_ReceiveBagUpdate(FHktRuntimeBagUpdate(MoveTemp(Delta)));
-
-	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
-		FString::Printf(TEXT("BagFullSync: %d items"), ServerBagState.GetItemCount()));
-}
-
-// ============================================================================
-// 서버 전용 API — 엔티티 레벨 조작
+// 서버 전용 API
 // ============================================================================
 
 bool UHktBagComponent::Server_StoreFromEntity(
@@ -95,6 +21,12 @@ bool UHktBagComponent::Server_StoreFromEntity(
 	if (!WS.IsValidEntity(ItemEntity))
 	{
 		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreFromEntity — invalid entity %d"), ItemEntity);
+		return false;
+	}
+
+	if (ServerBagState.IsFull())
+	{
+		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreFromEntity — bag is full"));
 		return false;
 	}
 
@@ -110,7 +42,120 @@ bool UHktBagComponent::Server_StoreFromEntity(
 	BagItem.RecoveryFrame       = WS.GetProperty(ItemEntity, PropertyId::RecoveryFrame);
 	BagItem.EntitySpawnTag      = WS.GetProperty(ItemEntity, PropertyId::EntitySpawnTag);
 
-	return StoreToBag(BagItem, OutBagSlot);
+	if (!BagItem.IsValid())
+	{
+		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreFromEntity — item %d has invalid ItemId"), ItemEntity);
+		return false;
+	}
+
+	// 빈 슬롯 할당
+	BagItem.BagSlot = ServerBagState.FindEmptySlot();
+	if (BagItem.BagSlot < 0)
+	{
+		return false;
+	}
+
+	OutBagSlot = BagItem.BagSlot;
+	ServerBagState.Items.Add(BagItem);
+
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+		FString::Printf(TEXT("BagStore: Entity=%d → BagSlot=%d ItemId=%d"),
+			ItemEntity, BagItem.BagSlot, BagItem.ItemId));
+
+	// 소유자 클라이언트에 알림
+	Server_SendDelta(EHktBagOp::Added, BagItem);
+
+	return true;
+}
+
+bool UHktBagComponent::Server_StoreBagItem(const FHktBagItem& InItem, int32& OutBagSlot)
+{
+	if (ServerBagState.IsFull())
+	{
+		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreBagItem — bag is full"));
+		return false;
+	}
+
+	if (!InItem.IsValid())
+	{
+		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreBagItem — invalid item"));
+		return false;
+	}
+
+	FHktBagItem ItemCopy = InItem;
+	ItemCopy.BagSlot = ServerBagState.FindEmptySlot();
+	if (ItemCopy.BagSlot < 0)
+	{
+		return false;
+	}
+
+	OutBagSlot = ItemCopy.BagSlot;
+	ServerBagState.Items.Add(ItemCopy);
+
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+		FString::Printf(TEXT("BagStoreBagItem: BagSlot=%d ItemId=%d"),
+			ItemCopy.BagSlot, ItemCopy.ItemId));
+
+	Server_SendDelta(EHktBagOp::Added, ItemCopy);
+	return true;
+}
+
+bool UHktBagComponent::Server_RestoreFromBag(int32 BagSlot, FHktBagItem& OutItem)
+{
+	if (!ServerBagState.RemoveBySlot(BagSlot, OutItem))
+	{
+		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::RestoreFromBag — BagSlot=%d not found"), BagSlot);
+		return false;
+	}
+
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+		FString::Printf(TEXT("BagRestore: BagSlot=%d ItemId=%d"),
+			BagSlot, OutItem.ItemId));
+
+	// 소유자 클라이언트에 알림
+	Server_SendDelta(EHktBagOp::Removed, OutItem);
+
+	return true;
+}
+
+bool UHktBagComponent::Server_DiscardFromBag(int32 BagSlot, FHktBagItem& OutItem)
+{
+	if (!ServerBagState.RemoveBySlot(BagSlot, OutItem))
+	{
+		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::DiscardFromBag — BagSlot=%d not found"), BagSlot);
+		return false;
+	}
+
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+		FString::Printf(TEXT("BagDiscard: BagSlot=%d ItemId=%d"),
+			BagSlot, OutItem.ItemId));
+
+	// 소유자 클라이언트에 알림
+	Server_SendDelta(EHktBagOp::Removed, OutItem);
+
+	return true;
+}
+
+void UHktBagComponent::Server_RestoreFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity)
+{
+	ServerBagState.Items = InBagItems;
+	ServerBagState.Capacity = InCapacity;
+
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+		FString::Printf(TEXT("BagRestoreFromRecord: %d items, capacity=%d"),
+			InBagItems.Num(), InCapacity));
+}
+
+void UHktBagComponent::Server_SendFullSync()
+{
+	FHktBagDelta Delta;
+	Delta.Op = EHktBagOp::FullSync;
+	Delta.FullState = ServerBagState;
+
+	Client_ReceiveBagUpdate(FHktRuntimeBagUpdate(MoveTemp(Delta)));
+
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+		FString::Printf(TEXT("BagFullSync: %d items"), ServerBagState.GetItemCount()));
 }
 
 void UHktBagComponent::Server_SendDelta(EHktBagOp Op, const FHktBagItem& Item)
