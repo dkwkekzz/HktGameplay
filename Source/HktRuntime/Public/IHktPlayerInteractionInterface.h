@@ -48,11 +48,11 @@ public:
 	/** Intent 제출 시 브로드캐스트 (클라이언트 즉시 VFX 등에 사용). */
 	virtual FOnHktIntentSubmitted& OnIntentSubmitted() = 0;
 
+	/** 커맨드(슬롯) 선택 변경 시 브로드캐스트. */
+	virtual FOnHktCommandChanged& OnCommandChanged() { static FOnHktCommandChanged Dummy; return Dummy; }
+
 	/** 아이템 장착/해제로 액션 슬롯 바인딩이 변경될 때 브로드캐스트. */
 	virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() { static FOnHktSlotBindingChanged Dummy; return Dummy; }
-
-	/** 아이템 줍기 요청 (바닥 아이템 클릭). */
-	virtual void RequestItemPickup(FHktEntityId ItemEntity) {}
 
 	/** 아이템 활성화 요청 (인벤토리 → 장비). */
 	virtual void RequestItemActivate(FHktEntityId ItemEntity, int32 ActionSlot) {}

@@ -2,6 +2,12 @@
 
 #include "HktClientRule.h"
 #include "HktCoreProperties.h"
+#include "HktCoreEventLog.h"
+
+// 기본 액션 태그 (슬롯 미선택 시 타겟 유형별 하드코딩)
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Item_Pickup, "Story.Event.Item.Pickup");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Attack_Basic, "Story.Event.Attack.Basic");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_ToLocation, "Story.Event.Move.ToLocation");
 
 FHktDefaultClientRule::FHktDefaultClientRule()
 {
@@ -19,16 +25,73 @@ void FHktDefaultClientRule::BindContext(
 	IHktProxySimulator*      InSimulator,
 	IHktIntentBuilder*       InBuilder,
 	IHktUnitSelectionPolicy* InPolicy,
-	IHktCommandContainer*    InContainer)
+	IHktCommandContainer*    InContainer,
+	IHktWorldPlayer*         InWorldPlayer)
 {
-	CachedSimulator = InSimulator;
-	CachedBuilder   = InBuilder;
-	CachedPolicy    = InPolicy;
-	CachedContainer = InContainer;
+	CachedSimulator   = InSimulator;
+	CachedBuilder     = InBuilder;
+	CachedPolicy      = InPolicy;
+	CachedContainer   = InContainer;
+	CachedWorldPlayer = InWorldPlayer;
 }
 
 // ============================================================================
-// 유저 이벤트 (내부 캐싱된 컨텍스트 사용)
+// 소유권 체크
+// ============================================================================
+
+bool FHktDefaultClientRule::IsOwnedByMe(FHktEntityId Entity) const
+{
+	if (!CachedWorldPlayer || !CachedSimulator || !CachedSimulator->IsInitialized())
+		return false;
+
+	const int64 MyUid = CachedWorldPlayer->GetPlayerUid();
+	if (MyUid == 0) return false;
+
+	const FHktWorldState& WS = CachedSimulator->GetWorldState();
+	return WS.GetOwnerUid(Entity) == MyUid;
+}
+
+// ============================================================================
+// 기본 액션 결정 (슬롯 미선택 시)
+// ============================================================================
+
+FHktEvent FHktDefaultClientRule::BuildDefaultAction(FHktEntityId TargetEntity, FVector TargetLocation) const
+{
+	FHktEvent Event;
+	Event.TargetEntity = TargetEntity;
+	Event.Location = TargetLocation;
+
+	if (TargetEntity != InvalidEntityId && CachedSimulator && CachedSimulator->IsInitialized())
+	{
+		const FHktWorldState& WS = CachedSimulator->GetWorldState();
+		if (WS.IsValidEntity(TargetEntity))
+		{
+			// 바닥 아이템 → Pickup
+			const int32 ItemId = WS.GetProperty(TargetEntity, PropertyId::ItemId);
+			const int32 ItemState = WS.GetProperty(TargetEntity, PropertyId::ItemState);
+			if (ItemId > 0 && ItemState == 0)
+			{
+				Event.EventTag = Tag_Event_Item_Pickup;
+				return Event;
+			}
+
+			// NPC/캐릭터 → 기본 공격
+			const int32 IsNPC = WS.GetProperty(TargetEntity, PropertyId::IsNPC);
+			if (IsNPC > 0)
+			{
+				Event.EventTag = Tag_Event_Attack_Basic;
+				return Event;
+			}
+		}
+	}
+
+	// 대상 없거나 특수 타입 아님 → 이동
+	Event.EventTag = Tag_Event_Move_ToLocation;
+	return Event;
+}
+
+// ============================================================================
+// 유저 이벤트
 // ============================================================================
 
 void FHktDefaultClientRule::OnUserEvent_LoginButtonClick() {}
@@ -37,25 +100,8 @@ void FHktDefaultClientRule::OnUserEvent_SubjectInputAction()
 {
 	if (!CachedPolicy || !CachedBuilder) return;
 
+	// 아무 엔티티나 Subject로 선택 (아이템 포함, 하드코딩 제거)
 	FHktEntityId SelectedEntity = CachedPolicy->ResolveSubject();
-	if (SelectedEntity == InvalidEntityId) return;
-
-	// 바닥 아이템 판단 → Subject 선택이 아닌 Pickup 처리
-	if (CachedSimulator && CachedSimulator->IsInitialized())
-	{
-		const FHktWorldState& WS = CachedSimulator->GetWorldState();
-		if (WS.IsValidEntity(SelectedEntity))
-		{
-			const int32 ItemId = WS.GetProperty(SelectedEntity, PropertyId::ItemId);
-			const int32 ItemState = WS.GetProperty(SelectedEntity, PropertyId::ItemState);
-			if (ItemId > 0 && ItemState == 0)
-			{
-				CachedBuilder->SetPendingItemPickup(SelectedEntity);
-				return;
-			}
-		}
-	}
-
 	CachedBuilder->SetSubject(SelectedEntity);
 	CachedBuilder->ResetCommand();
 }
@@ -64,18 +110,56 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 {
 	if (!CachedPolicy || !CachedBuilder) return;
 
+	// Subject 없으면 무반응
+	FHktEntityId SubjectEntity = CachedBuilder->GetSubjectEntityId();
+	if (SubjectEntity == InvalidEntityId) return;
+
+	// 내 소유 아닌 Subject면 관찰만 (제어 불가)
+	if (!IsOwnedByMe(SubjectEntity)) return;
+
+	// Target 해석
 	FHktEntityId TargetEntity = InvalidEntityId;
-	FVector TargetLocation    = FVector::ZeroVector;
+	FVector TargetLocation = FVector::ZeroVector;
 	CachedPolicy->ResolveTarget(TargetEntity, TargetLocation);
 	CachedBuilder->SetTarget(TargetEntity, TargetLocation);
-	// Submit은 하지 않음 — PlayerController::OnTargetAction에서 요청 패킷 직접 전송
+
+	const int32 PendingSlot = CachedBuilder->GetCommandSlotIndex();
+
+	FHktEvent Event;
+	if (PendingSlot >= 0 && CachedContainer)
+	{
+		// SlotAction 선택됨 → 해당 슬롯의 EventTag로 이벤트 생성
+		FGameplayTag EventTag = CachedContainer->GetEventTagAtSlot(PendingSlot);
+		Event.EventTag = EventTag;
+		Event.SourceEntity = SubjectEntity;
+		Event.TargetEntity = TargetEntity;
+		Event.Location = TargetLocation;
+		Event.Param0 = PendingSlot;
+	}
+	else
+	{
+		// SlotAction 없음 → 기본 액션 (타겟 유형 기반)
+		Event = BuildDefaultAction(TargetEntity, TargetLocation);
+		Event.SourceEntity = SubjectEntity;
+	}
+
+	CachedBuilder->SetPendingRuntimeEvent(Event);
+	CachedBuilder->ResetCommand();
+
+	HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+		FString::Printf(TEXT("TargetAction %s"), *Event.ToString()),
+		SubjectEntity, Event.EventTag);
 }
 
 void FHktDefaultClientRule::OnUserEvent_CommandInputAction(int32 InSlotIndex)
 {
-	// 클라이언트는 EventTag를 해석하지 않음 — 슬롯 인덱스만 기록
-	// 실제 요청 패킷 전송은 PlayerController::OnSlotAction에서 처리
 	if (!CachedBuilder) return;
+
+	// Subject 없거나 제어 불가능하면 무시
+	FHktEntityId SubjectEntity = CachedBuilder->GetSubjectEntityId();
+	if (SubjectEntity == InvalidEntityId) return;
+	if (!IsOwnedByMe(SubjectEntity)) return;
+
 	CachedBuilder->SetCommandSlot(InSlotIndex);
 }
 

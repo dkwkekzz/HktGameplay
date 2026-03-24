@@ -11,6 +11,8 @@
 #include "HktBagTypes.h"
 #include "HktClientRuleInterfaces.generated.h"
 
+class IHktWorldPlayer;
+
 // ============================================================================
 // IHktProxySimulator
 // ============================================================================
@@ -58,10 +60,10 @@ public:
 	virtual bool HasPendingSubmit() const = 0;
 	virtual FHktEvent ConsumePendingSubmit() = 0;
 
-	/** Pickup 판정: Rule이 설정, PlayerController가 소비 */
-	virtual void SetPendingItemPickup(FHktEntityId InItemEntity) = 0;
-	virtual bool HasPendingItemPickup() const = 0;
-	virtual FHktEntityId ConsumePendingItemPickup() = 0;
+	/** RuntimeEvent: Rule이 설정, PlayerController가 소비하여 RPC 전송 */
+	virtual void SetPendingRuntimeEvent(const FHktEvent& InEvent) = 0;
+	virtual bool HasPendingRuntimeEvent() const = 0;
+	virtual FHktEvent ConsumePendingRuntimeEvent() = 0;
 };
 
 // ============================================================================
@@ -119,7 +121,8 @@ public:
 		IHktProxySimulator*       InSimulator,
 		IHktIntentBuilder*        InBuilder,
 		IHktUnitSelectionPolicy*  InPolicy,
-		IHktCommandContainer*     InContainer) {}
+		IHktCommandContainer*     InContainer,
+		IHktWorldPlayer*          InWorldPlayer = nullptr) {}
 
 	virtual void OnUserEvent_LoginButtonClick() {}
 

@@ -86,7 +86,8 @@ void AHktIngamePlayerController::BeginPlay()
             CachedProxySimulator,
             CachedIntentBuilder,
             CachedSelectionPolicy,
-            CachedCommandContainer);
+            CachedCommandContainer,
+            CachedWorldPlayer);
     }
 
     // ProxySimulatorComponent가 먼저 틱한 후 PlayerController Tick이 실행되도록 보장
@@ -100,7 +101,7 @@ void AHktIngamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReaso
 {
     if (CachedClientRule)
     {
-        CachedClientRule->BindContext(nullptr, nullptr, nullptr, nullptr);
+        CachedClientRule->BindContext(nullptr, nullptr, nullptr, nullptr, nullptr);
     }
 
     CachedClientRule       = nullptr;
@@ -144,7 +145,7 @@ void AHktIngamePlayerController::SetupInputComponent()
 }
 
 // ============================================================================
-// 입력 이벤트 — Rule이 내부 캐싱된 컨텍스트 사용 (BindContext 후)
+// 입력 이벤트 — 판단 로직은 Rule에 위임, PC는 전달만
 // ============================================================================
 
 void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
@@ -156,13 +157,6 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 
     if (CachedIntentBuilder)
     {
-        // Rule이 바닥 아이템으로 판정한 경우 → Pickup RPC 전달
-        if (CachedIntentBuilder->HasPendingItemPickup())
-        {
-            RequestItemPickup(CachedIntentBuilder->ConsumePendingItemPickup());
-            return;
-        }
-
         // 빈 공간 클릭 시 (Subject 미선택) → 기본 Subject로 복원
         if (CachedIntentBuilder->GetSubjectEntityId() == InvalidEntityId && DefaultSubjectEntityId != InvalidEntityId)
         {
@@ -187,65 +181,18 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
     {
         TargetChangedDelegate.Broadcast(CachedIntentBuilder->GetTargetEntityId());
 
-        const FHktEntityId SourceEntity = CachedIntentBuilder->GetSubjectEntityId();
-        if (SourceEntity == InvalidEntityId) return;
-
-        const int32 PendingSlot = CachedIntentBuilder->GetCommandSlotIndex();
-
-        if (PendingSlot >= 0)
+        // Rule이 빌드한 이벤트가 있으면 전송
+        if (CachedIntentBuilder->HasPendingRuntimeEvent())
         {
-            // 커맨드 대기 중 → 타겟 지정 완료 → SlotRequest 전송
-            FHktSlotRequest SlotReq;
-            SlotReq.SlotIndex = PendingSlot;
-            SlotReq.SourceEntity = SourceEntity;
-            SlotReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();
-            SlotReq.TargetLocation = CachedIntentBuilder->GetTargetLocation();
+            FHktEvent Event = CachedIntentBuilder->ConsumePendingRuntimeEvent();
+            Event.PlayerUid = GetPlayerUid();
+            Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
+            IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(Event));
 
-            FHktRuntimeSlotRequest RuntimeReq(SlotReq);
-            Server_ReceiveSlotRequest(RuntimeReq);
-
-            // Presentation에 Intent 브로드캐스트 (클라 즉시 VFX)
-            if (CachedCommandContainer)
-            {
-                FHktEvent IntentEvent;
-                IntentEvent.EventTag = CachedCommandContainer->GetEventTagAtSlot(PendingSlot);
-                IntentEvent.SourceEntity = SlotReq.SourceEntity;
-                IntentEvent.TargetEntity = SlotReq.TargetEntity;
-                IntentEvent.Location = SlotReq.TargetLocation;
-                IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(IntentEvent));
-              
-                HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
-                    FString::Printf(TEXT("OnTargetAction Submit %s"), *IntentEvent.ToString()),
-                    IntentEvent.SourceEntity, IntentEvent.EventTag);
-            }
-
-            UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction SlotRequest (pending) %s"), *SlotReq.ToString());
+            HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+                FString::Printf(TEXT("OnTargetAction Submit %s"), *Event.ToString()),
+                Event.SourceEntity, Event.EventTag);
         }
-        else
-        {
-            const FHktEntityId TargetEntity = CachedIntentBuilder->GetTargetEntityId();
-
-            // 커맨드 없음 → 이동 요청
-            FHktMoveRequest MoveReq;
-            MoveReq.SourceEntity = SourceEntity;
-            MoveReq.TargetEntity = TargetEntity;
-            MoveReq.Location = CachedIntentBuilder->GetTargetLocation();
-
-            FHktRuntimeMoveRequest RuntimeReq(MoveReq);
-            Server_ReceiveMoveRequest(RuntimeReq);
-
-            // Presentation에 Intent 브로드캐스트 (클라 즉시 VFX — 이동 인디케이터)
-            FHktEvent IntentEvent;
-            IntentEvent.EventTag = HktGameplayTags::Story_Event_Move_ToLocation;
-            IntentEvent.SourceEntity = MoveReq.SourceEntity;
-            IntentEvent.TargetEntity = MoveReq.TargetEntity;
-            IntentEvent.Location = MoveReq.Location;
-            IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(IntentEvent));
-
-            UE_LOG(LogHktRuntime, Verbose, TEXT("OnTargetAction MoveRequest %s"), *MoveReq.ToString());
-        }
-
-        CachedIntentBuilder->ResetCommand();
     }
 }
 
@@ -256,52 +203,35 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
 
     Rule->OnUserEvent_CommandInputAction(SlotIndex);
 
-    if (CachedIntentBuilder)
+    if (CachedIntentBuilder && CachedCommandContainer)
     {
-        // 슬롯 요청: EventTag 없이 SlotIndex + SourceEntity + Target만 전송
-        FHktSlotRequest SlotReq;
-        SlotReq.SlotIndex = SlotIndex;
-        SlotReq.SourceEntity = CachedIntentBuilder->GetSubjectEntityId();
-        SlotReq.TargetEntity = CachedIntentBuilder->GetTargetEntityId();
-        SlotReq.TargetLocation = CachedIntentBuilder->GetTargetLocation();
-
-        if (SlotReq.SourceEntity != InvalidEntityId)
+        // 타겟 필요 여부 확인
+        bool bTargetRequired = CachedCommandContainer->IsTargetRequiredAtSlot(SlotIndex);
+        if (bTargetRequired)
         {
-            // 타겟이 필요한 스킬인지 클라이언트 측 확인 (UI 표시용)
-            bool bTargetRequired = CachedCommandContainer && CachedCommandContainer->IsTargetRequiredAtSlot(SlotIndex);
-            if (bTargetRequired && SlotReq.TargetLocation.IsZero())
-            {
-                // 타겟 대기 상태 — CommandChanged 브로드캐스트하고 전송하지 않음
-                if (CachedCommandContainer)
-                {
-                    CommandChangedDelegate.Broadcast(CachedCommandContainer->GetEventTagAtSlot(SlotIndex));
-                }
-                UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction WaitTarget Slot=%d"), SlotIndex);
-                return;
-            }
-
-            FHktRuntimeSlotRequest RuntimeReq(SlotReq);
-            Server_ReceiveSlotRequest(RuntimeReq);
-
-            // Presentation에 Intent 브로드캐스트 (클라 즉시 VFX)
-            if (CachedCommandContainer)
-            {
-                FHktEvent IntentEvent;
-                IntentEvent.EventTag = CachedCommandContainer->GetEventTagAtSlot(SlotIndex);
-                IntentEvent.SourceEntity = SlotReq.SourceEntity;
-                IntentEvent.TargetEntity = SlotReq.TargetEntity;
-                IntentEvent.Location = SlotReq.TargetLocation;
-                IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(IntentEvent));
-              
-                HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
-                    FString::Printf(TEXT("OnSlotAction Submit Slot=%d %s"), SlotIndex, *IntentEvent.ToString()),
-                    IntentEvent.SourceEntity, IntentEvent.EventTag);
-            }
-
-            UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction SlotRequest %s"), *SlotReq.ToString());
+            // 타겟 대기 상태 — CommandChanged 브로드캐스트
+            CommandChangedDelegate.Broadcast(CachedCommandContainer->GetEventTagAtSlot(SlotIndex));
+            UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction WaitTarget Slot=%d"), SlotIndex);
+            return;
         }
 
-        CachedIntentBuilder->ResetCommand();
+        // 타겟 불필요한 스킬 → Rule이 이벤트를 빌드했으면 즉시 전송
+        if (CachedIntentBuilder->HasPendingRuntimeEvent())
+        {
+            FHktEvent Event = CachedIntentBuilder->ConsumePendingRuntimeEvent();
+            Event.PlayerUid = GetPlayerUid();
+            Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
+            IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(Event));
+
+            HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+                FString::Printf(TEXT("OnSlotAction Submit Slot=%d %s"), SlotIndex, *Event.ToString()),
+                Event.SourceEntity, Event.EventTag);
+        }
+        else
+        {
+            // 커맨드 대기 상태 (타겟 지정 필요)
+            CommandChangedDelegate.Broadcast(CachedCommandContainer->GetEventTagAtSlot(SlotIndex));
+        }
     }
 }
 
@@ -448,12 +378,16 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
 #endif
 }
 
-bool AHktIngamePlayerController::Server_ReceiveSlotRequest_Validate(const FHktRuntimeSlotRequest& Request)
+// ============================================================================
+// C2S RPC — 통합 RuntimeEvent
+// ============================================================================
+
+bool AHktIngamePlayerController::Server_ReceiveRuntimeEvent_Validate(const FHktRuntimeEvent& Event)
 {
-    return Request.Value.SlotIndex >= 0 && Request.Value.SourceEntity != InvalidEntityId;
+    return Event.Value.SourceEntity != InvalidEntityId && Event.Value.EventTag.IsValid();
 }
 
-void AHktIngamePlayerController::Server_ReceiveSlotRequest_Implementation(const FHktRuntimeSlotRequest& Request)
+void AHktIngamePlayerController::Server_ReceiveRuntimeEvent_Implementation(const FHktRuntimeEvent& Event)
 {
 #if ENABLE_HKT_INSIGHTS
     InsightSentIntentCount++;
@@ -461,24 +395,7 @@ void AHktIngamePlayerController::Server_ReceiveSlotRequest_Implementation(const 
 
     if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
     {
-        GM->PushSlotRequest(GetPlayerUid(), Request.Value);
-    }
-}
-
-bool AHktIngamePlayerController::Server_ReceiveMoveRequest_Validate(const FHktRuntimeMoveRequest& Request)
-{
-    return Request.Value.SourceEntity != InvalidEntityId;
-}
-
-void AHktIngamePlayerController::Server_ReceiveMoveRequest_Implementation(const FHktRuntimeMoveRequest& Request)
-{
-#if ENABLE_HKT_INSIGHTS
-    InsightSentIntentCount++;
-#endif
-
-    if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
-    {
-        GM->PushMoveRequest(GetPlayerUid(), Request.Value);
+        GM->PushRuntimeEvent(GetPlayerUid(), Event.Value);
     }
 }
 
@@ -499,19 +416,9 @@ void AHktIngamePlayerController::Server_ReceiveItemRequest_Implementation(const 
     }
 }
 
-void AHktIngamePlayerController::RequestItemPickup(FHktEntityId ItemEntity)
-{
-    if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
-
-    FHktItemRequest Req;
-    Req.Action = EHktItemAction::Pickup;
-    Req.SourceEntity = DefaultSubjectEntityId;
-    Req.TargetEntity = ItemEntity;
-    Server_ReceiveItemRequest(FHktRuntimeItemRequest(Req));
-
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
-        FString::Printf(TEXT("RequestItemPickup Item=%d"), ItemEntity), DefaultSubjectEntityId);
-}
+// ============================================================================
+// 아이템 상호작용 (UI 전용 — 인벤토리/장비 패널에서 직접 호출)
+// ============================================================================
 
 void AHktIngamePlayerController::RequestItemActivate(FHktEntityId ItemEntity, int32 ActionSlot)
 {

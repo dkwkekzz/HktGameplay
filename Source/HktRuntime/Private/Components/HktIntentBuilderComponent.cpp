@@ -127,21 +127,22 @@ FHktEvent UHktIntentBuilderComponent::ConsumePendingSubmit()
     return PendingSubmitEvent.Value;
 }
 
-void UHktIntentBuilderComponent::SetPendingItemPickup(FHktEntityId InItemEntity)
+void UHktIntentBuilderComponent::SetPendingRuntimeEvent(const FHktEvent& InEvent)
 {
-    PendingItemPickupEntity = InItemEntity;
-    bHasPendingItemPickup = true;
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
-        FString::Printf(TEXT("SetPendingItemPickup ItemEntity=%d"), InItemEntity), InItemEntity);
+    PendingRuntimeEvent = InEvent;
+    bHasPendingRuntimeEvent = true;
+    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+        FString::Printf(TEXT("SetPendingRuntimeEvent %s"), *InEvent.ToString()),
+        InEvent.SourceEntity, InEvent.EventTag);
 }
 
-bool UHktIntentBuilderComponent::HasPendingItemPickup() const
+bool UHktIntentBuilderComponent::HasPendingRuntimeEvent() const
 {
-    return bHasPendingItemPickup;
+    return bHasPendingRuntimeEvent;
 }
 
-FHktEntityId UHktIntentBuilderComponent::ConsumePendingItemPickup()
+FHktEvent UHktIntentBuilderComponent::ConsumePendingRuntimeEvent()
 {
-    bHasPendingItemPickup = false;
-    return PendingItemPickupEntity;
+    bHasPendingRuntimeEvent = false;
+    return PendingRuntimeEvent;
 }
