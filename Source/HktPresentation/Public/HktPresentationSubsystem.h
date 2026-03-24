@@ -7,10 +7,6 @@
 #include "HktCoreDefs.h"
 #include "HktWorldView.h"
 #include "HktPresentationState.h"
-// TODO: 전방선언 이슈
-#include "Renderers/HktActorRenderer.h"
-#include "Renderers/HktMassEntityRenderer.h"
-#include "Renderers/HktVFXRenderer.h"
 #include "HktPresentationRenderer.h"
 #include "HktPresentationSubsystem.generated.h"
 
@@ -39,8 +35,8 @@ public:
 
 	const FHktPresentationState& GetState() const { return State; }
 
-	/** 엔티티에 해당하는 렌더링 Actor를 반환. 없으면 nullptr. */
-	AActor* GetRenderedActor(FHktEntityId Id) const;
+	/** 엔티티의 프레젠테이션 위치 반환. 유효하지 않으면 ZeroVector. */
+	FVector GetEntityLocation(FHktEntityId Id) const;
 
 	/** 외부 렌더러 등록/해제 (예: AHktIngameHUD). 등록 시 기존 State 즉시 Sync. */
 	void RegisterRenderer(IHktPresentationRenderer* InRenderer);
@@ -77,10 +73,10 @@ private:
 	/** IHktPresentationRenderer::Sync 루프에 참여하는 모든 렌더러 */
 	TArray<IHktPresentationRenderer*> Renderers;
 
-	/** 렌더러별 전용 API 접근용 (GetActor, PlayVFX 등) */
-	TUniquePtr<FHktActorRenderer> ActorRenderer;
-	TUniquePtr<FHktMassEntityRenderer> MassEntityRenderer;
-	TUniquePtr<FHktVFXRenderer> VFXRenderer;
+	/** 렌더러별 전용 API 접근용 (PlayVFX 등). TSharedPtr — 전방선언 호환. */
+	TSharedPtr<FHktActorRenderer> ActorRenderer;
+	TSharedPtr<FHktMassEntityRenderer> MassEntityRenderer;
+	TSharedPtr<FHktVFXRenderer> VFXRenderer;
 
 	IHktPlayerInteractionInterface* BoundInteraction = nullptr;
 	FDelegateHandle WorldViewHandle;

@@ -3,7 +3,6 @@
 #include "Camera/HktCameraMode_SubjectFollow.h"
 #include "Actors/HktRtsCameraPawn.h"
 #include "HktPresentationSubsystem.h"
-#include "HktPresentationState.h"
 #include "GameFramework/PlayerController.h"
 
 void UHktCameraMode_SubjectFollow::OnActivate(AHktRtsCameraPawn* Pawn)
@@ -17,19 +16,9 @@ void UHktCameraMode_SubjectFollow::OnActivate(AHktRtsCameraPawn* Pawn)
 		UHktPresentationSubsystem* Sub = PC ? UHktPresentationSubsystem::Get(PC) : nullptr;
 		if (Sub)
 		{
-			const FHktEntityPresentation* E = Sub->GetState().Get(SubjectEntityId);
-			if (E && E->IsAlive())
+			FVector EntityLoc = Sub->GetEntityLocation(SubjectEntityId);
+			if (!EntityLoc.IsZero())
 			{
-				FVector EntityLoc;
-				AActor* RenderedActor = Sub->GetRenderedActor(SubjectEntityId);
-				if (RenderedActor)
-				{
-					EntityLoc = RenderedActor->GetActorLocation();
-				}
-				else
-				{
-					EntityLoc = E->Location.Get();
-				}
 				FVector CameraLoc = Pawn->GetActorLocation();
 				ManualOffset = FVector(CameraLoc.X - EntityLoc.X, CameraLoc.Y - EntityLoc.Y, 0.0f);
 				return;
@@ -50,38 +39,12 @@ void UHktCameraMode_SubjectFollow::TickMode(AHktRtsCameraPawn* Pawn, float Delta
 	UHktPresentationSubsystem* Sub = UHktPresentationSubsystem::Get(PC);
 	if (!Sub) return;
 
-	const FHktEntityPresentation* E = Sub->GetState().Get(SubjectEntityId);
-	if (!E || !E->IsAlive())
-	{
-		// 대상이 사라지면 RtsFree 모드로 전환 요청
-		SubjectEntityId = InvalidEntityId;
-		Pawn->SetCameraMode(EHktCameraMode::RtsFree);
-		return;
-	}
-
-	// Edge scroll 오프셋 업데이트
-	//HandleEdgeScrollOffset(Pawn, DeltaTime);
+	FVector EntityLoc = Sub->GetEntityLocation(SubjectEntityId);
+	if (EntityLoc.IsZero()) return;
 
 	// 오프셋 감쇄
 	ManualOffset = FMath::VInterpTo(ManualOffset, FVector::ZeroVector, DeltaTime, OffsetDecaySpeed);
 
-	// 렌더링된 액터의 실제 위치를 추적 (GroundSnap + CapsuleOffset 반영)
-	// 시뮬레이션 raw 위치 대신 실제 액터 위치를 사용하여 흔들림 방지
-	FVector EntityLoc;
-	AActor* RenderedActor = Sub->GetRenderedActor(SubjectEntityId);
-	if (RenderedActor)
-	{
-		EntityLoc = RenderedActor->GetActorLocation();
-	}
-	else
-	{
-		EntityLoc = E->Location.Get();
-	}
-
-	//FVector TargetLoc = FVector(EntityLoc.X + ManualOffset.X, EntityLoc.Y + ManualOffset.Y, Pawn->GetActorLocation().Z);
-	//FVector CurrentLoc = Pawn->GetActorLocation();
-	//FVector NewLoc = FMath::VInterpTo(CurrentLoc, TargetLoc, DeltaTime, FollowInterpSpeed);
-	//Pawn->SetActorLocation(NewLoc);
 	Pawn->SetActorLocation(EntityLoc);
 }
 
@@ -92,6 +55,11 @@ void UHktCameraMode_SubjectFollow::OnSubjectChanged(AHktRtsCameraPawn* Pawn, FHk
 	if (EntityId == InvalidEntityId)
 	{
 		ManualOffset = FVector::ZeroVector;
+
+		if (Pawn)
+		{
+			Pawn->SetCameraMode(EHktCameraMode::RtsFree);
+		}
 	}
 }
 

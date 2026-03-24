@@ -38,9 +38,9 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	ActorRenderer = MakeUnique<FHktActorRenderer>(GetLocalPlayer());
-	MassEntityRenderer = MakeUnique<FHktMassEntityRenderer>(GetLocalPlayer());
-	VFXRenderer = MakeUnique<FHktVFXRenderer>(GetLocalPlayer());
+	ActorRenderer = MakeShared<FHktActorRenderer>(GetLocalPlayer());
+	MassEntityRenderer = MakeShared<FHktMassEntityRenderer>(GetLocalPlayer());
+	VFXRenderer = MakeShared<FHktVFXRenderer>(GetLocalPlayer());
 
 	// 내부 렌더러를 Sync 루프에 등록
 	Renderers.Add(ActorRenderer.Get());
@@ -271,9 +271,18 @@ void UHktPresentationSubsystem::SyncRenderers()
 	}
 }
 
-AActor* UHktPresentationSubsystem::GetRenderedActor(FHktEntityId Id) const
+FVector UHktPresentationSubsystem::GetEntityLocation(FHktEntityId Id) const
 {
-	return ActorRenderer ? ActorRenderer->GetActor(Id) : nullptr;
+	if (ActorRenderer)
+	{
+		if (const AActor* Actor = ActorRenderer->GetActor(Id))
+		{
+			return Actor->GetActorLocation();
+		}
+	}
+
+	const FHktEntityPresentation* E = State.Get(Id);
+	return E ? E->Location.Get() : FVector::ZeroVector;
 }
 
 void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationRenderer* InRenderer)

@@ -7,7 +7,7 @@
 #include "HktGameMode.h"
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
-#include "HktBagComponent.h"
+#include "Components/HktBagComponent.h"
 #include "HktCoreDataCollector.h"
 #include "HktCoreEventLog.h"
 #include "HktStoryBuilder.h"

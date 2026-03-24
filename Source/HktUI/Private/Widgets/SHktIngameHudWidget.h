@@ -8,6 +8,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Styling/CoreStyle.h"
@@ -476,6 +478,15 @@ inline FString SHktIngameHudWidget::GetEntityDisplayName(const FHktWorldState* W
 	return FString::Printf(TEXT("Item#%d"), WS->GetProperty(Id, PropertyId::ItemId));
 }
 
+/** ItemSlot PropertyId 테이블 (UI용) */
+static constexpr uint16 UIItemSlotPropertyIds[] =
+{
+	PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
+	PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
+	PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+};
+static constexpr int32 UIMaxItemSlots = UE_ARRAY_COUNT(UIItemSlotPropertyIds);
+
 // ============================================================================
 // Inventory 패널 (가방에 보관된 아이템 — BagComponent)
 // ============================================================================
@@ -593,15 +604,6 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 // ============================================================================
 // Equipment 패널 (선택된 엔티티의 ItemSlot0~8 직접 읽기)
 // ============================================================================
-
-/** ItemSlot PropertyId 테이블 (UI용) */
-static constexpr uint16 UIItemSlotPropertyIds[] =
-{
-	PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
-	PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
-	PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
-};
-static constexpr int32 UIMaxItemSlots = UE_ARRAY_COUNT(UIItemSlotPropertyIds);
 
 inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 {

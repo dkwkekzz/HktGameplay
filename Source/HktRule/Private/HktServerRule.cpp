@@ -111,6 +111,15 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Deactivate, "Story.Event.Item.Deactivat
 // ============================================================================
 
 
+/** ItemSlot PropertyId 테이블 (서버용) */
+static constexpr uint16 ServerItemSlotPropertyIds[] =
+{
+	PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
+	PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
+	PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+};
+static constexpr int32 MaxServerItemSlots = UE_ARRAY_COUNT(ServerItemSlotPropertyIds);
+
 /** FHktBagItem → FHktEntityState 변환 (엔티티 복원용) */
 static FHktEntityState BagItemToEntityState(const FHktBagItem& InItem, int64 OwnerUid)
 {

@@ -67,6 +67,7 @@ struct FHktEntityPresentation
 	// --- Item ---
 	THktVisualField<int32> OwnerEntity;   // 소유 캐릭터 EntityId (0 = 없음)
 	THktVisualField<int32> ActionSlot;    // -1 = 미등록, 0+ = 장착 슬롯
+	THktVisualField<int32> ItemState;
 
 	/** Entity의 GameplayTag 컨테이너 (AnimInstance 태그 동기화용) */
 	FGameplayTagContainer Tags;
@@ -79,13 +80,13 @@ struct FHktEntityPresentation
 	bool IsAlive() const;
 	bool IsSpawnedAt(int64 Frame) const;
 	bool IsRemovedAt(int64 Frame) const;
-	bool IsItemAttached() const { return OwnerEntity.Get() > 0 && ActionSlot.Get() >= 0; }
+	bool IsItemAttached() const { return OwnerEntity.Get() > 0 && ItemState.Get() == 2; }
 
 	static EHktRenderCategory DetermineRenderCategory(const FGameplayTagContainer& Tags);
 };
 
 /** 전체 Presentation 상태 (렌더러가 그대로 읽어서 그리는 ViewModel) */
-struct FHktPresentationState
+struct HKTPRESENTATION_API FHktPresentationState
 {
 	TArray<FHktEntityPresentation> Entities;
 	TBitArray<> ValidMask;

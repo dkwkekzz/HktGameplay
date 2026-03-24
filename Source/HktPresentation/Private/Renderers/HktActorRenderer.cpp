@@ -95,7 +95,7 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		UpdateAnimation(Id, *E, Frame);
 
 		// 소켓 부착 상태 변경 감지
-		if (E->OwnerEntity.IsDirty(Frame) || E->ActionSlot.IsDirty(Frame))
+		if (E->OwnerEntity.IsDirty(Frame) || E->ItemState.IsDirty(Frame))
 		{
 			// 기존 부착 해제 후 재부착 (ActionSlot 변경 시 소켓이 달라질 수 있으므로)
 			DetachFromOwner(Id);

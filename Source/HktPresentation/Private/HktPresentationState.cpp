@@ -81,6 +81,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	// Item
 	OwnerEntity.Set(WS.GetProperty(Id, PropertyId::OwnerEntity), Frame);
 	ActionSlot.Set(WS.GetProperty(Id, PropertyId::ActionSlot), Frame);
+	ItemState.Set(WS.GetProperty(Id, PropertyId::ItemState), Frame);
 }
 
 void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
@@ -149,6 +150,7 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	// Item
 	case PropertyId::OwnerEntity: OwnerEntity.Set(NewValue, Frame); break;
 	case PropertyId::ActionSlot:  ActionSlot.Set(NewValue, Frame); break;
+	case PropertyId::ItemState:  ItemState.Set(NewValue, Frame); break;
 	}
 }
 
