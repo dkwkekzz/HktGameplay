@@ -8,31 +8,12 @@
 
 bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldContext, FVector2D& OutScreenPos)
 {
-	if (!WorldStatePtr || TargetEntityId == InvalidEntityId || !WorldContext)
+	if (TargetEntityId == InvalidEntityId || !WorldContext || !bHasWorldPosition)
 	{
 		return false;
 	}
 
-	if (!WorldStatePtr->IsValidEntity(TargetEntityId))
-	{
-		return false;
-	}
-
-	const int32 PosXInt = WorldStatePtr->GetProperty(TargetEntityId, PropertyId::PosX);
-	const int32 PosYInt = WorldStatePtr->GetProperty(TargetEntityId, PropertyId::PosY);
-	const int32 PosZInt = WorldStatePtr->GetProperty(TargetEntityId, PropertyId::PosZ);
-
-	// 위치가 모두 0이면 엔티티가 존재하지 않거나 아직 초기화되지 않은 것으로 판단
-	if (PosXInt == 0 && PosYInt == 0 && PosZInt == 0)
-	{
-		return false;
-	}
-
-	const FVector WorldLocation = FVector(
-		static_cast<float>(PosXInt),
-		static_cast<float>(PosYInt),
-		static_cast<float>(PosZInt)
-	) + WorldOffset;
+	const FVector WorldLocation = CachedWorldPosition + WorldOffset;
 
 	// WorldContext에서 World → PlayerController 획득
 	UWorld* World = nullptr;

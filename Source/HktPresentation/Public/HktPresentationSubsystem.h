@@ -15,6 +15,7 @@
 #include "HktPresentationSubsystem.generated.h"
 
 class IHktPlayerInteractionInterface;
+class IHktPresentationRenderer;
 class FHktActorRenderer;
 class FHktMassEntityRenderer;
 class FHktUIRenderer;
@@ -43,6 +44,10 @@ public:
 	/** 엔티티에 해당하는 렌더링 Actor를 반환. 없으면 nullptr. */
 	AActor* GetRenderedActor(FHktEntityId Id) const;
 
+	/** 외부 UI 렌더러(예: AHktIngameHUD) 등록/해제 */
+	void RegisterUIRenderer(IHktPresentationRenderer* InRenderer);
+	void UnregisterUIRenderer(IHktPresentationRenderer* InRenderer);
+
 	/** 월드 위치에 VFX 재생 (클라이언트 즉시, 서버 무관) */
 	void PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location);
 
@@ -65,6 +70,9 @@ private:
 	/** State 변경 시 전체 Sync, 아니면 NeedsTick인 렌더러만 Sync */
 	void OnTick(float DeltaSeconds);
 
+	/** 카메라 뷰 변경 감지 (위치/회전이 달라지면 true) */
+	bool DetectCameraChange();
+
 	FDelegateHandle TickHandle;
 	FHktPresentationState State;
 	TUniquePtr<FHktActorRenderer> ActorRenderer;
@@ -84,4 +92,8 @@ private:
 
 	bool bInitialSyncDone = false;
 	bool bStateDirty = false;
+
+	/** 카메라 뷰 변경 감지용 캐시 */
+	FVector CachedCameraLocation = FVector::ZeroVector;
+	FRotator CachedCameraRotation = FRotator::ZeroRotator;
 };

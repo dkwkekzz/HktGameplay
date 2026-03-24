@@ -12,6 +12,8 @@
 #include "HktCoreEventLog.h"
 #include "HktRuntimeTags.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/LocalPlayer.h"
 
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
@@ -223,6 +225,8 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 {
 	if (!bInitialSyncDone) return;
 
+	const bool bCameraMoved = DetectCameraChange();
+
 	if (bStateDirty)
 	{
 		bStateDirty = false;
@@ -232,8 +236,32 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	{
 		if (ActorRenderer && ActorRenderer->NeedsTick())           ActorRenderer->Sync(State);
 		if (MassEntityRenderer && MassEntityRenderer->NeedsTick()) MassEntityRenderer->Sync(State);
-		if (UIRenderer && UIRenderer->NeedsTick())                 UIRenderer->Sync(State);
+
+		// 카메라 변경 시 UIRenderer 재동기화 (스크린 좌표 재투영)
+		if (UIRenderer && (bCameraMoved || UIRenderer->NeedsTick()))
+			UIRenderer->Sync(State);
 	}
+}
+
+bool UHktPresentationSubsystem::DetectCameraChange()
+{
+	ULocalPlayer* LP = GetLocalPlayer();
+	if (!LP) return false;
+
+	APlayerController* PC = LP->GetPlayerController(LP->GetWorld());
+	if (!PC) return false;
+
+	FVector Location;
+	FRotator Rotation;
+	PC->GetPlayerViewPoint(Location, Rotation);
+
+	if (!Location.Equals(CachedCameraLocation) || !Rotation.Equals(CachedCameraRotation))
+	{
+		CachedCameraLocation = Location;
+		CachedCameraRotation = Rotation;
+		return true;
+	}
+	return false;
 }
 
 void UHktPresentationSubsystem::SyncRenderers()
@@ -247,6 +275,28 @@ void UHktPresentationSubsystem::SyncRenderers()
 AActor* UHktPresentationSubsystem::GetRenderedActor(FHktEntityId Id) const
 {
 	return ActorRenderer ? ActorRenderer->GetActor(Id) : nullptr;
+}
+
+void UHktPresentationSubsystem::RegisterUIRenderer(IHktPresentationRenderer* InRenderer)
+{
+	if (UIRenderer)
+	{
+		UIRenderer->RegisterRenderer(InRenderer);
+
+		// 이미 InitialSync가 완료된 경우 즉시 Sync 호출하여 기존 엔티티 전달
+		if (bInitialSyncDone)
+		{
+			InRenderer->Sync(State);
+		}
+	}
+}
+
+void UHktPresentationSubsystem::UnregisterUIRenderer(IHktPresentationRenderer* InRenderer)
+{
+	if (UIRenderer)
+	{
+		UIRenderer->UnregisterRenderer(InRenderer);
+	}
 }
 
 void UHktPresentationSubsystem::OnIntentSubmitted(const FHktRuntimeEvent& Event)

@@ -9,10 +9,31 @@ FHktUIRenderer::FHktUIRenderer(ULocalPlayer* InLP)
 
 void FHktUIRenderer::Sync(const FHktPresentationState& State)
 {
-	// TODO: IngameHUD 등에 OnPresentationEntitySpawned/Removed 브로드캐스트 또는 State 직접 참조
-	(void)State;
+	if (RegisteredRenderer)
+	{
+		RegisteredRenderer->Sync(State);
+	}
 }
 
 void FHktUIRenderer::Teardown()
 {
+	RegisteredRenderer = nullptr;
+}
+
+bool FHktUIRenderer::NeedsTick() const
+{
+	return RegisteredRenderer && RegisteredRenderer->NeedsTick();
+}
+
+void FHktUIRenderer::RegisterRenderer(IHktPresentationRenderer* InRenderer)
+{
+	RegisteredRenderer = InRenderer;
+}
+
+void FHktUIRenderer::UnregisterRenderer(IHktPresentationRenderer* InRenderer)
+{
+	if (RegisteredRenderer == InRenderer)
+	{
+		RegisteredRenderer = nullptr;
+	}
 }
