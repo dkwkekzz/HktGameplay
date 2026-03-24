@@ -6,6 +6,7 @@
 #include "Renderers/HktActorRenderer.h"
 #include "Renderers/HktMassEntityRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
+#include "Actors/HktRtsCameraPawn.h"
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
@@ -108,6 +109,8 @@ void UHktPresentationSubsystem::BindInteraction(IHktPlayerInteractionInterface* 
 					this, &UHktPresentationSubsystem::OnTick);
 			}
 		}
+
+		BindCameraDelegate();
 	}
 }
 
@@ -136,6 +139,8 @@ void UHktPresentationSubsystem::UnbindInteraction()
 			TargetChangedHandle.Reset();
 		}
 	}
+	UnbindCameraDelegate();
+
 	if (TickHandle.IsValid())
 	{
 		if (ULocalPlayer* LP = GetLocalPlayer())
@@ -232,8 +237,6 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 {
 	if (!bInitialSyncDone) return;
 
-	const bool bCameraMoved = DetectCameraChange();
-
 	if (bStateDirty)
 	{
 		bStateDirty = false;
@@ -243,8 +246,7 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	{
 		for (IHktPresentationRenderer* R : Renderers)
 		{
-			if (!R) continue;
-			if (R->NeedsTick() || (bCameraMoved && R->NeedsCameraSync()))
+			if (R && R->NeedsTick())
 			{
 				R->Sync(State);
 			}
@@ -252,25 +254,56 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	}
 }
 
-bool UHktPresentationSubsystem::DetectCameraChange()
+void UHktPresentationSubsystem::OnCameraViewChanged()
 {
+	if (!bInitialSyncDone) return;
+
+	for (IHktPresentationRenderer* R : Renderers)
+	{
+		if (R && R->NeedsCameraSync())
+		{
+			R->Sync(State);
+		}
+	}
+}
+
+void UHktPresentationSubsystem::BindCameraDelegate()
+{
+	UnbindCameraDelegate();
+
 	ULocalPlayer* LP = GetLocalPlayer();
-	if (!LP) return false;
+	if (!LP) return;
 
 	APlayerController* PC = LP->GetPlayerController(LP->GetWorld());
-	if (!PC) return false;
+	if (!PC) return;
 
-	FVector Location;
-	FRotator Rotation;
-	PC->GetPlayerViewPoint(Location, Rotation);
-
-	if (!Location.Equals(CachedCameraLocation) || !Rotation.Equals(CachedCameraRotation))
+	AHktRtsCameraPawn* CameraPawn = Cast<AHktRtsCameraPawn>(PC->GetPawn());
+	if (CameraPawn)
 	{
-		CachedCameraLocation = Location;
-		CachedCameraRotation = Rotation;
-		return true;
+		CameraViewChangedHandle = CameraPawn->OnCameraViewChanged().AddUObject(
+			this, &UHktPresentationSubsystem::OnCameraViewChanged);
 	}
-	return false;
+}
+
+void UHktPresentationSubsystem::UnbindCameraDelegate()
+{
+	if (CameraViewChangedHandle.IsValid())
+	{
+		ULocalPlayer* LP = GetLocalPlayer();
+		if (LP)
+		{
+			APlayerController* PC = LP->GetPlayerController(LP->GetWorld());
+			if (PC)
+			{
+				AHktRtsCameraPawn* CameraPawn = Cast<AHktRtsCameraPawn>(PC->GetPawn());
+				if (CameraPawn)
+				{
+					CameraPawn->OnCameraViewChanged().Remove(CameraViewChangedHandle);
+				}
+			}
+		}
+		CameraViewChangedHandle.Reset();
+	}
 }
 
 void UHktPresentationSubsystem::SyncRenderers()

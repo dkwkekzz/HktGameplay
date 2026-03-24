@@ -116,6 +116,21 @@ void AHktRtsCameraPawn::Tick(float DeltaTime)
 	{
 		ActiveMode->TickMode(this, DeltaTime);
 	}
+
+	// 카메라 뷰 변경 감지 → 델리게이트 브로드캐스트
+	const FVector NewLocation = GetActorLocation();
+	const FRotator NewRotation = GetActorRotation();
+	const float NewArmLength = SpringArm ? SpringArm->TargetArmLength : 0.f;
+
+	if (!NewLocation.Equals(CachedCameraLocation)
+		|| !NewRotation.Equals(CachedCameraRotation)
+		|| NewArmLength != CachedArmLength)
+	{
+		CachedCameraLocation = NewLocation;
+		CachedCameraRotation = NewRotation;
+		CachedArmLength = NewArmLength;
+		CameraViewChangedDelegate.Broadcast();
+	}
 }
 
 void AHktRtsCameraPawn::HandleZoom(float Value)

@@ -65,13 +65,17 @@ private:
 	void ProcessDiff(const FHktWorldView& View);
 	void SyncRenderers();
 
-	/** State 변경 시 전체 Sync, 아니면 NeedsTick/NeedsCameraSync인 렌더러만 Sync */
+	/** State 변경 시 전체 Sync, 아니면 NeedsTick인 렌더러만 Sync */
 	void OnTick(float DeltaSeconds);
 
-	/** 카메라 뷰 변경 감지 (위치/회전이 달라지면 true) */
-	bool DetectCameraChange();
+	/** 카메라 뷰 변경 시 NeedsCameraSync 렌더러만 Sync */
+	void OnCameraViewChanged();
+
+	void BindCameraDelegate();
+	void UnbindCameraDelegate();
 
 	FDelegateHandle TickHandle;
+	FDelegateHandle CameraViewChangedHandle;
 	FHktPresentationState State;
 
 	/** IHktPresentationRenderer::Sync 루프에 참여하는 모든 렌더러 */
@@ -94,8 +98,4 @@ private:
 
 	bool bInitialSyncDone = false;
 	bool bStateDirty = false;
-
-	/** 카메라 뷰 변경 감지용 캐시 */
-	FVector CachedCameraLocation = FVector::ZeroVector;
-	FRotator CachedCameraRotation = FRotator::ZeroRotator;
 };
