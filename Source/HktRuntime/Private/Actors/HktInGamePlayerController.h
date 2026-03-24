@@ -85,6 +85,7 @@ public:
     virtual FOnHktSubjectChanged& OnSubjectChanged() override { return SubjectChangedDelegate; }
     virtual FOnHktIntentSubmitted& OnIntentSubmitted() override { return IntentSubmittedDelegate; }
     virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() override { return SlotBindingChangedDelegate; }
+    virtual FOnHktBagChanged& OnBagChanged() override;
 
     // === Player UID ===
     virtual int64 GetPlayerUid() const override;

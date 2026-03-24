@@ -65,6 +65,7 @@ private:
 	TWeakObjectPtr<APlayerController> CachedPC;
 	FHktEntityId CachedSubjectEntityId = InvalidEntityId;
 	FDelegateHandle SlotBindingHandle;
+	FDelegateHandle BagChangedHandle;
 	FDelegateHandle SubjectChangedHandle;
 	FDelegateHandle TargetChangedHandle;
 	FDelegateHandle CommandChangedHandle;
@@ -334,6 +335,11 @@ inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* In
 				RefreshInventoryPanel();
 				RefreshEquipmentPanel();
 				RefreshSkillsPanel();
+			});
+
+			BagChangedHandle = Interaction->OnBagChanged().AddLambda([this](const FHktBagDelta& /*Delta*/)
+			{
+				RefreshInventoryPanel();
 			});
 
 			SubjectChangedHandle = Interaction->OnSubjectChanged().AddLambda([this](FHktEntityId EntityId)

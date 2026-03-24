@@ -55,6 +55,9 @@ public:
 	/** 아이템 장착/해제로 액션 슬롯 바인딩이 변경될 때 브로드캐스트. */
 	virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() { static FOnHktSlotBindingChanged Dummy; return Dummy; }
 
+	/** 가방 상태 변경 시 브로드캐스트 (S2C RPC 수신 후). */
+	virtual FOnHktBagChanged& OnBagChanged() { static FOnHktBagChanged Dummy; return Dummy; }
+
 	/** 아이템 드롭 요청 (바닥에 놓기). */
 	virtual void RequestItemDrop(FHktEntityId ItemEntity) {}
 

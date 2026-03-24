@@ -607,6 +607,16 @@ const FHktBagState* AHktIngamePlayerController::GetBagState() const
     return CachedBagComponent ? &CachedBagComponent->GetLocalBagState() : nullptr;
 }
 
+FOnHktBagChanged& AHktIngamePlayerController::OnBagChanged()
+{
+    if (CachedBagComponent)
+    {
+        return CachedBagComponent->OnBagChanged();
+    }
+    static FOnHktBagChanged Dummy;
+    return Dummy;
+}
+
 IHktClientRule* AHktIngamePlayerController::GetClientRule() const
 {
     return CachedClientRule;
