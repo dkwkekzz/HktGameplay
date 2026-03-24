@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "HktPresentationRenderer.h"
 #include "HktPresentationState.h"
 
 class ULocalPlayer;
@@ -16,13 +15,13 @@ struct FHktActorMotionState
 	bool bNeedsGroundSnap = true;
 };
 
-class FHktActorRenderer : public IHktPresentationRenderer
+class FHktActorRenderer
 {
 public:
 	explicit FHktActorRenderer(ULocalPlayer* InLP);
-	virtual void Sync(const FHktPresentationState& State) override;
-	virtual void Teardown() override;
-	virtual bool NeedsTick() const override { return !PendingInitSync.IsEmpty() || !PendingAttachments.IsEmpty(); }
+	void Sync(const FHktPresentationState& State);
+	void Teardown();
+	bool NeedsTick() const { return !PendingInitSync.IsEmpty() || !PendingAttachments.IsEmpty(); }
 
 	AActor* GetActor(FHktEntityId Id) const;
 

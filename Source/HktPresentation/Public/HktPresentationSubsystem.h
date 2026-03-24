@@ -9,15 +9,11 @@
 #include "HktPresentationState.h"
 // TODO: 전방선언 이슈
 #include "Renderers/HktActorRenderer.h"
-#include "Renderers/HktMassEntityRenderer.h"
-#include "Renderers/HktUIRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
 #include "HktPresentationSubsystem.generated.h"
 
 class IHktPlayerInteractionInterface;
 class FHktActorRenderer;
-class FHktMassEntityRenderer;
-class FHktUIRenderer;
 class FHktVFXRenderer;
 struct FHktRuntimeEvent;
 struct FHktVFXIntent;
@@ -68,8 +64,6 @@ private:
 	FDelegateHandle TickHandle;
 	FHktPresentationState State;
 	TUniquePtr<FHktActorRenderer> ActorRenderer;
-	TUniquePtr<FHktMassEntityRenderer> MassEntityRenderer;
-	TUniquePtr<FHktUIRenderer> UIRenderer;
 	TUniquePtr<FHktVFXRenderer> VFXRenderer;
 
 	IHktPlayerInteractionInterface* BoundInteraction = nullptr;

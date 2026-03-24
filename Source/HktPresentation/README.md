@@ -19,9 +19,8 @@ UHktPresentationSubsystem
     │   └─ ForEachDelta    → State.ApplyDelta()
     │
     └─ SyncRenderers()
-        ├─ FHktActorRenderer      (Unit, Building)
-        ├─ FHktMassEntityRenderer (Projectile — TODO)
-        └─ FHktUIRenderer         (UI — TODO)
+        ├─ FHktActorRenderer  (Unit, Building, Item)
+        └─ FHktVFXRenderer    (Niagara VFX)
 ```
 
 ## 핵심 구조
@@ -32,7 +31,7 @@ UHktPresentationSubsystem
 
 - **InitialSync** — 첫 동기화. `View.ForEachEntity()`로 전체 엔티티를 `State`에 추가.
 - **ProcessDiff** — 이후 프레임. Removed → Spawned → Delta 순으로 증분 적용.
-- **SyncRenderers** — 변경점 적용 후 세 Renderer에 `Sync(State)` 호출.
+- **SyncRenderers** — 변경점 적용 후 ActorRenderer와 VFXRenderer에 Sync 호출.
 
 ### 2. FHktWorldView (입력)
 
@@ -87,21 +86,26 @@ Location.Get();                           // 현재 값
 
 ### 6. Renderer
 
-`IHktPresentationRenderer::Sync(State)` 인터페이스를 구현한다.
-
-**FHktActorRenderer** (구현 완료):
+**FHktActorRenderer** — Actor 기반 엔티티 렌더링:
 - `SpawnedThisFrame` → 비동기 에셋 로드 후 AActor 스폰
 - `RemovedThisFrame` → Actor 제거
 - `DirtyThisFrame` → `THktVisualField::IsDirty()` 체크 후 Transform 업데이트
 - `ActorMap<EntityId, TWeakObjectPtr<AActor>>`로 관리
+
+**FHktVFXRenderer** — 이벤트 기반 VFX 재생:
+- Tag 기반 비동기 Niagara 스폰 (일회성 + 엔티티 부착)
+- Intent 기반 AssetBank 퍼지 매칭
 
 **RenderCategory 분류:**
 
 | Entity Tag | Category | Renderer |
 |---|---|---|
 | Entity.Character.*, Entity.NPC.*, Entity.Building.* | Actor | FHktActorRenderer |
-| Entity.Projectile.* | MassEntity | FHktMassEntityRenderer (TODO) |
+| Entity.Item.* | Actor | FHktActorRenderer |
+| Entity.Projectile.* | MassEntity | 별도 시스템 (미구현) |
 | 기타 | None | — |
+
+> MassEntity(투사체 등)는 별도 System에서, UI는 HudActor에서 각각 처리한다.
 
 ---
 
@@ -114,17 +118,15 @@ Source/HktPresentation/
 │   ├── HktPresentationSubsystem.h      # 메인 서브시스템
 │   ├── HktPresentationState.h          # State + EntityPresentation
 │   ├── HktPresentationViewModels.h     # 7개 ViewModel 그룹
-│   ├── HktVisualField.h               # 변경 감지 템플릿
-│   └── HktPresentationRenderer.h       # Renderer 인터페이스
+│   └── HktVisualField.h               # 변경 감지 템플릿
 ├── Private/
 │   ├── HktPresentationSubsystem.cpp
 │   ├── HktPresentationState.cpp
 │   ├── HktPresentationViewModels.cpp
 │   ├── HktPresentationModule.cpp
 │   ├── Renderers/
-│   │   ├── HktActorRenderer.h/cpp      # Actor 렌더러 (구현됨)
-│   │   ├── HktMassEntityRenderer.h/cpp # Mass 렌더러 (TODO)
-│   │   └── HktUIRenderer.h/cpp         # UI 렌더러 (TODO)
+│   │   ├── HktActorRenderer.h/cpp      # Actor 렌더러
+│   │   └── HktVFXRenderer.h/cpp        # VFX 렌더러
 │   └── DataAssets/
 │       └── HktActorVisualDataAsset.h   # 비주얼 에셋 정의
 ```
@@ -136,6 +138,6 @@ Source/HktPresentation/
 | **읽기 전용** | 시뮬레이션 로직 없음. HktCore 결과를 시각화만 담당 |
 | **제로 카피 뷰** | FHktWorldView는 포인터 참조만 사용 |
 | **Generation Counter** | THktVisualField로 별도 리셋 없는 dirty 추적 |
-| **Render Category 분리** | 엔티티 타입별로 적합한 Renderer 디스패치 |
+| **Render Category 분리** | 엔티티 타입별로 적합한 렌더링 경로 디스패치 |
 | **비동기 스폰** | 에셋 로드 완료 콜백으로 블로킹 없이 Actor 생성 |
 | **클라이언트 전용** | 서버 코드 없음 |
