@@ -45,6 +45,7 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// 내부 렌더러를 Sync 루프에 등록
 	Renderers.Add(ActorRenderer.Get());
 	Renderers.Add(MassEntityRenderer.Get());
+	Renderers.Add(VFXRenderer.Get());
 }
 
 void UHktPresentationSubsystem::Deinitialize()
@@ -57,7 +58,6 @@ void UHktPresentationSubsystem::Deinitialize()
 	}
 	Renderers.Empty();
 
-	if (VFXRenderer) VFXRenderer->Teardown();
 	VFXRenderer.Reset();
 	MassEntityRenderer.Reset();
 	ActorRenderer.Reset();
@@ -279,7 +279,6 @@ void UHktPresentationSubsystem::SyncRenderers()
 	{
 		if (R) R->Sync(State);
 	}
-	if (VFXRenderer) VFXRenderer->UpdateEntityVFXPositions(State);
 }
 
 AActor* UHktPresentationSubsystem::GetRenderedActor(FHktEntityId Id) const
