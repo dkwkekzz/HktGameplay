@@ -405,17 +405,20 @@ void AHktIngamePlayerController::Server_ReceiveRuntimeEvent_Implementation(const
 
 void AHktIngamePlayerController::RequestItemDrop(FHktEntityId ItemEntity)
 {
-    if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
+    if (!CachedIntentBuilder || ItemEntity == InvalidEntityId) return;
+
+    const FHktEntityId SubjectEntity = CachedIntentBuilder->GetSubjectEntityId();
+    if (SubjectEntity == InvalidEntityId) return;
 
     FHktEvent Event;
     Event.EventTag = HktGameplayTags::Story_Event_Item_Drop;
-    Event.SourceEntity = DefaultSubjectEntityId;
+    Event.SourceEntity = SubjectEntity;
     Event.TargetEntity = ItemEntity;
     Event.PlayerUid = GetPlayerUid();
     Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
-        FString::Printf(TEXT("RequestItemDrop Item=%d"), ItemEntity), DefaultSubjectEntityId);
+        FString::Printf(TEXT("RequestItemDrop Item=%d"), ItemEntity), SubjectEntity);
 }
 
 void AHktIngamePlayerController::ResolveDefaultSubject()
