@@ -4,8 +4,6 @@
 #include "IHktPlayerInteractionInterface.h"
 #include "HktRuntimeTypes.h"
 #include "Renderers/HktActorRenderer.h"
-#include "Renderers/HktMassEntityRenderer.h"
-#include "Renderers/HktUIRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
@@ -38,8 +36,6 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	ActorRenderer = MakeUnique<FHktActorRenderer>(GetLocalPlayer());
-	MassEntityRenderer = MakeUnique<FHktMassEntityRenderer>(GetLocalPlayer());
-	UIRenderer = MakeUnique<FHktUIRenderer>(GetLocalPlayer());
 	VFXRenderer = MakeUnique<FHktVFXRenderer>(GetLocalPlayer());
 }
 
@@ -49,8 +45,6 @@ void UHktPresentationSubsystem::Deinitialize()
 
 	if (VFXRenderer) VFXRenderer->Teardown();
 	VFXRenderer.Reset();
-	UIRenderer.Reset();
-	MassEntityRenderer.Reset();
 	ActorRenderer.Reset();
 	State.Clear();
 	
@@ -230,18 +224,14 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	}
 	else
 	{
-		if (ActorRenderer && ActorRenderer->NeedsTick())           ActorRenderer->Sync(State);
-		if (MassEntityRenderer && MassEntityRenderer->NeedsTick()) MassEntityRenderer->Sync(State);
-		if (UIRenderer && UIRenderer->NeedsTick())                 UIRenderer->Sync(State);
+		if (ActorRenderer && ActorRenderer->NeedsTick()) ActorRenderer->Sync(State);
 	}
 }
 
 void UHktPresentationSubsystem::SyncRenderers()
 {
-	if (ActorRenderer)      ActorRenderer->Sync(State);
-	if (MassEntityRenderer) MassEntityRenderer->Sync(State);
-	if (UIRenderer)         UIRenderer->Sync(State);
-	if (VFXRenderer)        VFXRenderer->UpdateEntityVFXPositions(State);
+	if (ActorRenderer) ActorRenderer->Sync(State);
+	if (VFXRenderer)   VFXRenderer->UpdateEntityVFXPositions(State);
 }
 
 AActor* UHktPresentationSubsystem::GetRenderedActor(FHktEntityId Id) const
