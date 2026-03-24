@@ -26,8 +26,8 @@
  * Submit 흐름:
  *   Rule이 IHktIntentBuilder::Submit() 호출
  *   → 내부에서 IntentEvent 생성, PendingSubmit에 저장
- *   → Actor(PlayerController)가 FHktSlotRequest / FHktMoveRequest 직접 전송
- *   → Server_ReceiveSlotRequest / Server_ReceiveMoveRequest RPC 발행
+ *   → Actor(PlayerController)가 FHktRuntimeEvent 직접 전송
+ *   → Server_ReceiveRuntimeEvent RPC 발행
  */
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktIntentBuilderComponent
@@ -55,9 +55,9 @@ public:
     virtual bool HasPendingSubmit() const override;
     virtual FHktEvent ConsumePendingSubmit() override;
 
-    virtual void SetPendingItemPickup(FHktEntityId InItemEntity) override;
-    virtual bool HasPendingItemPickup() const override;
-    virtual FHktEntityId ConsumePendingItemPickup() override;
+    virtual void SetPendingRuntimeEvent(const FHktEvent& InEvent) override;
+    virtual bool HasPendingRuntimeEvent() const override;
+    virtual FHktEvent ConsumePendingRuntimeEvent() override;
 
     // === 추가 API ===
 
@@ -75,7 +75,7 @@ private:
     bool bHasPendingSubmit = false;
     FHktRuntimeEvent PendingSubmitEvent;
 
-    // Item Pickup (Rule이 설정, Actor가 소비)
-    bool bHasPendingItemPickup = false;
-    FHktEntityId PendingItemPickupEntity = InvalidEntityId;
+    // RuntimeEvent (Rule이 설정, Actor가 소비하여 RPC 전송)
+    bool bHasPendingRuntimeEvent = false;
+    FHktEvent PendingRuntimeEvent;
 };

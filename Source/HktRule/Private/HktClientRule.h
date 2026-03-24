@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "HktClientRuleInterfaces.h"
+#include "HktServerRuleInterfaces.h"
 
 class HKTRULE_API FHktDefaultClientRule : public IHktClientRule
 {
@@ -14,7 +15,8 @@ public:
 		IHktProxySimulator*      InSimulator,
 		IHktIntentBuilder*       InBuilder,
 		IHktUnitSelectionPolicy* InPolicy,
-		IHktCommandContainer*    InContainer) override;
+		IHktCommandContainer*    InContainer,
+		IHktWorldPlayer*         InWorldPlayer = nullptr) override;
 
 	virtual void OnUserEvent_LoginButtonClick() override;
 	virtual void OnUserEvent_SubjectInputAction() override;
@@ -27,10 +29,17 @@ public:
 
 private:
 	// 바인딩된 컨텍스트
-	IHktProxySimulator*      CachedSimulator  = nullptr;
-	IHktIntentBuilder*       CachedBuilder    = nullptr;
-	IHktUnitSelectionPolicy* CachedPolicy     = nullptr;
-	IHktCommandContainer*    CachedContainer  = nullptr;
+	IHktProxySimulator*      CachedSimulator   = nullptr;
+	IHktIntentBuilder*       CachedBuilder     = nullptr;
+	IHktUnitSelectionPolicy* CachedPolicy      = nullptr;
+	IHktCommandContainer*    CachedContainer   = nullptr;
+	IHktWorldPlayer*         CachedWorldPlayer = nullptr;
 
 	TArray<FHktSimulationEvent> PendingBatches;
+
+	/** Subject 엔티티가 내 소유인지 확인 */
+	bool IsOwnedByMe(FHktEntityId Entity) const;
+
+	/** 슬롯 없을 때 타겟 유형에 따른 기본 액션 결정 (하드코딩, 추후 설정 가능) */
+	FHktEvent BuildDefaultAction(FHktEntityId TargetEntity, FVector TargetLocation) const;
 };

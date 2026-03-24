@@ -37,13 +37,13 @@ public:
     UFUNCTION(Client, Reliable)
     void Client_ReceiveFrameBatch(const FHktRuntimeBatch& Batch);
 
-    // === C2S RPC ===
-    UFUNCTION(Server, Reliable, WithValidation)
-    void Server_ReceiveSlotRequest(const FHktRuntimeSlotRequest& Request);
+    // === C2S RPC (통일) ===
 
+    /** Subject+Target 상호작용 통합 요청 (이동, 공격, 픽업, 스킬 등) */
     UFUNCTION(Server, Reliable, WithValidation)
-    void Server_ReceiveMoveRequest(const FHktRuntimeMoveRequest& Request);
+    void Server_ReceiveRuntimeEvent(const FHktRuntimeEvent& Event);
 
+    /** UI 직접 아이템 조작 (activate, deactivate, drop — 인벤토리 패널 전용) */
     UFUNCTION(Server, Reliable, WithValidation)
     void Server_ReceiveItemRequest(const FHktRuntimeItemRequest& Request);
 
@@ -51,10 +51,7 @@ public:
     UFUNCTION(Server, Reliable, WithValidation)
     void Server_ReceiveBagRequest(const FHktRuntimeBagRequest& Request);
 
-    // === 아이템 상호작용 (UI/입력에서 호출) ===
-
-    /** 주변 아이템 줍기 (TargetEntity = 바닥 아이템) */
-    void RequestItemPickup(FHktEntityId ItemEntity);
+    // === 아이템 상호작용 (UI에서 호출) ===
 
     /** 인벤토리 아이템 활성화 (Equipment 슬롯으로 이동) */
     void RequestItemActivate(FHktEntityId ItemEntity, int32 ActionSlot);
@@ -81,7 +78,7 @@ public:
 
     // === 델리게이트 ===
     virtual FOnHktTargetChanged& OnTargetChanged() override { return TargetChangedDelegate; }
-    FOnHktCommandChanged& OnCommandChanged() { return CommandChangedDelegate; }
+    virtual FOnHktCommandChanged& OnCommandChanged() override { return CommandChangedDelegate; }
 
     // === IHktPlayerInteractionInterface ===
     virtual void ExecuteCommand(UObject* CommandData) override;

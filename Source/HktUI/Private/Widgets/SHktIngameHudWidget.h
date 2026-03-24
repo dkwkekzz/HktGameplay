@@ -53,8 +53,19 @@ private:
 	TSharedPtr<SVerticalBox> EquipmentListBox;
 	TSharedPtr<SVerticalBox> SkillListBox;
 
+	// --- 상단 상태 바 ---
+	TSharedPtr<STextBlock> SubjectText;
+	TSharedPtr<STextBlock> CommandText;
+	TSharedPtr<STextBlock> TargetText;
+	void UpdateSubjectDisplay(FHktEntityId EntityId);
+	void UpdateTargetDisplay(FHktEntityId EntityId);
+	void UpdateCommandDisplay(FGameplayTag EventTag);
+
 	TWeakObjectPtr<APlayerController> CachedPC;
 	FDelegateHandle SlotBindingHandle;
+	FDelegateHandle SubjectChangedHandle;
+	FDelegateHandle TargetChangedHandle;
+	FDelegateHandle CommandChangedHandle;
 
 	int32 ActivePanel = -1; // -1 = none
 };
@@ -169,6 +180,80 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 	[
 		SNew(SOverlay)
 
+		// 상단 상태 바 (Subject / Command / Target)
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Top)
+		.Padding(0.f, 8.f, 0.f, 0.f)
+		[
+			SNew(SBorder)
+			.Padding(FMargin(12.f, 6.f))
+			.BorderBackgroundColor(FLinearColor(0.05f, 0.05f, 0.1f, 0.8f))
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.f, 0.f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(TEXT("Subject: ")))
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+						.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
+					]
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SAssignNew(SubjectText, STextBlock)
+						.Text(FText::FromString(TEXT("None")))
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
+						.ColorAndOpacity(FLinearColor(0.2f, 0.8f, 1.f))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(16.f, 0.f, 4.f, 0.f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(TEXT("Command: ")))
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+						.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
+					]
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SAssignNew(CommandText, STextBlock)
+						.Text(FText::FromString(TEXT("None")))
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
+						.ColorAndOpacity(FLinearColor(1.f, 0.8f, 0.3f))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(16.f, 0.f, 4.f, 0.f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(TEXT("Target: ")))
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+						.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
+					]
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SAssignNew(TargetText, STextBlock)
+						.Text(FText::FromString(TEXT("None")))
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
+						.ColorAndOpacity(FLinearColor(1.f, 0.4f, 0.4f))
+					]
+				]
+			]
+		]
+
 		// 패널들 (하단 바 위)
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Left)
@@ -248,8 +333,114 @@ inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* In
 				RefreshEquipmentPanel();
 				RefreshSkillsPanel();
 			});
+
+			SubjectChangedHandle = Interaction->OnSubjectChanged().AddLambda([this](FHktEntityId EntityId)
+			{
+				UpdateSubjectDisplay(EntityId);
+			});
+
+			TargetChangedHandle = Interaction->OnTargetChanged().AddLambda([this](FHktEntityId EntityId)
+			{
+				UpdateTargetDisplay(EntityId);
+			});
+
+			CommandChangedHandle = Interaction->OnCommandChanged().AddLambda([this](FGameplayTag EventTag)
+			{
+				UpdateCommandDisplay(EventTag);
+			});
+
+			Interaction->OnIntentSubmitted().AddLambda([this](const FHktRuntimeEvent& Event)
+			{
+				if (CommandText.IsValid())
+				{
+					CommandText->SetText(FText::FromString(TEXT("None")));
+				}
+				if (TargetText.IsValid())
+				{
+					TargetText->SetText(FText::FromString(TEXT("None")));
+				}
+			});
 		}
 	}
+}
+
+// ============================================================================
+// 상태 바 업데이트
+// ============================================================================
+
+inline void SHktIngameHudWidget::UpdateSubjectDisplay(FHktEntityId EntityId)
+{
+	if (!SubjectText.IsValid()) return;
+
+	if (EntityId == InvalidEntityId)
+	{
+		SubjectText->SetText(FText::FromString(TEXT("None")));
+		return;
+	}
+
+	APlayerController* PC = CachedPC.Get();
+	if (!PC) return;
+
+	IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC);
+	if (!Interaction) return;
+
+	const FHktWorldState* WS = nullptr;
+	if (Interaction->GetWorldState(WS) && WS && WS->IsValidEntity(EntityId))
+	{
+		SubjectText->SetText(FText::FromString(
+			FString::Printf(TEXT("%s (#%d)"), *GetEntityDisplayName(WS, EntityId), EntityId)));
+	}
+	else
+	{
+		SubjectText->SetText(FText::FromString(FString::Printf(TEXT("#%d"), EntityId)));
+	}
+}
+
+inline void SHktIngameHudWidget::UpdateTargetDisplay(FHktEntityId EntityId)
+{
+	if (!TargetText.IsValid()) return;
+
+	if (EntityId == InvalidEntityId)
+	{
+		TargetText->SetText(FText::FromString(TEXT("None")));
+		return;
+	}
+
+	APlayerController* PC = CachedPC.Get();
+	if (!PC) return;
+
+	IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC);
+	if (!Interaction) return;
+
+	const FHktWorldState* WS = nullptr;
+	if (Interaction->GetWorldState(WS) && WS && WS->IsValidEntity(EntityId))
+	{
+		TargetText->SetText(FText::FromString(
+			FString::Printf(TEXT("%s (#%d)"), *GetEntityDisplayName(WS, EntityId), EntityId)));
+	}
+	else
+	{
+		TargetText->SetText(FText::FromString(FString::Printf(TEXT("#%d"), EntityId)));
+	}
+}
+
+inline void SHktIngameHudWidget::UpdateCommandDisplay(FGameplayTag EventTag)
+{
+	if (!CommandText.IsValid()) return;
+
+	if (!EventTag.IsValid())
+	{
+		CommandText->SetText(FText::FromString(TEXT("None")));
+		return;
+	}
+
+	FString TagStr = EventTag.ToString();
+	int32 DotIdx;
+	if (TagStr.FindLastChar(TEXT('.'), DotIdx))
+	{
+		TagStr = TagStr.Mid(DotIdx + 1);
+	}
+	CommandText->SetText(FText::FromString(TagStr));
 }
 
 // ============================================================================

@@ -24,8 +24,7 @@ class IHktClientRule;
  *   PostLogin()    → Rule->OnEvent_GameModePostLogin()
  *   Logout()       → Rule->OnEvent_GameModeLogout()
  *   Tick()         → Rule->OnEvent_GameModeTick() → FHktEventGameModeTickResult
- *   ReceiveSlotRequest  → Rule->OnReceived_SlotRequest()
- *   ReceiveMoveRequest  → Rule->OnReceived_MoveRequest()
+ *   ReceiveRuntimeEvent → Rule->OnReceived_RuntimeEvent()
  *   ReceiveItemRequest  → Rule->OnReceived_ItemRequest()
  */
 UCLASS()
@@ -36,13 +35,10 @@ class HKTRUNTIME_API AHktGameMode : public AGameModeBase
 public:
     AHktGameMode();
 
-    /** 슬롯 커맨드 요청을 Rule에 전달 (PlayerController에서 호출) */
-    void PushSlotRequest(int64 PlayerUid, const FHktSlotRequest& Request);
+    /** 통합 런타임 이벤트를 Rule에 전달 (PlayerController에서 호출) */
+    void PushRuntimeEvent(int64 PlayerUid, const FHktEvent& Event);
 
-    /** 이동 요청을 Rule에 전달 (PlayerController에서 호출) */
-    void PushMoveRequest(int64 PlayerUid, const FHktMoveRequest& Request);
-
-    /** 아이템 상호작용 요청을 Rule에 전달 (PlayerController에서 호출) */
+    /** 아이템 상호작용 요청을 Rule에 전달 (UI 패널에서 직접 호출) */
     void PushItemRequest(int64 PlayerUid, const FHktItemRequest& Request);
 
     /** 가방 요청을 Rule에 전달 (PlayerController에서 호출) */
