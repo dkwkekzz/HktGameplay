@@ -46,6 +46,9 @@ public:
 	void RegisterRenderer(IHktPresentationRenderer* InRenderer);
 	void UnregisterRenderer(IHktPresentationRenderer* InRenderer);
 
+	/** 카메라 뷰가 변경되었음을 알림 (카메라 폰에서 호출). NeedsCameraSync 렌더러만 Sync. */
+	void NotifyCameraViewChanged();
+
 	/** 월드 위치에 VFX 재생 (클라이언트 즉시, 서버 무관) */
 	void PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location);
 
@@ -68,14 +71,7 @@ private:
 	/** State 변경 시 전체 Sync, 아니면 NeedsTick인 렌더러만 Sync */
 	void OnTick(float DeltaSeconds);
 
-	/** 카메라 뷰 변경 시 NeedsCameraSync 렌더러만 Sync */
-	void OnCameraViewChanged();
-
-	void BindCameraDelegate();
-	void UnbindCameraDelegate();
-
 	FDelegateHandle TickHandle;
-	FDelegateHandle CameraViewChangedHandle;
 	FHktPresentationState State;
 
 	/** IHktPresentationRenderer::Sync 루프에 참여하는 모든 렌더러 */

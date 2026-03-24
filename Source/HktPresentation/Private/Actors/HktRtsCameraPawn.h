@@ -8,8 +8,6 @@
 #include "GameFramework/SpectatorPawn.h"
 #include "HktRtsCameraPawn.generated.h"
 
-DECLARE_MULTICAST_DELEGATE(FHktOnCameraViewChanged);
-
 class USpringArmComponent;
 class UCameraComponent;
 class UHktCameraModeBase;
@@ -35,9 +33,6 @@ public:
 	/** 카메라 모드 전환 */
 	void SetCameraMode(EHktCameraMode NewMode);
 	EHktCameraMode GetCameraMode() const { return ActiveModeType; }
-
-	/** 카메라 뷰(위치/회전/줌)가 변경되었을 때 브로드캐스트 */
-	FHktOnCameraViewChanged& OnCameraViewChanged() { return CameraViewChangedDelegate; }
 
 	// === 모드에서 사용할 접근자 ===
 	USpringArmComponent* GetSpringArm() const { return SpringArm; }
@@ -91,8 +86,6 @@ private:
 	/** PlayerUid 미확정 시 Subject를 보류하고, Uid 확정 후 재평가 */
 	FHktEntityId PendingSubjectEntityId = InvalidEntityId;
 	FHktEntityId CurrentSubjectEntityId = InvalidEntityId;
-
-	FHktOnCameraViewChanged CameraViewChangedDelegate;
 
 	/** 카메라 뷰 변경 감지용 캐시 */
 	FVector CachedCameraLocation = FVector::ZeroVector;

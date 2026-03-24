@@ -6,7 +6,6 @@
 #include "Renderers/HktActorRenderer.h"
 #include "Renderers/HktMassEntityRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
-#include "Actors/HktRtsCameraPawn.h"
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
@@ -110,7 +109,6 @@ void UHktPresentationSubsystem::BindInteraction(IHktPlayerInteractionInterface* 
 			}
 		}
 
-		BindCameraDelegate();
 	}
 }
 
@@ -139,8 +137,6 @@ void UHktPresentationSubsystem::UnbindInteraction()
 			TargetChangedHandle.Reset();
 		}
 	}
-	UnbindCameraDelegate();
-
 	if (TickHandle.IsValid())
 	{
 		if (ULocalPlayer* LP = GetLocalPlayer())
@@ -254,7 +250,7 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	}
 }
 
-void UHktPresentationSubsystem::OnCameraViewChanged()
+void UHktPresentationSubsystem::NotifyCameraViewChanged()
 {
 	if (!bInitialSyncDone) return;
 
@@ -264,45 +260,6 @@ void UHktPresentationSubsystem::OnCameraViewChanged()
 		{
 			R->Sync(State);
 		}
-	}
-}
-
-void UHktPresentationSubsystem::BindCameraDelegate()
-{
-	UnbindCameraDelegate();
-
-	ULocalPlayer* LP = GetLocalPlayer();
-	if (!LP) return;
-
-	APlayerController* PC = LP->GetPlayerController(LP->GetWorld());
-	if (!PC) return;
-
-	AHktRtsCameraPawn* CameraPawn = Cast<AHktRtsCameraPawn>(PC->GetPawn());
-	if (CameraPawn)
-	{
-		CameraViewChangedHandle = CameraPawn->OnCameraViewChanged().AddUObject(
-			this, &UHktPresentationSubsystem::OnCameraViewChanged);
-	}
-}
-
-void UHktPresentationSubsystem::UnbindCameraDelegate()
-{
-	if (CameraViewChangedHandle.IsValid())
-	{
-		ULocalPlayer* LP = GetLocalPlayer();
-		if (LP)
-		{
-			APlayerController* PC = LP->GetPlayerController(LP->GetWorld());
-			if (PC)
-			{
-				AHktRtsCameraPawn* CameraPawn = Cast<AHktRtsCameraPawn>(PC->GetPawn());
-				if (CameraPawn)
-				{
-					CameraPawn->OnCameraViewChanged().Remove(CameraViewChangedHandle);
-				}
-			}
-		}
-		CameraViewChangedHandle.Reset();
 	}
 }
 

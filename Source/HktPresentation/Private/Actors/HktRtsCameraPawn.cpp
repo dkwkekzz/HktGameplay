@@ -117,7 +117,7 @@ void AHktRtsCameraPawn::Tick(float DeltaTime)
 		ActiveMode->TickMode(this, DeltaTime);
 	}
 
-	// 카메라 뷰 변경 감지 → 델리게이트 브로드캐스트
+	// 카메라 뷰 변경 감지 → PresentationSubsystem에 직접 통지
 	const FVector NewLocation = GetActorLocation();
 	const FRotator NewRotation = GetActorRotation();
 	const float NewArmLength = SpringArm ? SpringArm->TargetArmLength : 0.f;
@@ -129,7 +129,14 @@ void AHktRtsCameraPawn::Tick(float DeltaTime)
 		CachedCameraLocation = NewLocation;
 		CachedCameraRotation = NewRotation;
 		CachedArmLength = NewArmLength;
-		CameraViewChangedDelegate.Broadcast();
+
+		if (APlayerController* PC = BoundPlayerController.Get())
+		{
+			if (UHktPresentationSubsystem* Sub = UHktPresentationSubsystem::Get(PC))
+			{
+				Sub->NotifyCameraViewChanged();
+			}
+		}
 	}
 }
 
