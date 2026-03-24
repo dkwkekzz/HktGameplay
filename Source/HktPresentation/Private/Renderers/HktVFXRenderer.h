@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "HktCoreDefs.h"
+#include "HktPresentationRenderer.h"
 
 class ULocalPlayer;
 class UHktVFXAssetBank;
@@ -22,10 +23,14 @@ enum class EHktVFXElement : uint8;
  * - Tag 기반 (PlayVFXAtLocation): TagDataAsset → UHktVFXVisualDataAsset → NiagaraSystem 비동기 로드
  * - Intent 기반 (PlayVFXWithIntent): UHktVFXAssetBank → 퍼지 매칭
  */
-class FHktVFXRenderer
+class FHktVFXRenderer : public IHktPresentationRenderer
 {
 public:
 	explicit FHktVFXRenderer(ULocalPlayer* InLP);
+
+	// --- IHktPresentationRenderer ---
+	virtual void Sync(const FHktPresentationState& State) override;
+	virtual void Teardown() override;
 
 	/** AssetBank 설정 (에디터 DataAsset) */
 	void SetAssetBank(UHktVFXAssetBank* InBank);
@@ -44,11 +49,6 @@ public:
 
 	/** 엔터티에 부착된 VFX 제거 */
 	void DetachVFXFromEntity(FGameplayTag VFXTag, FHktEntityId EntityId);
-
-	/** 지속형 VFX 위치를 PresentationState 기반으로 업데이트 */
-	void UpdateEntityVFXPositions(const FHktPresentationState& State);
-
-	void Teardown();
 
 private:
 	/** TagDataAsset 기반 비동기 NiagaraSystem 로드 후 콜백 실행 */

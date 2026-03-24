@@ -14,4 +14,7 @@ public:
 
 	/** 비동기 작업 완료 등으로 추가 Sync가 필요한지 여부 */
 	virtual bool NeedsTick() const { return false; }
+
+	/** 카메라 변경 시 재동기화가 필요한 렌더러인지 여부 (스크린 투영 등) */
+	virtual bool NeedsCameraSync() const { return false; }
 };

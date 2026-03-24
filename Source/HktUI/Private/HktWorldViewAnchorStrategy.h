@@ -4,15 +4,13 @@
 
 #include "HktUIAnchorStrategy.h"
 #include "HktCoreDefs.h"
-#include "HktWorldState.h"
-#include "HktCoreProperties.h"
 #include "HktWorldViewAnchorStrategy.generated.h"
 
 class APlayerController;
 
 /**
- * FHktWorldState의 엔티티 PosX/Y/Z를 읽어 월드→스크린 투영하는 전략.
- * AActor가 없는 순수 시뮬레이션 엔티티의 위치를 추적합니다.
+ * 엔티티의 월드 위치를 스크린 좌표로 투영하는 전략.
+ * PresentationState의 Location으로부터 SetWorldPosition()을 통해 위치를 갱신합니다.
  */
 UCLASS(BlueprintType)
 class HKTUI_API UHktWorldViewAnchorStrategy : public UHktUIAnchorStrategy
@@ -26,9 +24,11 @@ public:
 		WorldOffset = InWorldOffset;
 	}
 
-	void SetWorldState(const FHktWorldState* InWorldState)
+	/** PresentationState의 Entity Location으로 월드 위치를 갱신 */
+	void SetWorldPosition(const FVector& InWorldPosition)
 	{
-		WorldStatePtr = InWorldState;
+		CachedWorldPosition = InWorldPosition;
+		bHasWorldPosition = true;
 	}
 
 	FHktEntityId GetTargetEntityId() const { return TargetEntityId; }
@@ -37,6 +37,7 @@ public:
 
 private:
 	FHktEntityId TargetEntityId = InvalidEntityId;
-	const FHktWorldState* WorldStatePtr = nullptr;
+	FVector CachedWorldPosition = FVector::ZeroVector;
 	FVector WorldOffset = FVector(0.f, 0.f, 100.f);
+	bool bHasWorldPosition = false;
 };

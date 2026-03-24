@@ -8,11 +8,11 @@
 #include "Widgets/SHktIngameHudWidget.h"
 #include "Widgets/SHktEntityHudWidget.h"
 #include "HktUITags.h"
-#include "HktCoreProperties.h"
 #include "HktUILog.h"
 #include "HktCoreEventLog.h"
 #include "HktUIHelpers.h"
 #include "HktAssetSubsystem.h"
+#include "HktPresentationSubsystem.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "GameFramework/PlayerController.h"
 
@@ -27,9 +27,6 @@ void AHktIngameHUD::BeginPlay()
 
 	APlayerController* PC = GetOwningPlayerController();
 	if (!PC) return;
-
-	if (IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC))
-		WorldViewDelegateHandle = Interaction->OnWorldViewUpdated().AddUObject(this, &AHktIngameHUD::OnWorldViewUpdated);
 
 	// Entity HUD DataAsset 비동기 로드 및 캐싱
 	if (UHktAssetSubsystem* AssetSubsystem = UHktAssetSubsystem::Get(GetWorld()))
@@ -50,114 +47,90 @@ void AHktIngameHUD::BeginPlay()
 				IngameWidget->SetOwningPlayerController(PC);
 		}
 	});
+
+	// PresentationSubsystem에 UI 렌더러로 등록
+	if (UHktPresentationSubsystem* PresentationSubsystem = UHktPresentationSubsystem::Get(PC))
+	{
+		PresentationSubsystem->RegisterRenderer(this);
+	}
 }
 
 void AHktIngameHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	UnbindWorldViewDelegate();
+	// PresentationSubsystem에서 해제
+	if (APlayerController* PC = GetOwningPlayerController())
+	{
+		if (UHktPresentationSubsystem* PresentationSubsystem = UHktPresentationSubsystem::Get(PC))
+		{
+			PresentationSubsystem->UnregisterRenderer(this);
+		}
+	}
 
 	TrackedEntities.Empty();
 	CachedEntityHudAsset = nullptr;
-	CachedWorldState = nullptr;
-	bWorldStateValid = false;
 	bInitialSyncDone = false;
 
 	Super::EndPlay(EndPlayReason);
 }
 
-void AHktIngameHUD::UnbindWorldViewDelegate()
+// --- IHktPresentationRenderer ---
+
+void AHktIngameHUD::Sync(const FHktPresentationState& State)
 {
-	if (WorldViewDelegateHandle.IsValid())
-	{
-		if (IHktPlayerInteractionInterface* Interaction = GetPlayerInteraction())
-		{
-			Interaction->OnWorldViewUpdated().Remove(WorldViewDelegateHandle);
-		}
-		WorldViewDelegateHandle.Reset();
-	}
-}
-
-void AHktIngameHUD::OnWorldViewUpdated(const FHktWorldView& View)
-{
-	if (View.bIsInitialSync)
-	{
-		HKT_EVENT_LOG(HktLogTags::UI, FString::Printf(TEXT("HUD: InitialSync Frame=%lld Entities=%d"),
-			View.FrameNumber, View.WorldState ? View.WorldState->GetEntityCount() : 0));
-	}
-	else if (View.SpawnedEntities && View.SpawnedEntities->Num() > 0)
-	{
-		HKT_EVENT_LOG(HktLogTags::UI, FString::Printf(TEXT("HUD: Spawned %d entities Frame=%lld"),
-			View.SpawnedEntities->Num(), View.FrameNumber));
-	}
-
-	RefreshWorldState();
-	if (!bWorldStateValid) return;
-
-	UpdateEntityUI();
+	SyncEntityElements(State);
+	UpdateEntityProperties(State);
 	UpdateAllElements();
 }
 
-void AHktIngameHUD::RefreshWorldState()
+void AHktIngameHUD::Teardown()
 {
-	IHktPlayerInteractionInterface* Interaction = GetPlayerInteraction();
-	if (!Interaction)
+	TrackedEntities.Empty();
+	bInitialSyncDone = false;
+}
+
+// --- Entity 동기화 ---
+
+void AHktIngameHUD::SyncEntityElements(const FHktPresentationState& State)
+{
+	if (!bInitialSyncDone)
 	{
-		bWorldStateValid = false;
-		CachedWorldState = nullptr;
+		// 초기 동기화: PresentationState의 모든 유효 엔티티에 대해 위젯 생성
+		State.ForEachEntity([this, &State](const FHktEntityPresentation& Entity)
+		{
+			if (Entity.EntityId == InvalidEntityId) return;
+			TrackedEntities.Add(Entity.EntityId);
+			CreateEntityElement(Entity.EntityId, State);
+		});
+		bInitialSyncDone = true;
+
+		HKT_EVENT_LOG(HktLogTags::UI, FString::Printf(TEXT("HUD: InitialSync via Presentation, Entities=%d"),
+			TrackedEntities.Num()));
 		return;
 	}
 
-	const FHktWorldState* OutState = nullptr;
-	bWorldStateValid = Interaction->GetWorldState(OutState);
-	CachedWorldState = OutState;
-}
-
-void AHktIngameHUD::UpdateEntityUI()
-{
-	if (!bWorldStateValid || !CachedWorldState) return;
-
-	SyncEntityElements();
-	UpdateEntityProperties();
-}
-
-void AHktIngameHUD::SyncEntityElements()
-{
-	if (!CachedWorldState) return;
-
-	if (!bInitialSyncDone)
+	// 신규 엔티티 추가
+	for (FHktEntityId Id : State.SpawnedThisFrame)
 	{
-		CachedWorldState->ForEachEntity([this](FHktEntityId EntityId, int32 /*Slot*/)
+		if (Id == InvalidEntityId) continue;
+		if (!TrackedEntities.Contains(Id))
 		{
-			if (EntityId == InvalidEntityId) return;
-			TrackedEntities.Add(EntityId);
-			CreateEntityElement(EntityId);
-		});
-		bInitialSyncDone = true;
+			TrackedEntities.Add(Id);
+			CreateEntityElement(Id, State);
+		}
 	}
-	else
-	{
-		CachedWorldState->ForEachEntity([this](FHktEntityId EntityId, int32 /*Slot*/)
-		{
-			if (EntityId == InvalidEntityId) return;
-			if (!TrackedEntities.Contains(EntityId))
-			{
-				TrackedEntities.Add(EntityId);
-				CreateEntityElement(EntityId);
-			}
-		});
 
-		for (auto It = TrackedEntities.CreateIterator(); It; ++It)
+	// 제거된 엔티티 정리
+	for (FHktEntityId Id : State.RemovedThisFrame)
+	{
+		if (TrackedEntities.Contains(Id))
 		{
-			if (!CachedWorldState->IsValidEntity(*It))
-			{
-				RemoveEntityElement(*It);
-				It.RemoveCurrent();
-			}
+			RemoveEntityElement(Id);
+			TrackedEntities.Remove(Id);
 		}
 	}
 }
 
-void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId)
+void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId, const FHktPresentationState& State)
 {
 	UHktUIElement* Element = GetOrAddEntityElement(EntityId);
 	if (!Element || Element->View.IsValid()) return;
@@ -181,7 +154,13 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId)
 	}
 
 	Strategy->SetTargetEntity(EntityId, EntityHudOffset);
-	Strategy->SetWorldState(CachedWorldState);
+
+	// PresentationState에서 엔티티 위치 설정
+	const FHktEntityPresentation* Entity = State.Get(EntityId);
+	if (Entity)
+	{
+		Strategy->SetWorldPosition(Entity->Location.Get());
+	}
 
 	Element->InitializeElement(View, Strategy);
 	AddElementToCanvas(Element);
@@ -190,54 +169,59 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId)
 	TSharedPtr<SHktEntityHudWidget> EntityWidget = StaticCastSharedRef<SHktEntityHudWidget>(View->GetSlateWidget());
 	if (!EntityWidget.IsValid()) return;
 
-	int32 Health = CachedWorldState->GetProperty(EntityId, PropertyId::Health);
-	int32 MaxHealth = CachedWorldState->GetProperty(EntityId, PropertyId::MaxHealth);
-	int64 OwnerUid = CachedWorldState->GetOwnerUid(EntityId);
-	int32 Team = CachedWorldState->GetProperty(EntityId, PropertyId::Team);
-
 	EntityWidget->SetEntityId(EntityId);
-	EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%lld"), OwnerUid) : TEXT("-"));
-	EntityWidget->SetHealthPercent(MaxHealth > 0 ? static_cast<float>(Health) / MaxHealth : 1.f);
 
-	static const FLinearColor TeamColors[] = {
-		FLinearColor::White,
-		FLinearColor(0.3f, 0.6f, 1.f),
-		FLinearColor(1.f, 0.3f, 0.3f),
-		FLinearColor(0.3f, 1.f, 0.3f),
-		FLinearColor(1.f, 1.f, 0.3f)
-	};
-	EntityWidget->SetTeamColor(TeamColors[FMath::Clamp(Team, 0, 4)]);
+	if (Entity)
+	{
+		float Health = Entity->Health.Get();
+		float MaxHealth = Entity->MaxHealth.Get();
+		int64 OwnerUid = Entity->OwnedPlayerUid.Get();
+		int32 Team = Entity->Team.Get();
+
+		EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%lld"), OwnerUid) : TEXT("-"));
+		EntityWidget->SetHealthPercent(MaxHealth > 0.f ? Health / MaxHealth : 1.f);
+
+		static const FLinearColor TeamColors[] = {
+			FLinearColor::White,
+			FLinearColor(0.3f, 0.6f, 1.f),
+			FLinearColor(1.f, 0.3f, 0.3f),
+			FLinearColor(0.3f, 1.f, 0.3f),
+			FLinearColor(1.f, 1.f, 0.3f)
+		};
+		EntityWidget->SetTeamColor(TeamColors[FMath::Clamp(Team, 0, 4)]);
+	}
 }
 
-void AHktIngameHUD::UpdateEntityProperties()
+void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 {
-	if (!CachedWorldState) return;
-
 	for (FHktEntityId EntityId : TrackedEntities)
 	{
+		const FHktEntityPresentation* Entity = State.Get(EntityId);
+		if (!Entity) continue;
+
+		// 앵커 전략에 최신 위치 반영
 		UHktUIElement* Element = FindEntityElement(EntityId);
 		if (!Element) continue;
 
 		UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Element->AnchorStrategy);
 		if (Strategy)
-			Strategy->SetWorldState(CachedWorldState);
-	}
+		{
+			Strategy->SetWorldPosition(Entity->Location.Get());
+		}
 
-	for (FHktEntityId EntityId : TrackedEntities)
-	{
-		UHktUIElement* Element = FindEntityElement(EntityId);
-		if (!Element || !Element->View.IsValid()) continue;
+		// 위젯 프로퍼티 갱신
+		if (!Element->View.IsValid()) continue;
 
 		TSharedRef<SWidget> SlateWidget = Element->View->GetSlateWidget();
 		TSharedPtr<SHktEntityHudWidget> EntityWidget = StaticCastSharedRef<SHktEntityHudWidget>(SlateWidget);
 		if (!EntityWidget.IsValid()) continue;
 
-		int32 Health = CachedWorldState->GetProperty(EntityId, PropertyId::Health);
-		int32 MaxHealth = CachedWorldState->GetProperty(EntityId, PropertyId::MaxHealth);
-		int64 OwnerUid = CachedWorldState->GetOwnerUid(EntityId);
-		int32 Team = CachedWorldState->GetProperty(EntityId, PropertyId::Team);
+		float Health = Entity->Health.Get();
+		float MaxHealth = Entity->MaxHealth.Get();
+		int64 OwnerUid = Entity->OwnedPlayerUid.Get();
+		int32 Team = Entity->Team.Get();
 
-		EntityWidget->SetHealthPercent(MaxHealth > 0 ? static_cast<float>(Health) / MaxHealth : 0.f);
+		EntityWidget->SetHealthPercent(MaxHealth > 0.f ? Health / MaxHealth : 0.f);
 		EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%lld"), OwnerUid) : TEXT("-"));
 
 		static const FLinearColor TeamColors[] = {

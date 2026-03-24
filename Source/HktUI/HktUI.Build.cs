@@ -29,7 +29,8 @@ public class HktUI : ModuleRules
 				"MediaAssets",
 				"HktCore",
 				"HktRuntime",
-				"HktAsset"
+				"HktAsset",
+				"HktPresentation"
 			}
 		);
 

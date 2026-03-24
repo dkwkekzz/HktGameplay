@@ -87,6 +87,11 @@ private:
 	FHktEntityId PendingSubjectEntityId = InvalidEntityId;
 	FHktEntityId CurrentSubjectEntityId = InvalidEntityId;
 
+	/** 카메라 뷰 변경 감지용 캐시 */
+	FVector CachedCameraLocation = FVector::ZeroVector;
+	FRotator CachedCameraRotation = FRotator::ZeroRotator;
+	float CachedArmLength = 0.f;
+
 	FDelegateHandle WheelInputHandle;
 	FDelegateHandle SubjectChangedHandle;
 	TWeakObjectPtr<class APlayerController> BoundPlayerController;

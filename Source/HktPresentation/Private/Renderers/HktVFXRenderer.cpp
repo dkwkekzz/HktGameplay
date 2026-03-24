@@ -285,7 +285,7 @@ void FHktVFXRenderer::DetachVFXFromEntity(FGameplayTag VFXTag, FHktEntityId Enti
 	}
 }
 
-void FHktVFXRenderer::UpdateEntityVFXPositions(const FHktPresentationState& State)
+void FHktVFXRenderer::Sync(const FHktPresentationState& State)
 {
 	for (auto It = EntityVFXMap.CreateIterator(); It; ++It)
 	{

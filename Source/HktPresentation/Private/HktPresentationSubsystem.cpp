@@ -5,13 +5,14 @@
 #include "HktRuntimeTypes.h"
 #include "Renderers/HktActorRenderer.h"
 #include "Renderers/HktMassEntityRenderer.h"
-#include "Renderers/HktUIRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
 #include "HktRuntimeTags.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/LocalPlayer.h"
 
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
@@ -39,21 +40,29 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	ActorRenderer = MakeUnique<FHktActorRenderer>(GetLocalPlayer());
 	MassEntityRenderer = MakeUnique<FHktMassEntityRenderer>(GetLocalPlayer());
-	UIRenderer = MakeUnique<FHktUIRenderer>(GetLocalPlayer());
 	VFXRenderer = MakeUnique<FHktVFXRenderer>(GetLocalPlayer());
+
+	// 내부 렌더러를 Sync 루프에 등록
+	Renderers.Add(ActorRenderer.Get());
+	Renderers.Add(MassEntityRenderer.Get());
+	Renderers.Add(VFXRenderer.Get());
 }
 
 void UHktPresentationSubsystem::Deinitialize()
 {
 	UnbindInteraction();
 
-	if (VFXRenderer) VFXRenderer->Teardown();
+	for (IHktPresentationRenderer* R : Renderers)
+	{
+		if (R) R->Teardown();
+	}
+	Renderers.Empty();
+
 	VFXRenderer.Reset();
-	UIRenderer.Reset();
 	MassEntityRenderer.Reset();
 	ActorRenderer.Reset();
 	State.Clear();
-	
+
 	Super::Deinitialize();
 }
 
@@ -99,6 +108,7 @@ void UHktPresentationSubsystem::BindInteraction(IHktPlayerInteractionInterface* 
 					this, &UHktPresentationSubsystem::OnTick);
 			}
 		}
+
 	}
 }
 
@@ -230,23 +240,58 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	}
 	else
 	{
-		if (ActorRenderer && ActorRenderer->NeedsTick())           ActorRenderer->Sync(State);
-		if (MassEntityRenderer && MassEntityRenderer->NeedsTick()) MassEntityRenderer->Sync(State);
-		if (UIRenderer && UIRenderer->NeedsTick())                 UIRenderer->Sync(State);
+		for (IHktPresentationRenderer* R : Renderers)
+		{
+			if (R && R->NeedsTick())
+			{
+				R->Sync(State);
+			}
+		}
+	}
+}
+
+void UHktPresentationSubsystem::NotifyCameraViewChanged()
+{
+	if (!bInitialSyncDone) return;
+
+	for (IHktPresentationRenderer* R : Renderers)
+	{
+		if (R && R->NeedsCameraSync())
+		{
+			R->Sync(State);
+		}
 	}
 }
 
 void UHktPresentationSubsystem::SyncRenderers()
 {
-	if (ActorRenderer)      ActorRenderer->Sync(State);
-	if (MassEntityRenderer) MassEntityRenderer->Sync(State);
-	if (UIRenderer)         UIRenderer->Sync(State);
-	if (VFXRenderer)        VFXRenderer->UpdateEntityVFXPositions(State);
+	for (IHktPresentationRenderer* R : Renderers)
+	{
+		if (R) R->Sync(State);
+	}
 }
 
 AActor* UHktPresentationSubsystem::GetRenderedActor(FHktEntityId Id) const
 {
 	return ActorRenderer ? ActorRenderer->GetActor(Id) : nullptr;
+}
+
+void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationRenderer* InRenderer)
+{
+	if (!InRenderer || Renderers.Contains(InRenderer)) return;
+
+	Renderers.Add(InRenderer);
+
+	// 이미 InitialSync가 완료된 경우 즉시 Sync 호출하여 기존 엔티티 전달
+	if (bInitialSyncDone)
+	{
+		InRenderer->Sync(State);
+	}
+}
+
+void UHktPresentationSubsystem::UnregisterRenderer(IHktPresentationRenderer* InRenderer)
+{
+	Renderers.Remove(InRenderer);
 }
 
 void UHktPresentationSubsystem::OnIntentSubmitted(const FHktRuntimeEvent& Event)

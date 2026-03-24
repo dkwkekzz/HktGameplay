@@ -10,14 +10,13 @@
 // TODO: 전방선언 이슈
 #include "Renderers/HktActorRenderer.h"
 #include "Renderers/HktMassEntityRenderer.h"
-#include "Renderers/HktUIRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
+#include "HktPresentationRenderer.h"
 #include "HktPresentationSubsystem.generated.h"
 
 class IHktPlayerInteractionInterface;
 class FHktActorRenderer;
 class FHktMassEntityRenderer;
-class FHktUIRenderer;
 class FHktVFXRenderer;
 struct FHktRuntimeEvent;
 struct FHktVFXIntent;
@@ -30,7 +29,7 @@ class HKTPRESENTATION_API UHktPresentationSubsystem : public ULocalPlayerSubsyst
 
 public:
 	static UHktPresentationSubsystem* Get(APlayerController* PC);
-	
+
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
@@ -42,6 +41,13 @@ public:
 
 	/** 엔티티에 해당하는 렌더링 Actor를 반환. 없으면 nullptr. */
 	AActor* GetRenderedActor(FHktEntityId Id) const;
+
+	/** 외부 렌더러 등록/해제 (예: AHktIngameHUD). 등록 시 기존 State 즉시 Sync. */
+	void RegisterRenderer(IHktPresentationRenderer* InRenderer);
+	void UnregisterRenderer(IHktPresentationRenderer* InRenderer);
+
+	/** 카메라 뷰가 변경되었음을 알림 (카메라 폰에서 호출). NeedsCameraSync 렌더러만 Sync. */
+	void NotifyCameraViewChanged();
 
 	/** 월드 위치에 VFX 재생 (클라이언트 즉시, 서버 무관) */
 	void PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location);
@@ -67,9 +73,13 @@ private:
 
 	FDelegateHandle TickHandle;
 	FHktPresentationState State;
+
+	/** IHktPresentationRenderer::Sync 루프에 참여하는 모든 렌더러 */
+	TArray<IHktPresentationRenderer*> Renderers;
+
+	/** 렌더러별 전용 API 접근용 (GetActor, PlayVFX 등) */
 	TUniquePtr<FHktActorRenderer> ActorRenderer;
 	TUniquePtr<FHktMassEntityRenderer> MassEntityRenderer;
-	TUniquePtr<FHktUIRenderer> UIRenderer;
 	TUniquePtr<FHktVFXRenderer> VFXRenderer;
 
 	IHktPlayerInteractionInterface* BoundInteraction = nullptr;

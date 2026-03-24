@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "HktHUD.h"
 #include "HktCoreDefs.h"
-#include "HktWorldState.h"
-#include "HktWorldView.h"
+#include "HktPresentationRenderer.h"
+#include "HktPresentationState.h"
 #include "HktIngameHUD.generated.h"
 
 class UHktWidgetEntityHudDataAsset;
@@ -14,17 +14,22 @@ class UHktWorldViewAnchorStrategy;
 
 /**
  * 인게임 맵 전용 HUD.
- * 뷰포트 UI (인벤토리/장착/스킬 버튼)와 엔티티 월드 HUD를 관리합니다.
- * GameMode의 HUDClass에 설정하여 사용합니다.
+ * IHktPresentationRenderer를 구현하여 PresentationSubsystem으로부터 Sync를 수신합니다.
+ * 카메라 이동 등 클라이언트 변경 시에도 엔티티 위젯 위치가 실시간 반영됩니다.
  */
 UCLASS()
-class HKTUI_API AHktIngameHUD : public AHktHUD
+class HKTUI_API AHktIngameHUD : public AHktHUD, public IHktPresentationRenderer
 {
 	GENERATED_BODY()
 
 public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	// --- IHktPresentationRenderer ---
+	virtual void Sync(const FHktPresentationState& State) override;
+	virtual void Teardown() override;
+	virtual bool NeedsCameraSync() const override { return true; }
 
 protected:
 	/** 인게임 뷰포트 위젯 태그 (기본값: Widget.IngameHud) */
@@ -39,24 +44,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI")
 	FVector EntityHudOffset = FVector(0.f, 0.f, 120.f);
 
-	void UpdateEntityUI() override;
-
 private:
-	void OnWorldViewUpdated(const FHktWorldView& View);
-	void UnbindWorldViewDelegate();
-	void RefreshWorldState();
-	void SyncEntityElements();
-	void CreateEntityElement(FHktEntityId EntityId);
-	void UpdateEntityProperties();
+	void SyncEntityElements(const FHktPresentationState& State);
+	void CreateEntityElement(FHktEntityId EntityId, const FHktPresentationState& State);
+	void UpdateEntityProperties(const FHktPresentationState& State);
 
 	UPROPERTY()
 	TObjectPtr<UHktWidgetEntityHudDataAsset> CachedEntityHudAsset;
 
-	const FHktWorldState* CachedWorldState = nullptr;
-	bool bWorldStateValid = false;
 	bool bInitialSyncDone = false;
-
 	TSet<FHktEntityId> TrackedEntities;
-
-	FDelegateHandle WorldViewDelegateHandle;
 };
