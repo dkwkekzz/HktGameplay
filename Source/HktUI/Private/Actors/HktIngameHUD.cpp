@@ -51,7 +51,7 @@ void AHktIngameHUD::BeginPlay()
 	// PresentationSubsystem에 UI 렌더러로 등록
 	if (UHktPresentationSubsystem* PresentationSubsystem = UHktPresentationSubsystem::Get(PC))
 	{
-		PresentationSubsystem->RegisterUIRenderer(this);
+		PresentationSubsystem->RegisterRenderer(this);
 	}
 }
 
@@ -62,7 +62,7 @@ void AHktIngameHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		if (UHktPresentationSubsystem* PresentationSubsystem = UHktPresentationSubsystem::Get(PC))
 		{
-			PresentationSubsystem->UnregisterUIRenderer(this);
+			PresentationSubsystem->UnregisterRenderer(this);
 		}
 	}
 

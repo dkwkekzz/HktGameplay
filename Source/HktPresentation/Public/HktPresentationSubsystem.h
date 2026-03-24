@@ -29,7 +29,7 @@ class HKTPRESENTATION_API UHktPresentationSubsystem : public ULocalPlayerSubsyst
 
 public:
 	static UHktPresentationSubsystem* Get(APlayerController* PC);
-	
+
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
@@ -42,9 +42,9 @@ public:
 	/** 엔티티에 해당하는 렌더링 Actor를 반환. 없으면 nullptr. */
 	AActor* GetRenderedActor(FHktEntityId Id) const;
 
-	/** 외부 UI 렌더러(예: AHktIngameHUD) 등록/해제 */
-	void RegisterUIRenderer(IHktPresentationRenderer* InRenderer);
-	void UnregisterUIRenderer(IHktPresentationRenderer* InRenderer);
+	/** 외부 렌더러 등록/해제 (예: AHktIngameHUD). 등록 시 기존 State 즉시 Sync. */
+	void RegisterRenderer(IHktPresentationRenderer* InRenderer);
+	void UnregisterRenderer(IHktPresentationRenderer* InRenderer);
 
 	/** 월드 위치에 VFX 재생 (클라이언트 즉시, 서버 무관) */
 	void PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location);
@@ -65,7 +65,7 @@ private:
 	void ProcessDiff(const FHktWorldView& View);
 	void SyncRenderers();
 
-	/** State 변경 시 전체 Sync, 아니면 NeedsTick인 렌더러만 Sync */
+	/** State 변경 시 전체 Sync, 아니면 NeedsTick/NeedsCameraSync인 렌더러만 Sync */
 	void OnTick(float DeltaSeconds);
 
 	/** 카메라 뷰 변경 감지 (위치/회전이 달라지면 true) */
@@ -73,12 +73,14 @@ private:
 
 	FDelegateHandle TickHandle;
 	FHktPresentationState State;
+
+	/** IHktPresentationRenderer::Sync 루프에 참여하는 모든 렌더러 */
+	TArray<IHktPresentationRenderer*> Renderers;
+
+	/** 렌더러별 전용 API 접근용 (GetActor, PlayVFX 등) */
 	TUniquePtr<FHktActorRenderer> ActorRenderer;
 	TUniquePtr<FHktMassEntityRenderer> MassEntityRenderer;
 	TUniquePtr<FHktVFXRenderer> VFXRenderer;
-
-	/** 외부 등록된 UI 렌더러 (AHktIngameHUD 등). 생명주기는 등록측이 관리. */
-	IHktPresentationRenderer* UIRenderer = nullptr;
 
 	IHktPlayerInteractionInterface* BoundInteraction = nullptr;
 	FDelegateHandle WorldViewHandle;

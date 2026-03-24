@@ -41,20 +41,28 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	ActorRenderer = MakeUnique<FHktActorRenderer>(GetLocalPlayer());
 	MassEntityRenderer = MakeUnique<FHktMassEntityRenderer>(GetLocalPlayer());
 	VFXRenderer = MakeUnique<FHktVFXRenderer>(GetLocalPlayer());
+
+	// 내부 렌더러를 Sync 루프에 등록
+	Renderers.Add(ActorRenderer.Get());
+	Renderers.Add(MassEntityRenderer.Get());
 }
 
 void UHktPresentationSubsystem::Deinitialize()
 {
 	UnbindInteraction();
 
+	for (IHktPresentationRenderer* R : Renderers)
+	{
+		if (R) R->Teardown();
+	}
+	Renderers.Empty();
+
 	if (VFXRenderer) VFXRenderer->Teardown();
-	if (UIRenderer) UIRenderer->Teardown();
 	VFXRenderer.Reset();
-	UIRenderer = nullptr;
 	MassEntityRenderer.Reset();
 	ActorRenderer.Reset();
 	State.Clear();
-	
+
 	Super::Deinitialize();
 }
 
@@ -233,12 +241,14 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	}
 	else
 	{
-		if (ActorRenderer && ActorRenderer->NeedsTick())           ActorRenderer->Sync(State);
-		if (MassEntityRenderer && MassEntityRenderer->NeedsTick()) MassEntityRenderer->Sync(State);
-
-		// 카메라 변경 시 UIRenderer 재동기화 (스크린 좌표 재투영)
-		if (UIRenderer && (bCameraMoved || UIRenderer->NeedsTick()))
-			UIRenderer->Sync(State);
+		for (IHktPresentationRenderer* R : Renderers)
+		{
+			if (!R) continue;
+			if (R->NeedsTick() || (bCameraMoved && R->NeedsCameraSync()))
+			{
+				R->Sync(State);
+			}
+		}
 	}
 }
 
@@ -265,10 +275,11 @@ bool UHktPresentationSubsystem::DetectCameraChange()
 
 void UHktPresentationSubsystem::SyncRenderers()
 {
-	if (ActorRenderer)      ActorRenderer->Sync(State);
-	if (MassEntityRenderer) MassEntityRenderer->Sync(State);
-	if (UIRenderer)         UIRenderer->Sync(State);
-	if (VFXRenderer)        VFXRenderer->UpdateEntityVFXPositions(State);
+	for (IHktPresentationRenderer* R : Renderers)
+	{
+		if (R) R->Sync(State);
+	}
+	if (VFXRenderer) VFXRenderer->UpdateEntityVFXPositions(State);
 }
 
 AActor* UHktPresentationSubsystem::GetRenderedActor(FHktEntityId Id) const
@@ -276,23 +287,22 @@ AActor* UHktPresentationSubsystem::GetRenderedActor(FHktEntityId Id) const
 	return ActorRenderer ? ActorRenderer->GetActor(Id) : nullptr;
 }
 
-void UHktPresentationSubsystem::RegisterUIRenderer(IHktPresentationRenderer* InRenderer)
+void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationRenderer* InRenderer)
 {
-	UIRenderer = InRenderer;
+	if (!InRenderer || Renderers.Contains(InRenderer)) return;
+
+	Renderers.Add(InRenderer);
 
 	// 이미 InitialSync가 완료된 경우 즉시 Sync 호출하여 기존 엔티티 전달
-	if (UIRenderer && bInitialSyncDone)
+	if (bInitialSyncDone)
 	{
-		UIRenderer->Sync(State);
+		InRenderer->Sync(State);
 	}
 }
 
-void UHktPresentationSubsystem::UnregisterUIRenderer(IHktPresentationRenderer* InRenderer)
+void UHktPresentationSubsystem::UnregisterRenderer(IHktPresentationRenderer* InRenderer)
 {
-	if (UIRenderer == InRenderer)
-	{
-		UIRenderer = nullptr;
-	}
+	Renderers.Remove(InRenderer);
 }
 
 void UHktPresentationSubsystem::OnIntentSubmitted(const FHktRuntimeEvent& Event)
