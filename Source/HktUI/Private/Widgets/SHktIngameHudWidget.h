@@ -332,7 +332,6 @@ inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* In
 		{
 			SlotBindingHandle = Interaction->OnSlotBindingChanged().AddLambda([this](int32 /*SlotIndex*/)
 			{
-				RefreshInventoryPanel();
 				RefreshEquipmentPanel();
 				RefreshSkillsPanel();
 			});
@@ -346,7 +345,6 @@ inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* In
 			{
 				CachedSubjectEntityId = EntityId;
 				UpdateSubjectDisplay(EntityId);
-				RefreshInventoryPanel();
 				RefreshEquipmentPanel();
 				RefreshSkillsPanel();
 			});
