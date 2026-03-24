@@ -39,22 +39,16 @@ public:
 
     // === C2S RPC (통일) ===
 
-    /** Subject+Target 상호작용 통합 요청 (이동, 공격, 픽업, 스킬 등) */
+    /** Subject+Target 상호작용 통합 요청 (이동, 공격, 픽업, 드롭, 스킬 등) */
     UFUNCTION(Server, Reliable, WithValidation)
     void Server_ReceiveRuntimeEvent(const FHktRuntimeEvent& Event);
-
-    /** UI 직접 아이템 조작 (pickup, drop — 인벤토리 패널 전용) */
-    UFUNCTION(Server, Reliable, WithValidation)
-    void Server_ReceiveItemRequest(const FHktRuntimeItemRequest& Request);
 
     // === C2S Bag RPC ===
     UFUNCTION(Server, Reliable, WithValidation)
     void Server_ReceiveBagRequest(const FHktRuntimeBagRequest& Request);
 
-    // === 아이템 상호작용 (UI에서 호출) ===
-
-    /** 아이템 드롭 (바닥에 놓기) */
-    void RequestItemDrop(FHktEntityId ItemEntity);
+    /** 아이템 드롭 (바닥에 놓기) — RuntimeEvent로 전송 */
+    virtual void RequestItemDrop(FHktEntityId ItemEntity) override;
 
     // === 가방 상호작용 (UI/입력에서 호출) ===
 

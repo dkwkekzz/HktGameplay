@@ -102,47 +102,9 @@ void FHktDefaultServerRule::OnReceived_RuntimeEvent(
 	PendingGroupIntents[GroupIndex].Add(Event);
 }
 
-// 아이템 이벤트 태그 (Pickup/Drop + 내부 전용 Activate/Deactivate — Bag 연동)
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Pickup,     "Story.Event.Item.Pickup");
+// 아이템 이벤트 태그 (내부 전용 Activate/Deactivate — Bag 연동)
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Activate,   "Story.Event.Item.Activate");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Deactivate, "Story.Event.Item.Deactivate");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Drop,       "Story.Event.Item.Drop");
-
-void FHktDefaultServerRule::OnReceived_ItemRequest(
-	const FHktItemRequest& InRequest, const IHktWorldPlayer& InPlayer)
-{
-	if (!CachedGraph) return;
-
-	const int64 PlayerUid = InPlayer.GetPlayerUid();
-	const int32 GroupIndex = CachedGraph->GetRelevancyGroupIndex(PlayerUid);
-	if (!PendingGroupIntents.IsValidIndex(GroupIndex)) return;
-
-	// 소스 엔티티(캐릭터) 소유권 검증
-	const IHktRelevancyGroup& Group = CachedGraph->GetRelevancyGroup(GroupIndex);
-	const FHktWorldState& WS = Group.GetSimulator().GetWorldState();
-	if (!WS.IsValidEntity(InRequest.SourceEntity)) return;
-	if (WS.GetOwnerUid(InRequest.SourceEntity) != PlayerUid) return;
-
-	// 대상 아이템 엔티티 존재 검증
-	if (!WS.IsValidEntity(InRequest.TargetEntity)) return;
-
-	// 액션 타입에 따라 EventTag 결정
-	FGameplayTag EventTag;
-	switch (InRequest.Action)
-	{
-	case EHktItemAction::Pickup:     EventTag = Event_Item_Pickup;     break;
-	case EHktItemAction::Drop:       EventTag = Event_Item_Drop;       break;
-	default: return;
-	}
-
-	FHktEvent Event;
-	Event.EventId = ++ServerEventSequence;
-	Event.EventTag = EventTag;
-	Event.SourceEntity = InRequest.SourceEntity;
-	Event.TargetEntity = InRequest.TargetEntity;
-	Event.PlayerUid = PlayerUid;
-	PendingGroupIntents[GroupIndex].Add(Event);
-}
 
 // ============================================================================
 // 가방 요청 수신 — Bag ↔ Entity 전환

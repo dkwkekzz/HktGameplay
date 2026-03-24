@@ -261,36 +261,7 @@ struct TStructOpsTypeTraits<FHktRuntimeDiff> : public TStructOpsTypeTraitsBase2<
 };
 
 // FHktRuntimeSlotRequest — 제거됨: Server_ReceiveRuntimeEvent로 통합
-
-//=============================================================================
-// FHktRuntimeItemRequest — 아이템 요청 네트워크 래퍼
-//=============================================================================
-USTRUCT()
-struct HKTRUNTIME_API FHktRuntimeItemRequest
-{
-	GENERATED_BODY()
-
-	FHktItemRequest Value;
-
-	FHktRuntimeItemRequest() = default;
-	explicit FHktRuntimeItemRequest(const FHktItemRequest& In) : Value(In) {}
-
-	FORCEINLINE operator FHktItemRequest&() { return Value; }
-	FORCEINLINE operator const FHktItemRequest&() const { return Value; }
-
-	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-	{
-		Ar << Value;
-		return bOutSuccess = true;
-	}
-};
-
-template<>
-struct TStructOpsTypeTraits<FHktRuntimeItemRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeItemRequest>
-{
-	enum { WithNetSerializer = true };
-};
-
+// FHktRuntimeItemRequest — 제거됨: Server_ReceiveRuntimeEvent로 통합
 // FHktRuntimeMoveRequest — 제거됨: Server_ReceiveRuntimeEvent로 통합
 
 //=============================================================================

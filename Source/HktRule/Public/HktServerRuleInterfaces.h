@@ -204,43 +204,7 @@ struct FHktEventGameModeTickResult
 };
 
 // FHktSlotRequest — 제거됨: FHktRuntimeEvent로 통합
-
-// ============================================================================
-// EHktItemAction — 아이템 요청 액션 타입
-// ============================================================================
-
-enum class EHktItemAction : uint8
-{
-	Pickup     = 0,
-	Drop       = 1,
-};
-
-// ============================================================================
-// FHktItemRequest — 아이템 상호작용 요청 (C2S)
-// ============================================================================
-
-struct HKTRULE_API FHktItemRequest
-{
-	EHktItemAction Action = EHktItemAction::Pickup;
-	FHktEntityId SourceEntity = InvalidEntityId;
-	FHktEntityId TargetEntity = InvalidEntityId;
-	int32 Param0 = 0;
-
-	FString ToString() const
-	{
-		return FString::Printf(TEXT("Action=%d Src=%d Tgt=%d Param0=%d"),
-			static_cast<uint8>(Action), SourceEntity, TargetEntity, Param0);
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FHktItemRequest& R)
-	{
-		uint8 ActionByte = static_cast<uint8>(R.Action);
-		Ar << ActionByte << R.SourceEntity << R.TargetEntity << R.Param0;
-		if (Ar.IsLoading()) R.Action = static_cast<EHktItemAction>(ActionByte);
-		return Ar;
-	}
-};
-
+// FHktItemRequest — 제거됨: FHktRuntimeEvent로 통합
 // FHktMoveRequest — 제거됨: FHktRuntimeEvent로 통합
 
 // ============================================================================
@@ -297,11 +261,8 @@ public:
 	virtual void OnReceived_Authentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal, TFunction<void(bool bSuccess, const FString& Token)> InResultCallback) {}
 	virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) {}
 
-	/** 통합 런타임 이벤트 수신 — 클라이언트가 EventTag를 포함하여 전송 */
+	/** 통합 런타임 이벤트 수신 — 클라이언트가 EventTag를 포함하여 전송 (아이템 Pickup/Drop 포함) */
 	virtual void OnReceived_RuntimeEvent(const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer) {}
-
-	/** 아이템 상호작용 요청 수신 — 서버가 ItemState 검증 후 EventTag 매핑 */
-	virtual void OnReceived_ItemRequest(const FHktItemRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
 
 	/** 가방 요청 수신 — 서버가 Bag ↔ Entity 전환 처리 (Bag 상태 변경이 필요하므로 non-const) */
 	virtual void OnReceived_BagRequest(const FHktBagRequest& InRequest, IHktWorldPlayer& InPlayer) {}
