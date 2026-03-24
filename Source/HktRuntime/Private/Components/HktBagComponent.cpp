@@ -68,6 +68,38 @@ bool UHktBagComponent::Server_StoreFromEntity(
 	return true;
 }
 
+bool UHktBagComponent::Server_StoreBagItem(const FHktBagItem& InItem, int32& OutBagSlot)
+{
+	if (ServerBagState.IsFull())
+	{
+		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreBagItem — bag is full"));
+		return false;
+	}
+
+	if (!InItem.IsValid())
+	{
+		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreBagItem — invalid item"));
+		return false;
+	}
+
+	FHktBagItem ItemCopy = InItem;
+	ItemCopy.BagSlot = ServerBagState.FindEmptySlot();
+	if (ItemCopy.BagSlot < 0)
+	{
+		return false;
+	}
+
+	OutBagSlot = ItemCopy.BagSlot;
+	ServerBagState.Items.Add(ItemCopy);
+
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+		FString::Printf(TEXT("BagStoreBagItem: BagSlot=%d ItemId=%d"),
+			ItemCopy.BagSlot, ItemCopy.ItemId));
+
+	Server_SendDelta(EHktBagOp::Added, ItemCopy);
+	return true;
+}
+
 bool UHktBagComponent::Server_RestoreFromBag(int32 BagSlot, FHktBagItem& OutItem)
 {
 	if (!ServerBagState.RemoveBySlot(BagSlot, OutItem))

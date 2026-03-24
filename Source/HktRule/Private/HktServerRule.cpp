@@ -215,8 +215,59 @@ static constexpr uint16 BagItemSlotPropertyIds[] =
 };
 static constexpr int32 MaxBagItemSlots = UE_ARRAY_COUNT(BagItemSlotPropertyIds);
 
+/** FHktBagItem → FHktEntityState 변환 (엔티티 복원용) */
+static FHktEntityState BagItemToEntityState(const FHktBagItem& InItem, int64 OwnerUid)
+{
+	FHktEntityState ES;
+	ES.Data.SetNumZeroed(PropertyId::MaxCount);
+	ES.OwnerUid = OwnerUid;
+
+	ES.Data[PropertyId::ItemId]              = InItem.ItemId;
+	ES.Data[PropertyId::AttackPower]         = InItem.AttackPower;
+	ES.Data[PropertyId::Defense]             = InItem.Defense;
+	ES.Data[PropertyId::Stance]              = InItem.Stance;
+	ES.Data[PropertyId::ItemSkillTag]        = InItem.ItemSkillTag;
+	ES.Data[PropertyId::SkillCPCost]         = InItem.SkillCPCost;
+	ES.Data[PropertyId::SkillTargetRequired] = InItem.SkillTargetRequired;
+	ES.Data[PropertyId::RecoveryFrame]       = InItem.RecoveryFrame;
+	ES.Data[PropertyId::EntitySpawnTag]      = InItem.EntitySpawnTag;
+
+	// EntitySpawnTag → ClassTag (Tags에 추가)
+	if (InItem.EntitySpawnTag > 0)
+	{
+		FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(
+			static_cast<FGameplayTagNetIndex>(InItem.EntitySpawnTag));
+		if (!TagName.IsNone())
+		{
+			FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+			if (Tag.IsValid())
+			{
+				ES.Tags.AddTag(Tag);
+			}
+		}
+	}
+
+	return ES;
+}
+
+/** WorldState에서 아이템 엔티티 프로퍼티를 FHktBagItem으로 스냅샷 */
+static FHktBagItem SnapshotEntityToBagItem(const FHktWorldState& WS, FHktEntityId ItemEntity)
+{
+	FHktBagItem Item;
+	Item.ItemId              = WS.GetProperty(ItemEntity, PropertyId::ItemId);
+	Item.AttackPower         = WS.GetProperty(ItemEntity, PropertyId::AttackPower);
+	Item.Defense             = WS.GetProperty(ItemEntity, PropertyId::Defense);
+	Item.Stance              = WS.GetProperty(ItemEntity, PropertyId::Stance);
+	Item.ItemSkillTag        = WS.GetProperty(ItemEntity, PropertyId::ItemSkillTag);
+	Item.SkillCPCost         = WS.GetProperty(ItemEntity, PropertyId::SkillCPCost);
+	Item.SkillTargetRequired = WS.GetProperty(ItemEntity, PropertyId::SkillTargetRequired);
+	Item.RecoveryFrame       = WS.GetProperty(ItemEntity, PropertyId::RecoveryFrame);
+	Item.EntitySpawnTag      = WS.GetProperty(ItemEntity, PropertyId::EntitySpawnTag);
+	return Item;
+}
+
 void FHktDefaultServerRule::OnReceived_BagRequest(
-	const FHktBagRequest& InRequest, const IHktWorldPlayer& InPlayer)
+	const FHktBagRequest& InRequest, IHktWorldPlayer& InPlayer)
 {
 	if (!CachedGraph) return;
 
@@ -230,23 +281,22 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	if (!WS.IsValidEntity(InRequest.SourceEntity)) return;
 	if (WS.GetOwnerUid(InRequest.SourceEntity) != PlayerUid) return;
 
-	// BagComponent 접근 — PlayerController의 컴포넌트
-	// 현재 ServerRule은 BagComponent에 직접 접근할 수 없으므로,
-	// 가방 요청을 PendingBagIntents에 큐잉하여 GameMode가 처리하도록 위임.
-	// TODO: BagComponent 접근 경로 확립 후 직접 처리로 전환
-
 	switch (InRequest.Action)
 	{
 	case EHktBagAction::StoreFromSlot:
 	{
-		// ItemSlot → Bag: Deactivate 이벤트를 발행하여 스탯 차감 + 엔티티 정리
-		// BagComponent의 실제 저장은 GameMode 레벨에서 처리
+		// ItemSlot → Bag: 엔티티 프로퍼티 스냅샷 → 가방에 저장 → Deactivate 이벤트
 		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxBagItemSlots) return;
 
 		const FHktEntityId ItemEntity = WS.GetProperty(InRequest.SourceEntity, BagItemSlotPropertyIds[InRequest.ActionSlot]);
 		if (ItemEntity == 0 || !WS.IsValidEntity(ItemEntity)) return;
 
-		// Deactivate 이벤트 발행 (기존 Story가 스탯 차감 + 슬롯 클리어 처리)
+		// Deactivate 전에 스냅샷 (Deactivate가 엔티티를 파괴하기 때문)
+		FHktBagItem BagItem = SnapshotEntityToBagItem(WS, ItemEntity);
+		int32 OutBagSlot = -1;
+		if (!InPlayer.StoreToBag(BagItem, OutBagSlot)) return;
+
+		// Deactivate 이벤트 발행 (기존 Story가 스탯 차감 + 슬롯 클리어 + 엔티티 정리)
 		FHktEvent Event;
 		Event.EventId = ++ServerEventSequence;
 		Event.EventTag = Event_Item_Deactivate;
@@ -254,24 +304,26 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 		Event.TargetEntity = ItemEntity;
 		Event.PlayerUid = PlayerUid;
 		PendingGroupIntents[GroupIndex].Add(Event);
-
-		// 가방 저장은 BagComponent에서 별도로 처리됨 (GameMode 통해)
-		PendingBagRequests.Add({ InRequest, PlayerUid, GroupIndex });
 		break;
 	}
 	case EHktBagAction::RestoreToSlot:
 	{
-		// Bag → ItemSlot: 가방에서 아이템을 꺼내 엔티티를 생성하고 Activate
-		// 엔티티 생성 + Activate 이벤트 발행은 GameMode 레벨에서 처리
+		// Bag → ItemSlot: 가방에서 아이템 꺼내기 → 엔티티 생성 + Activate (틱에서 처리)
 		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxBagItemSlots) return;
 
-		PendingBagRequests.Add({ InRequest, PlayerUid, GroupIndex });
+		FHktBagItem OutItem;
+		if (!InPlayer.TakeFromBag(InRequest.BagSlot, OutItem)) return;
+
+		PendingBagEntitySpawns.Add({ OutItem, PlayerUid, GroupIndex, InRequest.SourceEntity, InRequest.ActionSlot, false });
 		break;
 	}
 	case EHktBagAction::Discard:
 	{
-		// Bag → Ground: 가방에서 아이템을 꺼내 바닥에 드롭
-		PendingBagRequests.Add({ InRequest, PlayerUid, GroupIndex });
+		// Bag → Ground: 가방에서 아이템 꺼내기 → 바닥 엔티티 생성 (틱에서 처리)
+		FHktBagItem OutItem;
+		if (!InPlayer.TakeFromBag(InRequest.BagSlot, OutItem)) return;
+
+		PendingBagEntitySpawns.Add({ OutItem, PlayerUid, GroupIndex, InRequest.SourceEntity, -1, true });
 		break;
 	}
 	default:
@@ -332,6 +384,7 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 	const int64 CurrentFrameNumber = Frame.GetFrameNumber();
 
 	PendingGroupIntents.SetNum(NumGroups);
+	PendingGroupEntityStates.SetNum(NumGroups);
 	Result.EventSends.SetNum(NumGroups);
 
 	// 로그아웃 처리 (item 9: ExitWorldPlayer 호출)
@@ -341,6 +394,14 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		const int32 GroupIndex = Graph.GetRelevancyGroupIndex(LogoutUid);
 		if (GroupIndex != INDEX_NONE)
 		{
+			// 가방 데이터 내보내기 (DB 저장 전)
+			IHktWorldPlayer* WorldPlayer = Graph.GetWorldPlayer(LogoutUid);
+			if (WorldPlayer)
+			{
+				// TODO: FHktPlayerState에 BagItems 필드 추가 후 통합 저장
+				// 현재는 ExportPlayerState와 별도로 가방 데이터만 기록
+			}
+
 			IHktRelevancyGroup& Group = Graph.GetRelevancyGroup(GroupIndex);
 			IHktAuthoritySimulator& Simulator = Group.GetSimulator();
 			DB.SavePlayerRecordAsync(LogoutUid, Simulator.ExportPlayerState(LogoutUid));
@@ -357,6 +418,13 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 	{
 		IHktWorldPlayer* NewPlayer = LoginResult.WeakPlayer.Get();
 		if (!NewPlayer) continue;
+
+		// DB에서 로드한 가방 데이터 복원 + 클라이언트 FullSync
+		if (LoginResult.Record.BagItems.Num() > 0)
+		{
+			NewPlayer->RestoreBagFromRecord(LoginResult.Record.BagItems);
+			NewPlayer->SendBagFullSync();
+		}
 
 		const int32 GroupIdx  = Graph.CalculateRelevancyGroupIndex(LoginResult.Record.LastPosition);
 		FGroupEventSend& GroupEventSend = Result.EventSends[GroupIdx];
@@ -383,13 +451,47 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		}
 	}
 
-	// --- Bag 요청을 결과에 전달 (GameMode가 BagComponent와 함께 처리) ---
-	// 가방 요청은 시뮬레이션 이후 GameMode 레벨에서 BagComponent를 통해 처리됨.
-	// StoreFromSlot의 Deactivate 이벤트는 이미 PendingGroupIntents에 추가됨.
-	// RestoreToSlot/Discard는 시뮬레이션 후 엔티티 생성이 필요하므로 다음 프레임에서 처리.
-	// TODO: 이 부분은 향후 GameMode에서 BagComponent 직접 참조로 개선
-
 	// --- ProcessSimulationAndPayloads ---
+
+	// RestoreToSlot/Discard: 가방에서 꺼낸 아이템을 엔티티로 생성 + Activate 이벤트
+	for (const FPendingBagEntitySpawn& Spawn : PendingBagEntitySpawns)
+	{
+		if (!PendingGroupIntents.IsValidIndex(Spawn.GroupIndex)) continue;
+
+		FHktEntityState ES = BagItemToEntityState(Spawn.Item, Spawn.PlayerUid);
+
+		if (Spawn.bDiscard)
+		{
+			// Ground 엔티티: ItemState=0 (바닥 상태), 캐릭터 위치에 드롭
+			ES.Data[PropertyId::ItemState] = 0;
+			const IHktRelevancyGroup& Group = Graph.GetRelevancyGroup(Spawn.GroupIndex);
+			const FHktWorldState& WS = Group.GetSimulator().GetWorldState();
+			if (WS.IsValidEntity(Spawn.CharacterEntity))
+			{
+				ES.Data[PropertyId::PosX] = WS.GetProperty(Spawn.CharacterEntity, PropertyId::PosX);
+				ES.Data[PropertyId::PosY] = WS.GetProperty(Spawn.CharacterEntity, PropertyId::PosY);
+				ES.Data[PropertyId::PosZ] = WS.GetProperty(Spawn.CharacterEntity, PropertyId::PosZ);
+			}
+		}
+
+		PendingGroupEntityStates[Spawn.GroupIndex].Add(ES);
+
+		if (!Spawn.bDiscard)
+		{
+			// RestoreToSlot: Activate 이벤트 (엔티티 ID는 시뮬레이터가 할당하므로 Param1에 ActionSlot 전달)
+			// 실제 TargetEntity는 ImportEntityState 후 결정되므로,
+			// Story에서 "마지막으로 생성된 엔티티"를 참조하는 패턴 사용
+			FHktEvent ActivateEvent;
+			ActivateEvent.EventId = ++ServerEventSequence;
+			ActivateEvent.EventTag = Event_Item_Activate;
+			ActivateEvent.SourceEntity = Spawn.CharacterEntity;
+			ActivateEvent.TargetEntity = InvalidEntityId; // 시뮬레이터가 할당한 새 엔티티
+			ActivateEvent.PlayerUid = Spawn.PlayerUid;
+			ActivateEvent.Param0 = Spawn.ActionSlot;
+			PendingGroupIntents[Spawn.GroupIndex].Add(ActivateEvent);
+		}
+	}
+	PendingBagEntitySpawns.Reset();
 
 	// 병렬 시뮬레이션 (item 8: diff 캐싱 없음)
 	ParallelFor(NumGroups, [&](int32 GroupIndex)
@@ -401,6 +503,12 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		GroupBatch.DeltaSeconds = InDeltaTime;
 		GroupBatch.RandomSeed = HashCombineHelper(CurrentFrameNumber, GroupIndex);
 		GroupBatch.NewEvents.Append(MoveTemp(PendingGroupIntents[GroupIndex]));
+
+		// Bag에서 복원된 엔티티 주입
+		if (PendingGroupEntityStates.IsValidIndex(GroupIndex))
+		{
+			GroupBatch.NewEntityStates.Append(MoveTemp(PendingGroupEntityStates[GroupIndex]));
+		}
 
 		// 신입 엔티티/이벤트 주입
 		for (IHktWorldPlayer* NewPlayer : GroupEventSend.Entered)

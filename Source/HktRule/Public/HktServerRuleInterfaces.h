@@ -67,6 +67,14 @@ public:
 	virtual AActor* GetOwnerActor() const = 0;
 	virtual bool IsInitialized() const = 0;
 	virtual void InvalidatePlayerUidCache() = 0;
+
+	// === Bag ===
+	virtual const FHktBagState& GetBagState() const { static FHktBagState Empty; return Empty; }
+	virtual bool StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot) { return false; }
+	virtual bool TakeFromBag(int32 BagSlot, FHktBagItem& OutItem) { return false; }
+	virtual void RestoreBagFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity = 20) {}
+	virtual TArray<FHktBagItem> ExportBagForRecord() const { return {}; }
+	virtual void SendBagFullSync() {}
 };
 
 // ============================================================================
@@ -193,7 +201,6 @@ struct FGroupEventSend
 struct FHktEventGameModeTickResult
 {
 	TArray<FGroupEventSend> EventSends;
-	TArray<FHktBagUpdateSend> BagUpdates;
 };
 
 // ============================================================================
@@ -320,16 +327,6 @@ struct HKTRULE_API FHktBagRequest
 	}
 };
 
-// ============================================================================
-// FHktBagUpdateSend — SimulationTick 후 플레이어별 가방 변경 전달
-// ============================================================================
-
-struct FHktBagUpdateSend
-{
-	IHktWorldPlayer* Player = nullptr;
-	FHktBagDelta Delta;
-};
-
 //=============================================================================
 // IHktServerRule
 //=============================================================================
@@ -356,8 +353,8 @@ public:
 	/** 아이템 상호작용 요청 수신 — 서버가 ItemState 검증 후 EventTag 매핑 */
 	virtual void OnReceived_ItemRequest(const FHktItemRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
 
-	/** 가방 요청 수신 — 서버가 Bag ↔ Entity 전환 처리 */
-	virtual void OnReceived_BagRequest(const FHktBagRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
+	/** 가방 요청 수신 — 서버가 Bag ↔ Entity 전환 처리 (Bag 상태 변경이 필요하므로 non-const) */
+	virtual void OnReceived_BagRequest(const FHktBagRequest& InRequest, IHktWorldPlayer& InPlayer) {}
 
 	/** 액터 이벤트 — 내부 캐싱된 DB 사용 (item 1, 2) */
 	virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) {}

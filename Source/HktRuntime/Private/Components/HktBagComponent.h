@@ -43,6 +43,9 @@ public:
 	 */
 	bool Server_StoreFromEntity(const FHktWorldState& WS, FHktEntityId ItemEntity, int32& OutBagSlot);
 
+	/** 이미 만들어진 FHktBagItem을 가방에 저장 (IHktWorldPlayer 위임용) */
+	bool Server_StoreBagItem(const FHktBagItem& InItem, int32& OutBagSlot);
+
 	/**
 	 * 가방에서 아이템을 꺼내 엔티티로 복원하기 위한 데이터 반환.
 	 * 가방에서는 제거됨.
@@ -51,14 +54,6 @@ public:
 	 * @return 성공시 true
 	 */
 	bool Server_RestoreFromBag(int32 BagSlot, FHktBagItem& OutItem);
-
-	/**
-	 * 가방에서 아이템을 버림 (Ground로 드롭용 데이터 반환).
-	 * @param BagSlot 가방 슬롯
-	 * @param OutItem 버려진 아이템 데이터 (out)
-	 * @return 성공시 true
-	 */
-	bool Server_DiscardFromBag(int32 BagSlot, FHktBagItem& OutItem);
 
 	/** 서버 가방 상태 읽기 (ServerRule에서 검증용) */
 	const FHktBagState& GetServerBagState() const { return ServerBagState; }
