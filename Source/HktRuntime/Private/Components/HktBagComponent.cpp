@@ -118,23 +118,6 @@ bool UHktBagComponent::Server_RestoreFromBag(int32 BagSlot, FHktBagItem& OutItem
 	return true;
 }
 
-bool UHktBagComponent::Server_DiscardFromBag(int32 BagSlot, FHktBagItem& OutItem)
-{
-	if (!ServerBagState.RemoveBySlot(BagSlot, OutItem))
-	{
-		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::DiscardFromBag — BagSlot=%d not found"), BagSlot);
-		return false;
-	}
-
-	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
-		FString::Printf(TEXT("BagDiscard: BagSlot=%d ItemId=%d"),
-			BagSlot, OutItem.ItemId));
-
-	// 소유자 클라이언트에 알림
-	Server_SendDelta(EHktBagOp::Removed, OutItem);
-
-	return true;
-}
 
 void UHktBagComponent::Server_RestoreFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity)
 {

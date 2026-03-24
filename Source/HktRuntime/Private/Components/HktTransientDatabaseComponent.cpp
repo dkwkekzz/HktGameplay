@@ -43,16 +43,17 @@ void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TF
     InCallback(NewRecord);
 }
 
-void UHktTransientDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState)
+void UHktTransientDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState, TArray<FHktBagItem>&& InBagItems)
 {
     // 기존 레코드 로드 또는 새로 생성
     FHktPlayerRecord* ExistingRecord = TransientRecords.Find(InPlayerUid);
-    
+
     if (ExistingRecord)
     {
         // 기존 레코드 업데이트: ActiveEvents와 EntityStates만 이동
         ExistingRecord->ActiveEvents = MoveTemp(InState.ActiveEvents);
         ExistingRecord->EntityStates = MoveTemp(InState.OwnedEntities);
+        ExistingRecord->BagItems = MoveTemp(InBagItems);
         // LastLoginTime, CreatedTime, LastPosition은 유지
     }
     else
@@ -65,7 +66,8 @@ void UHktTransientDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FH
         NewRecord.LastPosition = FVector::ZeroVector;
         NewRecord.ActiveEvents = MoveTemp(InState.ActiveEvents);
         NewRecord.EntityStates = MoveTemp(InState.OwnedEntities);
-        
+        NewRecord.BagItems = MoveTemp(InBagItems);
+
         TransientRecords.Add(InPlayerUid, MoveTemp(NewRecord));
     }
     

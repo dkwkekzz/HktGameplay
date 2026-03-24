@@ -143,7 +143,7 @@ class HKTRULE_API IHktWorldDatabase
 	GENERATED_BODY()
 public:
 	virtual void LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(const FHktPlayerRecord&)> InCallback) = 0;
-	virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState) = 0;
+	virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState, TArray<FHktBagItem>&& InBagItems = {}) = 0;
 	virtual const FHktPlayerRecord* GetCachedPlayerRecord(int64 InPlayerUid) const = 0;
 };
 
@@ -357,7 +357,7 @@ public:
 	virtual void OnReceived_BagRequest(const FHktBagRequest& InRequest, IHktWorldPlayer& InPlayer) {}
 
 	/** 액터 이벤트 — 내부 캐싱된 DB 사용 (item 1, 2) */
-	virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) {}
+	virtual void OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer) {}
 	virtual void OnEvent_GameModeLogout(const IHktWorldPlayer& InPlayer) {}
 
 	/** 틱 — 내부 캐싱된 컨텍스트 사용, 결과 구조체 반환 (item 1, 2, 6) */

@@ -29,7 +29,7 @@ public:
     virtual void OnReceived_BagRequest(const FHktBagRequest& InRequest, IHktWorldPlayer& InPlayer) override;
 
     // 액터 이벤트 (item 1)
-    virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) override;
+    virtual void OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer) override;
     virtual void OnEvent_GameModeLogout(const IHktWorldPlayer& InPlayer) override;
     virtual FHktEventGameModeTickResult OnEvent_GameModeTick(float InDeltaTime) override;
 

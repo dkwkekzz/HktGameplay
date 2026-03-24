@@ -168,18 +168,19 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 	});
 }
 
-void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState)
+void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState, TArray<FHktBagItem>&& InBagItems)
 {
 	// 기존 레코드 로드 또는 새로 생성
 	FHktPlayerRecord* ExistingRecord = CachedRecords.Find(InPlayerUid);
-	
+
 	if (ExistingRecord)
 	{
-		// 기존 레코드 업데이트: ActiveEvents와 EntityStates만 이동
+		// 기존 레코드 업데이트
 		ExistingRecord->ActiveEvents = MoveTemp(InState.ActiveEvents);
 		ExistingRecord->EntityStates = MoveTemp(InState.OwnedEntities);
+		ExistingRecord->BagItems = MoveTemp(InBagItems);
 		// LastLoginTime, CreatedTime, LastPosition은 유지
-		
+
 		SaveToSlot(InPlayerUid, *ExistingRecord, [InPlayerUid](bool bSuccess)
 		{
 			if (!bSuccess)
@@ -191,11 +192,10 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 	else
 	{
 		// 캐시에 없으면 파일에서 로드 시도
-		// 람다에서 이동하기 위해 State를 이동 캡처
-		LoadFromSlot(InPlayerUid, [this, InPlayerUid, State = MoveTemp(InState)](TOptional<FHktPlayerRecord> Loaded) mutable
+		LoadFromSlot(InPlayerUid, [this, InPlayerUid, State = MoveTemp(InState), BagItems = MoveTemp(InBagItems)](TOptional<FHktPlayerRecord> Loaded) mutable
 		{
 			FHktPlayerRecord& RecordToSave = CachedRecords.Add(InPlayerUid);
-			
+
 			if (Loaded.IsSet())
 			{
 				// 파일에서 로드된 레코드 사용
@@ -210,11 +210,12 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 				RecordToSave.LastLoginTime = RecordToSave.CreatedTime;
 				RecordToSave.LastPosition = FVector::ZeroVector;
 			}
-			
-			// ActiveEvents와 EntityStates 이동
+
+			// ActiveEvents, EntityStates, BagItems 이동
 			RecordToSave.ActiveEvents = MoveTemp(State.ActiveEvents);
 			RecordToSave.EntityStates = MoveTemp(State.OwnedEntities);
-			
+			RecordToSave.BagItems = MoveTemp(BagItems);
+
 			// 파일에 저장
 			SaveToSlot(InPlayerUid, CachedRecords[InPlayerUid], [InPlayerUid](bool bSuccess)
 			{

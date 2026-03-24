@@ -206,14 +206,6 @@ void FHktDefaultServerRule::OnReceived_MoveRequest(
 // 가방 요청 수신 — Bag ↔ Entity 전환
 // ============================================================================
 
-/** ItemSlot PropertyId 테이블 (가방용) */
-static constexpr uint16 BagItemSlotPropertyIds[] =
-{
-	PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
-	PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
-	PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
-};
-static constexpr int32 MaxBagItemSlots = UE_ARRAY_COUNT(BagItemSlotPropertyIds);
 
 /** FHktBagItem → FHktEntityState 변환 (엔티티 복원용) */
 static FHktEntityState BagItemToEntityState(const FHktBagItem& InItem, int64 OwnerUid)
@@ -286,9 +278,9 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	case EHktBagAction::StoreFromSlot:
 	{
 		// ItemSlot → Bag: 엔티티 프로퍼티 스냅샷 → 가방에 저장 → Deactivate 이벤트
-		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxBagItemSlots) return;
+		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxServerItemSlots) return;
 
-		const FHktEntityId ItemEntity = WS.GetProperty(InRequest.SourceEntity, BagItemSlotPropertyIds[InRequest.ActionSlot]);
+		const FHktEntityId ItemEntity = WS.GetProperty(InRequest.SourceEntity, ServerItemSlotPropertyIds[InRequest.ActionSlot]);
 		if (ItemEntity == 0 || !WS.IsValidEntity(ItemEntity)) return;
 
 		// Deactivate 전에 스냅샷 (Deactivate가 엔티티를 파괴하기 때문)
@@ -309,7 +301,7 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	case EHktBagAction::RestoreToSlot:
 	{
 		// Bag → ItemSlot: 가방에서 아이템 꺼내기 → 엔티티 생성 + Activate (틱에서 처리)
-		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxBagItemSlots) return;
+		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxServerItemSlots) return;
 
 		FHktBagItem OutItem;
 		if (!InPlayer.TakeFromBag(InRequest.BagSlot, OutItem)) return;
@@ -335,12 +327,12 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 // 액터 이벤트 (item 1, 2)
 // ============================================================================
 
-void FHktDefaultServerRule::OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer)
+void FHktDefaultServerRule::OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer)
 {
 	if (!CachedDB) return;
 
 	const int64 PlayerUid = InPlayer.GetPlayerUid();
-	TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer(const_cast<IHktWorldPlayer*>(&InPlayer));
+	TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer(&InPlayer);
 
 	CachedDB->LoadPlayerRecordAsync(PlayerUid, [this, WeakPlayer](const FHktPlayerRecord& Record)
 	{
@@ -395,16 +387,15 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		if (GroupIndex != INDEX_NONE)
 		{
 			// 가방 데이터 내보내기 (DB 저장 전)
-			IHktWorldPlayer* WorldPlayer = Graph.GetWorldPlayer(LogoutUid);
-			if (WorldPlayer)
+			TArray<FHktBagItem> BagItems;
+			if (IHktWorldPlayer* WorldPlayer = Graph.GetWorldPlayer(LogoutUid))
 			{
-				// TODO: FHktPlayerState에 BagItems 필드 추가 후 통합 저장
-				// 현재는 ExportPlayerState와 별도로 가방 데이터만 기록
+				BagItems = WorldPlayer->ExportBagForRecord();
 			}
 
 			IHktRelevancyGroup& Group = Graph.GetRelevancyGroup(GroupIndex);
 			IHktAuthoritySimulator& Simulator = Group.GetSimulator();
-			DB.SavePlayerRecordAsync(LogoutUid, Simulator.ExportPlayerState(LogoutUid));
+			DB.SavePlayerRecordAsync(LogoutUid, Simulator.ExportPlayerState(LogoutUid), MoveTemp(BagItems));
 
 			const int32 GroupIdx = Graph.GetRelevancyGroupIndex(LogoutUid);
 			FGroupEventSend& GroupEventSend = Result.EventSends[GroupIdx];
@@ -474,20 +465,23 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 			}
 		}
 
+		const int32 NewEntityIndex = PendingGroupEntityStates[Spawn.GroupIndex].Num();
 		PendingGroupEntityStates[Spawn.GroupIndex].Add(ES);
 
 		if (!Spawn.bDiscard)
 		{
-			// RestoreToSlot: Activate 이벤트 (엔티티 ID는 시뮬레이터가 할당하므로 Param1에 ActionSlot 전달)
-			// 실제 TargetEntity는 ImportEntityState 후 결정되므로,
-			// Story에서 "마지막으로 생성된 엔티티"를 참조하는 패턴 사용
+			// RestoreToSlot: Activate 이벤트
+			// TargetEntity는 ImportEntityState 후 시뮬레이터가 할당하므로 아직 알 수 없음.
+			// Param1에 NewEntityStates 인덱스를 전달 → Story에서 해당 인덱스로 엔티티 참조.
+			// (PendingGroupEntityStates가 GroupBatch.NewEntityStates의 앞부분에 삽입됨)
 			FHktEvent ActivateEvent;
 			ActivateEvent.EventId = ++ServerEventSequence;
 			ActivateEvent.EventTag = Event_Item_Activate;
 			ActivateEvent.SourceEntity = Spawn.CharacterEntity;
-			ActivateEvent.TargetEntity = InvalidEntityId; // 시뮬레이터가 할당한 새 엔티티
+			ActivateEvent.TargetEntity = InvalidEntityId;
 			ActivateEvent.PlayerUid = Spawn.PlayerUid;
 			ActivateEvent.Param0 = Spawn.ActionSlot;
+			ActivateEvent.Param1 = NewEntityIndex;
 			PendingGroupIntents[Spawn.GroupIndex].Add(ActivateEvent);
 		}
 	}
