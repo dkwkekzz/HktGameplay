@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktWorldPlayerComponent.h"
+#include "HktBagComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 
@@ -59,4 +60,73 @@ void UHktWorldPlayerComponent::InvalidatePlayerUidCache()
 {
     bPlayerUidCached = false;
     PlayerUid = 0;
+}
+
+// ============================================================================
+// Bag — 형제 BagComponent에 위임
+// ============================================================================
+
+UHktBagComponent* UHktWorldPlayerComponent::GetBagComponent() const
+{
+    if (!CachedBagComponent.IsValid())
+    {
+        if (AActor* Owner = GetOwner())
+        {
+            CachedBagComponent = Owner->FindComponentByClass<UHktBagComponent>();
+        }
+    }
+    return CachedBagComponent.Get();
+}
+
+const FHktBagState& UHktWorldPlayerComponent::GetBagState() const
+{
+    if (UHktBagComponent* Bag = GetBagComponent())
+    {
+        return Bag->GetServerBagState();
+    }
+    static FHktBagState Empty;
+    return Empty;
+}
+
+bool UHktWorldPlayerComponent::StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot)
+{
+    if (UHktBagComponent* Bag = GetBagComponent())
+    {
+        return Bag->Server_StoreBagItem(InItem, OutBagSlot);
+    }
+    return false;
+}
+
+bool UHktWorldPlayerComponent::TakeFromBag(int32 BagSlot, FHktBagItem& OutItem)
+{
+    if (UHktBagComponent* Bag = GetBagComponent())
+    {
+        return Bag->Server_RestoreFromBag(BagSlot, OutItem);
+    }
+    return false;
+}
+
+void UHktWorldPlayerComponent::RestoreBagFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity)
+{
+    if (UHktBagComponent* Bag = GetBagComponent())
+    {
+        Bag->Server_RestoreFromRecord(InBagItems, InCapacity);
+    }
+}
+
+TArray<FHktBagItem> UHktWorldPlayerComponent::ExportBagForRecord() const
+{
+    if (UHktBagComponent* Bag = GetBagComponent())
+    {
+        return Bag->Server_ExportForRecord();
+    }
+    return {};
+}
+
+void UHktWorldPlayerComponent::SendBagFullSync()
+{
+    if (UHktBagComponent* Bag = GetBagComponent())
+    {
+        Bag->Server_SendFullSync();
+    }
 }

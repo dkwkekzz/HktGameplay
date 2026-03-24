@@ -45,6 +45,9 @@ public:
     /** 아이템 상호작용 요청을 Rule에 전달 (PlayerController에서 호출) */
     void PushItemRequest(int64 PlayerUid, const FHktItemRequest& Request);
 
+    /** 가방 요청을 Rule에 전달 (PlayerController에서 호출) */
+    void PushBagRequest(int64 PlayerUid, const FHktBagRequest& Request);
+
 protected:
     virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

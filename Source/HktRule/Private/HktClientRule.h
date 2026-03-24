@@ -23,6 +23,7 @@ public:
 	virtual void OnUserEvent_ZoomInputAction(float InDelta) override;
 	virtual void OnReceived_InitialState(const FHktWorldState& InState, int32 InGroupIndex) override;
 	virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) override;
+	virtual void OnReceived_BagUpdate(const FHktBagDelta& InDelta) override;
 
 private:
 	// 바인딩된 컨텍스트

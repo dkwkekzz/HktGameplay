@@ -8,6 +8,7 @@
 #include "HktCoreEvents.h"
 #include "HktCoreSimulator.h"
 #include "HktWorldState.h"
+#include "HktBagTypes.h"
 #include "Containers/ArrayView.h"
 #include "HktServerRuleInterfaces.generated.h"
 
@@ -39,6 +40,9 @@ struct HKTRULE_API FHktPlayerRecord
 	TArray<FHktEvent> ActiveEvents;
 	TArray<FHktEntityState> EntityStates;
 
+	/** 가방 아이템 (DB 저장/복원) */
+	TArray<FHktBagItem> BagItems;
+
 	FHktPlayerRecord()
 	{
 		CreatedTime = FDateTime::UtcNow();
@@ -63,6 +67,14 @@ public:
 	virtual AActor* GetOwnerActor() const = 0;
 	virtual bool IsInitialized() const = 0;
 	virtual void InvalidatePlayerUidCache() = 0;
+
+	// === Bag ===
+	virtual const FHktBagState& GetBagState() const { static FHktBagState Empty; return Empty; }
+	virtual bool StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot) { return false; }
+	virtual bool TakeFromBag(int32 BagSlot, FHktBagItem& OutItem) { return false; }
+	virtual void RestoreBagFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity = 20) {}
+	virtual TArray<FHktBagItem> ExportBagForRecord() const { return {}; }
+	virtual void SendBagFullSync() {}
 };
 
 // ============================================================================
@@ -131,7 +143,7 @@ class HKTRULE_API IHktWorldDatabase
 	GENERATED_BODY()
 public:
 	virtual void LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(const FHktPlayerRecord&)> InCallback) = 0;
-	virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState) = 0;
+	virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState, TArray<FHktBagItem>&& InBagItems = {}) = 0;
 	virtual const FHktPlayerRecord* GetCachedPlayerRecord(int64 InPlayerUid) const = 0;
 };
 
@@ -278,6 +290,43 @@ struct HKTRULE_API FHktMoveRequest
 	}
 };
 
+// ============================================================================
+// EHktBagAction — 가방 요청 액션 타입
+// ============================================================================
+
+enum class EHktBagAction : uint8
+{
+	StoreFromSlot = 0,    // ItemSlot → Bag (공개 엔티티를 가방으로)
+	RestoreToSlot = 1,    // Bag → ItemSlot (가방에서 공개 엔티티로)
+	Discard       = 2,    // Bag → Ground (가방에서 바닥으로)
+};
+
+// ============================================================================
+// FHktBagRequest — 가방 상호작용 요청 (C2S)
+// ============================================================================
+
+struct HKTRULE_API FHktBagRequest
+{
+	EHktBagAction Action = EHktBagAction::StoreFromSlot;
+	FHktEntityId SourceEntity = InvalidEntityId;   // 캐릭터
+	int32 BagSlot = -1;                            // 가방 슬롯 (RestoreToSlot/Discard)
+	int32 ActionSlot = -1;                         // ItemSlot 인덱스 (StoreFromSlot: 출발, RestoreToSlot: 도착)
+
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("Action=%d Src=%d BagSlot=%d ActionSlot=%d"),
+			static_cast<uint8>(Action), SourceEntity, BagSlot, ActionSlot);
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FHktBagRequest& R)
+	{
+		uint8 ActionByte = static_cast<uint8>(R.Action);
+		Ar << ActionByte << R.SourceEntity << R.BagSlot << R.ActionSlot;
+		if (Ar.IsLoading()) R.Action = static_cast<EHktBagAction>(ActionByte);
+		return Ar;
+	}
+};
+
 //=============================================================================
 // IHktServerRule
 //=============================================================================
@@ -304,8 +353,11 @@ public:
 	/** 아이템 상호작용 요청 수신 — 서버가 ItemState 검증 후 EventTag 매핑 */
 	virtual void OnReceived_ItemRequest(const FHktItemRequest& InRequest, const IHktWorldPlayer& InPlayer) {}
 
+	/** 가방 요청 수신 — 서버가 Bag ↔ Entity 전환 처리 (Bag 상태 변경이 필요하므로 non-const) */
+	virtual void OnReceived_BagRequest(const FHktBagRequest& InRequest, IHktWorldPlayer& InPlayer) {}
+
 	/** 액터 이벤트 — 내부 캐싱된 DB 사용 (item 1, 2) */
-	virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) {}
+	virtual void OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer) {}
 	virtual void OnEvent_GameModeLogout(const IHktWorldPlayer& InPlayer) {}
 
 	/** 틱 — 내부 캐싱된 컨텍스트 사용, 결과 구조체 반환 (item 1, 2, 6) */

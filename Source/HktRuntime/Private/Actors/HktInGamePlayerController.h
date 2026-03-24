@@ -18,6 +18,7 @@
 class UInputMappingContext;
 class UInputAction;
 class IHktClientRule;
+class UHktBagComponent;
 struct FHktWorldView;
 
 UCLASS()
@@ -46,6 +47,10 @@ public:
     UFUNCTION(Server, Reliable, WithValidation)
     void Server_ReceiveItemRequest(const FHktRuntimeItemRequest& Request);
 
+    // === C2S Bag RPC ===
+    UFUNCTION(Server, Reliable, WithValidation)
+    void Server_ReceiveBagRequest(const FHktRuntimeBagRequest& Request);
+
     // === 아이템 상호작용 (UI/입력에서 호출) ===
 
     /** 주변 아이템 줍기 (TargetEntity = 바닥 아이템) */
@@ -59,6 +64,20 @@ public:
 
     /** 아이템 드롭 (바닥에 놓기) */
     void RequestItemDrop(FHktEntityId ItemEntity);
+
+    // === 가방 상호작용 (UI/입력에서 호출) ===
+
+    /** ItemSlot → Bag (장비 슬롯에서 가방으로 보관) */
+    void RequestBagStore(int32 ActionSlot);
+
+    /** Bag → ItemSlot (가방에서 장비 슬롯으로 장착) */
+    void RequestBagRestore(int32 BagSlot, int32 ActionSlot);
+
+    /** Bag → Ground (가방에서 바닥으로 버리기) */
+    void RequestBagDiscard(int32 BagSlot);
+
+    /** 가방 컴포넌트 접근 */
+    UHktBagComponent* GetBagComponent() const { return CachedBagComponent; }
 
     // === 델리게이트 ===
     virtual FOnHktTargetChanged& OnTargetChanged() override { return TargetChangedDelegate; }
@@ -118,6 +137,9 @@ private:
 
     /** 클라이언트 규칙 (Subsystem 소유, 수명 동일) */
     IHktClientRule* CachedClientRule = nullptr;
+
+    /** 가방 컴포넌트 캐시 */
+    UHktBagComponent* CachedBagComponent = nullptr;
 
     /** 캐싱된 인터페이스 포인터들 */
     IHktIntentBuilder* CachedIntentBuilder = nullptr;

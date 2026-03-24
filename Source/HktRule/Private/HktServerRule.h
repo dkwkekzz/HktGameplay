@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "HktServerRuleInterfaces.h"
+#include "HktBagTypes.h"
 
 struct FHktPlayerRecord;
 
@@ -25,9 +26,10 @@ public:
     virtual void OnReceived_SlotRequest(const FHktSlotRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
     virtual void OnReceived_MoveRequest(const FHktMoveRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
     virtual void OnReceived_ItemRequest(const FHktItemRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
+    virtual void OnReceived_BagRequest(const FHktBagRequest& InRequest, IHktWorldPlayer& InPlayer) override;
 
     // 액터 이벤트 (item 1)
-    virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) override;
+    virtual void OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer) override;
     virtual void OnEvent_GameModeLogout(const IHktWorldPlayer& InPlayer) override;
     virtual FHktEventGameModeTickResult OnEvent_GameModeTick(float InDeltaTime) override;
 
@@ -51,4 +53,19 @@ private:
 
 	// NPC 스포너 — fire된 스포너 EventTag 추적 (그룹별)
 	TSet<FGameplayTag> ActiveSpawnerFlows;
+
+	// RestoreToSlot/Discard — TakeFromBag 후 엔티티 생성이 필요한 큐
+	struct FPendingBagEntitySpawn
+	{
+		FHktBagItem Item;
+		int64 PlayerUid = 0;
+		int32 GroupIndex = INDEX_NONE;
+		FHktEntityId CharacterEntity = InvalidEntityId;
+		int32 ActionSlot = -1;       // RestoreToSlot: 대상 슬롯, Discard: -1
+		bool bDiscard = false;       // true면 Ground 엔티티 생성
+	};
+	TArray<FPendingBagEntitySpawn> PendingBagEntitySpawns;
+
+	// Bag RestoreToSlot/Discard: 그룹별 엔티티 생성 큐 (틱 내에서 소비)
+	TArray<TArray<FHktEntityState>> PendingGroupEntityStates;
 };
