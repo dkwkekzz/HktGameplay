@@ -5,6 +5,8 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 
+// UHktBagComponent가 IHktPlayerBag를 구현하므로, FindComponentByClass 후 Cast
+
 UHktWorldPlayerComponent::UHktWorldPlayerComponent()
 { 
     PrimaryComponentTick.bCanEverTick = false; 
@@ -63,10 +65,10 @@ void UHktWorldPlayerComponent::InvalidatePlayerUidCache()
 }
 
 // ============================================================================
-// Bag — 형제 BagComponent에 위임
+// IHktPlayerBag — 형제 BagComponent를 찾아 반환
 // ============================================================================
 
-UHktBagComponent* UHktWorldPlayerComponent::GetBagComponent() const
+IHktPlayerBag* UHktWorldPlayerComponent::GetPlayerBag() const
 {
     if (!CachedBagComponent.IsValid())
     {
@@ -75,58 +77,5 @@ UHktBagComponent* UHktWorldPlayerComponent::GetBagComponent() const
             CachedBagComponent = Owner->FindComponentByClass<UHktBagComponent>();
         }
     }
-    return CachedBagComponent.Get();
-}
-
-const FHktBagState& UHktWorldPlayerComponent::GetBagState() const
-{
-    if (UHktBagComponent* Bag = GetBagComponent())
-    {
-        return Bag->GetServerBagState();
-    }
-    static FHktBagState Empty;
-    return Empty;
-}
-
-bool UHktWorldPlayerComponent::StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot)
-{
-    if (UHktBagComponent* Bag = GetBagComponent())
-    {
-        return Bag->Server_StoreBagItem(InItem, OutBagSlot);
-    }
-    return false;
-}
-
-bool UHktWorldPlayerComponent::TakeFromBag(int32 BagSlot, FHktBagItem& OutItem)
-{
-    if (UHktBagComponent* Bag = GetBagComponent())
-    {
-        return Bag->Server_RestoreFromBag(BagSlot, OutItem);
-    }
-    return false;
-}
-
-void UHktWorldPlayerComponent::RestoreBagFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity)
-{
-    if (UHktBagComponent* Bag = GetBagComponent())
-    {
-        Bag->Server_RestoreFromRecord(InBagItems, InCapacity);
-    }
-}
-
-TArray<FHktBagItem> UHktWorldPlayerComponent::ExportBagForRecord() const
-{
-    if (UHktBagComponent* Bag = GetBagComponent())
-    {
-        return Bag->Server_ExportForRecord();
-    }
-    return {};
-}
-
-void UHktWorldPlayerComponent::SendBagFullSync()
-{
-    if (UHktBagComponent* Bag = GetBagComponent())
-    {
-        Bag->Server_SendFullSync();
-    }
+    return Cast<IHktPlayerBag>(CachedBagComponent.Get());
 }

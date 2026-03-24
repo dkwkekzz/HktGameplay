@@ -281,6 +281,9 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	if (!WS.IsValidEntity(InRequest.SourceEntity)) return;
 	if (WS.GetOwnerUid(InRequest.SourceEntity) != PlayerUid) return;
 
+	IHktPlayerBag* Bag = InPlayer.GetPlayerBag();
+	if (!Bag) return;
+
 	switch (InRequest.Action)
 	{
 	case EHktBagAction::StoreFromSlot:
@@ -294,7 +297,7 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 		// Deactivate 전에 스냅샷 (Deactivate가 엔티티를 파괴하기 때문)
 		FHktBagItem BagItem = SnapshotEntityToBagItem(WS, ItemEntity);
 		int32 OutBagSlot = -1;
-		if (!InPlayer.StoreToBag(BagItem, OutBagSlot)) return;
+		if (!Bag->StoreToBag(BagItem, OutBagSlot)) return;
 
 		// Deactivate 이벤트 발행 (기존 Story가 스탯 차감 + 슬롯 클리어 + 엔티티 정리)
 		FHktEvent Event;
@@ -312,7 +315,7 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxBagItemSlots) return;
 
 		FHktBagItem OutItem;
-		if (!InPlayer.TakeFromBag(InRequest.BagSlot, OutItem)) return;
+		if (!Bag->TakeFromBag(InRequest.BagSlot, OutItem)) return;
 
 		PendingBagEntitySpawns.Add({ OutItem, PlayerUid, GroupIndex, InRequest.SourceEntity, InRequest.ActionSlot, false });
 		break;
@@ -321,7 +324,7 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	{
 		// Bag → Ground: 가방에서 아이템 꺼내기 → 바닥 엔티티 생성 (틱에서 처리)
 		FHktBagItem OutItem;
-		if (!InPlayer.TakeFromBag(InRequest.BagSlot, OutItem)) return;
+		if (!Bag->TakeFromBag(InRequest.BagSlot, OutItem)) return;
 
 		PendingBagEntitySpawns.Add({ OutItem, PlayerUid, GroupIndex, InRequest.SourceEntity, -1, true });
 		break;
@@ -420,10 +423,13 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		if (!NewPlayer) continue;
 
 		// DB에서 로드한 가방 데이터 복원 + 클라이언트 FullSync
-		if (LoginResult.Record.BagItems.Num() > 0)
+		if (IHktPlayerBag* Bag = NewPlayer->GetPlayerBag())
 		{
-			NewPlayer->RestoreBagFromRecord(LoginResult.Record.BagItems);
-			NewPlayer->SendBagFullSync();
+			if (LoginResult.Record.BagItems.Num() > 0)
+			{
+				Bag->RestoreFromRecord(LoginResult.Record.BagItems);
+				Bag->SendFullSync();
+			}
 		}
 
 		const int32 GroupIdx  = Graph.CalculateRelevancyGroupIndex(LoginResult.Record.LastPosition);

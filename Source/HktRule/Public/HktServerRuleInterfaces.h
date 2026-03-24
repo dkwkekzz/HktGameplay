@@ -54,6 +54,24 @@ struct HKTRULE_API FHktPlayerRecord
 };
 
 //=============================================================================
+// IHktPlayerBag — 플레이어 가방 추상 인터페이스
+//=============================================================================
+UINTERFACE(MinimalAPI, BlueprintType)
+class UHktPlayerBag : public UInterface { GENERATED_BODY() };
+
+class HKTRULE_API IHktPlayerBag
+{
+	GENERATED_BODY()
+public:
+	virtual const FHktBagState& GetBagState() const = 0;
+	virtual bool StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot) = 0;
+	virtual bool TakeFromBag(int32 BagSlot, FHktBagItem& OutItem) = 0;
+	virtual void RestoreFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity = 20) = 0;
+	virtual TArray<FHktBagItem> ExportForRecord() const = 0;
+	virtual void SendFullSync() = 0;
+};
+
+//=============================================================================
 // IHktWorldPlayer
 //=============================================================================
 UINTERFACE(MinimalAPI, BlueprintType)
@@ -68,13 +86,8 @@ public:
 	virtual bool IsInitialized() const = 0;
 	virtual void InvalidatePlayerUidCache() = 0;
 
-	// === Bag ===
-	virtual const FHktBagState& GetBagState() const { static FHktBagState Empty; return Empty; }
-	virtual bool StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot) { return false; }
-	virtual bool TakeFromBag(int32 BagSlot, FHktBagItem& OutItem) { return false; }
-	virtual void RestoreBagFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity = 20) {}
-	virtual TArray<FHktBagItem> ExportBagForRecord() const { return {}; }
-	virtual void SendBagFullSync() {}
+	/** 플레이어 가방 접근 (없으면 nullptr) */
+	virtual IHktPlayerBag* GetPlayerBag() const { return nullptr; }
 };
 
 // ============================================================================
