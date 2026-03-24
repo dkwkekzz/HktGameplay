@@ -25,7 +25,6 @@ class IHktClientRule;
  *   Logout()       → Rule->OnEvent_GameModeLogout()
  *   Tick()         → Rule->OnEvent_GameModeTick() → FHktEventGameModeTickResult
  *   ReceiveRuntimeEvent → Rule->OnReceived_RuntimeEvent()
- *   ReceiveItemRequest  → Rule->OnReceived_ItemRequest()
  */
 UCLASS()
 class HKTRUNTIME_API AHktGameMode : public AGameModeBase
@@ -37,9 +36,6 @@ public:
 
     /** 통합 런타임 이벤트를 Rule에 전달 (PlayerController에서 호출) */
     void PushRuntimeEvent(int64 PlayerUid, const FHktEvent& Event);
-
-    /** 아이템 상호작용 요청을 Rule에 전달 (UI 패널에서 직접 호출) */
-    void PushItemRequest(int64 PlayerUid, const FHktItemRequest& Request);
 
     /** 가방 요청을 Rule에 전달 (PlayerController에서 호출) */
     void PushBagRequest(int64 PlayerUid, const FHktBagRequest& Request);

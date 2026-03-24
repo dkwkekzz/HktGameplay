@@ -399,39 +399,26 @@ void AHktIngamePlayerController::Server_ReceiveRuntimeEvent_Implementation(const
     }
 }
 
-bool AHktIngamePlayerController::Server_ReceiveItemRequest_Validate(const FHktRuntimeItemRequest& Request)
-{
-    return Request.Value.SourceEntity != InvalidEntityId && Request.Value.TargetEntity != InvalidEntityId;
-}
-
-void AHktIngamePlayerController::Server_ReceiveItemRequest_Implementation(const FHktRuntimeItemRequest& Request)
-{
-#if ENABLE_HKT_INSIGHTS
-    InsightSentIntentCount++;
-#endif
-
-    if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
-    {
-        GM->PushItemRequest(GetPlayerUid(), Request.Value);
-    }
-}
-
 // ============================================================================
-// 아이템 상호작용 (UI 전용 — 인벤토리/장비 패널에서 직접 호출)
+// 아이템 상호작용 (UI 전용 — RuntimeEvent로 통합)
 // ============================================================================
 
 void AHktIngamePlayerController::RequestItemDrop(FHktEntityId ItemEntity)
 {
-    if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
+    if (!CachedIntentBuilder || ItemEntity == InvalidEntityId) return;
 
-    FHktItemRequest Req;
-    Req.Action = EHktItemAction::Drop;
-    Req.SourceEntity = DefaultSubjectEntityId;
-    Req.TargetEntity = ItemEntity;
-    Server_ReceiveItemRequest(FHktRuntimeItemRequest(Req));
+    const FHktEntityId SubjectEntity = CachedIntentBuilder->GetSubjectEntityId();
+    if (SubjectEntity == InvalidEntityId) return;
+
+    FHktEvent Event;
+    Event.EventTag = HktGameplayTags::Story_Event_Item_Drop;
+    Event.SourceEntity = SubjectEntity;
+    Event.TargetEntity = ItemEntity;
+    Event.PlayerUid = GetPlayerUid();
+    Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
-        FString::Printf(TEXT("RequestItemDrop Item=%d"), ItemEntity), DefaultSubjectEntityId);
+        FString::Printf(TEXT("RequestItemDrop Item=%d"), ItemEntity), SubjectEntity);
 }
 
 void AHktIngamePlayerController::ResolveDefaultSubject()
