@@ -9,6 +9,7 @@
 #include "HktWorldState.h"
 #include "HktRuntimeTypes.h"
 #include "HktRuntimeDelegates.h"
+#include "HktBagTypes.h"
 #include "IHktPlayerInteractionInterface.generated.h"
 
 /**
@@ -54,14 +55,23 @@ public:
 	/** 아이템 장착/해제로 액션 슬롯 바인딩이 변경될 때 브로드캐스트. */
 	virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() { static FOnHktSlotBindingChanged Dummy; return Dummy; }
 
-	/** 아이템 활성화 요청 (인벤토리 → 장비). */
-	virtual void RequestItemActivate(FHktEntityId ItemEntity, int32 ActionSlot) {}
-
-	/** 아이템 비활성화 요청 (장비 → 인벤토리). */
-	virtual void RequestItemDeactivate(FHktEntityId ItemEntity) {}
+	/** 가방 상태 변경 시 브로드캐스트 (S2C RPC 수신 후). */
+	virtual FOnHktBagChanged& OnBagChanged() { static FOnHktBagChanged Dummy; return Dummy; }
 
 	/** 아이템 드롭 요청 (바닥에 놓기). */
 	virtual void RequestItemDrop(FHktEntityId ItemEntity) {}
+
+	/** 장비 슬롯 → 가방으로 보관 요청. */
+	virtual void RequestBagStore(int32 ActionSlot) {}
+
+	/** 가방 → 장비 슬롯으로 장착 요청. */
+	virtual void RequestBagRestore(int32 BagSlot, int32 ActionSlot) {}
+
+	/** 가방 → 바닥으로 버리기 요청. */
+	virtual void RequestBagDiscard(int32 BagSlot) {}
+
+	/** 클라이언트 로컬 가방 상태 조회. 미지원 시 nullptr 반환. */
+	virtual const FHktBagState* GetBagState() const { return nullptr; }
 
 	/** 이 플레이어의 고유 UID. 소유권 검증 등에 사용. 미지원 시 0 반환. */
 	virtual int64 GetPlayerUid() const { return 0; }

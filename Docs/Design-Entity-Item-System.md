@@ -260,15 +260,15 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
         → Server_ReceiveItemRequest()  → OnReceived_ItemRequest()
                                            Action=Pickup → Story.Event.Item.Pickup
 
-[인벤토리 위젯에서 아이템 선택]
-  RequestItemActivate(Item, Slot)
-    → Server_ReceiveItemRequest()      → OnReceived_ItemRequest()
-                                           Action=Activate → Story.Event.Item.Activate (Param0=Slot)
+[가방 위젯에서 아이템 선택 — 장착]
+  RequestBagRestore(BagSlot, ActionSlot)
+    → Server_ReceiveBagRequest()       → OnReceived_BagRequest()
+                                           Action=RestoreToSlot → 엔티티 생성 + Story.Event.Item.Activate
 
-[장비 위젯에서 아이템 선택]
-  RequestItemDeactivate(Item)
-    → Server_ReceiveItemRequest()      → OnReceived_ItemRequest()
-                                           Action=Deactivate → Story.Event.Item.Deactivate
+[장비 위젯에서 아이템 선택 — 가방으로 보관]
+  RequestBagStore(ActionSlot)
+    → Server_ReceiveBagRequest()       → OnReceived_BagRequest()
+                                           Action=StoreFromSlot → 스냅샷 + Story.Event.Item.Deactivate
 
 [드롭 요청]
   RequestItemDrop(Item)
@@ -294,7 +294,8 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 
 ### 4.1 아이템 상태 머신
 
-Equip 개념은 존재하지 않는다. 아이템은 **2단계**(Pickup→Activate)로 사용된다.
+아이템은 획득 시 즉시 Active 상태가 되어 스킬을 사용할 수 있다.
+별도의 활성화 단계는 없으며, 가방(Bag)으로의 보관/복원으로 관리한다.
 
 ```
                     ┌──────────┐
@@ -304,44 +305,34 @@ Equip 개념은 존재하지 않는다. 아이템은 **2단계**(Pickup→Activa
                     └────┬─────┘
                          │
                     Pickup│(Story.Event.Item.Pickup)
-                         │ 조건: 거리<=3m, 가방<BagCapacity
+                         │ 조건: 거리<=3m, 빈 ActionSlot 존재
+                         │ + 자동 ActionSlot 할당 + 스탯/Stance 적용
                          ▼
-                    ┌──────────┐
-                    │          │  Deactivate
-                    │  InBag   │◄──────────────┐
-                    │ State=1  │               │
-                    └────┬─────┘               │
-                         │                     │
-                  Activate│(Story.Event.Item.Activate)│
-                         │ Param0 = ActionSlot │
-                         │ + Stance 자동 변경   │
-                         ▼                     │
-                    ┌──────────────┐            │
-                    │ Active       │────────────┘
-                    │ State=2      │ (Story.Event.Item.Deactivate)
-                    │ ActionSlot=N │
-                    └──────────────┘
+                    ┌──────────────┐   BagStore (StoreFromSlot)
+                    │ Active       │──────────────►┌─────────┐
+                    │ State=2      │               │   Bag   │
+                    │ ActionSlot=N │◄──────────────┤(스냅샷) │
+                    └──────────────┘   BagRestore  └─────────┘
+                                      (RestoreToSlot)
 
-    * Drop은 InBag 또는 Active 어디서든 Ground로 복귀 가능
-    * Drop 시: OwnerEntity=0, BagSlot=0, ActionSlot=-1, 위치=소유자위치
-    * Activate 시: 아이템의 Stance Property를 읽어 캐릭터 Stance 자동 변경
+    * Pickup 시 빈 ActionSlot(0~8)이 없으면 픽업 실패
+    * Drop은 Active 상태에서 Ground로 복귀 가능
+    * Drop 시: ItemSlot[N] 클리어, OwnerEntity=0, ActionSlot=-1, 위치=소유자위치
+    * Bag은 엔티티가 아닌 경량 스냅샷(FHktBagItem)으로 보관
+    * Activate/Deactivate Story는 Bag 연동 전용 (내부 사용)
 ```
 
 ### 4.2 슬롯 구조
 
-**BagSlot (가방 슬롯)**
-- 범위: 0~(BagCapacity-1), 기본 BagCapacity=8
-- 엔티티별 `BagCapacity` Property로 용량이 다를 수 있음 (이동형 창고 엔티티 등)
-- 할당 방식: Pickup 시점에 현재 소유 아이템 수(CountByOwner)를 BagSlot으로 사용
-- 용도: 인벤토리 UI에서 아이템 위치 결정
-
 **ActionSlot (액션 슬롯)**
-- 범위: -1 (미등록) 또는 0 이상의 정수
-- 할당 방식: Event.Item.Activate의 Param0으로 지정
+- 범위: 0~8 (ItemSlot0~ItemSlot8)
+- 할당 방식: Pickup 시 자동으로 빈 슬롯 할당, BagRestore 시 지정
 - 용도: 장착된 아이템의 활성 슬롯 (예: 0=주무기, 1=보조장비)
-- 현재 사용 예시:
-  - `HktStoryCharacterSpawn.cpp`: Sword=ActionSlot 0, Shield=ActionSlot 1
-  - `HktStoryPlayerInWorld.cpp`: WoodenSword=ActionSlot -1 (미등록, InBag 상태)
+
+**BagSlot (가방 슬롯)**
+- 범위: 0~(Capacity-1), 기본 Capacity=20
+- BagComponent의 FHktBagState에서 관리
+- 용도: 가방 UI에서 아이템 위치 결정
 
 ### 4.3 Stance (전투 자세)와 아이템의 관계
 
@@ -465,12 +456,13 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 3. 우클릭으로 이동
 4. PrototypeMap에 WoodSpear가 하나 스폰되어 있음
 5. 플레이어가 WoodSpear를 클릭 → 자동 Pickup (OnTargetAction에서 Ground 아이템 감지 → RequestItemPickup)
-6. 인벤토리 위젯에서 아이템 선택 → Activate (RequestItemActivate → Server_ReceiveItemRequest)
-7. Activate 시:
-   - ItemState: 1(InBag) → 2(Active)
-   - ActionSlot 할당
+6. Pickup 시 즉시 Active:
+   - 빈 ActionSlot 자동 할당
+   - ItemState: 0(Ground) → 2(Active)
    - 아이템의 Stance Property를 읽어 캐릭터 Stance 자동 변경
    - 캐릭터 무기 소켓에 해당 아이템 Mesh 부착 (Gap 5 ✅)
+7. 장비 위젯에서 아이템 클릭 → 가방으로 보관 (RequestBagStore → Server_ReceiveBagRequest)
+8. 가방 위젯에서 아이템 클릭 → 다시 장착 (RequestBagRestore → Server_ReceiveBagRequest)
 ```
 
 ### 7.2 미구현 항목 (프로토타입용)
@@ -478,10 +470,10 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 | 항목 | 상태 | 설명 |
 |------|------|------|
 | WoodSpear 맵 스폰 Story | 미구현 | PrototypeMap 로드 시 고정 위치에 WoodSpear 1개 스폰하는 Map Event |
-| Pickup 클릭 | ✅ 구현 완료 | OnTargetAction에서 Ground 아이템(ItemState==0) 감지 → RequestItemPickup → Server_ReceiveItemRequest |
-| Activate/Deactivate 입력 | ✅ 구현 완료 | `RequestItemActivate`/`RequestItemDeactivate` → `Server_ReceiveItemRequest` RPC → `OnReceived_ItemRequest` |
+| Pickup 클릭 | ✅ 구현 완료 | OnTargetAction에서 Ground 아이템(ItemState==0) 감지 → RequestItemPickup → Server_ReceiveItemRequest. 즉시 Active 상태 |
+| Bag Store/Restore | ✅ 구현 완료 | `RequestBagStore`/`RequestBagRestore` → `Server_ReceiveBagRequest` RPC → `OnReceived_BagRequest` |
 | 무기 메쉬 소켓 부착 | ✅ 구현 완료 | `UHktItemVisualDataAsset.AttachSocketName`으로 소켓 지정, `FHktActorRenderer`에서 OwnerEntity/ActionSlot 변경 감지 → 자동 부착/분리 |
-| Inventory/Equipment 위젯 | 미구현 | `IHktPlayerInteractionInterface`의 `RequestItemActivate`/`RequestItemDeactivate` 호출하는 Slate 위젯 |
+| Inventory/Equipment 위젯 | ✅ 구현 완료 | 장비 패널: `RequestBagStore` 호출, 가방 패널: `RequestBagRestore` 호출 |
 
 ---
 

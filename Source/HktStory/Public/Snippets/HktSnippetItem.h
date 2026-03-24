@@ -87,4 +87,15 @@ namespace HktSnippetItem
 		RegisterIndex Entity,
 		int32 ExpectedState,
 		const FString& FailLabel);
+
+	/**
+	 * Self의 ItemSlot0~8에서 빈 슬롯(값==0)을 찾아 DstReg에 슬롯 인덱스를 저장.
+	 * 빈 슬롯이 없으면 FailLabel로 점프.
+	 *
+	 * Clobbers: R4, R5, Flag, DstReg
+	 */
+	HKTSTORY_API FHktStoryBuilder& FindEmptyActionSlot(
+		FHktStoryBuilder& B,
+		RegisterIndex DstReg,
+		const FString& FailLabel);
 }

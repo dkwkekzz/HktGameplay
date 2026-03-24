@@ -21,11 +21,11 @@ namespace HktStoryItemPickup
 
 	/**
 	 * ================================================================
-	 * 아이템 줍기 Flow
+	 * 아이템 줍기 Flow (Ground → Active)
 	 *
 	 * 자연어로 읽으면:
-	 * "아이템이 Ground 상태이고 거리 3m 이내이며 가방에 빈 슬롯이 있으면
-	 *  아이템을 가방의 첫 번째 빈 슬롯에 넣는다."
+	 * "아이템이 Ground 상태이고 거리 3m 이내이며 빈 ActionSlot이 있으면
+	 *  아이템을 즉시 활성화하여 장착하고, 스탯과 Stance를 적용한다."
 	 *
 	 * 클라이언트 인텐트 → 서버 fire.
 	 * Self = 줍는 유닛, Target = 줍을 아이템 엔티티
@@ -54,25 +54,15 @@ namespace HktStoryItemPickup
 				if (DX * DX + DY * DY + DZ * DZ > 300.0f * 300.0f)
 					return false;
 
-				// 빈 슬롯 존재 여부 확인
-				int32 BagCapacity = WS.GetProperty(E.SourceEntity, PropertyId::BagCapacity);
-				TArray<bool> SlotOccupied;
-				SlotOccupied.SetNumZeroed(BagCapacity);
-
-				WS.ForEachEntity([&](FHktEntityId Id, int32 Slot)
+				// 빈 ActionSlot 존재 여부 확인 (ItemSlot0~8 중 값==0인 슬롯)
+				static constexpr uint16 SlotProps[] = {
+					PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
+					PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
+					PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+				};
+				for (uint16 Prop : SlotProps)
 				{
-					if (WS.Get(Slot, PropertyId::OwnerEntity) == E.SourceEntity
-						&& WS.GetTagsBySlot(Slot).HasTag(Entity_Item))
-					{
-						int32 BagSlot = WS.Get(Slot, PropertyId::BagSlot);
-						if (BagSlot >= 0 && BagSlot < BagCapacity)
-							SlotOccupied[BagSlot] = true;
-					}
-				});
-
-				for (int32 i = 0; i < BagCapacity; ++i)
-				{
-					if (!SlotOccupied[i])
+					if (WS.GetProperty(E.SourceEntity, Prop) == 0)
 						return true;
 				}
 				return false;
@@ -85,47 +75,27 @@ namespace HktStoryItemPickup
 			.GetDistance(R0, Self, Target)
 			.LoadConst(R1, 300)                                         // 3m = 300cm
 			.CmpGt(Flag, R0, R1)
-			.JumpIf(Flag, TEXT("fail"))
+			.JumpIf(Flag, TEXT("fail"));
 
-			// 빈 BagSlot 탐색 — 슬롯 0부터 순서대로 점유 여부를 확인
-			.LoadEntityProperty(R1, Self, PropertyId::BagCapacity)
-			.LoadConst(R3, 0)                                               // R3 = 후보 슬롯
+		// 빈 ActionSlot 탐색 (R3 = 빈 슬롯 인덱스, 없으면 fail)
+		HktSnippetItem::FindEmptyActionSlot(B, R3, TEXT("fail"));
 
-		.Label(TEXT("find_slot_loop"))
-			// R3 >= BagCapacity이면 가방 가득 참
-			.CmpGe(Flag, R3, R1)
-			.JumpIf(Flag, TEXT("fail"))
-
-			// R3 슬롯이 점유되었는지 확인: 소유 아이템 재순회
-			.LoadConst(R4, 0)                                               // R4 = 점유 플래그
-			.FindByOwner(Self, Entity_Item)
-
-		.Label(TEXT("slot_check_loop"))
-			.NextFound()
-			.JumpIfNot(Flag, TEXT("slot_check_done"))
-			.LoadEntityProperty(R5, Iter, PropertyId::BagSlot)
-			.CmpEq(R6, R5, R3)
-			.JumpIfNot(R6, TEXT("slot_check_loop"))
-			// 슬롯 R3이 점유됨
-			.LoadConst(R4, 1)
-
-		.Label(TEXT("slot_check_done"))
-			// R4 == 0이면 R3가 빈 슬롯
-			.LoadConst(R5, 0)
-			.CmpEq(Flag, R4, R5)
-			.JumpIf(Flag, TEXT("found_slot"))
-			// 다음 슬롯 시도
-			.AddImm(R3, R3, 1)
-			.Jump(TEXT("find_slot_loop"))
-
-		.Label(TEXT("found_slot"))
-			// R3 = 빈 BagSlot, 아이템을 가방으로 이동
+		B	// 소유권 설정
 			.SaveEntityProperty(Target, PropertyId::OwnerEntity, Self)
 			.SetOwnerUid(Target)                                            // 계정 소유 설정
-			.SaveConstEntity(Target, PropertyId::ItemState, 1)              // InBag
-			.SaveEntityProperty(Target, PropertyId::BagSlot, R3)
 
-			.Log(TEXT("Item picked up"))
+			// Active 상태로 전환 + ActionSlot 설정
+			.SaveConstEntity(Target, PropertyId::ItemState, 2)              // Active
+			.SaveEntityProperty(Target, PropertyId::ActionSlot, R3);
+
+		// 캐릭터의 ItemSlot[R3] = 아이템 EntityId
+		B.Move(R2, Target);                                                 // R2 = 아이템 EntityId
+		HktSnippetItem::SaveItemToSlot(B, R3, R2);
+
+		// 아이템 스탯 + Stance를 캐릭터에 적용
+		HktSnippetItem::ApplyItemStats(B, Target, Self);
+
+		B	.Log(TEXT("Item picked up and activated"))
 			.Halt()
 
 		.Label(TEXT("fail"))

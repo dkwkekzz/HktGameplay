@@ -175,3 +175,37 @@ FHktStoryBuilder& HktSnippetItem::ValidateItemState(
 
 	return B;
 }
+
+FHktStoryBuilder& HktSnippetItem::FindEmptyActionSlot(
+	FHktStoryBuilder& B,
+	RegisterIndex DstReg,
+	const FString& FailLabel)
+{
+	using namespace Reg;
+
+	FString P = B.MakeInternalLabel(TEXT("fslot"));
+	FString FoundLabel = P + TEXT("_found");
+
+	// ItemSlot0~8 순차 검사: 값이 0이면 빈 슬롯
+	for (int32 i = 0; i < NumItemSlots; ++i)
+	{
+		FString BranchLabel = FString::Printf(TEXT("%s_f%d"), *P, i);
+		B.LoadStore(R4, ItemSlotProperties[i])
+		 .LoadConst(R5, 0)
+		 .CmpEq(Flag, R4, R5)
+		 .JumpIf(Flag, BranchLabel);
+	}
+	B.Jump(FailLabel);  // 모든 슬롯이 차 있음
+
+	for (int32 i = 0; i < NumItemSlots; ++i)
+	{
+		FString BranchLabel = FString::Printf(TEXT("%s_f%d"), *P, i);
+		B.Label(BranchLabel)
+		 .LoadConst(DstReg, i)
+		 .Jump(FoundLabel);
+	}
+
+	B.Label(FoundLabel);
+
+	return B;
+}

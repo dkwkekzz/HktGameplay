@@ -43,7 +43,7 @@ public:
     UFUNCTION(Server, Reliable, WithValidation)
     void Server_ReceiveRuntimeEvent(const FHktRuntimeEvent& Event);
 
-    /** UI 직접 아이템 조작 (activate, deactivate, drop — 인벤토리 패널 전용) */
+    /** UI 직접 아이템 조작 (pickup, drop — 인벤토리 패널 전용) */
     UFUNCTION(Server, Reliable, WithValidation)
     void Server_ReceiveItemRequest(const FHktRuntimeItemRequest& Request);
 
@@ -53,25 +53,22 @@ public:
 
     // === 아이템 상호작용 (UI에서 호출) ===
 
-    /** 인벤토리 아이템 활성화 (Equipment 슬롯으로 이동) */
-    void RequestItemActivate(FHktEntityId ItemEntity, int32 ActionSlot);
-
-    /** 장비 아이템 비활성화 (인벤토리로 이동) */
-    void RequestItemDeactivate(FHktEntityId ItemEntity);
-
     /** 아이템 드롭 (바닥에 놓기) */
     void RequestItemDrop(FHktEntityId ItemEntity);
 
     // === 가방 상호작용 (UI/입력에서 호출) ===
 
     /** ItemSlot → Bag (장비 슬롯에서 가방으로 보관) */
-    void RequestBagStore(int32 ActionSlot);
+    virtual void RequestBagStore(int32 ActionSlot) override;
 
     /** Bag → ItemSlot (가방에서 장비 슬롯으로 장착) */
-    void RequestBagRestore(int32 BagSlot, int32 ActionSlot);
+    virtual void RequestBagRestore(int32 BagSlot, int32 ActionSlot) override;
 
     /** Bag → Ground (가방에서 바닥으로 버리기) */
-    void RequestBagDiscard(int32 BagSlot);
+    virtual void RequestBagDiscard(int32 BagSlot) override;
+
+    /** 클라이언트 로컬 가방 상태 조회 */
+    virtual const FHktBagState* GetBagState() const override;
 
     /** 가방 컴포넌트 접근 */
     UHktBagComponent* GetBagComponent() const { return CachedBagComponent; }
@@ -88,6 +85,7 @@ public:
     virtual FOnHktSubjectChanged& OnSubjectChanged() override { return SubjectChangedDelegate; }
     virtual FOnHktIntentSubmitted& OnIntentSubmitted() override { return IntentSubmittedDelegate; }
     virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() override { return SlotBindingChangedDelegate; }
+    virtual FOnHktBagChanged& OnBagChanged() override;
 
     // === Player UID ===
     virtual int64 GetPlayerUid() const override;

@@ -12,6 +12,7 @@ public class HktUI : ModuleRules
 			new string[] {
 				System.IO.Path.Combine(ModuleDirectory, "..", "HktCore", "Public"),
 				System.IO.Path.Combine(ModuleDirectory, "..", "HktRuntime", "Public"),
+				System.IO.Path.Combine(ModuleDirectory, "..", "HktRule", "Public"),
 			}
 		);
 
@@ -30,7 +31,8 @@ public class HktUI : ModuleRules
 				"HktCore",
 				"HktRuntime",
 				"HktAsset",
-				"HktPresentation"
+				"HktPresentation",
+				"HktRule"
 			}
 		);
 
