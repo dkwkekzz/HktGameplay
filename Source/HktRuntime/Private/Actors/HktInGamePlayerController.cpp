@@ -420,35 +420,6 @@ void AHktIngamePlayerController::Server_ReceiveItemRequest_Implementation(const 
 // 아이템 상호작용 (UI 전용 — 인벤토리/장비 패널에서 직접 호출)
 // ============================================================================
 
-void AHktIngamePlayerController::RequestItemActivate(FHktEntityId ItemEntity, int32 ActionSlot)
-{
-    if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
-
-    FHktItemRequest Req;
-    Req.Action = EHktItemAction::Activate;
-    Req.SourceEntity = DefaultSubjectEntityId;
-    Req.TargetEntity = ItemEntity;
-    Req.Param0 = ActionSlot;
-    Server_ReceiveItemRequest(FHktRuntimeItemRequest(Req));
-
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
-        FString::Printf(TEXT("RequestItemActivate Item=%d Slot=%d"), ItemEntity, ActionSlot), DefaultSubjectEntityId);
-}
-
-void AHktIngamePlayerController::RequestItemDeactivate(FHktEntityId ItemEntity)
-{
-    if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
-
-    FHktItemRequest Req;
-    Req.Action = EHktItemAction::Deactivate;
-    Req.SourceEntity = DefaultSubjectEntityId;
-    Req.TargetEntity = ItemEntity;
-    Server_ReceiveItemRequest(FHktRuntimeItemRequest(Req));
-
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
-        FString::Printf(TEXT("RequestItemDeactivate Item=%d"), ItemEntity), DefaultSubjectEntityId);
-}
-
 void AHktIngamePlayerController::RequestItemDrop(FHktEntityId ItemEntity)
 {
     if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
@@ -629,6 +600,11 @@ void AHktIngamePlayerController::RequestBagDiscard(int32 BagSlot)
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
         FString::Printf(TEXT("RequestBagDiscard BagSlot=%d"), BagSlot), DefaultSubjectEntityId);
+}
+
+const FHktBagState* AHktIngamePlayerController::GetBagState() const
+{
+    return CachedBagComponent ? &CachedBagComponent->GetLocalBagState() : nullptr;
 }
 
 IHktClientRule* AHktIngamePlayerController::GetClientRule() const

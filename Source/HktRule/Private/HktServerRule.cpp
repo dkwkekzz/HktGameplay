@@ -102,7 +102,7 @@ void FHktDefaultServerRule::OnReceived_RuntimeEvent(
 	PendingGroupIntents[GroupIndex].Add(Event);
 }
 
-// 아이템 이벤트 태그 (Pickup/Activate/Deactivate/Drop)
+// 아이템 이벤트 태그 (Pickup/Drop + 내부 전용 Activate/Deactivate — Bag 연동)
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Pickup,     "Story.Event.Item.Pickup");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Activate,   "Story.Event.Item.Activate");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Deactivate, "Story.Event.Item.Deactivate");
@@ -131,8 +131,6 @@ void FHktDefaultServerRule::OnReceived_ItemRequest(
 	switch (InRequest.Action)
 	{
 	case EHktItemAction::Pickup:     EventTag = Event_Item_Pickup;     break;
-	case EHktItemAction::Activate:   EventTag = Event_Item_Activate;   break;
-	case EHktItemAction::Deactivate: EventTag = Event_Item_Deactivate; break;
 	case EHktItemAction::Drop:       EventTag = Event_Item_Drop;       break;
 	default: return;
 	}
@@ -143,7 +141,6 @@ void FHktDefaultServerRule::OnReceived_ItemRequest(
 	Event.SourceEntity = InRequest.SourceEntity;
 	Event.TargetEntity = InRequest.TargetEntity;
 	Event.PlayerUid = PlayerUid;
-	Event.Param0 = InRequest.Param0;  // Activate: ActionSlot
 	PendingGroupIntents[GroupIndex].Add(Event);
 }
 

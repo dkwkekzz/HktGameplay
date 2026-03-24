@@ -13,6 +13,7 @@
 #include "Styling/CoreStyle.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "HktCoreProperties.h"
+#include "HktBagTypes.h"
 #include "GameplayTagsManager.h"
 
 class APlayerController;
@@ -467,7 +468,7 @@ inline FString SHktIngameHudWidget::GetEntityDisplayName(const FHktWorldState* W
 }
 
 // ============================================================================
-// Inventory 패널 (가방 아이템: ItemState == 1)
+// Inventory 패널 (가방에 보관된 아이템 — BagComponent)
 // ============================================================================
 inline void SHktIngameHudWidget::RefreshInventoryPanel()
 {
@@ -480,55 +481,9 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 	IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC);
 	if (!Interaction) return;
 
-	const FHktWorldState* WS = nullptr;
-	if (!Interaction->GetWorldState(WS) || !WS) return;
-
-	const int64 PlayerUid = Interaction->GetPlayerUid();
-	if (PlayerUid == 0) return;
-
-	// 내 캐릭터 엔티티 찾기
-	FHktEntityId MyCharacter = InvalidEntityId;
-	WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId Id, int32 /*Slot*/)
-	{
-		if (MyCharacter != InvalidEntityId) return;
-		if (WS->GetProperty(Id, PropertyId::ItemState) == 0)
-		{
-			MyCharacter = Id;
-		}
-	});
-	if (MyCharacter == InvalidEntityId) return;
-
-	// 가방 아이템 수집 (ItemState == 1)
-	struct FBagItem { FHktEntityId EntityId; int32 BagSlot; FString Name; int32 AttackPower; };
-	TArray<FBagItem> Items;
-
-	// 사용 중인 ActionSlot 수집 (Activate 시 빈 슬롯 자동 할당용)
-	TSet<int32> UsedSlots;
-
-	WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
-	{
-		if (WS->GetProperty(ItemId, PropertyId::OwnerEntity) != MyCharacter) return;
-		const int32 State = WS->GetProperty(ItemId, PropertyId::ItemState);
-
-		if (State == 2) // Active — ActionSlot 사용 중
-		{
-			int32 Slot = WS->GetProperty(ItemId, PropertyId::ActionSlot);
-			if (Slot >= 0) UsedSlots.Add(Slot);
-		}
-
-		if (State != 1) return; // InBag만
-
-		Items.Add({
-			ItemId,
-			WS->GetProperty(ItemId, PropertyId::BagSlot),
-			GetEntityDisplayName(WS, ItemId),
-			WS->GetProperty(ItemId, PropertyId::AttackPower)
-		});
-	});
-
-	Items.Sort([](const FBagItem& A, const FBagItem& B) { return A.BagSlot < B.BagSlot; });
-
-	if (Items.Num() == 0)
+	// 가방 상태 조회
+	const FHktBagState* BagState = Interaction->GetBagState();
+	if (!BagState || BagState->Items.Num() == 0)
 	{
 		InventoryListBox->AddSlot()
 		.AutoHeight().Padding(0.f, 4.f)
@@ -540,33 +495,62 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 		return;
 	}
 
+	// 사용 중인 ActionSlot 수집 (빈 슬롯 자동 할당용)
+	const FHktWorldState* WS = nullptr;
+	TSet<int32> UsedSlots;
+	if (Interaction->GetWorldState(WS) && WS)
+	{
+		const int64 PlayerUid = Interaction->GetPlayerUid();
+		WS->ForEachEntityByOwner(PlayerUid, [&](FHktEntityId ItemId, int32 /*Slot*/)
+		{
+			if (WS->GetProperty(ItemId, PropertyId::ItemState) == 2)
+			{
+				int32 Slot = WS->GetProperty(ItemId, PropertyId::ActionSlot);
+				if (Slot >= 0) UsedSlots.Add(Slot);
+			}
+		});
+	}
+
 	// 빈 ActionSlot 찾기 함수
 	auto FindNextFreeSlot = [&UsedSlots]() -> int32
 	{
-		for (int32 S = 0; S < 10; ++S)
+		for (int32 S = 0; S < 9; ++S)
 		{
 			if (!UsedSlots.Contains(S)) return S;
 		}
 		return 0;
 	};
 
-	for (const FBagItem& Item : Items)
+	// 가방 아이템을 슬롯 순으로 정렬하여 표시
+	TArray<FHktBagItem> SortedItems = BagState->Items;
+	SortedItems.Sort([](const FHktBagItem& A, const FHktBagItem& B) { return A.BagSlot < B.BagSlot; });
+
+	for (const FHktBagItem& Item : SortedItems)
 	{
-		const FHktEntityId ItemEntityId = Item.EntityId;
+		const int32 BagSlot = Item.BagSlot;
 		const int32 NextSlot = FindNextFreeSlot();
+
+		// ItemId로 표시 이름 생성
+		FString ItemName = FString::Printf(TEXT("Item #%d"), Item.ItemId);
+		if (Item.EntitySpawnTag > 0)
+		{
+			FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(
+				static_cast<FGameplayTagNetIndex>(Item.EntitySpawnTag));
+			if (!TagName.IsNone()) ItemName = TagName.ToString();
+		}
 
 		InventoryListBox->AddSlot()
 		.AutoHeight().Padding(0.f, 2.f)
 		[
 			SNew(SButton)
 			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-			.OnClicked_Lambda([this, ItemEntityId, NextSlot]() -> FReply
+			.OnClicked_Lambda([this, BagSlot, NextSlot]() -> FReply
 			{
 				if (APlayerController* PC = CachedPC.Get())
 				{
 					if (IHktPlayerInteractionInterface* I = Cast<IHktPlayerInteractionInterface>(PC))
 					{
-						I->RequestItemActivate(ItemEntityId, NextSlot);
+						I->RequestBagRestore(BagSlot, NextSlot);
 					}
 				}
 				return FReply::Handled();
@@ -578,14 +562,14 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 					SNew(SBox).WidthOverride(30.f)
 					[
 						SNew(STextBlock)
-						.Text(FText::FromString(FString::Printf(TEXT("[%d]"), Item.BagSlot)))
+						.Text(FText::FromString(FString::Printf(TEXT("[%d]"), BagSlot)))
 						.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
 					]
 				]
 				+ SHorizontalBox::Slot().FillWidth(1.f)
 				[
 					SNew(STextBlock)
-					.Text(FText::FromString(Item.Name))
+					.Text(FText::FromString(ItemName))
 					.ColorAndOpacity(FLinearColor::White)
 				]
 				+ SHorizontalBox::Slot().AutoWidth()
@@ -668,20 +652,20 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 			? FString::Printf(TEXT("Slot %d"), Item.ActionSlot)
 			: TEXT("Passive");
 
-		const FHktEntityId ItemEntityId = Item.EntityId;
+		const int32 ItemActionSlot = Item.ActionSlot;
 
 		EquipmentListBox->AddSlot()
 		.AutoHeight().Padding(0.f, 2.f)
 		[
 			SNew(SButton)
 			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-			.OnClicked_Lambda([this, ItemEntityId]() -> FReply
+			.OnClicked_Lambda([this, ItemActionSlot]() -> FReply
 			{
 				if (APlayerController* PC = CachedPC.Get())
 				{
 					if (IHktPlayerInteractionInterface* I = Cast<IHktPlayerInteractionInterface>(PC))
 					{
-						I->RequestItemDeactivate(ItemEntityId);
+						I->RequestBagStore(ItemActionSlot);
 					}
 				}
 				return FReply::Handled();

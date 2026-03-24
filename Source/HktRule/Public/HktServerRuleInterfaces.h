@@ -212,9 +212,7 @@ struct FHktEventGameModeTickResult
 enum class EHktItemAction : uint8
 {
 	Pickup     = 0,
-	Activate   = 1,
-	Deactivate = 2,
-	Drop       = 3,
+	Drop       = 1,
 };
 
 // ============================================================================
@@ -226,7 +224,7 @@ struct HKTRULE_API FHktItemRequest
 	EHktItemAction Action = EHktItemAction::Pickup;
 	FHktEntityId SourceEntity = InvalidEntityId;
 	FHktEntityId TargetEntity = InvalidEntityId;
-	int32 Param0 = 0;  // Activate: ActionSlot
+	int32 Param0 = 0;
 
 	FString ToString() const
 	{
