@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "HktServerRuleInterfaces.h"
+#include "HktBagTypes.h"
 
 struct FHktPlayerRecord;
 
@@ -25,6 +26,7 @@ public:
     virtual void OnReceived_SlotRequest(const FHktSlotRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
     virtual void OnReceived_MoveRequest(const FHktMoveRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
     virtual void OnReceived_ItemRequest(const FHktItemRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
+    virtual void OnReceived_BagRequest(const FHktBagRequest& InRequest, const IHktWorldPlayer& InPlayer) override;
 
     // 액터 이벤트 (item 1)
     virtual void OnEvent_GameModePostLogin(const IHktWorldPlayer& InPlayer) override;
@@ -51,4 +53,13 @@ private:
 
 	// NPC 스포너 — fire된 스포너 EventTag 추적 (그룹별)
 	TSet<FGameplayTag> ActiveSpawnerFlows;
+
+	// 가방 요청 큐 — SimulationTick에서 BagComponent와 함께 처리
+	struct FPendingBagRequest
+	{
+		FHktBagRequest Request;
+		int64 PlayerUid = 0;
+		int32 GroupIndex = INDEX_NONE;
+	};
+	TArray<FPendingBagRequest> PendingBagRequests;
 };

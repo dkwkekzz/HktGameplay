@@ -8,6 +8,7 @@
 #include "HktCoreDefs.h"
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
+#include "HktBagTypes.h"
 #include "HktClientRuleInterfaces.generated.h"
 
 // ============================================================================
@@ -131,6 +132,9 @@ public:
 	/** 내부 캐싱된 Simulator 사용 */
 	virtual void OnReceived_InitialState(const FHktWorldState& InState, int32 InGroupIndex) {}
 	virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) {}
+
+	/** 가방 변경 수신 (소유자 전용) */
+	virtual void OnReceived_BagUpdate(const FHktBagDelta& InDelta) {}
 };
 
 namespace HktRule

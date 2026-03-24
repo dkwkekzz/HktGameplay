@@ -3,6 +3,7 @@
 #include "HktServerRule.h"
 #include "HktCoreSimulator.h"
 #include "HktCoreProperties.h"
+#include "HktBagTypes.h"
 #include "GameplayTagsManager.h"
 #include "NativeGameplayTags.h"
 #include "HktTempMapStoryConfig.h"
@@ -202,6 +203,83 @@ void FHktDefaultServerRule::OnReceived_MoveRequest(
 }
 
 // ============================================================================
+// 가방 요청 수신 — Bag ↔ Entity 전환
+// ============================================================================
+
+/** ItemSlot PropertyId 테이블 (가방용) */
+static constexpr uint16 BagItemSlotPropertyIds[] =
+{
+	PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
+	PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
+	PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+};
+static constexpr int32 MaxBagItemSlots = UE_ARRAY_COUNT(BagItemSlotPropertyIds);
+
+void FHktDefaultServerRule::OnReceived_BagRequest(
+	const FHktBagRequest& InRequest, const IHktWorldPlayer& InPlayer)
+{
+	if (!CachedGraph) return;
+
+	const int64 PlayerUid = InPlayer.GetPlayerUid();
+	const int32 GroupIndex = CachedGraph->GetRelevancyGroupIndex(PlayerUid);
+	if (!PendingGroupIntents.IsValidIndex(GroupIndex)) return;
+
+	// 소스 엔티티(캐릭터) 소유권 검증
+	const IHktRelevancyGroup& Group = CachedGraph->GetRelevancyGroup(GroupIndex);
+	const FHktWorldState& WS = Group.GetSimulator().GetWorldState();
+	if (!WS.IsValidEntity(InRequest.SourceEntity)) return;
+	if (WS.GetOwnerUid(InRequest.SourceEntity) != PlayerUid) return;
+
+	// BagComponent 접근 — PlayerController의 컴포넌트
+	// 현재 ServerRule은 BagComponent에 직접 접근할 수 없으므로,
+	// 가방 요청을 PendingBagIntents에 큐잉하여 GameMode가 처리하도록 위임.
+	// TODO: BagComponent 접근 경로 확립 후 직접 처리로 전환
+
+	switch (InRequest.Action)
+	{
+	case EHktBagAction::StoreFromSlot:
+	{
+		// ItemSlot → Bag: Deactivate 이벤트를 발행하여 스탯 차감 + 엔티티 정리
+		// BagComponent의 실제 저장은 GameMode 레벨에서 처리
+		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxBagItemSlots) return;
+
+		const FHktEntityId ItemEntity = WS.GetProperty(InRequest.SourceEntity, BagItemSlotPropertyIds[InRequest.ActionSlot]);
+		if (ItemEntity == 0 || !WS.IsValidEntity(ItemEntity)) return;
+
+		// Deactivate 이벤트 발행 (기존 Story가 스탯 차감 + 슬롯 클리어 처리)
+		FHktEvent Event;
+		Event.EventId = ++ServerEventSequence;
+		Event.EventTag = Event_Item_Deactivate;
+		Event.SourceEntity = InRequest.SourceEntity;
+		Event.TargetEntity = ItemEntity;
+		Event.PlayerUid = PlayerUid;
+		PendingGroupIntents[GroupIndex].Add(Event);
+
+		// 가방 저장은 BagComponent에서 별도로 처리됨 (GameMode 통해)
+		PendingBagRequests.Add({ InRequest, PlayerUid, GroupIndex });
+		break;
+	}
+	case EHktBagAction::RestoreToSlot:
+	{
+		// Bag → ItemSlot: 가방에서 아이템을 꺼내 엔티티를 생성하고 Activate
+		// 엔티티 생성 + Activate 이벤트 발행은 GameMode 레벨에서 처리
+		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxBagItemSlots) return;
+
+		PendingBagRequests.Add({ InRequest, PlayerUid, GroupIndex });
+		break;
+	}
+	case EHktBagAction::Discard:
+	{
+		// Bag → Ground: 가방에서 아이템을 꺼내 바닥에 드롭
+		PendingBagRequests.Add({ InRequest, PlayerUid, GroupIndex });
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+// ============================================================================
 // 액터 이벤트 (item 1, 2)
 // ============================================================================
 
@@ -304,6 +382,12 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 			}
 		}
 	}
+
+	// --- Bag 요청을 결과에 전달 (GameMode가 BagComponent와 함께 처리) ---
+	// 가방 요청은 시뮬레이션 이후 GameMode 레벨에서 BagComponent를 통해 처리됨.
+	// StoreFromSlot의 Deactivate 이벤트는 이미 PendingGroupIntents에 추가됨.
+	// RestoreToSlot/Discard는 시뮬레이션 후 엔티티 생성이 필요하므로 다음 프레임에서 처리.
+	// TODO: 이 부분은 향후 GameMode에서 BagComponent 직접 참조로 개선
 
 	// --- ProcessSimulationAndPayloads ---
 

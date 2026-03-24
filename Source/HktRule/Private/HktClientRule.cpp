@@ -114,3 +114,10 @@ void FHktDefaultClientRule::OnReceived_FrameBatch(const FHktSimulationEvent& InB
 	// 즉시 처리하지 않고 큐에 적재 — 다음 틱에서 롤백/빨리감기 처리
 	CachedSimulator->EnqueueServerBatch(InBatch);
 }
+
+void FHktDefaultClientRule::OnReceived_BagUpdate(const FHktBagDelta& InDelta)
+{
+	// BagComponent가 Client_ReceiveBagUpdate에서 직접 LocalBagState를 업데이트하고
+	// 델리게이트를 브로드캐스트하므로, ClientRule에서는 추가 처리 불필요.
+	// 향후 UI 시스템이 복잡해지면 여기서 추가 로직 가능.
+}

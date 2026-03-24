@@ -7,6 +7,7 @@
 #include "HktGameMode.h"
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
+#include "HktBagComponent.h"
 #include "HktCoreDataCollector.h"
 #include "HktCoreEventLog.h"
 #include "HktStoryBuilder.h"
@@ -71,6 +72,11 @@ void AHktIngamePlayerController::BeginPlay()
         {
             CachedWorldPlayer = WorldPlayer;
         }
+
+        if (UHktBagComponent* BagComp = Cast<UHktBagComponent>(Comp))
+        {
+            CachedBagComponent = BagComp;
+        }
     }
 
     // 컨텍스트 바인딩 — ServerRule::BindContext와 동일한 패턴
@@ -103,6 +109,7 @@ void AHktIngamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReaso
     CachedProxySimulator   = nullptr;
     CachedCommandContainer = nullptr;
     CachedWorldPlayer      = nullptr;
+    CachedBagComponent     = nullptr;
 
     Super::EndPlay(EndPlayReason);
 }
@@ -647,6 +654,74 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
 
     // 배치 완료 후 한 번만 broadcast — UI 갱신 트리거
     SlotBindingChangedDelegate.Broadcast(-1);
+}
+
+// ============================================================================
+// C2S Bag RPC
+// ============================================================================
+
+bool AHktIngamePlayerController::Server_ReceiveBagRequest_Validate(const FHktRuntimeBagRequest& Request)
+{
+    return Request.Value.SourceEntity != InvalidEntityId;
+}
+
+void AHktIngamePlayerController::Server_ReceiveBagRequest_Implementation(const FHktRuntimeBagRequest& Request)
+{
+#if ENABLE_HKT_INSIGHTS
+    InsightSentIntentCount++;
+#endif
+
+    if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
+    {
+        GM->PushBagRequest(GetPlayerUid(), Request.Value);
+    }
+}
+
+// ============================================================================
+// 가방 요청 API (UI에서 호출)
+// ============================================================================
+
+void AHktIngamePlayerController::RequestBagStore(int32 ActionSlot)
+{
+    if (DefaultSubjectEntityId == InvalidEntityId) return;
+
+    FHktBagRequest Req;
+    Req.Action = EHktBagAction::StoreFromSlot;
+    Req.SourceEntity = DefaultSubjectEntityId;
+    Req.ActionSlot = ActionSlot;
+    Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+        FString::Printf(TEXT("RequestBagStore ActionSlot=%d"), ActionSlot), DefaultSubjectEntityId);
+}
+
+void AHktIngamePlayerController::RequestBagRestore(int32 BagSlot, int32 ActionSlot)
+{
+    if (DefaultSubjectEntityId == InvalidEntityId) return;
+
+    FHktBagRequest Req;
+    Req.Action = EHktBagAction::RestoreToSlot;
+    Req.SourceEntity = DefaultSubjectEntityId;
+    Req.BagSlot = BagSlot;
+    Req.ActionSlot = ActionSlot;
+    Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+        FString::Printf(TEXT("RequestBagRestore BagSlot=%d ActionSlot=%d"), BagSlot, ActionSlot), DefaultSubjectEntityId);
+}
+
+void AHktIngamePlayerController::RequestBagDiscard(int32 BagSlot)
+{
+    if (DefaultSubjectEntityId == InvalidEntityId) return;
+
+    FHktBagRequest Req;
+    Req.Action = EHktBagAction::Discard;
+    Req.SourceEntity = DefaultSubjectEntityId;
+    Req.BagSlot = BagSlot;
+    Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+        FString::Printf(TEXT("RequestBagDiscard BagSlot=%d"), BagSlot), DefaultSubjectEntityId);
 }
 
 IHktClientRule* AHktIngamePlayerController::GetClientRule() const

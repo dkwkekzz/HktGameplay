@@ -7,6 +7,7 @@
 #include "HktCoreDefs.h"
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
+#include "HktBagTypes.h"
 #include "HktServerRuleInterfaces.h"
 #include "HktRuntimeTypes.generated.h"
 
@@ -342,6 +343,64 @@ struct HKTRUNTIME_API FHktRuntimeMoveRequest
 
 template<>
 struct TStructOpsTypeTraits<FHktRuntimeMoveRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeMoveRequest>
+{
+	enum { WithNetSerializer = true };
+};
+
+//=============================================================================
+// FHktRuntimeBagRequest — 가방 요청 네트워크 래퍼
+//=============================================================================
+USTRUCT()
+struct HKTRUNTIME_API FHktRuntimeBagRequest
+{
+	GENERATED_BODY()
+
+	FHktBagRequest Value;
+
+	FHktRuntimeBagRequest() = default;
+	explicit FHktRuntimeBagRequest(const FHktBagRequest& In) : Value(In) {}
+
+	FORCEINLINE operator FHktBagRequest&() { return Value; }
+	FORCEINLINE operator const FHktBagRequest&() const { return Value; }
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		Ar << Value;
+		return bOutSuccess = true;
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeBagRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeBagRequest>
+{
+	enum { WithNetSerializer = true };
+};
+
+//=============================================================================
+// FHktRuntimeBagUpdate — 가방 변경 알림 네트워크 래퍼 (S2C)
+//=============================================================================
+USTRUCT()
+struct HKTRUNTIME_API FHktRuntimeBagUpdate
+{
+	GENERATED_BODY()
+
+	FHktBagDelta Value;
+
+	FHktRuntimeBagUpdate() = default;
+	explicit FHktRuntimeBagUpdate(const FHktBagDelta& In) : Value(In) {}
+	explicit FHktRuntimeBagUpdate(FHktBagDelta&& In) : Value(MoveTemp(In)) {}
+
+	FORCEINLINE operator FHktBagDelta&() { return Value; }
+	FORCEINLINE operator const FHktBagDelta&() const { return Value; }
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		return Value.NetSerialize(Ar, Map, bOutSuccess);
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FHktRuntimeBagUpdate> : public TStructOpsTypeTraitsBase2<FHktRuntimeBagUpdate>
 {
 	enum { WithNetSerializer = true };
 };
