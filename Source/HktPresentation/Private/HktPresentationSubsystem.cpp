@@ -5,7 +5,6 @@
 #include "HktRuntimeTypes.h"
 #include "Renderers/HktActorRenderer.h"
 #include "Renderers/HktMassEntityRenderer.h"
-#include "Renderers/HktUIRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
@@ -41,7 +40,6 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	ActorRenderer = MakeUnique<FHktActorRenderer>(GetLocalPlayer());
 	MassEntityRenderer = MakeUnique<FHktMassEntityRenderer>(GetLocalPlayer());
-	UIRenderer = MakeUnique<FHktUIRenderer>(GetLocalPlayer());
 	VFXRenderer = MakeUnique<FHktVFXRenderer>(GetLocalPlayer());
 }
 
@@ -50,8 +48,9 @@ void UHktPresentationSubsystem::Deinitialize()
 	UnbindInteraction();
 
 	if (VFXRenderer) VFXRenderer->Teardown();
+	if (UIRenderer) UIRenderer->Teardown();
 	VFXRenderer.Reset();
-	UIRenderer.Reset();
+	UIRenderer = nullptr;
 	MassEntityRenderer.Reset();
 	ActorRenderer.Reset();
 	State.Clear();
@@ -279,23 +278,20 @@ AActor* UHktPresentationSubsystem::GetRenderedActor(FHktEntityId Id) const
 
 void UHktPresentationSubsystem::RegisterUIRenderer(IHktPresentationRenderer* InRenderer)
 {
-	if (UIRenderer)
-	{
-		UIRenderer->RegisterRenderer(InRenderer);
+	UIRenderer = InRenderer;
 
-		// 이미 InitialSync가 완료된 경우 즉시 Sync 호출하여 기존 엔티티 전달
-		if (bInitialSyncDone)
-		{
-			InRenderer->Sync(State);
-		}
+	// 이미 InitialSync가 완료된 경우 즉시 Sync 호출하여 기존 엔티티 전달
+	if (UIRenderer && bInitialSyncDone)
+	{
+		UIRenderer->Sync(State);
 	}
 }
 
 void UHktPresentationSubsystem::UnregisterUIRenderer(IHktPresentationRenderer* InRenderer)
 {
-	if (UIRenderer)
+	if (UIRenderer == InRenderer)
 	{
-		UIRenderer->UnregisterRenderer(InRenderer);
+		UIRenderer = nullptr;
 	}
 }
 

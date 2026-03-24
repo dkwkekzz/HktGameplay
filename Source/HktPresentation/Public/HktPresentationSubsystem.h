@@ -10,15 +10,13 @@
 // TODO: 전방선언 이슈
 #include "Renderers/HktActorRenderer.h"
 #include "Renderers/HktMassEntityRenderer.h"
-#include "Renderers/HktUIRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
+#include "HktPresentationRenderer.h"
 #include "HktPresentationSubsystem.generated.h"
 
 class IHktPlayerInteractionInterface;
-class IHktPresentationRenderer;
 class FHktActorRenderer;
 class FHktMassEntityRenderer;
-class FHktUIRenderer;
 class FHktVFXRenderer;
 struct FHktRuntimeEvent;
 struct FHktVFXIntent;
@@ -77,8 +75,10 @@ private:
 	FHktPresentationState State;
 	TUniquePtr<FHktActorRenderer> ActorRenderer;
 	TUniquePtr<FHktMassEntityRenderer> MassEntityRenderer;
-	TUniquePtr<FHktUIRenderer> UIRenderer;
 	TUniquePtr<FHktVFXRenderer> VFXRenderer;
+
+	/** 외부 등록된 UI 렌더러 (AHktIngameHUD 등). 생명주기는 등록측이 관리. */
+	IHktPresentationRenderer* UIRenderer = nullptr;
 
 	IHktPlayerInteractionInterface* BoundInteraction = nullptr;
 	FDelegateHandle WorldViewHandle;
