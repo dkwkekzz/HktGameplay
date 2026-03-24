@@ -80,7 +80,7 @@ struct FHktEntityPresentation
 	bool IsAlive() const;
 	bool IsSpawnedAt(int64 Frame) const;
 	bool IsRemovedAt(int64 Frame) const;
-	bool IsItemAttached() const { return OwnerEntity.Get() > 0 && ItemState.Get() == 2; }
+	bool IsItemAttached() const { return OwnerEntity.Get() != InvalidEntityId && ItemState.Get() == 2; }
 
 	static EHktRenderCategory DetermineRenderCategory(const FGameplayTagContainer& Tags);
 };
