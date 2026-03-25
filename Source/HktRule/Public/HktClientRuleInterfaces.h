@@ -140,7 +140,18 @@ public:
 	virtual void OnReceived_BagUpdate(const FHktBagDelta& InDelta) {}
 };
 
+// ============================================================================
+// System Message
+// ============================================================================
+DECLARE_MULTICAST_DELEGATE_OneParam(FHktOnSystemMessage, const FString& /*Message*/);
+
 namespace HktRule
 {
 	HKTRULE_API IHktClientRule* GetClientRule(UWorld* World);
+
+	/** 시스템 메시지 delegate 직접 접근 (구독용) */
+	HKTRULE_API FHktOnSystemMessage& GetSystemMessageDelegate(UWorld* World);
+
+	/** 시스템 메시지 표시 — 어느 모듈에서나 호출 가능 */
+	HKTRULE_API void ShowSystemMessage(UWorld* World, const FString& Message);
 }
