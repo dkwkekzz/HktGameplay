@@ -133,16 +133,9 @@ void FHktDefaultClientRule::OnUserEvent_SubjectInputAction()
 			TEXT("SubjectAction: no selectable entity under cursor"));
 	}
 
-	// UI 표시용 Subject — 소유 여부와 무관하게 선택 가능 (관찰 용도)
+	// 소유 여부와 무관하게 선택 가능 (비소유 대상은 관찰만, 행위는 제한)
 	CachedBuilder->SetSubject(SelectedEntity);
 	CachedBuilder->ResetCommand();
-
-	// 소유권 있는 엔티티만 OwnedSubject로 설정 (제어/카메라 용도)
-	if (SelectedEntity != InvalidEntityId && IsOwnedByMe(SelectedEntity))
-	{
-		CachedBuilder->SetOwnedSubject(SelectedEntity);
-	}
-	// 소유권 없는 경우 OwnedSubject는 이전 값 유지
 }
 
 void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
@@ -154,12 +147,21 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 		return;
 	}
 
-	// 제어 가능한 Subject(OwnedSubject) 없으면 무반응
-	FHktEntityId OwnedSubject = CachedBuilder->GetOwnedSubjectEntityId();
-	if (OwnedSubject == InvalidEntityId)
+	// Subject 없으면 무반응
+	FHktEntityId SubjectEntity = CachedBuilder->GetSubjectEntityId();
+	if (SubjectEntity == InvalidEntityId)
 	{
 		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
-			TEXT("TargetAction ignored: no owned Subject available"));
+			TEXT("TargetAction ignored: no Subject selected"));
+		return;
+	}
+
+	// 내 소유 아닌 Subject면 관찰만 (제어 불가)
+	if (!IsOwnedByMe(SubjectEntity))
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("TargetAction ignored: Subject %d is not owned by this player (observe only)"), SubjectEntity),
+			SubjectEntity);
 		return;
 	}
 
@@ -177,7 +179,7 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 		// SlotAction 선택됨 → 해당 슬롯의 EventTag로 이벤트 생성
 		FGameplayTag EventTag = CachedContainer->GetEventTagAtSlot(PendingSlot);
 		Event.EventTag = EventTag;
-		Event.SourceEntity = OwnedSubject;
+		Event.SourceEntity = SubjectEntity;
 		Event.TargetEntity = TargetEntity;
 		Event.Location = TargetLocation;
 		Event.Param0 = PendingSlot;
@@ -186,7 +188,7 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 	{
 		// SlotAction 없음 → 기본 액션 (타겟 유형 기반)
 		Event = BuildDefaultAction(TargetEntity, TargetLocation);
-		Event.SourceEntity = OwnedSubject;
+		Event.SourceEntity = SubjectEntity;
 	}
 
 	// ValidateStory 사전조건 검증
@@ -197,7 +199,7 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 		{
 			HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("TargetAction rejected by ValidateEvent: %s"), *Event.ToString()),
-				OwnedSubject, Event.EventTag);
+				SubjectEntity, Event.EventTag);
 			CachedBuilder->ResetCommand();
 			return;
 		}
@@ -208,7 +210,7 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 
 	HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
 		FString::Printf(TEXT("TargetAction %s"), *Event.ToString()),
-		OwnedSubject, Event.EventTag);
+		SubjectEntity, Event.EventTag);
 }
 
 void FHktDefaultClientRule::OnUserEvent_CommandInputAction(int32 InSlotIndex)
@@ -220,12 +222,20 @@ void FHktDefaultClientRule::OnUserEvent_CommandInputAction(int32 InSlotIndex)
 		return;
 	}
 
-	// 제어 가능한 Subject(OwnedSubject)가 없으면 무시
-	FHktEntityId OwnedSubject = CachedBuilder->GetOwnedSubjectEntityId();
-	if (OwnedSubject == InvalidEntityId)
+	// Subject 없으면 무시
+	FHktEntityId SubjectEntity = CachedBuilder->GetSubjectEntityId();
+	if (SubjectEntity == InvalidEntityId)
 	{
 		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
-			FString::Printf(TEXT("CommandAction(Slot=%d) ignored: no owned Subject available"), InSlotIndex));
+			FString::Printf(TEXT("CommandAction(Slot=%d) ignored: no Subject selected"), InSlotIndex));
+		return;
+	}
+	// 내 소유 아닌 Subject면 무시
+	if (!IsOwnedByMe(SubjectEntity))
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("CommandAction(Slot=%d) ignored: Subject %d is not owned by this player"), InSlotIndex, SubjectEntity),
+			SubjectEntity);
 		return;
 	}
 

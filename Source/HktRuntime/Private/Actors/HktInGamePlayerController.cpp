@@ -161,18 +161,11 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
         if (CachedIntentBuilder->GetSubjectEntityId() == InvalidEntityId && DefaultSubjectEntityId != InvalidEntityId)
         {
             CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
-            CachedIntentBuilder->SetOwnedSubject(DefaultSubjectEntityId);
         }
 
-        // UI용: 선택된 Subject (소유 여부 무관)
         SubjectChangedDelegate.Broadcast(CachedIntentBuilder->GetSubjectEntityId());
-
-        // 카메라용: 소유권 있는 Subject만
-        OwnedSubjectChangedDelegate.Broadcast(CachedIntentBuilder->GetOwnedSubjectEntityId());
-
         HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
-            FString::Printf(TEXT("OnSubjectAction SubjectEntityId=%d OwnedSubjectEntityId=%d"),
-                CachedIntentBuilder->GetSubjectEntityId(), CachedIntentBuilder->GetOwnedSubjectEntityId()),
+            FString::Printf(TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId()),
             CachedIntentBuilder->GetSubjectEntityId());
     }
 }
@@ -449,9 +442,7 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
     if (DefaultSubjectEntityId != InvalidEntityId && CachedIntentBuilder)
     {
         CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
-        CachedIntentBuilder->SetOwnedSubject(DefaultSubjectEntityId);
         SubjectChangedDelegate.Broadcast(DefaultSubjectEntityId);
-        OwnedSubjectChangedDelegate.Broadcast(DefaultSubjectEntityId);
         UE_LOG(LogHktRuntime, Log, TEXT("ResolveDefaultSubject: DefaultSubjectEntityId=%d PlayerUid=%lld"), DefaultSubjectEntityId, PlayerUid);
     }
 }

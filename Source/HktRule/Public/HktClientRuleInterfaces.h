@@ -46,7 +46,6 @@ class HKTRULE_API IHktIntentBuilder
 	GENERATED_BODY()
 public:
 	virtual void SetSubject(FHktEntityId InSubject) = 0;
-	virtual void SetOwnedSubject(FHktEntityId InOwnedSubject) = 0;
 	virtual void SetCommand(FGameplayTag InEventTag, bool bInTargetRequired) = 0;
 	virtual void SetCommandSlot(int32 InSlotIndex) = 0;
 	virtual void SetTarget(FHktEntityId InTarget, FVector InLocation) = 0;
@@ -54,7 +53,6 @@ public:
 	virtual bool IsReadyToSubmit() const = 0;
 	virtual bool Submit() = 0;
 	virtual FHktEntityId GetSubjectEntityId() const = 0;
-	virtual FHktEntityId GetOwnedSubjectEntityId() const = 0;
 	virtual FHktEntityId GetTargetEntityId() const = 0;
 	virtual FVector GetTargetLocation() const = 0;
 	virtual FGameplayTag GetEventTag() const = 0;

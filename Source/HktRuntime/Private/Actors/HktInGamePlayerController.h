@@ -77,7 +77,6 @@ public:
     virtual FOnHktWorldViewUpdated& OnWorldViewUpdated() override { return WorldViewUpdatedDelegate; }
     virtual FOnHktWheelInput& OnWheelInput() override { return WheelInputDelegate; }
     virtual FOnHktSubjectChanged& OnSubjectChanged() override { return SubjectChangedDelegate; }
-    virtual FOnHktSubjectChanged& OnOwnedSubjectChanged() override { return OwnedSubjectChangedDelegate; }
     virtual FOnHktIntentSubmitted& OnIntentSubmitted() override { return IntentSubmittedDelegate; }
     virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() override { return SlotBindingChangedDelegate; }
     virtual FOnHktBagChanged& OnBagChanged() override;
@@ -118,7 +117,6 @@ protected:
 
 private:
     FOnHktSubjectChanged SubjectChangedDelegate;
-    FOnHktSubjectChanged OwnedSubjectChangedDelegate;
     FOnHktTargetChanged TargetChangedDelegate;
     FOnHktCommandChanged CommandChangedDelegate;
     FOnHktIntentSubmitted IntentSubmittedDelegate;
