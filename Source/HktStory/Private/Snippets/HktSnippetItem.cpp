@@ -219,7 +219,8 @@ FHktStoryBuilder& HktSnippetItem::AssignOwnership(
 	RegisterIndex ItemEntity,
 	RegisterIndex NewOwner)
 {
-	B.SaveEntityProperty(ItemEntity, PropertyId::OwnerEntity, NewOwner)
+	B.Log(TEXT("[Snippet] AssignOwnership"))
+	 .SaveEntityProperty(ItemEntity, PropertyId::OwnerEntity, NewOwner)
 	 .SetOwnerUid(ItemEntity);
 
 	return B;
@@ -229,7 +230,8 @@ FHktStoryBuilder& HktSnippetItem::ReleaseOwnership(
 	FHktStoryBuilder& B,
 	RegisterIndex ItemEntity)
 {
-	B.SaveConstEntity(ItemEntity, PropertyId::OwnerEntity, 0)
+	B.Log(TEXT("[Snippet] ReleaseOwnership"))
+	 .SaveConstEntity(ItemEntity, PropertyId::OwnerEntity, 0)
 	 .ClearOwnerUid(ItemEntity);
 
 	return B;
@@ -244,7 +246,8 @@ FHktStoryBuilder& HktSnippetItem::ActivateInSlot(
 	using namespace Reg;
 
 	// Active 상태로 전환 + EquipIndex 설정
-	B.SaveConstEntity(ItemEntity, PropertyId::ItemState, 2)              // Active
+	B.Log(TEXT("[Snippet] ActivateInSlot"))
+	 .SaveConstEntity(ItemEntity, PropertyId::ItemState, 2)              // Active
 	 .SaveEntityProperty(ItemEntity, PropertyId::EquipIndex, SlotIndexReg);
 
 	// 캐릭터의 EquipSlot[N] = 아이템 EntityId
@@ -263,7 +266,8 @@ FHktStoryBuilder& HktSnippetItem::DeactivateToBag(
 	RegisterIndex CharEntity)
 {
 	// InBag 상태로 전환 + EquipIndex 해제
-	B.SaveConstEntity(ItemEntity, PropertyId::ItemState, 1)              // InBag
+	B.Log(TEXT("[Snippet] DeactivateToBag"))
+	 .SaveConstEntity(ItemEntity, PropertyId::ItemState, 1)              // InBag
 	 .SaveConstEntity(ItemEntity, PropertyId::EquipIndex, -1);           // 액션 해제
 
 	// 아이템 스탯을 캐릭터에서 차감
@@ -280,7 +284,8 @@ FHktStoryBuilder& HktSnippetItem::DropToGround(
 	using namespace Reg;
 
 	// Ground로 전환
-	B.SaveConstEntity(ItemEntity, PropertyId::ItemState, 0)              // Ground
+	B.Log(TEXT("[Snippet] DropToGround"))
+	 .SaveConstEntity(ItemEntity, PropertyId::ItemState, 0)              // Ground
 	 .SaveConstEntity(ItemEntity, PropertyId::EquipIndex, -1);           // 장착 해제
 
 	// 소유권 해제
@@ -301,7 +306,8 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItem(
 {
 	using namespace Reg;
 
-	B.SpawnEntity(ItemClassTag)
+	B.Log(TEXT("[Snippet] SpawnGroundItem"))
+	 .SpawnEntity(ItemClassTag)
 	 .SaveConstEntity(Spawned, PropertyId::ItemState, 0)                 // Ground
 	 .SaveConstEntity(Spawned, PropertyId::ItemId, Template.ItemId)
 	 .SaveConstEntity(Spawned, PropertyId::EquipIndex, -1)               // 미등록
