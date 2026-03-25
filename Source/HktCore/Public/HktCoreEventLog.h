@@ -91,49 +91,30 @@ namespace HktLogTags
 // bActive 플래그를 먼저 확인하여 패널이 닫혀 있으면 즉시 반환 (성능 최적화).
 // FString::Printf 호출도 bActive 체크 이후에만 실행되므로 메모리 할당 없음.
 //
-// 기본 매크로 (HKT_EVENT_LOG, _ENTITY, _TAG):
-//   Level=Info, Source=Core 기본값 → 기존 호출부 수정 불필요
-//
-// 확장 매크로 (HKT_EVENT_LOG_EX, _ENTITY_EX, _TAG_EX):
-//   Level, Source를 명시적으로 지정
+// HKT_EVENT_LOG(CategoryTag, Level, Source, Message)
+// HKT_EVENT_LOG_ENTITY(CategoryTag, Level, Source, Message, EntityId)
+// HKT_EVENT_LOG_TAG(CategoryTag, Level, Source, Message, EntityId, Tag)
 // ============================================================================
 
 #if ENABLE_HKT_INSIGHTS
 
-// ── 기본 매크로 (Level=Info, Source=Core) ── 기존 호출부 호환
-#define HKT_EVENT_LOG(CategoryTag, Message) \
-	do { if (FHktCoreEventLog::Get().IsActive()) \
-		FHktCoreEventLog::Get().Log(CategoryTag, Message); } while(0)
-
-#define HKT_EVENT_LOG_ENTITY(CategoryTag, Message, EntityId) \
-	do { if (FHktCoreEventLog::Get().IsActive()) \
-		FHktCoreEventLog::Get().Log(CategoryTag, Message, EntityId); } while(0)
-
-#define HKT_EVENT_LOG_TAG(CategoryTag, Message, EntityId, Tag) \
-	do { if (FHktCoreEventLog::Get().IsActive()) \
-		FHktCoreEventLog::Get().Log(CategoryTag, Message, EntityId, Tag); } while(0)
-
-// ── 확장 매크로 (Level, Source 명시 지정) ──
-#define HKT_EVENT_LOG_EX(CategoryTag, Level, Source, Message) \
+#define HKT_EVENT_LOG(CategoryTag, Level, Source, Message) \
 	do { if (FHktCoreEventLog::Get().IsActive()) \
 		FHktCoreEventLog::Get().Log(CategoryTag, Message, InvalidEntityId, FGameplayTag(), Level, Source); } while(0)
 
-#define HKT_EVENT_LOG_ENTITY_EX(CategoryTag, Level, Source, Message, EntityId) \
+#define HKT_EVENT_LOG_ENTITY(CategoryTag, Level, Source, Message, EntityId) \
 	do { if (FHktCoreEventLog::Get().IsActive()) \
 		FHktCoreEventLog::Get().Log(CategoryTag, Message, EntityId, FGameplayTag(), Level, Source); } while(0)
 
-#define HKT_EVENT_LOG_TAG_EX(CategoryTag, Level, Source, Message, EntityId, Tag) \
+#define HKT_EVENT_LOG_TAG(CategoryTag, Level, Source, Message, EntityId, Tag) \
 	do { if (FHktCoreEventLog::Get().IsActive()) \
 		FHktCoreEventLog::Get().Log(CategoryTag, Message, EntityId, Tag, Level, Source); } while(0)
 
 #else
 
-#define HKT_EVENT_LOG(CategoryTag, Message)                            do {} while(0)
-#define HKT_EVENT_LOG_ENTITY(CategoryTag, Message, EntityId)           do {} while(0)
-#define HKT_EVENT_LOG_TAG(CategoryTag, Message, EntityId, Tag)         do {} while(0)
-#define HKT_EVENT_LOG_EX(CategoryTag, Level, Source, Message)          do {} while(0)
-#define HKT_EVENT_LOG_ENTITY_EX(CategoryTag, Level, Source, Message, EntityId)   do {} while(0)
-#define HKT_EVENT_LOG_TAG_EX(CategoryTag, Level, Source, Message, EntityId, Tag) do {} while(0)
+#define HKT_EVENT_LOG(CategoryTag, Level, Source, Message)                       do {} while(0)
+#define HKT_EVENT_LOG_ENTITY(CategoryTag, Level, Source, Message, EntityId)      do {} while(0)
+#define HKT_EVENT_LOG_TAG(CategoryTag, Level, Source, Message, EntityId, Tag)    do {} while(0)
 
 #endif // ENABLE_HKT_INSIGHTS
 

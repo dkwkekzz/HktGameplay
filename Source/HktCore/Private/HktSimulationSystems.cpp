@@ -73,7 +73,7 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
         });
     }
 
-    HKT_EVENT_LOG(HktLogTags::Core_Entity,
+    HKT_EVENT_LOG(HktLogTags::Core_Entity, EHktLogLevel::Info, EHktLogSource::Core,
         FString::Printf(TEXT("EntityArrange: Removing %d entities for %d owners"),
             ScratchRemoveList.Num(), RemovedOwnerIds.Num()));
     for (FHktEntityId Id : ScratchRemoveList)
@@ -113,7 +113,7 @@ void FHktVMBuildSystem::Process(
                     && Existing->Context->SourceEntity == Event.SourceEntity)
                 {
                     Existing->Status = EVMStatus::Completed;
-                    HKT_EVENT_LOG_TAG(HktLogTags::Core_VM,
+                    HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
                         FString::Printf(TEXT("VM cancelled (duplicate): %s Entity=%d"),
                             *Event.EventTag.ToString(), Event.SourceEntity),
                         Event.SourceEntity, Event.EventTag);
@@ -183,7 +183,7 @@ void FHktVMBuildSystem::Process(
         }
 #endif
 
-        HKT_EVENT_LOG_TAG(HktLogTags::Core_VM,
+        HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
             FString::Printf(TEXT("VM created: %s Src=%d Tgt=%d CodeSize=%d"),
                 *Event.EventTag.ToString(), Event.SourceEntity, Event.TargetEntity,
                 Program->CodeSize()),
@@ -300,7 +300,7 @@ void FHktVMProcessSystem::Process(
                     Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId,
                     Runtime->PC);
             }
-            HKT_EVENT_LOG_ENTITY_EX(HktLogTags::Core_VM,
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM,
                 Result == EVMStatus::Failed ? EHktLogLevel::Error : EHktLogLevel::Info,
                 EHktLogSource::Core,
                 FString::Printf(TEXT("VM %s: %s PC=%d"),
@@ -563,7 +563,7 @@ void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRunt
         FHktVMRuntime* Runtime = Pool.Get(Handle);
         if (Runtime)
         {
-            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM,
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
                 FString::Printf(TEXT("VM finalized: %s"),
                     Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("unknown")),
                 Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId);

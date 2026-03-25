@@ -57,7 +57,7 @@ void UHktAssetSubsystem::RebuildTagMap()
     }
 
     UE_LOG(LogHktAsset, Log, TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num());
-    HKT_EVENT_LOG(HktLogTags::Asset, FString::Printf(TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num()));
+    HKT_EVENT_LOG(HktLogTags::Asset, EHktLogLevel::Info, EHktLogSource::Core, FString::Printf(TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num()));
 }
 
 // ============================================================================

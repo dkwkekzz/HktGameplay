@@ -43,7 +43,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
     // 3. 런타임 파라미터 오버라이드
     ApplyRuntimeOverrides(Comp, Intent);
 
-    HKT_EVENT_LOG_EX(HktLogTags::VFX, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("PlayVFX %s Loc=(%.1f,%.1f,%.1f)"),
+    HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("PlayVFX %s Loc=(%.1f,%.1f,%.1f)"),
         *Intent.GetAssetKey(), Intent.Location.X, Intent.Location.Y, Intent.Location.Z));
 
     return Comp;
@@ -74,7 +74,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFXAttached(
     if (Comp)
     {
         ApplyRuntimeOverrides(Comp, Intent);
-        HKT_EVENT_LOG_EX(HktLogTags::VFX, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("PlayVFXAttached %s Socket=%s"),
+        HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("PlayVFXAttached %s Socket=%s"),
             *Intent.GetAssetKey(), *SocketName.ToString()));
     }
     return Comp;
