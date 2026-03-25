@@ -317,6 +317,12 @@ private:
     /** 빌드 타임 엔티티 레지스터 초기화 순서 검증 — 실패 시 false */
     bool ValidateEntityFlow();
 
+    /** 빌드 타임 범용 레지스터(R0~R8) 흐름 검증
+     *  - Read-before-Write: 초기화 안 된 레지스터 읽기 감지
+     *  - Dead Write: 값을 쓰고 읽지 않고 다시 덮어쓰기 감지
+     *  Warning 레벨 — 빌드는 중단하지 않지만 잠재 버그 경고 */
+    void ValidateRegisterFlow();
+
 private:
     TSharedRef<FHktVMProgram> Program;
 

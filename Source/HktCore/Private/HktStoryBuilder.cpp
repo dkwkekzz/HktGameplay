@@ -709,6 +709,9 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
         return nullptr;
     }
 
+    // 범용 레지스터 흐름 검증 (Warning — 빌드 중단 없음)
+    ValidateRegisterFlow();
+
     // PreconditionSection → Program
     if (PreconditionSection.Code.Num() > 0)
     {
@@ -826,6 +829,97 @@ bool FHktStoryBuilder::ValidateEntityFlow()
     }
 
     return bValid;
+}
+
+// ============================================================================
+// Build-time General Register Flow Validation
+// ============================================================================
+
+void FHktStoryBuilder::ValidateRegisterFlow()
+{
+    /**
+     * 범용 레지스터(R0~R8) 흐름을 선형 스캔하여 두 가지 패턴을 감지:
+     *
+     * 1. Read-before-Write: 초기화 안 된 레지스터를 읽는 경우
+     *    → 이전 Story 실행의 잔류값에 의존하는 잠재 버그
+     *
+     * 2. Dead Write (Write-Write-without-Read): 값을 쓰고 읽지 않고 다시 덮어쓰는 경우
+     *    → Snippet 파라미터 레지스터가 내부 temp에 의해 덮어씌워지는 유형의 버그
+     *
+     * Label(합류점)에서는 상태를 보수적으로 리셋하여 오탐을 방지한다.
+     */
+    constexpr int32 NumGPRegs = 9;  // R0~R8
+
+    // Unknown=초기화 안 됨, Written=쓰기 후 읽기 전, Read=정상 소비됨
+    enum class ERegState : uint8 { Unknown, Written, Read };
+    ERegState State[NumGPRegs];
+    int32 WritePC[NumGPRegs];       // Dead Write 경고 시 첫 Write 위치 보고용
+    for (int32 i = 0; i < NumGPRegs; ++i)
+    {
+        State[i] = ERegState::Unknown;
+        WritePC[i] = -1;
+    }
+
+    // Label 위치 수집 (합류점 판정용)
+    TSet<int32> LabelPCs;
+    for (const auto& Pair : MainSection.Labels)
+    {
+        LabelPCs.Add(Pair.Value);
+    }
+
+    auto MarkRead = [&](int32 PC, EOpCode Op, RegisterIndex R)
+    {
+        if (R >= NumGPRegs) return;
+        if (State[R] == ERegState::Unknown)
+        {
+            UE_LOG(LogHktCore, Warning,
+                TEXT("Story REGFLOW: %s PC=%d Op=%s — R%d Read-before-Write. "
+                     "초기화되지 않은 레지스터를 읽고 있습니다."),
+                *Program->Tag.ToString(), PC, GetOpCodeName(Op), R);
+        }
+        State[R] = ERegState::Read;
+    };
+
+    auto MarkWrite = [&](int32 PC, EOpCode Op, RegisterIndex R)
+    {
+        if (R >= NumGPRegs) return;
+        if (State[R] == ERegState::Written)
+        {
+            UE_LOG(LogHktCore, Warning,
+                TEXT("Story REGFLOW: %s PC=%d Op=%s — R%d Dead Write. "
+                     "PC=%d에서 쓴 값을 읽지 않고 덮어쓰고 있습니다. 레지스터 충돌을 확인하세요."),
+                *Program->Tag.ToString(), PC, GetOpCodeName(Op), R, WritePC[R]);
+        }
+        State[R] = ERegState::Written;
+        WritePC[R] = PC;
+    };
+
+    for (int32 PC = 0; PC < Program->Code.Num(); ++PC)
+    {
+        // Label 합류점: 다른 경로에서 올 수 있으므로 상태를 보수적으로 Read로 리셋
+        // (오탐 방지 — 초기화되었을 수도 있고 아닐 수도 있음)
+        if (LabelPCs.Contains(PC))
+        {
+            for (int32 i = 0; i < NumGPRegs; ++i)
+            {
+                State[i] = ERegState::Read;
+            }
+        }
+
+        const FInstruction& Inst = Program->Code[PC];
+        EOpCode Op = Inst.GetOpCode();
+        FOpRegInfo Info = GetOpRegInfo(Op);
+
+        // Read를 먼저 처리 (같은 명령에서 Read+Write면 Read가 먼저 발생)
+        if (Info.Src1 == ERegRole::Read)
+            MarkRead(PC, Op, Inst.Src1);
+        if (Info.Src2 == ERegRole::Read)
+            MarkRead(PC, Op, Inst.Src2);
+
+        // Write 처리
+        if (Info.Dst == ERegRole::Write)
+            MarkWrite(PC, Op, Inst.Dst);
+    }
 }
 
 void FHktStoryBuilder::BuildAndRegister()
