@@ -164,7 +164,7 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
         }
 
         SubjectChangedDelegate.Broadcast(CachedIntentBuilder->GetSubjectEntityId());
-        HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+        HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
             FString::Printf(TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId()),
             CachedIntentBuilder->GetSubjectEntityId());
     }
@@ -189,7 +189,7 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
             Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
             IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(Event));
 
-            HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+            HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
                 FString::Printf(TEXT("OnTargetAction Submit %s"), *Event.ToString()),
                 Event.SourceEntity, Event.EventTag);
         }
@@ -223,7 +223,7 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
             Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
             IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(Event));
 
-            HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+            HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
                 FString::Printf(TEXT("OnSlotAction Submit Slot=%d %s"), SlotIndex, *Event.ToString()),
                 Event.SourceEntity, Event.EventTag);
         }
@@ -258,7 +258,7 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
     InsightReceivedInitialStateCount++;
 #endif
 
-    HKT_EVENT_LOG(HktLogTags::Runtime_Client, FString::Printf(TEXT("ReceiveInitialState GroupIndex=%d"), GroupIndex));
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("ReceiveInitialState GroupIndex=%d"), GroupIndex));
     bIsInitialSync = false;
 
     IHktClientRule* Rule = GetClientRule();
@@ -277,7 +277,7 @@ void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
     InsightReceivedBatchCount++;
 #endif
 
-    HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("ReceiveFrameBatch Frame=%lld Events=%d"),
             Batch.Value.FrameNumber, Batch.Value.NewEvents.Num()));
     Rule->OnReceived_FrameBatch(static_cast<const FHktSimulationEvent&>(Batch));
@@ -417,7 +417,7 @@ void AHktIngamePlayerController::RequestItemDrop(FHktEntityId ItemEntity)
     Event.PlayerUid = GetPlayerUid();
     Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
 
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("RequestItemDrop Item=%d"), ItemEntity), SubjectEntity);
 }
 
@@ -556,7 +556,7 @@ void AHktIngamePlayerController::RequestBagStore(int32 ActionSlot)
     Req.ActionSlot = ActionSlot;
     Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
 
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("RequestBagStore ActionSlot=%d"), ActionSlot), DefaultSubjectEntityId);
 }
 
@@ -571,7 +571,7 @@ void AHktIngamePlayerController::RequestBagRestore(int32 BagSlot, int32 ActionSl
     Req.ActionSlot = ActionSlot;
     Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
 
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("RequestBagRestore BagSlot=%d ActionSlot=%d"), BagSlot, ActionSlot), DefaultSubjectEntityId);
 }
 
@@ -585,7 +585,7 @@ void AHktIngamePlayerController::RequestBagDiscard(int32 BagSlot)
     Req.BagSlot = BagSlot;
     Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
 
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("RequestBagDiscard BagSlot=%d"), BagSlot), DefaultSubjectEntityId);
 }
 

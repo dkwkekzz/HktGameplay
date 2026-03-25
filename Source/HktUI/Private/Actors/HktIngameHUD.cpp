@@ -103,7 +103,7 @@ void AHktIngameHUD::SyncEntityElements(const FHktPresentationState& State)
 		});
 		bInitialSyncDone = true;
 
-		HKT_EVENT_LOG(HktLogTags::UI, FString::Printf(TEXT("HUD: InitialSync via Presentation, Entities=%d"),
+		HKT_EVENT_LOG(HktLogTags::UI, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("HUD: InitialSync via Presentation, Entities=%d"),
 			TrackedEntities.Num()));
 		return;
 	}

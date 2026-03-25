@@ -34,7 +34,8 @@ FHktCoreEventLog& FHktCoreEventLog::Get()
 }
 
 void FHktCoreEventLog::Log(const FGameplayTag& Category, const FString& Message,
-                           FHktEntityId EntityId, FGameplayTag EventTag)
+                           FHktEntityId EntityId, FGameplayTag EventTag,
+                           EHktLogLevel Level, EHktLogSource Source)
 {
 	if (!bActive)
 	{
@@ -57,6 +58,8 @@ void FHktCoreEventLog::Log(const FGameplayTag& Category, const FString& Message,
 	Entry.Message = Message;
 	Entry.EntityId = EntityId;
 	Entry.EventTag = EventTag;
+	Entry.Level = Level;
+	Entry.Source = Source;
 
 	++WriteIndex;
 	++Version;
@@ -138,9 +141,11 @@ FString FHktCoreEventLog::DumpToFile(const FString& OptionalPath) const
 		for (uint32 i = StartIndex; i < WriteIndex; ++i)
 		{
 			const FHktLogEntry& Entry = Entries[i % MaxEntries];
-			// [Frame:000123] [Category] Message | Entity:ID | Tag:EventTag
-			Content.Appendf(TEXT("[Frame:%06llu] [%s] %s"),
+			// [Frame:000123] [Level] [Source] [Category] Message | Entity:ID | Tag:EventTag
+			Content.Appendf(TEXT("[Frame:%06llu] [%s] [%s] [%s] %s"),
 				Entry.FrameNumber,
+				GetLogLevelName(Entry.Level),
+				GetLogSourceName(Entry.Source),
 				*Entry.Category.ToString(),
 				*Entry.Message);
 

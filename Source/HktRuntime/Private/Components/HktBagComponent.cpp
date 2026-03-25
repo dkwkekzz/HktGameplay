@@ -58,7 +58,7 @@ bool UHktBagComponent::Server_StoreFromEntity(
 	OutBagSlot = BagItem.BagSlot;
 	ServerBagState.Items.Add(BagItem);
 
-	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server,
 		FString::Printf(TEXT("BagStore: Entity=%d → BagSlot=%d ItemId=%d"),
 			ItemEntity, BagItem.BagSlot, BagItem.ItemId));
 
@@ -92,7 +92,7 @@ bool UHktBagComponent::Server_StoreBagItem(const FHktBagItem& InItem, int32& Out
 	OutBagSlot = ItemCopy.BagSlot;
 	ServerBagState.Items.Add(ItemCopy);
 
-	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server,
 		FString::Printf(TEXT("BagStoreBagItem: BagSlot=%d ItemId=%d"),
 			ItemCopy.BagSlot, ItemCopy.ItemId));
 
@@ -108,7 +108,7 @@ bool UHktBagComponent::Server_RestoreFromBag(int32 BagSlot, FHktBagItem& OutItem
 		return false;
 	}
 
-	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server,
 		FString::Printf(TEXT("BagRestore: BagSlot=%d ItemId=%d"),
 			BagSlot, OutItem.ItemId));
 
@@ -124,7 +124,7 @@ void UHktBagComponent::Server_RestoreFromRecord(const TArray<FHktBagItem>& InBag
 	ServerBagState.Items = InBagItems;
 	ServerBagState.Capacity = InCapacity;
 
-	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server,
 		FString::Printf(TEXT("BagRestoreFromRecord: %d items, capacity=%d"),
 			InBagItems.Num(), InCapacity));
 }
@@ -137,7 +137,7 @@ void UHktBagComponent::Server_SendFullSync()
 
 	Client_ReceiveBagUpdate(FHktRuntimeBagUpdate(MoveTemp(Delta)));
 
-	HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+	HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server,
 		FString::Printf(TEXT("BagFullSync: %d items"), ServerBagState.GetItemCount()));
 }
 
@@ -162,13 +162,13 @@ void UHktBagComponent::Client_ReceiveBagUpdate_Implementation(const FHktRuntimeB
 	{
 	case EHktBagOp::FullSync:
 		LocalBagState = Delta.FullState;
-		HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+		HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
 			FString::Printf(TEXT("BagFullSync received: %d items"), LocalBagState.GetItemCount()));
 		break;
 
 	case EHktBagOp::Added:
 		LocalBagState.AddItem(Delta.Item);
-		HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+		HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
 			FString::Printf(TEXT("BagAdded: BagSlot=%d ItemId=%d"), Delta.Item.BagSlot, Delta.Item.ItemId));
 		break;
 
@@ -176,7 +176,7 @@ void UHktBagComponent::Client_ReceiveBagUpdate_Implementation(const FHktRuntimeB
 		{
 			FHktBagItem Removed;
 			LocalBagState.RemoveBySlot(Delta.Item.BagSlot, Removed);
-			HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+			HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
 				FString::Printf(TEXT("BagRemoved: BagSlot=%d ItemId=%d"), Delta.Item.BagSlot, Delta.Item.ItemId));
 		}
 		break;

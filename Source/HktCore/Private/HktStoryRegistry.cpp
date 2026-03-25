@@ -31,6 +31,6 @@ void FHktStoryRegistry::InitializeAllStories()
     // 메모리 절약을 위해 실행 후 비움 (필요에 따라 유지 가능)
     GetRegistry().Empty();
 
-    HKT_EVENT_LOG(HktLogTags::Core_Story,
+    HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Info, EHktLogSource::Core,
         FString::Printf(TEXT("InitializeAllStories: %d stories initialized"), StoryCount));
 }
