@@ -34,6 +34,9 @@ public:
 	/** ViewModel 값을 Actor에 적용. bForceAll=true면 전체 초기화, false면 dirty만. */
 	void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
 
+	/** 매 프레임 Transform 적용 (Sync 주기와 렌더 주기 차이로 인한 끊김 방지) */
+	void ApplyTransform(const FHktEntityPresentation& Entity);
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Unit")
 	TObjectPtr<UCapsuleComponent> CapsuleComponent;

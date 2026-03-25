@@ -32,15 +32,16 @@ UHktAnimInstance* AHktUnitActor::GetAnimInstance()
 	return CachedAnimInstance.Get();
 }
 
+void AHktUnitActor::ApplyTransform(const FHktEntityPresentation& Entity)
+{
+	SetActorLocationAndRotation(
+		Entity.RenderLocation.Get(), Entity.Rotation.Get(),
+		false, nullptr, ETeleportType::TeleportPhysics);
+}
+
 void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll)
 {
-	// --- Transform ---
-	if (bForceAll || Entity.RenderLocation.IsDirty(Frame) || Entity.Rotation.IsDirty(Frame))
-	{
-		SetActorLocationAndRotation(
-			Entity.RenderLocation.Get(), Entity.Rotation.Get(),
-			false, nullptr, ETeleportType::TeleportPhysics);
-	}
+	// Transform은 ApplyTransform()에서 매 프레임 처리
 
 	// --- Animation ---
 	UHktAnimInstance* HktAnim = GetAnimInstance();

@@ -49,16 +49,15 @@ void AHktItemActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 		}
 	}
 
-	// --- Transform (부착 중이면 소켓이 위치 결정하므로 건너뜀) ---
-	if (!bIsAttachedToSocket)
-	{
-		if (bForceAll || Entity.RenderLocation.IsDirty(Frame) || Entity.Rotation.IsDirty(Frame))
-		{
-			SetActorLocationAndRotation(
-				Entity.RenderLocation.Get(), Entity.Rotation.Get(),
-				false, nullptr, ETeleportType::TeleportPhysics);
-		}
-	}
+	// Transform은 ApplyTransform()에서 매 프레임 처리
+}
+
+void AHktItemActor::ApplyTransform(const FHktEntityPresentation& Entity)
+{
+	if (bIsAttachedToSocket) return;
+	SetActorLocationAndRotation(
+		Entity.RenderLocation.Get(), Entity.Rotation.Get(),
+		false, nullptr, ETeleportType::TeleportPhysics);
 }
 
 void AHktItemActor::TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc)
