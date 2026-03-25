@@ -95,9 +95,11 @@ void AHktIngameHUD::SyncEntityElements(const FHktPresentationState& State)
 	if (!bInitialSyncDone)
 	{
 		// 초기 동기화: PresentationState의 모든 유효 엔티티에 대해 위젯 생성
+		// 아이템이 장착된 상태(IsItemAttached)인 엔티티는 월드에 배치된 것이 아니므로 제외
 		State.ForEachEntity([this, &State](const FHktEntityPresentation& Entity)
 		{
 			if (Entity.EntityId == InvalidEntityId) return;
+			if (Entity.IsItemAttached()) return;
 			TrackedEntities.Add(Entity.EntityId);
 			CreateEntityElement(Entity.EntityId, State);
 		});
@@ -108,10 +110,12 @@ void AHktIngameHUD::SyncEntityElements(const FHktPresentationState& State)
 		return;
 	}
 
-	// 신규 엔티티 추가
+	// 신규 엔티티 추가 (장착 아이템은 제외)
 	for (FHktEntityId Id : State.SpawnedThisFrame)
 	{
 		if (Id == InvalidEntityId) continue;
+		const FHktEntityPresentation* Entity = State.Get(Id);
+		if (Entity && Entity->IsItemAttached()) continue;
 		if (!TrackedEntities.Contains(Id))
 		{
 			TrackedEntities.Add(Id);
@@ -126,6 +130,29 @@ void AHktIngameHUD::SyncEntityElements(const FHktPresentationState& State)
 		{
 			RemoveEntityElement(Id);
 			TrackedEntities.Remove(Id);
+		}
+	}
+
+	// 아이템 상태 변화: 월드에 있다가 장착되면 HUD 제거, 장착 해제되면 HUD 생성
+	for (FHktEntityId Id : State.DirtyThisFrame)
+	{
+		const FHktEntityPresentation* Entity = State.Get(Id);
+		if (!Entity) continue;
+
+		const bool bTracked = TrackedEntities.Contains(Id);
+		const bool bShouldShow = !Entity->IsItemAttached();
+
+		if (bTracked && !bShouldShow)
+		{
+			// 장착됨 → HUD 제거
+			RemoveEntityElement(Id);
+			TrackedEntities.Remove(Id);
+		}
+		else if (!bTracked && bShouldShow && Entity->IsAlive())
+		{
+			// 장착 해제됨 → HUD 생성
+			TrackedEntities.Add(Id);
+			CreateEntityElement(Id, State);
 		}
 	}
 }
@@ -153,13 +180,13 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId, const FHktPresent
 		Strategy = NewObject<UHktWorldViewAnchorStrategy>(this);
 	}
 
-	Strategy->SetTargetEntity(EntityId, EntityHudOffset);
+	Strategy->SetTargetEntity(EntityId, EntityHudHeadClearance);
 
-	// PresentationState에서 엔티티 위치 설정
+	// PresentationState에서 엔티티 RenderLocation + CapsuleHalfHeight로 머리 위치 설정
 	const FHktEntityPresentation* Entity = State.Get(EntityId);
 	if (Entity)
 	{
-		Strategy->SetWorldPosition(Entity->Location.Get());
+		Strategy->SetWorldPosition(Entity->RenderLocation.Get(), Entity->CapsuleHalfHeight);
 	}
 
 	Element->InitializeElement(View, Strategy);
@@ -183,6 +210,26 @@ void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 {
 	const int64 Frame = State.GetCurrentFrame();
 
+	// 장착 아이템 네임플레이트: OwnerEntity별로 장착된 아이템의 VisualElement 태그 수집
+	TMap<FHktEntityId, FString> ItemLabelMap;
+	State.ForEachEntity([&ItemLabelMap](const FHktEntityPresentation& ItemEntity)
+	{
+		if (!ItemEntity.IsItemAttached()) return;
+		const FHktEntityId OwnerId = ItemEntity.OwnerEntity.Get();
+		const FGameplayTag& VisTag = ItemEntity.VisualElement.Get();
+		if (!VisTag.IsValid()) return;
+
+		// 태그의 마지막 노드를 표시명으로 사용 (예: "Item.Weapon.Sword" → "Sword")
+		const FString TagStr = VisTag.ToString();
+		FString DisplayName;
+		TagStr.Split(TEXT("."), nullptr, &DisplayName, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+		if (DisplayName.IsEmpty()) DisplayName = TagStr;
+
+		FString& Existing = ItemLabelMap.FindOrAdd(OwnerId);
+		if (!Existing.IsEmpty()) Existing += TEXT(", ");
+		Existing += DisplayName;
+	});
+
 	for (FHktEntityId EntityId : TrackedEntities)
 	{
 		const FHktEntityPresentation* Entity = State.Get(EntityId);
@@ -193,9 +240,9 @@ void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 		if (!Element) continue;
 
 		UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Element->AnchorStrategy);
-		if (Strategy && Entity->Location.IsDirty(Frame))
+		if (Strategy && Entity->RenderLocation.IsDirty(Frame))
 		{
-			Strategy->SetWorldPosition(Entity->Location.Get());
+			Strategy->SetWorldPosition(Entity->RenderLocation.Get(), Entity->CapsuleHalfHeight);
 		}
 
 		// 위젯 프로퍼티 갱신 (dirty check)
@@ -211,5 +258,9 @@ void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 			EntityWidget->SetOwnerLabel(Entity->OwnerLabel.Get());
 		if (Entity->TeamColor.IsDirty(Frame))
 			EntityWidget->SetTeamColor(Entity->TeamColor.Get());
+
+		// 장착 아이템 네임플레이트 갱신
+		const FString* ItemLabel = ItemLabelMap.Find(EntityId);
+		EntityWidget->SetItemLabel(ItemLabel ? *ItemLabel : FString());
 	}
 }
