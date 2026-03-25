@@ -109,6 +109,8 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::FindByOwner: Op_FindByOwner(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::SetOwnerUid: Op_SetOwnerUid(Runtime, Inst.Src1); break;
     case EOpCode::ClearOwnerUid: Op_ClearOwnerUid(Runtime, Inst.Src1); break;
+    // Event Dispatch
+    case EOpCode::DispatchEvent: Op_DispatchEvent(Runtime, Inst.GetSignedImm20()); break;
     // Utility
     case EOpCode::Log: Op_Log(Runtime, Inst.GetSignedImm20()); break;
     default: return EVMStatus::Failed;
@@ -400,6 +402,7 @@ bool FHktVMInterpreter::ExecutePrecondition(
         case EOpCode::FindInRadius:
         case EOpCode::NextFound:
         case EOpCode::FindByOwner:
+        case EOpCode::DispatchEvent:
             continue;  // skip
         case EOpCode::Yield:
         case EOpCode::YieldSeconds:

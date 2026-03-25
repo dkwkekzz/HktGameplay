@@ -117,6 +117,8 @@ namespace Reg
     X(FindByOwner,      _, R, _) \
     X(SetOwnerUid,      _, R, _) \
     X(ClearOwnerUid,    _, R, _) \
+    /* Event Dispatch */    \
+    X(DispatchEvent,    _, _, _) \
     /* Utility */           \
     X(Log,              _, _, _)
 

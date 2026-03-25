@@ -5,10 +5,8 @@
 #include "HktCoreEventLog.h"
 #include "HktStoryBuilder.h"
 
-// 기본 액션 태그 (슬롯 미선택 시 타겟 유형별 하드코딩)
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Item_Pickup, "Story.Event.Item.Pickup");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Attack_Basic, "Story.Event.Attack.Basic");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_ToLocation, "Story.Event.Move.ToLocation");
+// 기본 액션 태그 (슬롯 미선택 시 타겟 유형에 따라 TargetDefault Story가 분기)
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Target_Default, "Story.Event.Target.Default");
 
 FHktDefaultClientRule::FHktDefaultClientRule()
 {
@@ -59,41 +57,9 @@ bool FHktDefaultClientRule::IsOwnedByMe(FHktEntityId Entity) const
 FHktEvent FHktDefaultClientRule::BuildDefaultAction(FHktEntityId TargetEntity, FVector TargetLocation) const
 {
 	FHktEvent Event;
+	Event.EventTag = Tag_Event_Target_Default;
 	Event.TargetEntity = TargetEntity;
 	Event.Location = TargetLocation;
-
-	if (TargetEntity != InvalidEntityId && CachedSimulator && CachedSimulator->IsInitialized())
-	{
-		const FHktWorldState& WS = CachedSimulator->GetWorldState();
-		if (WS.IsValidEntity(TargetEntity))
-		{
-			// 바닥 아이템 → Pickup
-			const int32 ItemId = WS.GetProperty(TargetEntity, PropertyId::ItemId);
-			const int32 ItemState = WS.GetProperty(TargetEntity, PropertyId::ItemState);
-			if (ItemId > 0 && ItemState == 0)
-			{
-				Event.EventTag = Tag_Event_Item_Pickup;
-				return Event;
-			}
-
-			// NPC/캐릭터 → 기본 공격
-			const int32 IsNPC = WS.GetProperty(TargetEntity, PropertyId::IsNPC);
-			if (IsNPC > 0)
-			{
-				Event.EventTag = Tag_Event_Attack_Basic;
-				return Event;
-			}
-		}
-		else
-		{
-			HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("BuildDefaultAction: TargetEntity %d is not valid in WorldState, falling back to Move"), TargetEntity),
-				TargetEntity);
-		}
-	}
-
-	// 대상 없거나 특수 타입 아님 → 이동
-	Event.EventTag = Tag_Event_Move_ToLocation;
 	return Event;
 }
 
