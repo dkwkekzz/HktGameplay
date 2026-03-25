@@ -83,6 +83,12 @@ FHktEvent FHktDefaultClientRule::BuildDefaultAction(FHktEntityId TargetEntity, F
 				return Event;
 			}
 		}
+		else
+		{
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("BuildDefaultAction: TargetEntity %d is not valid in WorldState, falling back to Move"), TargetEntity),
+				TargetEntity);
+		}
 	}
 
 	// 대상 없거나 특수 타입 아님 → 이동
@@ -98,7 +104,12 @@ void FHktDefaultClientRule::OnUserEvent_LoginButtonClick() {}
 
 void FHktDefaultClientRule::OnUserEvent_SubjectInputAction()
 {
-	if (!CachedPolicy || !CachedBuilder) return;
+	if (!CachedPolicy || !CachedBuilder)
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("SubjectAction ignored: context not bound (Policy or Builder is null)"));
+		return;
+	}
 
 	FHktEntityId SelectedEntity = CachedPolicy->ResolveSubject();
 
@@ -109,12 +120,23 @@ void FHktDefaultClientRule::OnUserEvent_SubjectInputAction()
 		const int32 ItemId = WS.GetProperty(SelectedEntity, PropertyId::ItemId);
 		if (ItemId > 0)
 		{
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("SubjectAction rejected: Entity %d is an item (ItemId=%d), items cannot be Subject"), SelectedEntity, ItemId),
+				SelectedEntity);
 			return;
 		}
 		if (!IsOwnedByMe(SelectedEntity))
 		{
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("SubjectAction rejected: Entity %d is not owned by this player"), SelectedEntity),
+				SelectedEntity);
 			return;
 		}
+	}
+	else if (SelectedEntity == InvalidEntityId)
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+			TEXT("SubjectAction: no selectable entity under cursor"));
 	}
 
 	CachedBuilder->SetSubject(SelectedEntity);
@@ -123,14 +145,30 @@ void FHktDefaultClientRule::OnUserEvent_SubjectInputAction()
 
 void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 {
-	if (!CachedPolicy || !CachedBuilder) return;
+	if (!CachedPolicy || !CachedBuilder)
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("TargetAction ignored: context not bound (Policy or Builder is null)"));
+		return;
+	}
 
 	// Subject 없으면 무반응
 	FHktEntityId SubjectEntity = CachedBuilder->GetSubjectEntityId();
-	if (SubjectEntity == InvalidEntityId) return;
+	if (SubjectEntity == InvalidEntityId)
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("TargetAction ignored: no Subject selected"));
+		return;
+	}
 
 	// 내 소유 아닌 Subject면 관찰만 (제어 불가)
-	if (!IsOwnedByMe(SubjectEntity)) return;
+	if (!IsOwnedByMe(SubjectEntity))
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("TargetAction ignored: Subject %d is not owned by this player"), SubjectEntity),
+			SubjectEntity);
+		return;
+	}
 
 	// Target 해석
 	FHktEntityId TargetEntity = InvalidEntityId;
@@ -168,12 +206,28 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 
 void FHktDefaultClientRule::OnUserEvent_CommandInputAction(int32 InSlotIndex)
 {
-	if (!CachedBuilder) return;
+	if (!CachedBuilder)
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("CommandAction(Slot=%d) ignored: Builder is null"), InSlotIndex));
+		return;
+	}
 
 	// Subject 없거나 제어 불가능하면 무시
 	FHktEntityId SubjectEntity = CachedBuilder->GetSubjectEntityId();
-	if (SubjectEntity == InvalidEntityId) return;
-	if (!IsOwnedByMe(SubjectEntity)) return;
+	if (SubjectEntity == InvalidEntityId)
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("CommandAction(Slot=%d) ignored: no Subject selected"), InSlotIndex));
+		return;
+	}
+	if (!IsOwnedByMe(SubjectEntity))
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("CommandAction(Slot=%d) ignored: Subject %d is not owned by this player"), InSlotIndex, SubjectEntity),
+			SubjectEntity);
+		return;
+	}
 
 	CachedBuilder->SetCommandSlot(InSlotIndex);
 }
