@@ -48,11 +48,9 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     switch (Inst.GetOpCode())
     {
     // Control Flow
-    case EOpCode::Nop: Op_Nop(Runtime); break;
-    case EOpCode::Halt: return Op_Halt(Runtime);
-    case EOpCode::Fail:
-        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Error, EHktLogSource::Core, TEXT("Op_Fail"));
-        return EVMStatus::Failed;
+    case EOpCode::Nop: break;
+    case EOpCode::Halt: return EVMStatus::Completed;
+    case EOpCode::Fail: return EVMStatus::Failed;
     case EOpCode::Yield: return Op_Yield(Runtime, Inst.Imm12);
     case EOpCode::YieldSeconds: return Op_YieldSeconds(Runtime, Inst.GetSignedImm20());
     case EOpCode::Jump: Op_Jump(Runtime, Inst.Imm20); break;
@@ -122,22 +120,13 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
 // Control Flow
 // ============================================================================
 
-void FHktVMInterpreter::Op_Nop(FHktVMRuntime& Runtime)
-{
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core, TEXT("Op_Nop"));
-}
+void FHktVMInterpreter::Op_Nop(FHktVMRuntime& Runtime) {}
 
-EVMStatus FHktVMInterpreter::Op_Halt(FHktVMRuntime& Runtime)
-{
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core, TEXT("Op_Halt"));
-    return EVMStatus::Completed;
-}
+EVMStatus FHktVMInterpreter::Op_Halt(FHktVMRuntime& Runtime) { return EVMStatus::Completed; }
 
 EVMStatus FHktVMInterpreter::Op_Yield(FHktVMRuntime& Runtime, int32 Frames)
 {
     Runtime.WaitFrames = FMath::Max(1, Frames);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_Yield Frames=%d"), Frames));
     return EVMStatus::Yielded;
 }
 
@@ -145,32 +134,19 @@ EVMStatus FHktVMInterpreter::Op_YieldSeconds(FHktVMRuntime& Runtime, int32 DeciM
 {
     Runtime.EventWait.Type = EWaitEventType::Timer;
     Runtime.EventWait.RemainingTime = DeciMillis / 100.0f;
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_YieldSeconds %.2fs"), Runtime.EventWait.RemainingTime));
     return EVMStatus::WaitingEvent;
 }
 
-void FHktVMInterpreter::Op_Jump(FHktVMRuntime& Runtime, int32 Target)
-{
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_Jump Target=%d"), Target));
-    Runtime.PC = Target;
-}
+void FHktVMInterpreter::Op_Jump(FHktVMRuntime& Runtime, int32 Target) { Runtime.PC = Target; }
 
 void FHktVMInterpreter::Op_JumpIf(FHktVMRuntime& Runtime, RegisterIndex Cond, int32 Target)
 {
-    const bool bTaken = Runtime.GetReg(Cond) != 0;
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_JumpIf Cond=%d Target=%d Taken=%d"), Runtime.GetReg(Cond), Target, bTaken));
-    if (bTaken) Runtime.PC = Target;
+    if (Runtime.GetReg(Cond) != 0) Runtime.PC = Target;
 }
 
 void FHktVMInterpreter::Op_JumpIfNot(FHktVMRuntime& Runtime, RegisterIndex Cond, int32 Target)
 {
-    const bool bTaken = Runtime.GetReg(Cond) == 0;
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_JumpIfNot Cond=%d Target=%d Taken=%d"), Runtime.GetReg(Cond), Target, bTaken));
-    if (bTaken) Runtime.PC = Target;
+    if (Runtime.GetReg(Cond) == 0) Runtime.PC = Target;
 }
 
 // ============================================================================
@@ -181,7 +157,7 @@ EVMStatus FHktVMInterpreter::Op_WaitCollision(FHktVMRuntime& Runtime, RegisterIn
 {
     Runtime.EventWait.Type = EWaitEventType::Collision;
     Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity);
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
         FString::Printf(TEXT("Op_WaitCollision WatchEntity=%d"), Runtime.EventWait.WatchedEntity),
         Runtime.EventWait.WatchedEntity);
     return EVMStatus::WaitingEvent;
@@ -191,7 +167,7 @@ EVMStatus FHktVMInterpreter::Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterInde
 {
     Runtime.EventWait.Type = EWaitEventType::MoveEnd;
     Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity);
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
         FString::Printf(TEXT("Op_WaitMoveEnd WatchEntity=%d"), Runtime.EventWait.WatchedEntity),
         Runtime.EventWait.WatchedEntity);
     return EVMStatus::WaitingEvent;
@@ -204,15 +180,11 @@ EVMStatus FHktVMInterpreter::Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterInde
 void FHktVMInterpreter::Op_LoadConst(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 Value)
 {
     Runtime.SetReg(Dst, Value);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_LoadConst R%d=%d"), Dst, Value));
 }
 
 void FHktVMInterpreter::Op_LoadConstHigh(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 HighBits)
 {
     Runtime.SetReg(Dst, (Runtime.GetReg(Dst) & 0xFFFFF) | (HighBits << 20));
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_LoadConstHigh R%d=%d"), Dst, Runtime.GetReg(Dst)));
 }
 
 void FHktVMInterpreter::Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, uint16 PropId)
@@ -221,10 +193,6 @@ void FHktVMInterpreter::Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, 
     {
         const int32 Value = Runtime.Context->Read(PropId);
         Runtime.SetReg(Dst, Value);
-        const TCHAR* PropName = GetPropertyName(PropId);
-        HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-            FString::Printf(TEXT("Op_LoadStore %s(%d)=%d"), PropName ? PropName : TEXT("?"), PropId, Value),
-            Runtime.Context->SourceEntity);
     }
 }
 
@@ -235,10 +203,6 @@ void FHktVMInterpreter::Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex
         FHktEntityId E = Runtime.GetRegEntity(Entity);
         const int32 Value = Runtime.Context->ReadEntity(E, PropId);
         Runtime.SetReg(Dst, Value);
-        const TCHAR* PropName = GetPropertyName(PropId);
-        HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-            FString::Printf(TEXT("Op_LoadStoreEntity Id=%d %s(%d)=%d"), E, PropName ? PropName : TEXT("?"), PropId, Value),
-            E);
     }
 }
 
@@ -247,12 +211,16 @@ void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropId, Regi
     if (Runtime.Context)
     {
         const int32 Value = Runtime.GetReg(Src);
+        const int32 OldValue = Runtime.Context->Read(PropId);
         Runtime.Context->Write(PropId, Value);
-        const TCHAR* PropName = GetPropertyName(PropId);
-        HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-            FString::Printf(TEXT("Op_SaveStore %s(%d)=%d"),
-                PropName ? PropName : TEXT("?"), PropId, Value),
-            Runtime.Context->SourceEntity);
+        if (OldValue != Value)
+        {
+            const TCHAR* PropName = GetPropertyName(PropId);
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+                FString::Printf(TEXT("Op_SaveStore %s(%d) %d->%d"),
+                    PropName ? PropName : TEXT("?"), PropId, OldValue, Value),
+                Runtime.Context->SourceEntity);
+        }
     }
 }
 
@@ -262,20 +230,22 @@ void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
         const int32 Value = Runtime.GetReg(Src);
+        const int32 OldValue = Runtime.Context->ReadEntity(E, PropId);
         Runtime.Context->WriteEntity(E, PropId, Value);
-        const TCHAR* PropName = GetPropertyName(PropId);
-        HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-            FString::Printf(TEXT("Op_SaveStoreEntity Id=%d %s(%d)=%d"),
-                E, PropName ? PropName : TEXT("?"), PropId, Value),
-            E);
+        if (OldValue != Value)
+        {
+            const TCHAR* PropName = GetPropertyName(PropId);
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+                FString::Printf(TEXT("Op_SaveStoreEntity Id=%d %s(%d) %d->%d"),
+                    E, PropName ? PropName : TEXT("?"), PropId, OldValue, Value),
+                E);
+        }
     }
 }
 
 void FHktVMInterpreter::Op_Move(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src)
 {
     Runtime.SetReg(Dst, Runtime.GetReg(Src));
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_Move R%d=R%d(%d)"), Dst, Src, Runtime.GetReg(Dst)));
 }
 
 // ============================================================================
@@ -285,45 +255,33 @@ void FHktVMInterpreter::Op_Move(FHktVMRuntime& Runtime, RegisterIndex Dst, Regis
 void FHktVMInterpreter::Op_Add(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Runtime.SetReg(Dst, Runtime.GetReg(Src1) + Runtime.GetReg(Src2));
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_Add R%d=%d"), Dst, Runtime.GetReg(Dst)));
 }
 
 void FHktVMInterpreter::Op_Sub(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Runtime.SetReg(Dst, Runtime.GetReg(Src1) - Runtime.GetReg(Src2));
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_Sub R%d=%d"), Dst, Runtime.GetReg(Dst)));
 }
 
 void FHktVMInterpreter::Op_Mul(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     Runtime.SetReg(Dst, Runtime.GetReg(Src1) * Runtime.GetReg(Src2));
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_Mul R%d=%d"), Dst, Runtime.GetReg(Dst)));
 }
 
 void FHktVMInterpreter::Op_Div(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     int32 D = Runtime.GetReg(Src2);
     Runtime.SetReg(Dst, D != 0 ? Runtime.GetReg(Src1) / D : 0);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_Div R%d=%d"), Dst, Runtime.GetReg(Dst)));
 }
 
 void FHktVMInterpreter::Op_Mod(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
     int32 D = Runtime.GetReg(Src2);
     Runtime.SetReg(Dst, D != 0 ? Runtime.GetReg(Src1) % D : 0);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_Mod R%d=%d"), Dst, Runtime.GetReg(Dst)));
 }
 
 void FHktVMInterpreter::Op_AddImm(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src, int32 Imm)
 {
     Runtime.SetReg(Dst, Runtime.GetReg(Src) + Imm);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_AddImm R%d=%d (Imm=%d)"), Dst, Runtime.GetReg(Dst), Imm));
 }
 
 // ============================================================================
@@ -332,50 +290,32 @@ void FHktVMInterpreter::Op_AddImm(FHktVMRuntime& Runtime, RegisterIndex Dst, Reg
 
 void FHktVMInterpreter::Op_CmpEq(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
-    const int32 A = Runtime.GetReg(Src1), B = Runtime.GetReg(Src2);
-    Runtime.SetReg(Dst, A == B ? 1 : 0);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_CmpEq %d==%d -> %d"), A, B, Runtime.GetReg(Dst)));
+    Runtime.SetReg(Dst, Runtime.GetReg(Src1) == Runtime.GetReg(Src2) ? 1 : 0);
 }
 
 void FHktVMInterpreter::Op_CmpNe(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
-    const int32 A = Runtime.GetReg(Src1), B = Runtime.GetReg(Src2);
-    Runtime.SetReg(Dst, A != B ? 1 : 0);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_CmpNe %d!=%d -> %d"), A, B, Runtime.GetReg(Dst)));
+    Runtime.SetReg(Dst, Runtime.GetReg(Src1) != Runtime.GetReg(Src2) ? 1 : 0);
 }
 
 void FHktVMInterpreter::Op_CmpLt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
-    const int32 A = Runtime.GetReg(Src1), B = Runtime.GetReg(Src2);
-    Runtime.SetReg(Dst, A < B ? 1 : 0);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_CmpLt %d<%d -> %d"), A, B, Runtime.GetReg(Dst)));
+    Runtime.SetReg(Dst, Runtime.GetReg(Src1) < Runtime.GetReg(Src2) ? 1 : 0);
 }
 
 void FHktVMInterpreter::Op_CmpLe(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
-    const int32 A = Runtime.GetReg(Src1), B = Runtime.GetReg(Src2);
-    Runtime.SetReg(Dst, A <= B ? 1 : 0);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_CmpLe %d<=%d -> %d"), A, B, Runtime.GetReg(Dst)));
+    Runtime.SetReg(Dst, Runtime.GetReg(Src1) <= Runtime.GetReg(Src2) ? 1 : 0);
 }
 
 void FHktVMInterpreter::Op_CmpGt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
-    const int32 A = Runtime.GetReg(Src1), B = Runtime.GetReg(Src2);
-    Runtime.SetReg(Dst, A > B ? 1 : 0);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_CmpGt %d>%d -> %d"), A, B, Runtime.GetReg(Dst)));
+    Runtime.SetReg(Dst, Runtime.GetReg(Src1) > Runtime.GetReg(Src2) ? 1 : 0);
 }
 
 void FHktVMInterpreter::Op_CmpGe(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2)
 {
-    const int32 A = Runtime.GetReg(Src1), B = Runtime.GetReg(Src2);
-    Runtime.SetReg(Dst, A >= B ? 1 : 0);
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
-        FString::Printf(TEXT("Op_CmpGe %d>=%d -> %d"), A, B, Runtime.GetReg(Dst)));
+    Runtime.SetReg(Dst, Runtime.GetReg(Src1) >= Runtime.GetReg(Src2) ? 1 : 0);
 }
 
 // ============================================================================
