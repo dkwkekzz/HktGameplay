@@ -20,4 +20,8 @@ public:
 
 	/** 카메라 변경 시 재동기화가 필요한 렌더러인지 여부 (스크린 투영 등) */
 	virtual bool NeedsCameraSync() const { return false; }
+
+	/** 카메라 뷰만 변경되었을 때 호출. 기본 구현은 Sync 호출.
+	 *  스크린 투영만 재계산하면 되는 렌더러는 오버라이드하여 경량 처리 가능. */
+	virtual void OnCameraViewChanged(const FHktPresentationState& State) { Sync(State); }
 };
