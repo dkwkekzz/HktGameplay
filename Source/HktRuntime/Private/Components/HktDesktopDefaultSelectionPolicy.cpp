@@ -2,6 +2,7 @@
 
 #include "HktDesktopDefaultSelectionPolicy.h"
 #include "HktSelectable.h"
+#include "HktCoreEventLog.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 
@@ -29,6 +30,8 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
     FHitResult Hit;
     if (!GetHitUnderCursor(Hit))
     {
+        HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Verbose, EHktLogSource::Client,
+            TEXT("ResolveTarget: no hit under cursor"));
         return;
     }
 
@@ -38,6 +41,12 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
         if (Selectable->IsSelectable())
         {
             OutEntity = Selectable->GetEntityId();
+        }
+        else
+        {
+            HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+                FString::Printf(TEXT("ResolveTarget: Actor '%s' implements IHktSelectable but IsSelectable() returned false"),
+                    *Hit.GetActor()->GetName()));
         }
     }
 
@@ -65,12 +74,24 @@ bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntit
     FHitResult Hit;
     if (!GetHitUnderCursor(Hit))
     {
+        HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Verbose, EHktLogSource::Client,
+            TEXT("ResolveSubject: no hit under cursor"));
         return false;
     }
 
     IHktSelectable* Selectable = Cast<IHktSelectable>(Hit.GetActor());
-    if (!Selectable || !Selectable->IsSelectable())
+    if (!Selectable)
     {
+        HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Verbose, EHktLogSource::Client,
+            FString::Printf(TEXT("ResolveSubject: Actor '%s' does not implement IHktSelectable"),
+                Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("null")));
+        return false;
+    }
+    if (!Selectable->IsSelectable())
+    {
+        HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+            FString::Printf(TEXT("ResolveSubject: Actor '%s' IsSelectable() returned false"),
+                *Cast<AActor>(Selectable)->GetName()));
         return false;
     }
 
