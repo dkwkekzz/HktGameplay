@@ -32,6 +32,8 @@ public:
 	SLATE_BEGIN_ARGS(SHktIngameHudWidget) {}
 	SLATE_END_ARGS()
 
+	~SHktIngameHudWidget();
+
 	void Construct(const FArguments& InArgs);
 
 	void SetOwningPlayerController(APlayerController* InPC);
@@ -59,7 +61,6 @@ private:
 		double ExpireTime;
 	};
 
-	~SHktIngameHudWidget();
 	void AddSystemMessage(const FString& Message);
 	void UnsubscribeSystemMessage();
 

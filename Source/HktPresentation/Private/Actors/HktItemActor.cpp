@@ -82,7 +82,7 @@ void AHktItemActor::TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(
 	AttachToComponent(SkelMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, AttachSocketName);
 	bIsAttachedToSocket = true;
 
-	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
+	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
 		FString::Printf(TEXT("AttachItem Socket=%s Owner=%d"), *AttachSocketName.ToString(), OwnerId),
 		CachedEntityId);
 }
@@ -95,7 +95,7 @@ void AHktItemActor::DetachFromOwnerIfNeeded()
 	SetActorEnableCollision(true);
 	bIsAttachedToSocket = false;
 
-	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
+	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
 		FString::Printf(TEXT("DetachItem ItemId=%d"), CachedEntityId),
 		CachedEntityId);
 }

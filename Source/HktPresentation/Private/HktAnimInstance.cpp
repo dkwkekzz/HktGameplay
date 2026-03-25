@@ -7,6 +7,11 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 
+void UHktAnimInstance::NativeInitializeAnimation()
+{
+	Super::NativeInitializeAnimation();
+}
+
 FGameplayTag UHktAnimInstance::ExtractLayerParent(const FGameplayTag& AnimTag)
 {
 	// Anim.FullBody.Locomotion.Run → Anim.FullBody
@@ -83,8 +88,14 @@ void UHktAnimInstance::ApplyAnimTag(const FGameplayTag& AnimTag)
 		if (Entry->Montage)
 		{
 			Montage_Play(Entry->Montage, PlayRate);
-			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] PlayMontage: %s -> %s (Rate=%.2f)"),
-				*AnimTag.ToString(), *Entry->Montage->GetName(), PlayRate);
+			if (Entry->StartSection != NAME_None)
+			{
+				Montage_JumpToSection(Entry->StartSection, Entry->Montage);
+				Montage_SetNextSection(Entry->StartSection, NAME_None, Entry->Montage);
+			}
+			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] PlayMontage: %s -> %s Section=%s (Rate=%.2f)"),
+				*AnimTag.ToString(), *Entry->Montage->GetName(),
+				*Entry->StartSection.ToString(), PlayRate);
 		}
 		else if (Entry->Sequence)
 		{
@@ -136,7 +147,8 @@ void UHktAnimInstance::RemoveAnimTag(const FGameplayTag& AnimTag)
 		{
 			if (Entry->Montage && IsPlayingMontageAnim())
 			{
-				Montage_Stop(0.25f, Entry->Montage);
+				// TODO: 제거할 방법이 필요.
+				//Montage_Stop(0.25f, Entry->Montage);
 			}
 		}
 	}
@@ -175,7 +187,7 @@ const FHktAnimMappingEntry* UHktAnimInstance::FindMapping(const FGameplayTag& Ta
 // 동적 매핑 등록 API
 // ============================================================================
 
-void UHktAnimInstance::RegisterAnimMapping(FGameplayTag AnimTag, UAnimMontage* Montage, UAnimSequence* Sequence, UBlendSpace* InBlendSpace)
+void UHktAnimInstance::RegisterAnimMapping(FGameplayTag AnimTag, UAnimMontage* Montage, FName StartSection, UAnimSequence* Sequence, UBlendSpace* InBlendSpace)
 {
 	if (!AnimTag.IsValid()) return;
 
@@ -185,6 +197,7 @@ void UHktAnimInstance::RegisterAnimMapping(FGameplayTag AnimTag, UAnimMontage* M
 		if (Entry.AnimTag.MatchesTagExact(AnimTag))
 		{
 			Entry.Montage = Montage;
+			Entry.StartSection = StartSection;
 			Entry.Sequence = Sequence;
 			Entry.BlendSpace = InBlendSpace;
 			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] Updated mapping: %s"), *AnimTag.ToString());
@@ -196,6 +209,7 @@ void UHktAnimInstance::RegisterAnimMapping(FGameplayTag AnimTag, UAnimMontage* M
 	FHktAnimMappingEntry NewEntry;
 	NewEntry.AnimTag = AnimTag;
 	NewEntry.Montage = Montage;
+	NewEntry.StartSection = StartSection;
 	NewEntry.Sequence = Sequence;
 	NewEntry.BlendSpace = InBlendSpace;
 	AnimMappings.Add(NewEntry);

@@ -27,7 +27,8 @@ FHktStoryBuilder& HktSnippetNPC::SetupNPCStats(
 	B.SaveConstEntity(Spawned, PropertyId::Team, Stats.Team)
 	 .AddTag(Spawned, Entity_NPC)
 	 .AddTag(Spawned, SpecificTag)
-	 .AddTag(Spawned, Tag_NPC_Hostile);
+	 .AddTag(Spawned, Tag_NPC_Hostile)
+	 .SetStance(Spawned, HktStance::Unarmed);
 
 	if (Stats.MaxSpeed > 0)
 	{
