@@ -53,3 +53,19 @@ IHktClientRule* HktRule::GetClientRule(UWorld* World)
 	UHktRuleSubsystem* Subsystem = UHktRuleSubsystem::Get(World);
 	return Subsystem ? Subsystem->GetClientRule() : nullptr;
 }
+
+FHktOnSystemMessage& HktRule::GetSystemMessageDelegate(UWorld* World)
+{
+	static FHktOnSystemMessage Dummy;
+	UHktRuleSubsystem* Sub = UHktRuleSubsystem::Get(World);
+	return Sub ? Sub->OnSystemMessage() : Dummy;
+}
+
+void HktRule::ShowSystemMessage(UWorld* World, const FString& Message)
+{
+	UHktRuleSubsystem* Sub = UHktRuleSubsystem::Get(World);
+	if (Sub)
+	{
+		Sub->OnSystemMessage().Broadcast(Message);
+	}
+}

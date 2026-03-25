@@ -16,6 +16,7 @@
 #include "IHktPlayerInteractionInterface.h"
 #include "HktCoreProperties.h"
 #include "HktBagTypes.h"
+#include "HktClientRuleInterfaces.h"
 #include "GameplayTagsManager.h"
 
 class APlayerController;
@@ -35,6 +36,8 @@ public:
 
 	void SetOwningPlayerController(APlayerController* InPC);
 
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
 private:
 	FReply OnInventoryClicked();
 	FReply OnEquipmentClicked();
@@ -48,6 +51,19 @@ private:
 
 	/** WorldState에서 엔티티의 EntitySpawnTag를 읽어 마지막 세그먼트 이름 반환 */
 	static FString GetEntityDisplayName(const FHktWorldState* WS, FHktEntityId Id);
+
+	// --- 시스템 메시지 ---
+	struct FHktSystemMessageEntry
+	{
+		TSharedPtr<SBorder> Widget;
+		double ExpireTime;
+	};
+
+	void AddSystemMessage(const FString& Message);
+
+	TSharedPtr<SVerticalBox> SystemMessageBox;
+	TArray<FHktSystemMessageEntry> ActiveSystemMessages;
+	FDelegateHandle SystemMessageHandle;
 
 	TSharedPtr<SBorder> InventoryPanel;
 	TSharedPtr<SBorder> EquipmentPanel;
@@ -271,6 +287,15 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 			+ SHorizontalBox::Slot().AutoWidth().Padding(2.f) [ BuildSkillsPanel() ]
 		]
 
+		// 시스템 메시지 (하단 버튼 바 위)
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Bottom)
+		.Padding(0.f, 0.f, 0.f, 50.f)
+		[
+			SAssignNew(SystemMessageBox, SVerticalBox)
+		]
+
 		// 하단 버튼 바
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Center)
@@ -326,6 +351,19 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* InPC)
 {
 	CachedPC = InPC;
+
+	// 시스템 메시지 구독
+	if (InPC)
+	{
+		if (UWorld* World = InPC->GetWorld())
+		{
+			SystemMessageHandle = HktRule::GetSystemMessageDelegate(World).AddLambda(
+				[this](const FString& Msg)
+				{
+					AddSystemMessage(Msg);
+				});
+		}
+	}
 
 	// 슬롯 바인딩 변경 구독 (아이템 상태 변화 시 모든 패널 갱신)
 	if (InPC)
@@ -847,6 +885,63 @@ inline FReply SHktIngameHudWidget::OnSkillsClicked()
 		RefreshSkillsPanel();
 	}
 	return FReply::Handled();
+}
+
+// ============================================================================
+// 시스템 메시지
+// ============================================================================
+
+inline void SHktIngameHudWidget::AddSystemMessage(const FString& Message)
+{
+	if (!SystemMessageBox.IsValid()) return;
+
+	// 최대 3개 — 초과 시 oldest 제거
+	while (ActiveSystemMessages.Num() >= 3)
+	{
+		if (ActiveSystemMessages[0].Widget.IsValid())
+		{
+			SystemMessageBox->RemoveSlot(ActiveSystemMessages[0].Widget.ToSharedRef());
+		}
+		ActiveSystemMessages.RemoveAt(0);
+	}
+
+	TSharedPtr<SBorder> MessageWidget;
+	SystemMessageBox->AddSlot()
+	.AutoHeight()
+	.Padding(0.f, 2.f)
+	[
+		SAssignNew(MessageWidget, SBorder)
+		.Padding(FMargin(12.f, 6.f))
+		.BorderBackgroundColor(FLinearColor(0.8f, 0.2f, 0.1f, 0.75f))
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(Message))
+			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+			.ColorAndOpacity(FLinearColor::White)
+		]
+	];
+
+	ActiveSystemMessages.Add({ MessageWidget, FPlatformTime::Seconds() + 3.0 });
+}
+
+inline void SHktIngameHudWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	if (ActiveSystemMessages.Num() == 0) return;
+
+	const double Now = FPlatformTime::Seconds();
+	for (int32 i = ActiveSystemMessages.Num() - 1; i >= 0; --i)
+	{
+		if (Now >= ActiveSystemMessages[i].ExpireTime)
+		{
+			if (ActiveSystemMessages[i].Widget.IsValid() && SystemMessageBox.IsValid())
+			{
+				SystemMessageBox->RemoveSlot(ActiveSystemMessages[i].Widget.ToSharedRef());
+			}
+			ActiveSystemMessages.RemoveAt(i);
+		}
+	}
 }
 
 inline void SHktIngameHudWidget::TogglePanel(int32 PanelIndex)
