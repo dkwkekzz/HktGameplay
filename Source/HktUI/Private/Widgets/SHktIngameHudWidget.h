@@ -59,11 +59,14 @@ private:
 		double ExpireTime;
 	};
 
+	~SHktIngameHudWidget();
 	void AddSystemMessage(const FString& Message);
+	void UnsubscribeSystemMessage();
 
 	TSharedPtr<SVerticalBox> SystemMessageBox;
 	TArray<FHktSystemMessageEntry> ActiveSystemMessages;
 	FDelegateHandle SystemMessageHandle;
+	TWeakObjectPtr<UWorld> CachedWorld;
 
 	TSharedPtr<SBorder> InventoryPanel;
 	TSharedPtr<SBorder> EquipmentPanel;
@@ -287,13 +290,14 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 			+ SHorizontalBox::Slot().AutoWidth().Padding(2.f) [ BuildSkillsPanel() ]
 		]
 
-		// 시스템 메시지 (하단 버튼 바 위)
+		// 시스템 메시지 (하단 버튼 바 위, 클릭 투과)
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Bottom)
 		.Padding(0.f, 0.f, 0.f, 50.f)
 		[
 			SAssignNew(SystemMessageBox, SVerticalBox)
+			.Visibility(EVisibility::SelfHitTestInvisible)
 		]
 
 		// 하단 버튼 바
@@ -352,11 +356,15 @@ inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* In
 {
 	CachedPC = InPC;
 
+	// 기존 시스템 메시지 구독 해제
+	UnsubscribeSystemMessage();
+
 	// 시스템 메시지 구독
 	if (InPC)
 	{
 		if (UWorld* World = InPC->GetWorld())
 		{
+			CachedWorld = World;
 			SystemMessageHandle = HktRule::GetSystemMessageDelegate(World).AddLambda(
 				[this](const FString& Msg)
 				{
@@ -890,6 +898,20 @@ inline FReply SHktIngameHudWidget::OnSkillsClicked()
 // ============================================================================
 // 시스템 메시지
 // ============================================================================
+
+inline SHktIngameHudWidget::~SHktIngameHudWidget()
+{
+	UnsubscribeSystemMessage();
+}
+
+inline void SHktIngameHudWidget::UnsubscribeSystemMessage()
+{
+	if (SystemMessageHandle.IsValid() && CachedWorld.IsValid())
+	{
+		HktRule::GetSystemMessageDelegate(CachedWorld.Get()).Remove(SystemMessageHandle);
+		SystemMessageHandle.Reset();
+	}
+}
 
 inline void SHktIngameHudWidget::AddSystemMessage(const FString& Message)
 {

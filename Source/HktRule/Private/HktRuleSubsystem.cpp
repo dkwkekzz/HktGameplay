@@ -7,6 +7,7 @@
 #include "HktCoreEventLog.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
+#include "Async/Async.h"
 
 DEFINE_LOG_CATEGORY(LogHktRule);
 
@@ -63,6 +64,15 @@ FHktOnSystemMessage& HktRule::GetSystemMessageDelegate(UWorld* World)
 
 void HktRule::ShowSystemMessage(UWorld* World, const FString& Message)
 {
+	if (!IsInGameThread())
+	{
+		AsyncTask(ENamedThreads::GameThread, [World, Message]()
+		{
+			HktRule::ShowSystemMessage(World, Message);
+		});
+		return;
+	}
+
 	UHktRuleSubsystem* Sub = UHktRuleSubsystem::Get(World);
 	if (Sub)
 	{
