@@ -30,6 +30,8 @@ struct FHktEntityPresentation
 	// --- Transform ---
 	THktVisualField<FVector> Location;
 	THktVisualField<FRotator> Rotation;
+	THktVisualField<FVector> RenderLocation;       // Location + 지면 트레이스 + 캡슐 오프셋 적용된 최종 렌더 위치
+	float CapsuleHalfHeight = 0.f;                 // DataAsset CDO에서 해결. 렌더 위치 계산에 사용
 
 	// --- Movement ---
 	THktVisualField<FVector> MoveTarget;

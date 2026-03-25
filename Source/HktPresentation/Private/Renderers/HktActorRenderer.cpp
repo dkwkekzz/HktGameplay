@@ -57,7 +57,11 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
 		if (!ActorMap.Contains(Id)) continue;
-		UpdateMotionTarget(Id, *E, Frame);
+
+		// Transform: ViewModel의 RenderLocation/Rotation을 actor에 적용
+		if (E->RenderLocation.IsDirty(Frame) || E->Rotation.IsDirty(Frame))
+			ApplyTransform(Id, *E);
+
 		UpdateAnimation(Id, *E, Frame);
 
 		// 부착 상태 변경 (delta)
@@ -69,19 +73,23 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		}
 	}
 
-	// --- 모든 활성 엔티티 보간 ---
-	UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
-	float DeltaSeconds = World ? World->GetDeltaSeconds() : 0.016f;
-	InterpolateActors(DeltaSeconds);
+	// --- 보간 (전체 actor에 매 프레임 위치 적용) ---
+	for (auto& [Id, WeakActor] : ActorMap)
+	{
+		if (AttachedItems.Contains(Id)) continue;
+		if (!WeakActor.IsValid()) continue;
+		const FHktEntityPresentation* E = State.Get(Id);
+		if (!E) continue;
+		WeakActor->SetActorLocationAndRotation(
+			E->RenderLocation.Get(), E->Rotation.Get(),
+			false, nullptr, ETeleportType::TeleportPhysics);
+	}
 }
 
 void FHktActorRenderer::Teardown()
 {
-	// 비동기 콜백 무효화 (this 접근 방지)
 	AliveGuard.Reset();
-
 	ActorMap.Empty();
-	MotionStates.Empty();
 	AttachedItems.Empty();
 	CachedState = nullptr;
 }
@@ -105,21 +113,14 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 	if (!VisualTag.IsValid()) return;
 
 	FHktEntityId EntityId = Entity.EntityId;
-	FVector SpawnLocation = Entity.Location.Get();
+	FVector SpawnLocation = Entity.RenderLocation.Get();
 	FRotator SpawnRotation = Entity.Rotation.Get();
-
-	// 스폰 시 지면 높이 적용
-	float GroundZ;
-	if (TraceGroundZ(World, SpawnLocation, GroundZ))
-	{
-		SpawnLocation.Z = GroundZ;
-	}
 
 	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
 	TWeakPtr<bool> WeakGuard = AliveGuard;
 	AssetSubsystem->LoadAssetAsync(VisualTag, [WeakGuard, this, VisualTag, EntityId, SpawnLocation, SpawnRotation, WeakLP](UHktTagDataAsset* LoadedAsset)
 	{
-		if (!WeakGuard.IsValid()) return;  // Renderer가 소멸됨
+		if (!WeakGuard.IsValid()) return;
 
 		ULocalPlayer* LP = WeakLP.Get();
 		if (!LP) return;
@@ -129,7 +130,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 		AActor* SpawnedActor = nullptr;
 
-		// --- 아이템 DataAsset 분기: 메시 기반 데이터 드리븐 스폰 ---
+		// --- 아이템 DataAsset 분기 ---
 		if (UHktItemVisualDataAsset* ItemAsset = Cast<UHktItemVisualDataAsset>(LoadedAsset))
 		{
 			FActorSpawnParameters SpawnParams;
@@ -143,7 +144,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		}
 		else
 		{
-			// --- 캐릭터/NPC DataAsset 분기: Blueprint 클래스 스폰 ---
+			// --- 캐릭터/NPC DataAsset 분기 ---
 			TSubclassOf<AActor> ActorClass;
 			UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset);
 			if (VisualAsset && VisualAsset->ActorClass)
@@ -153,30 +154,16 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 			if (!ActorClass)
 			{
-				UE_LOG(LogHktPresentation, Warning, TEXT("SpawnActor: No ActorClass for tag %s (DataAsset not found or missing ActorClass)"), *VisualTag.ToString());
+				UE_LOG(LogHktPresentation, Warning, TEXT("SpawnActor: No ActorClass for tag %s"), *VisualTag.ToString());
 				return;
 			}
 
-			// 캡슐 반높이 오프셋 계산
-			float HalfHeight = 0.0f;
-			if (AActor* CDO = ActorClass->GetDefaultObject<AActor>())
-			{
-				if (UCapsuleComponent* Capsule = CDO->FindComponentByClass<UCapsuleComponent>())
-				{
-					HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
-				}
-			}
-
-			FVector AdjustedLocation = SpawnLocation;
-			AdjustedLocation.Z += HalfHeight;
-
 			FActorSpawnParameters SpawnParams;
-			SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, AdjustedLocation, SpawnRotation, SpawnParams);
+			SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, SpawnRotation, SpawnParams);
 		}
 
 		if (SpawnedActor)
 		{
-			// 비동기 로드 중 엔티티가 제거되었거나 재사용된 경우 → 즉시 파괴
 			if (ActorMap.Contains(EntityId))
 			{
 				SpawnedActor->Destroy();
@@ -187,7 +174,6 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 			ConfigureCollisionForSelection(SpawnedActor);
 
-			// 캐릭터 Actor에 EntityId 설정 (IHktSelectable 커서 선택용)
 			if (AHktUnitActor* Unit = Cast<AHktUnitActor>(SpawnedActor))
 			{
 				Unit->SetEntityId(EntityId);
@@ -201,12 +187,10 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			{
 				InitActorFromPresentation(SpawnedActor, EntityId, *E);
 
-				// 아이템 부착: ViewModel이 "부착됨" 상태면 즉시 시도
 				if (E->IsItemAttached())
 					TryAttachToOwnerDirect(EntityId, static_cast<FHktEntityId>(E->OwnerEntity.Get()));
 			}
 
-			// 이 actor가 누군가의 Owner일 수 있음 → ViewModel 기반으로 부착 대기 아이템 검색
 			AttachPendingItemsForOwner(EntityId);
 		}
 	});
@@ -214,23 +198,30 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 void FHktActorRenderer::InitActorFromPresentation(AActor* Actor, FHktEntityId Id, const FHktEntityPresentation& Entity)
 {
-	// MotionState 초기화
-	FHktActorMotionState& Motion = MotionStates.FindOrAdd(Id);
-	Motion.TargetLocation = Actor->GetActorLocation();
-	Motion.TargetRotation = Entity.Rotation.Get();
-	Motion.bIsMoving = Entity.bIsMoving.Get();
-	Motion.bNeedsGroundSnap = false;
+	// Transform 적용 (ViewModel의 RenderLocation 사용)
+	Actor->SetActorLocationAndRotation(
+		Entity.RenderLocation.Get(), Entity.Rotation.Get(),
+		false, nullptr, ETeleportType::TeleportPhysics);
 
-	// Animation 초기화: 기존 UpdateAnimation 재사용 (bForceUpdate=true)
+	// Animation 초기화
 	UpdateAnimation(Id, Entity, 0, /*bForceUpdate=*/true);
+}
+
+void FHktActorRenderer::ApplyTransform(FHktEntityId Id, const FHktEntityPresentation& Entity)
+{
+	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
+	if (!WeakPtr || !WeakPtr->IsValid()) return;
+	if (AttachedItems.Contains(Id)) return;
+
+	WeakPtr->Get()->SetActorLocationAndRotation(
+		Entity.RenderLocation.Get(), Entity.Rotation.Get(),
+		false, nullptr, ETeleportType::TeleportPhysics);
 }
 
 void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 {
-	// 이 엔티티 자체가 부착된 아이템이면 해제
 	DetachFromOwner(Id);
 
-	// 이 엔티티를 Owner로 가지는 부착 아이템들 해제 (캐릭터 제거 시)
 	for (auto It = AttachedItems.CreateIterator(); It; ++It)
 	{
 		AActor* ItemActor = GetActor(*It);
@@ -247,78 +238,23 @@ void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 			A->Destroy();
 		ActorMap.Remove(Id);
 	}
-	MotionStates.Remove(Id);
-}
-
-void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceUpdate)
-{
-	FHktActorMotionState& Motion = MotionStates.FindOrAdd(Id);
-
-	if (bForceUpdate || Entity.Location.IsDirty(Frame))
-	{
-		FVector SimLocation = Entity.Location.Get();
-
-		UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
-		float GroundZ = SimLocation.Z;
-		if (World && TraceGroundZ(World, SimLocation, GroundZ))
-		{
-			SimLocation.Z = GroundZ;
-		}
-
-		// 캡슐 반높이 오프셋
-		if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
-		{
-			if (AActor* Actor = P->Get())
-			{
-				if (UCapsuleComponent* Capsule = Actor->FindComponentByClass<UCapsuleComponent>())
-				{
-					SimLocation.Z += Capsule->GetScaledCapsuleHalfHeight();
-				}
-			}
-		}
-
-		Motion.TargetLocation = SimLocation;
-	}
-
-	if (bForceUpdate || Entity.Rotation.IsDirty(Frame))
-	{
-		Motion.TargetRotation = Entity.Rotation.Get();
-	}
-
-	if (bForceUpdate || Entity.bIsMoving.IsDirty(Frame))
-	{
-		Motion.bIsMoving = Entity.bIsMoving.Get();
-	}
 }
 
 void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceUpdate)
 {
 	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
-	if (!WeakPtr || !WeakPtr->IsValid())
-	{
-		return;
-	}
+	if (!WeakPtr || !WeakPtr->IsValid()) return;
 
 	AActor* Actor = WeakPtr->Get();
 	USkeletalMeshComponent* SkelMesh = Actor->FindComponentByClass<USkeletalMeshComponent>();
-	if (!SkelMesh)
-	{
-		return;
-	}
+	if (!SkelMesh) return;
 
 	UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance());
-	if (!HktAnim)
-	{
-		return;
-	}
+	if (!HktAnim) return;
 
-	// 이동 상태 동기화
 	if (bForceUpdate || Entity.bIsMoving.IsDirty(Frame))
-	{
 		HktAnim->bIsMoving = Entity.bIsMoving.Get();
-	}
 
-	// 속도 벡터에서 이동 속도 계산 — 블렌드스페이스 파라미터로 활용
 	if (bForceUpdate || Entity.Velocity.IsDirty(Frame))
 	{
 		FVector Vel = Entity.Velocity.Get();
@@ -326,13 +262,9 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
 	}
 
-	// Stance 동기화 — Stance AnimBP 레이어 교체
 	if (bForceUpdate || Entity.Stance.IsDirty(Frame))
-	{
 		HktAnim->SyncStance(Entity.Stance.Get());
-	}
 
-	// AttackSpeed → 몽타주 PlayRate 동기화
 	if (bForceUpdate || Entity.AttackSpeed.IsDirty(Frame))
 	{
 		float SpeedScale = static_cast<float>(Entity.AttackSpeed.Get()) / 100.0f;
@@ -340,58 +272,24 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 		HktAnim->AttackPlayRate = SpeedScale;
 	}
 
-	// CP 비율 동기화 (UI 피드백용)
 	if (bForceUpdate || Entity.CPRatio.IsDirty(Frame))
-	{
 		HktAnim->CPRatio = Entity.CPRatio.Get();
-	}
 
-	// Entity TagContainer 기반 애니메이션 동기화
 	if (bForceUpdate || Entity.TagsDirtyFrame == Frame)
-	{
 		HktAnim->SyncFromTagContainer(Entity.Tags);
-	}
-}
-
-void FHktActorRenderer::InterpolateActors(float DeltaSeconds)
-{
-	if (DeltaSeconds <= 0.0f) return;
-
-	for (auto It = MotionStates.CreateIterator(); It; ++It)
-	{
-		FHktEntityId Id = It.Key();
-		FHktActorMotionState& Motion = It.Value();
-
-		// 소켓에 부착된 아이템은 소켓이 위치를 결정하므로 보간 건너뜀
-		if (AttachedItems.Contains(Id))
-			continue;
-
-		TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
-		if (!WeakPtr || !WeakPtr->IsValid())
-			continue;
-
-		AActor* Actor = WeakPtr->Get();
-		Actor->SetActorLocationAndRotation(Motion.TargetLocation, Motion.TargetRotation, false, nullptr, ETeleportType::TeleportPhysics);
-	}
 }
 
 void FHktActorRenderer::TryAttachToOwnerDirect(FHktEntityId ItemId, FHktEntityId OwnerId)
 {
 	AActor* ItemActor = GetActor(ItemId);
 	AActor* OwnerActor = GetActor(OwnerId);
-	if (!ItemActor || !OwnerActor) return;  // Owner 미존재 → Owner 스폰 시 AttachPendingItemsForOwner에서 처리
+	if (!ItemActor || !OwnerActor) return;
 
 	AHktItemActor* HktItem = Cast<AHktItemActor>(ItemActor);
-	if (!HktItem || HktItem->GetAttachSocketName().IsNone())
-	{
-		return;
-	}
+	if (!HktItem || HktItem->GetAttachSocketName().IsNone()) return;
 
 	USkeletalMeshComponent* SkelMesh = OwnerActor->FindComponentByClass<USkeletalMeshComponent>();
-	if (!SkelMesh)
-	{
-		return;
-	}
+	if (!SkelMesh) return;
 
 	FName SocketName = HktItem->GetAttachSocketName();
 	if (!SkelMesh->DoesSocketExist(SocketName))
@@ -411,7 +309,6 @@ void FHktActorRenderer::AttachPendingItemsForOwner(FHktEntityId OwnerEntityId)
 {
 	if (!CachedState) return;
 
-	// ViewModel 기반 스캔: 별도 대기 맵 없이, ActorMap의 모든 아이템 중 이 Owner에 속하는 것 부착
 	for (auto& [ExistingId, WeakActor] : ActorMap)
 	{
 		if (AttachedItems.Contains(ExistingId)) continue;
@@ -439,24 +336,4 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 
 	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
 		FString::Printf(TEXT("DetachItem ItemId=%d"), ItemId), ItemId);
-}
-
-bool FHktActorRenderer::TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const
-{
-	if (!World) return false;
-
-	const FVector Start(Pos.X, Pos.Y, Pos.Z + TraceHalfHeight);
-	const FVector End(Pos.X, Pos.Y, Pos.Z - TraceHalfHeight);
-
-	FHitResult Hit;
-	FCollisionQueryParams Params;
-	Params.bTraceComplex = false;
-
-	if (World->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic, Params))
-	{
-		OutZ = Hit.ImpactPoint.Z;
-		return true;
-	}
-
-	return false;
 }

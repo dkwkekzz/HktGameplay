@@ -7,36 +7,23 @@
 
 class ULocalPlayer;
 
-/** 엔티티별 비주얼 이동 상태 (단순 보간) */
-struct FHktActorMotionState
-{
-	FVector TargetLocation = FVector::ZeroVector;
-	FRotator TargetRotation = FRotator::ZeroRotator;
-	bool bIsMoving = false;
-	bool bNeedsGroundSnap = true;
-};
-
 class FHktActorRenderer : public IHktPresentationRenderer
 {
 public:
 	explicit FHktActorRenderer(ULocalPlayer* InLP);
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;
-	virtual bool NeedsTick() const override { return !MotionStates.IsEmpty(); }
+	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty(); }
 
 	AActor* GetActor(FHktEntityId Id) const;
 
 private:
 	void SpawnActor(const FHktEntityPresentation& Entity);
 	void DestroyActor(FHktEntityId Id);
-	void UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceUpdate = false);
 	void UpdateAnimation(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceUpdate = false);
-	void InterpolateActors(float DeltaSeconds);
+	void ApplyTransform(FHktEntityId Id, const FHktEntityPresentation& Entity);
 
-	/** 지면 높이 트레이스 (위에서 아래로 라인트레이스) */
-	bool TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const;
-
-	/** ViewModel에서 직접 읽어 actor 즉시 초기화 (motion + animation) */
+	/** ViewModel에서 직접 읽어 actor 즉시 초기화 */
 	void InitActorFromPresentation(AActor* Actor, FHktEntityId Id, const FHktEntityPresentation& Entity);
 
 	/** 아이템 Actor를 소유 캐릭터의 소켓에 직접 부착 시도 */
@@ -47,7 +34,6 @@ private:
 	void DetachFromOwner(FHktEntityId ItemId);
 
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
-	TMap<FHktEntityId, FHktActorMotionState> MotionStates;
 	TSet<FHktEntityId> AttachedItems;
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
 
@@ -56,8 +42,4 @@ private:
 
 	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */
 	TSharedPtr<bool> AliveGuard = MakeShared<bool>(true);
-
-	static constexpr float LerpAlpha = 0.9f;          // 매 프레임 50% 접근 → ~2틱에 도달
-	static constexpr float SnapDistance = 1.0f;        // cm, 이 거리 이내면 스냅
-	static constexpr float TraceHalfHeight = 500.0f;
 };
