@@ -98,4 +98,82 @@ namespace HktSnippetItem
 		FHktStoryBuilder& B,
 		RegisterIndex DstReg,
 		const FString& FailLabel);
+
+	// ================================================================
+	// 고수준 아이템 명령어
+	// ================================================================
+
+	/**
+	 * 아이템 소유권 설정: OwnerEntity = NewOwner + 계정 OwnerUid 설정
+	 *
+	 * Clobbers: (없음)
+	 */
+	HKTSTORY_API FHktStoryBuilder& AssignOwnership(
+		FHktStoryBuilder& B,
+		RegisterIndex ItemEntity,
+		RegisterIndex NewOwner);
+
+	/**
+	 * 아이템 소유권 해제: OwnerEntity = 0 + 계정 OwnerUid 해제
+	 *
+	 * Clobbers: (없음)
+	 */
+	HKTSTORY_API FHktStoryBuilder& ReleaseOwnership(
+		FHktStoryBuilder& B,
+		RegisterIndex ItemEntity);
+
+	/**
+	 * 아이템을 Active 상태로 전환하고 ActionSlot에 등록.
+	 * ItemState = Active, ActionSlot 설정, ItemSlot[N] 저장, 스탯 적용.
+	 *
+	 * Clobbers: R2, R3, R4, Flag
+	 */
+	HKTSTORY_API FHktStoryBuilder& ActivateInSlot(
+		FHktStoryBuilder& B,
+		RegisterIndex ItemEntity,
+		RegisterIndex SlotIndexReg,
+		RegisterIndex CharEntity);
+
+	/**
+	 * Active 아이템을 InBag으로 전환.
+	 * ItemState = InBag, ActionSlot = -1, 스탯 차감.
+	 * Note: ClearItemSlot은 호출 전에 별도로 수행해야 한다.
+	 *
+	 * Clobbers: R0, R1
+	 */
+	HKTSTORY_API FHktStoryBuilder& DeactivateToBag(
+		FHktStoryBuilder& B,
+		RegisterIndex ItemEntity,
+		RegisterIndex CharEntity);
+
+	/**
+	 * 아이템을 Ground 상태로 전환하고 월드에 드랍.
+	 * ItemState = Ground, 소유권 해제, BagSlot/ActionSlot 초기화, 위치 설정.
+	 *
+	 * Clobbers: R3
+	 */
+	HKTSTORY_API FHktStoryBuilder& DropToGround(
+		FHktStoryBuilder& B,
+		RegisterIndex ItemEntity,
+		RegisterIndex PositionSourceEntity);
+
+	/** 월드 아이템 생성 템플릿 */
+	struct FHktGroundItemTemplate
+	{
+		int32 ItemId = 0;
+	};
+
+	/**
+	 * 아이템을 월드(Ground 상태)에 생성.
+	 * SpawnEntity + ItemState=Ground + ItemId + ActionSlot=-1 + 위치 설정.
+	 * Spawned 레지스터에 새 아이템 엔티티가 저장된다.
+	 *
+	 * Clobbers: R3
+	 * @param PosSourceEntity 위치를 복사할 엔티티 레지스터
+	 */
+	HKTSTORY_API FHktStoryBuilder& SpawnGroundItem(
+		FHktStoryBuilder& B,
+		const FGameplayTag& ItemClassTag,
+		const FHktGroundItemTemplate& Template,
+		RegisterIndex PosSourceEntity);
 }

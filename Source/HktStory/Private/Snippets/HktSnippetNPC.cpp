@@ -69,3 +69,18 @@ FHktStoryBuilder& HktSnippetNPC::SpawnerLoopEnd(
 
 	return B;
 }
+
+FHktStoryBuilder& HktSnippetNPC::SpawnNPCAtPosition(
+	FHktStoryBuilder& B,
+	const FGameplayTag& NPCTag,
+	const FHktNPCTemplate& Stats,
+	RegisterIndex PosBaseReg)
+{
+	using namespace Reg;
+
+	B.SpawnEntity(NPCTag);
+	SetupNPCStats(B, NPCTag, Stats);
+	B.SetPosition(Spawned, PosBaseReg);
+
+	return B;
+}

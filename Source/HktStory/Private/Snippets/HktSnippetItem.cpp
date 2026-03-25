@@ -209,3 +209,105 @@ FHktStoryBuilder& HktSnippetItem::FindEmptyActionSlot(
 
 	return B;
 }
+
+// ================================================================
+// 고수준 아이템 명령어
+// ================================================================
+
+FHktStoryBuilder& HktSnippetItem::AssignOwnership(
+	FHktStoryBuilder& B,
+	RegisterIndex ItemEntity,
+	RegisterIndex NewOwner)
+{
+	B.SaveEntityProperty(ItemEntity, PropertyId::OwnerEntity, NewOwner)
+	 .SetOwnerUid(ItemEntity);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::ReleaseOwnership(
+	FHktStoryBuilder& B,
+	RegisterIndex ItemEntity)
+{
+	B.SaveConstEntity(ItemEntity, PropertyId::OwnerEntity, 0)
+	 .ClearOwnerUid(ItemEntity);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::ActivateInSlot(
+	FHktStoryBuilder& B,
+	RegisterIndex ItemEntity,
+	RegisterIndex SlotIndexReg,
+	RegisterIndex CharEntity)
+{
+	using namespace Reg;
+
+	// Active 상태로 전환 + ActionSlot 설정
+	B.SaveConstEntity(ItemEntity, PropertyId::ItemState, 2)              // Active
+	 .SaveEntityProperty(ItemEntity, PropertyId::ActionSlot, SlotIndexReg);
+
+	// 캐릭터의 ItemSlot[N] = 아이템 EntityId
+	B.Move(R2, ItemEntity);
+	SaveItemToSlot(B, SlotIndexReg, R2);
+
+	// 아이템 스탯 + Stance를 캐릭터에 적용
+	ApplyItemStats(B, ItemEntity, CharEntity);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::DeactivateToBag(
+	FHktStoryBuilder& B,
+	RegisterIndex ItemEntity,
+	RegisterIndex CharEntity)
+{
+	// InBag 상태로 전환 + ActionSlot 해제
+	B.SaveConstEntity(ItemEntity, PropertyId::ItemState, 1)              // InBag
+	 .SaveConstEntity(ItemEntity, PropertyId::ActionSlot, -1);           // 액션 해제
+
+	// 아이템 스탯을 캐릭터에서 차감
+	RemoveItemStats(B, ItemEntity, CharEntity);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::DropToGround(
+	FHktStoryBuilder& B,
+	RegisterIndex ItemEntity,
+	RegisterIndex PositionSourceEntity)
+{
+	using namespace Reg;
+
+	// Ground로 전환
+	B.SaveConstEntity(ItemEntity, PropertyId::ItemState, 0)              // Ground
+	 .SaveConstEntity(ItemEntity, PropertyId::BagSlot, 0)                // 슬롯 초기화
+	 .SaveConstEntity(ItemEntity, PropertyId::ActionSlot, -1);           // 액션 해제
+
+	// 소유권 해제
+	ReleaseOwnership(B, ItemEntity);
+
+	// 위치 설정
+	B.GetPosition(R3, PositionSourceEntity)
+	 .SetPosition(ItemEntity, R3);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::SpawnGroundItem(
+	FHktStoryBuilder& B,
+	const FGameplayTag& ItemClassTag,
+	const FHktGroundItemTemplate& Template,
+	RegisterIndex PosSourceEntity)
+{
+	using namespace Reg;
+
+	B.SpawnEntity(ItemClassTag)
+	 .SaveConstEntity(Spawned, PropertyId::ItemState, 0)                 // Ground
+	 .SaveConstEntity(Spawned, PropertyId::ItemId, Template.ItemId)
+	 .SaveConstEntity(Spawned, PropertyId::ActionSlot, -1)               // 미등록
+	 .GetPosition(R3, PosSourceEntity)
+	 .SetPosition(Spawned, R3);
+
+	return B;
+}
