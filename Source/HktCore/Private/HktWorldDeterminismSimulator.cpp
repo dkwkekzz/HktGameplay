@@ -157,14 +157,27 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         {
             FString PropSummary;
 
-#if ENABLE_HKT_INSIGHTS
-            // 엔티티 디버그 이름
+            // 엔티티 디버그 정보
             const FHktWorldState::FHktEntityDebugInfo* DebugInfo = WorldState.GetEntityDebugInfo(Id);
-            if (DebugInfo && !DebugInfo->DebugName.IsEmpty())
+            if (DebugInfo)
             {
-                PropSummary += FString::Printf(TEXT("DebugName=%s"), *DebugInfo->DebugName);
+                if (!DebugInfo->DebugName.IsEmpty())
+                {
+                    PropSummary += FString::Printf(TEXT("DebugName=%s"), *DebugInfo->DebugName);
+                }
+                if (!DebugInfo->ClassTag.IsEmpty())
+                {
+                    PropSummary += FString::Printf(TEXT(" | ClassTag=%s"), *DebugInfo->ClassTag);
+                }
+                if (!DebugInfo->StoryTag.IsEmpty())
+                {
+                    PropSummary += FString::Printf(TEXT(" | StoryTag=%s"), *DebugInfo->StoryTag);
+                }
+                if (DebugInfo->CreationFrame > 0)
+                {
+                    PropSummary += FString::Printf(TEXT(" | CreationFrame=%lld"), DebugInfo->CreationFrame);
+                }
             }
-#endif
 
             const FGameplayTagContainer& SlotTags = WorldState.GetTagsBySlot(Slot);
             PropSummary += FString::Printf(TEXT(" | Tags=%s"), *SlotTags.ToStringSimple());
