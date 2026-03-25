@@ -67,7 +67,6 @@
     /* 아이템 */              \
     X(ItemState)              \
     X(ItemId)                 \
-    X(BagSlot)                \
     X(ActionSlot)             \
     /* 가방 */                \
     X(BagCapacity)            \

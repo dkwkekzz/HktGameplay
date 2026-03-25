@@ -61,7 +61,6 @@ namespace HktStoryItemDrop
 			.SaveConstEntity(Target, PropertyId::ItemState, 0)                // Ground
 			.SaveConstEntity(Target, PropertyId::OwnerEntity, 0)              // 소유자 해제
 			.ClearOwnerUid(Target)                                            // 계정 소유 해제
-			.SaveConstEntity(Target, PropertyId::BagSlot, 0)                  // 슬롯 초기화
 			.SaveConstEntity(Target, PropertyId::ActionSlot, -1)              // 액션 해제
 
 			// 유닛 위치에 드랍

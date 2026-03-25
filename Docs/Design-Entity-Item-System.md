@@ -220,11 +220,11 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 
 | 전이 | Story | 사전 조건 | 변경 속성 |
 |------|-------|-----------|-----------|
-| **Pickup** | `Story.Event.Item.Pickup` | ItemState==0, 거리<=300cm, 가방<BagCapacity | OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
-| **Grant** | (Story 내부 패턴) | 가방<BagCapacity | SpawnEntity→OwnerEntity=Self, ItemState=1, BagSlot=현재개수 |
+| **Pickup** | `Story.Event.Item.Pickup` | ItemState==0, 거리<=300cm, 가방<BagCapacity | OwnerEntity=Self, ItemState=1 |
+| **Grant** | (Story 내부 패턴) | 가방<BagCapacity | SpawnEntity→OwnerEntity=Self, ItemState=1 |
 | **Activate** | `Story.Event.Item.Activate` | ItemState==1, OwnerEntity==Self | ItemState=2, ActionSlot=Param0, 캐릭터 Stance=아이템 Stance |
 | **Deactivate** | `Story.Event.Item.Deactivate` | ItemState==2, OwnerEntity==Self | ItemState=1, ActionSlot=-1 |
-| **Drop** | `Story.Event.Item.Drop` | OwnerEntity==Self | ItemState=0, OwnerEntity=0, BagSlot=0, ActionSlot=-1, 위치=Self위치 |
+| **Drop** | `Story.Event.Item.Drop` | OwnerEntity==Self | ItemState=0, OwnerEntity=0, ActionSlot=-1, 위치=Self위치 |
 
 ### 3.4 아이템 획득 경로 (Acquisition Paths)
 
@@ -240,7 +240,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 | **자연 스폰** | Map Event | `Story.Flow.Spawner.Item.TreeDrop` | SpawnEntity→Ground → 플레이어가 Pickup |
 | **초기 지급** | Map Event | `Story.State.Player.InWorld` | Story 내부에서 직접 SpawnEntity→InBag |
 
-**Grant는 Event가 아니다.** Grant(아이템 생성+InBag 주입)는 다양한 Event의 Story 내부에서 수행되는 공통 패턴이다. VM에 서브루틴 호출이 없으므로, Grant 로직(용량검증+BagSlot할당+SpawnEntity+속성설정)은 각 Story에 인라인으로 포함된다.
+**Grant는 Event가 아니다.** Grant(아이템 생성+InBag 주입)는 다양한 Event의 Story 내부에서 수행되는 공통 패턴이다. VM에 서브루틴 호출이 없으므로, Grant 로직(용량검증+SpawnEntity+속성설정)은 각 Story에 인라인으로 포함된다. 가방 슬롯 관리는 Player의 BagComponent가 담당한다.
 
 **Pickup과 Grant의 차이:**
 - Pickup: 이미 존재하는 Ground 아이템(Target)의 소유권을 가져온다. 거리 검증 필요. 그 자체가 Event.
@@ -329,11 +329,6 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 - 할당 방식: Pickup 시 자동으로 빈 슬롯 할당, BagRestore 시 지정
 - 용도: 장착된 아이템의 활성 슬롯 (예: 0=주무기, 1=보조장비)
 
-**BagSlot (가방 슬롯)**
-- 범위: 0~(Capacity-1), 기본 Capacity=20
-- BagComponent의 FHktBagState에서 관리
-- 용도: 가방 UI에서 아이템 위치 결정
-
 ### 4.3 Stance (전투 자세)와 아이템의 관계
 
 Stance는 Hot Property로 캐릭터의 전투 모드를 정의한다:
@@ -354,7 +349,6 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 | `Defense` | Hot | 방어력 |
 | `ItemState` | Cold | 상태 (0=Ground, 1=InBag, 2=Active) |
 | `ItemId` | Cold | 아이템 종류 식별자 (100=목검, 101=나무) |
-| `BagSlot` | Cold | 가방 내 위치 (0~BagCapacity-1) |
 | `ActionSlot` | Cold | 액션 슬롯 번호 (-1=미등록) |
 | `BagCapacity` | Cold | 엔티티별 가방 용량 (기본 8, 창고 엔티티 등은 다른 값) |
 
@@ -409,13 +403,7 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 - **영향**: 활성 해제를 하려면 Drop 후 Pickup해야 한다 (비직관적).
 - **제안**: `Story.Event.Item.Deactivate` Story 추가. Active→InBag 전환, ActionSlot=-1로 초기화, Stance 복원.
 
-### Gap 2: BagSlot 재배치 미구현 — 우선순위: 높음
-- **현상**: Drop 시 BagSlot이 0으로 초기화되지만, 나머지 아이템의 BagSlot이 재정렬되지 않는다.
-- **영향**: 가방 중간에 빈 슬롯이 생기고, Pickup 시 CountByOwner를 BagSlot으로 사용하므로 슬롯 충돌 가능.
-- **제안**: 빈 슬롯 탐색 로직 추가. `FindFirstEmptyBagSlot` VM 명령 또는 Story 로직으로 구현.
-- **참고**: 엔티티별 BagCapacity가 다를 수 있으므로 (이동형 창고 등), 슬롯 탐색은 해당 엔티티의 BagCapacity 범위 내에서 수행해야 한다.
-
-### Gap 3: ActionSlot 충돌 미검증 — 우선순위: 중간
+### Gap 2: ActionSlot 충돌 미검증 — 우선순위: 중간
 - **현상**: `Story.Event.Item.Activate`에서 동일 ActionSlot에 이미 다른 아이템이 할당되어 있는지 확인하지 않는다.
 - **영향**: 두 개의 아이템이 같은 ActionSlot을 점유할 수 있다.
 - **제안**: 기존 ActionSlot 점유 아이템의 자동 해제 로직 추가.
@@ -438,7 +426,7 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 ### Gap 7: 아이템 거래/이전 시스템 부재 — 우선순위: 낮음 ✅ 구현 완료
 - **현상**: 플레이어 간 직접 아이템 이전 수단 없음.
 - **영향**: Drop→Pickup으로만 거래 가능 (분실 위험, 보안 취약).
-- **구현**: `Story.Event.Item.Trade` Story 추가. Precondition에서 양측 소유권/상태 검증, 원자적으로 OwnerEntity/BagSlot 교환. Active 아이템 거래 불가. `HktStoryItemTrade.cpp` 신규.
+- **구현**: `Story.Event.Item.Trade` Story 추가. Precondition에서 양측 소유권/상태 검증, 원자적으로 OwnerEntity 교환. Active 아이템 거래 불가. `HktStoryItemTrade.cpp` 신규.
 
 ### Gap 8: 신규 vs 복귀 플레이어 분기 — 우선순위: 미정 ✅ 구현 완료
 - **현상**: 복귀 플레이어 재접속 시 DB에서 EntityStates가 Import된 후 `Story.State.Player.InWorld` Story가 다시 기동되면, 초기 아이템(목검)이 중복 지급될 수 있다.
