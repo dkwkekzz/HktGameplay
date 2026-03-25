@@ -37,19 +37,15 @@ namespace HktStoryNPCSpawnerGoblinCamp
 		// 주기적 스포너 루프 시작 (플레이어 체크 + 인구 5마리 상한)
 		HktSnippetNPC::SpawnerLoopBegin(B, TEXT("loop"), TEXT("wait"), Entity_NPC_Goblin, 5);
 
-		B	// NPC 생성
-			.SpawnEntity(Entity_NPC_Goblin);
+			// 위치 레지스터 로드 (이벤트 파라미터에서)
+		B.LoadStore(R3, PropertyId::Param0)             // SpawnPosX
+		 .LoadStore(R4, PropertyId::Param1)             // SpawnPosY
+		 .LoadConst(R5, 0);                             // Z = ground
 
-		// NPC 스탯 설정
-		HktSnippetNPC::SetupNPCStats(B, Entity_NPC_Goblin, { 80, 15, 3, 120, 0 });
+		// NPC 생성 + 스탯 설정 + 위치 지정
+		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Goblin, { 80, 15, 3, 120, 0 }, R3);
 
-		B	// 위치 설정 (이벤트 파라미터에서 읽기)
-			.LoadStore(R3, PropertyId::Param0)          // SpawnPosX
-			.LoadStore(R4, PropertyId::Param1)          // SpawnPosY
-			.LoadConst(R5, 0)                           // Z = ground
-			.SetPosition(Spawned, R3)
-
-			.Log(TEXT("GoblinCamp: goblin spawned"));
+		B.Log(TEXT("GoblinCamp: goblin spawned"));
 
 		// 주기적 스포너 루프 종결 (10초 대기)
 		HktSnippetNPC::SpawnerLoopEnd(B, TEXT("loop"), TEXT("wait"), 10.0f);

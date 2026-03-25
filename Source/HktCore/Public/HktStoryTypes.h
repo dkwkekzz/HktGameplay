@@ -45,78 +45,84 @@ namespace Reg
 
 // ============================================================================
 // OpCode 정의 (Flow 빌더 / VM 공통)
-// X-매크로 패턴: enum과 이름 문자열을 한 곳에서 관리
+// X-매크로 패턴: enum, 이름 문자열, 레지스터 사용 정보를 한 곳에서 관리
+//
+// X(Name, Dst, Src1, Src2) — 각 필드의 역할:
+//   _ = 사용 안 함,  R = Read,  W = Write
+//
+// 주의: Builder 조합 연산(GetPosition, SetPosition, SaveConstEntity 등)은
+//       여러 기본 opcode를 emit하므로 개별 opcode 단위로 정의한다.
 // ============================================================================
 
 #define HKT_OPCODE_LIST(X) \
     /* Control Flow */      \
-    X(Nop)              \
-    X(Halt)             \
-    X(Fail)             \
-    X(Yield)            \
-    X(YieldSeconds)     \
-    X(Jump)             \
-    X(JumpIf)           \
-    X(JumpIfNot)        \
+    X(Nop,              _, _, _) \
+    X(Halt,             _, _, _) \
+    X(Fail,             _, _, _) \
+    X(Yield,            _, _, _) \
+    X(YieldSeconds,     _, _, _) \
+    X(Jump,             _, _, _) \
+    X(JumpIf,           _, R, _) \
+    X(JumpIfNot,        _, R, _) \
     /* Event Wait */        \
-    X(WaitCollision)    \
-    X(WaitMoveEnd)      \
+    X(WaitCollision,    _, R, _) \
+    X(WaitMoveEnd,      _, R, _) \
     /* Data Operations */   \
-    X(LoadConst)        \
-    X(LoadConstHigh)    \
-    X(LoadStore)        \
-    X(LoadStoreEntity)  \
-    X(SaveStore)        \
-    X(SaveStoreEntity)  \
-    X(Move)             \
+    X(LoadConst,        W, _, _) \
+    X(LoadConstHigh,    W, _, _) \
+    X(LoadStore,        W, _, _) \
+    X(LoadStoreEntity,  W, R, _) \
+    X(SaveStore,        _, R, _) \
+    X(SaveStoreEntity,  _, R, R) \
+    X(Move,             W, R, _) \
     /* Arithmetic */        \
-    X(Add)              \
-    X(Sub)              \
-    X(Mul)              \
-    X(Div)              \
-    X(Mod)              \
-    X(AddImm)           \
+    X(Add,              W, R, R) \
+    X(Sub,              W, R, R) \
+    X(Mul,              W, R, R) \
+    X(Div,              W, R, R) \
+    X(Mod,              W, R, R) \
+    X(AddImm,           W, R, _) \
     /* Comparison */        \
-    X(CmpEq)            \
-    X(CmpNe)            \
-    X(CmpLt)            \
-    X(CmpLe)            \
-    X(CmpGt)            \
-    X(CmpGe)            \
+    X(CmpEq,            W, R, R) \
+    X(CmpNe,            W, R, R) \
+    X(CmpLt,            W, R, R) \
+    X(CmpLe,            W, R, R) \
+    X(CmpGt,            W, R, R) \
+    X(CmpGe,            W, R, R) \
     /* Entity */            \
-    X(SpawnEntity)      \
-    X(DestroyEntity)    \
+    X(SpawnEntity,      _, _, _) \
+    X(DestroyEntity,    _, R, _) \
     /* Spatial Query */     \
-    X(GetDistance)       \
-    X(FindInRadius)     \
-    X(NextFound)        \
+    X(GetDistance,       W, R, R) \
+    X(FindInRadius,     _, R, _) \
+    X(NextFound,        _, _, _) \
     /* Presentation */      \
-    X(ApplyEffect)      \
-    X(RemoveEffect)     \
-    X(PlayVFX)          \
-    X(PlayVFXAttached)  \
-    X(PlaySound)        \
-    X(PlaySoundAtLocation) \
+    X(ApplyEffect,      _, R, _) \
+    X(RemoveEffect,     _, R, _) \
+    X(PlayVFX,          _, R, _) \
+    X(PlayVFXAttached,  _, R, _) \
+    X(PlaySound,        _, _, _) \
+    X(PlaySoundAtLocation, _, R, _) \
     /* Tags */              \
-    X(AddTag)           \
-    X(RemoveTag)        \
-    X(HasTag)           \
+    X(AddTag,           _, R, _) \
+    X(RemoveTag,        _, R, _) \
+    X(HasTag,           W, R, _) \
     /* NPC Spawning */      \
-    X(CountByTag)       \
-    X(GetWorldTime)     \
-    X(RandomInt)        \
-    X(HasPlayerInGroup) \
+    X(CountByTag,       W, _, _) \
+    X(GetWorldTime,     W, _, _) \
+    X(RandomInt,        W, R, _) \
+    X(HasPlayerInGroup, W, _, _) \
     /* Item System */       \
-    X(CountByOwner)     \
-    X(FindByOwner)      \
-    X(SetOwnerUid)      \
-    X(ClearOwnerUid)    \
+    X(CountByOwner,     W, R, _) \
+    X(FindByOwner,      _, R, _) \
+    X(SetOwnerUid,      _, R, _) \
+    X(ClearOwnerUid,    _, R, _) \
     /* Utility */           \
-    X(Log)
+    X(Log,              _, _, _)
 
 enum class EOpCode : uint8
 {
-    #define HKT_OPCODE_ENUM(Name) Name,
+    #define HKT_OPCODE_ENUM(Name, ...) Name,
     HKT_OPCODE_LIST(HKT_OPCODE_ENUM)
     #undef HKT_OPCODE_ENUM
     Max
@@ -126,7 +132,7 @@ enum class EOpCode : uint8
 inline const TCHAR* GetOpCodeName(EOpCode Op)
 {
     static const TCHAR* Names[] = {
-        #define HKT_OPCODE_NAME(Name) TEXT(#Name),
+        #define HKT_OPCODE_NAME(Name, ...) TEXT(#Name),
         HKT_OPCODE_LIST(HKT_OPCODE_NAME)
         #undef HKT_OPCODE_NAME
     };
@@ -214,3 +220,44 @@ struct FInstruction
 };
 
 static_assert(sizeof(FInstruction) == 4, "Instruction must be 32 bits");
+
+// ============================================================================
+// OpCode 레지스터 사용 정보 (Build-time 검증용)
+// ============================================================================
+
+/** 레지스터 필드의 역할 */
+enum class ERegRole : uint8 { None, Read, Write };
+
+/** OpCode별 Dst/Src1/Src2 레지스터 역할 */
+struct FOpRegInfo
+{
+    ERegRole Dst;
+    ERegRole Src1;
+    ERegRole Src2;
+};
+
+/** OpCode → 레지스터 사용 정보 조회 (X-매크로에서 자동 생성) */
+inline FOpRegInfo GetOpRegInfo(EOpCode Op)
+{
+    // X-매크로의 _, R, W 토큰을 ERegRole로 변환
+    #define HKT_REG_ROLE__ ERegRole::None
+    #define HKT_REG_ROLE_R ERegRole::Read
+    #define HKT_REG_ROLE_W ERegRole::Write
+    #define HKT_REG_ROLE(Token) HKT_REG_ROLE_##Token
+
+    static const FOpRegInfo Table[] = {
+        #define HKT_OPCODE_REG(Name, D, S1, S2) { HKT_REG_ROLE(D), HKT_REG_ROLE(S1), HKT_REG_ROLE(S2) },
+        HKT_OPCODE_LIST(HKT_OPCODE_REG)
+        #undef HKT_OPCODE_REG
+    };
+
+    #undef HKT_REG_ROLE__
+    #undef HKT_REG_ROLE_R
+    #undef HKT_REG_ROLE_W
+    #undef HKT_REG_ROLE
+
+    const uint8 Index = static_cast<uint8>(Op);
+    if (Index < static_cast<uint8>(EOpCode::Max))
+        return Table[Index];
+    return { ERegRole::None, ERegRole::None, ERegRole::None };
+}

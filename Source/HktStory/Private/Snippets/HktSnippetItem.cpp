@@ -209,3 +209,111 @@ FHktStoryBuilder& HktSnippetItem::FindEmptyEquipSlot(
 
 	return B;
 }
+
+// ================================================================
+// 고수준 아이템 명령어
+// ================================================================
+
+FHktStoryBuilder& HktSnippetItem::AssignOwnership(
+	FHktStoryBuilder& B,
+	RegisterIndex ItemEntity,
+	RegisterIndex NewOwner)
+{
+	B.Log(TEXT("[Snippet] AssignOwnership"))
+	 .SaveEntityProperty(ItemEntity, PropertyId::OwnerEntity, NewOwner)
+	 .SetOwnerUid(ItemEntity);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::ReleaseOwnership(
+	FHktStoryBuilder& B,
+	RegisterIndex ItemEntity)
+{
+	B.Log(TEXT("[Snippet] ReleaseOwnership"))
+	 .SaveConstEntity(ItemEntity, PropertyId::OwnerEntity, 0)
+	 .ClearOwnerUid(ItemEntity);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::ActivateInSlot(
+	FHktStoryBuilder& B,
+	RegisterIndex ItemEntity,
+	RegisterIndex SlotIndexReg,
+	RegisterIndex CharEntity)
+{
+	using namespace Reg;
+
+	// Active 상태로 전환 + EquipIndex 설정
+	B.Log(TEXT("[Snippet] ActivateInSlot"))
+	 .SaveConstEntity(ItemEntity, PropertyId::ItemState, 2)              // Active
+	 .SaveEntityProperty(ItemEntity, PropertyId::EquipIndex, SlotIndexReg);
+
+	// 캐릭터의 EquipSlot[N] = 아이템 EntityId
+	// Note: SlotIndexReg과 R3를 분리하여 레지스터 충돌 방지
+	B.Move(R3, ItemEntity);
+	SaveItemToEquipSlot(B, SlotIndexReg, R3);
+
+	// 아이템 스탯 + Stance를 캐릭터에 적용
+	ApplyItemStats(B, ItemEntity, CharEntity);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::DeactivateToBag(
+	FHktStoryBuilder& B,
+	RegisterIndex ItemEntity,
+	RegisterIndex CharEntity)
+{
+	// InBag 상태로 전환 + EquipIndex 해제
+	B.Log(TEXT("[Snippet] DeactivateToBag"))
+	 .SaveConstEntity(ItemEntity, PropertyId::ItemState, 1)              // InBag
+	 .SaveConstEntity(ItemEntity, PropertyId::EquipIndex, -1);           // 액션 해제
+
+	// 아이템 스탯을 캐릭터에서 차감
+	RemoveItemStats(B, ItemEntity, CharEntity);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::DropToGround(
+	FHktStoryBuilder& B,
+	RegisterIndex ItemEntity,
+	RegisterIndex PositionSourceEntity)
+{
+	using namespace Reg;
+
+	// Ground로 전환
+	B.Log(TEXT("[Snippet] DropToGround"))
+	 .SaveConstEntity(ItemEntity, PropertyId::ItemState, 0)              // Ground
+	 .SaveConstEntity(ItemEntity, PropertyId::EquipIndex, -1);           // 장착 해제
+
+	// 소유권 해제
+	ReleaseOwnership(B, ItemEntity);
+
+	// 위치 설정
+	B.GetPosition(R3, PositionSourceEntity)
+	 .SetPosition(ItemEntity, R3);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::SpawnGroundItem(
+	FHktStoryBuilder& B,
+	const FGameplayTag& ItemClassTag,
+	const FHktGroundItemTemplate& Template,
+	RegisterIndex PosSourceEntity)
+{
+	using namespace Reg;
+
+	B.Log(TEXT("[Snippet] SpawnGroundItem"))
+	 .SpawnEntity(ItemClassTag)
+	 .SaveConstEntity(Spawned, PropertyId::ItemState, 0)                 // Ground
+	 .SaveConstEntity(Spawned, PropertyId::ItemId, Template.ItemId)
+	 .SaveConstEntity(Spawned, PropertyId::EquipIndex, -1)               // 미등록
+	 .GetPosition(R3, PosSourceEntity)
+	 .SetPosition(Spawned, R3);
+
+	return B;
+}

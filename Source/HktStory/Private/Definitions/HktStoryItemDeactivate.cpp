@@ -58,12 +58,8 @@ namespace HktStoryItemDeactivate
 
 		HktSnippetItem::ClearEquipSlot(B, R2);
 
-		B	// InBag 상태로 전환 + EquipIndex 해제
-			.SaveConstEntity(Target, PropertyId::ItemState, 1)              // InBag
-			.SaveConstEntity(Target, PropertyId::EquipIndex, -1);           // 액션 해제
-
-		// 아이템 스탯을 캐릭터에서 차감
-		HktSnippetItem::RemoveItemStats(B, Target, Self);
+		// InBag으로 전환 + 스탯 차감
+		HktSnippetItem::DeactivateToBag(B, Target, Self);
 
 		B	// 다른 활성 아이템이 있는지 확인하여 Stance 복원 결정
 			.FindByOwner(Self, Entity_Item)

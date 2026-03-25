@@ -56,16 +56,12 @@ namespace HktStoryItemDrop
 		// Active 아이템 스탯 차감
 		HktSnippetItem::RemoveItemStats(B, Target, Self);
 
-		B.Label(TEXT("drop_exec"))
-			// Ground로 전환
-			.SaveConstEntity(Target, PropertyId::ItemState, 0)                // Ground
-			.SaveConstEntity(Target, PropertyId::OwnerEntity, 0)              // 소유자 해제
-			.ClearOwnerUid(Target)                                            // 계정 소유 해제
-			.SaveConstEntity(Target, PropertyId::EquipIndex, -1)              // 액션 해제
+		B.Label(TEXT("drop_exec"));
 
-			// 유닛 위치에 드랍
-			.GetPosition(R3, Self)
-			.SetPosition(Target, R3)
+		// Ground로 전환 + 소유 해제 + 위치 설정
+		HktSnippetItem::DropToGround(B, Target, Self);
+
+		B
 
 			.Log(TEXT("Item dropped"))
 			.Halt()

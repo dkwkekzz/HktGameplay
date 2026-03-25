@@ -6,6 +6,7 @@
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetItem.h"
 
 namespace HktStoryNPCLifecycle
 {
@@ -38,8 +39,8 @@ namespace HktStoryNPCLifecycle
 	{
 		using namespace Reg;
 
-		Story(Story_NPC_Lifecycle)
-			.Label(TEXT("check"))
+		auto B = Story(Story_NPC_Lifecycle);
+		B.Label(TEXT("check"))
 				.LoadEntityProperty(R0, Self, PropertyId::Health)
 				.LoadConst(R1, 0)
 				.CmpLe(Flag, R0, R1)                    // Health <= 0?
@@ -50,14 +51,11 @@ namespace HktStoryNPCLifecycle
 			.Label(TEXT("die"))
 				.Log(TEXT("NPC died"))
 
-				// 전리품 드랍
-				.SpawnEntity(Entity_Item_NPCLoot)
-				.SaveConstEntity(Spawned, PropertyId::ItemState, 0)                // Ground
-				.SaveConstEntity(Spawned, PropertyId::ItemId, 201)                 // Loot ID
-				.SaveConstEntity(Spawned, PropertyId::EquipIndex, -1)              // 미등록
-				.GetPosition(R3, Self)
-				.SetPosition(Spawned, R3)                                    // NPC 위치에 드랍
-				.AddTag(Spawned, Tag_Item_Material)
+				;
+
+		// 전리품 드랍
+		HktSnippetItem::SpawnGroundItem(B, Entity_Item_NPCLoot, { 201 }, Self);
+		B	.AddTag(Spawned, Tag_Item_Material)
 
 				// 죽음 상태 태그 추가 → AnimInstance가 태그를 감지하여 죽음 애니메이션 자동 재생
 				.AddTag(Self, Tag_Anim_FullBody_Action_Death)

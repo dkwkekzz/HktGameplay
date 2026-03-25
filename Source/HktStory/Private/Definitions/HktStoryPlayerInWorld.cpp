@@ -71,9 +71,12 @@ namespace HktStoryPlayerInWorld
 
 			// === 초기 아이템: 목검 (신규 플레이어만) ===
 			.Log(TEXT("PlayerInWorld: 목검 지급"))
-			.SpawnEntity(Entity_Item_WoodenSword)
-			.SaveEntityProperty(Spawned, PropertyId::OwnerEntity, Self)  // 소유자 = 플레이어
-			.SetOwnerUid(Spawned)                                              // 계정 소유 설정
+			.SpawnEntity(Entity_Item_WoodenSword);
+
+		// 소유권 설정
+		HktSnippetItem::AssignOwnership(B, Spawned, Self);
+
+		B
 			.SaveConstEntity(Spawned, PropertyId::ItemState, 2)                // Active (자동 장착)
 			.SaveConstEntity(Spawned, PropertyId::ItemId, 100)                 // 목검 ID
 			.SaveConstEntity(Spawned, PropertyId::EquipIndex, 0)               // 액션 슬롯 0 (주무기)

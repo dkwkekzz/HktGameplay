@@ -314,9 +314,6 @@ private:
     int32 TagToInt(const FGameplayTag& Tag);
     static void ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag);
 
-    /** 빌드 타임 엔티티 레지스터 초기화 순서 검증 — 실패 시 false */
-    bool ValidateEntityFlow();
-
 private:
     TSharedRef<FHktVMProgram> Program;
 

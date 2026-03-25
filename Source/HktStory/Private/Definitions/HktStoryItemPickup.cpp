@@ -80,20 +80,11 @@ namespace HktStoryItemPickup
 		// 빈 EquipIndex 탐색 (R3 = 빈 슬롯 인덱스, 없으면 fail)
 		HktSnippetItem::FindEmptyEquipSlot(B, R3, TEXT("fail"));
 
-		B	// 소유권 설정
-			.SaveEntityProperty(Target, PropertyId::OwnerEntity, Self)
-			.SetOwnerUid(Target)                                            // 계정 소유 설정
+			// 소유권 설정
+		HktSnippetItem::AssignOwnership(B, Target, Self);
 
-			// Active 상태로 전환 + EquipIndex 설정
-			.SaveConstEntity(Target, PropertyId::ItemState, 2)              // Active
-			.SaveEntityProperty(Target, PropertyId::EquipIndex, R3);
-
-		// 캐릭터의 EquipSlot[R3] = 아이템 EntityId
-		B.Move(R2, Target);                                                 // R2 = 아이템 EntityId
-		HktSnippetItem::SaveItemToEquipSlot(B, R3, R2);
-
-		// 아이템 스탯 + Stance를 캐릭터에 적용
-		HktSnippetItem::ApplyItemStats(B, Target, Self);
+		// Active 상태로 전환 + EquipIndex 등록 + 스탯 적용
+		HktSnippetItem::ActivateInSlot(B, Target, R3, Self);
 
 		B	.Log(TEXT("Item picked up and activated"))
 			.Halt()
