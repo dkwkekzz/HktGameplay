@@ -42,6 +42,7 @@ public:
     // === IHktIntentBuilder 구현 ===
 
     virtual void SetSubject(FHktEntityId InSubject) override;
+    virtual void SetOwnedSubject(FHktEntityId InOwnedSubject) override;
     virtual void SetCommand(FGameplayTag InEventTag, bool bInTargetRequired) override;
     virtual void SetCommandSlot(int32 InSlotIndex) override;
     virtual void SetTarget(FHktEntityId InTarget, FVector InLocation) override;
@@ -49,6 +50,7 @@ public:
     virtual bool IsReadyToSubmit() const override;
     virtual bool Submit() override;
     virtual FHktEntityId GetSubjectEntityId() const override;
+    virtual FHktEntityId GetOwnedSubjectEntityId() const override;
     virtual FHktEntityId GetTargetEntityId() const override;
     virtual FGameplayTag GetEventTag() const override;
     virtual int32 GetCommandSlotIndex() const override { return CommandSlotIndex; }
@@ -65,6 +67,7 @@ public:
 
 private:
     FHktEntityId SubjectEntityId = InvalidEntityId;
+    FHktEntityId OwnedSubjectEntityId = InvalidEntityId;
     FGameplayTag EventTag;
     FHktEntityId TargetEntityId = InvalidEntityId;
     FVector TargetLocation = FVector::ZeroVector;

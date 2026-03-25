@@ -20,6 +20,13 @@ void UHktIntentBuilderComponent::SetSubject(FHktEntityId InSubject)
         FString::Printf(TEXT("SetSubject Id=%d"), SubjectEntityId), SubjectEntityId);
 }
 
+void UHktIntentBuilderComponent::SetOwnedSubject(FHktEntityId InOwnedSubject)
+{
+    OwnedSubjectEntityId = InOwnedSubject;
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+        FString::Printf(TEXT("SetOwnedSubject Id=%d"), OwnedSubjectEntityId), OwnedSubjectEntityId);
+}
+
 void UHktIntentBuilderComponent::SetCommand(FGameplayTag InEventTag, bool bInTargetRequired)
 {
     EventTag = InEventTag;
@@ -104,6 +111,11 @@ bool UHktIntentBuilderComponent::Submit()
 FHktEntityId UHktIntentBuilderComponent::GetSubjectEntityId() const
 {
     return SubjectEntityId;
+}
+
+FHktEntityId UHktIntentBuilderComponent::GetOwnedSubjectEntityId() const
+{
+    return OwnedSubjectEntityId;
 }
 
 FHktEntityId UHktIntentBuilderComponent::GetTargetEntityId() const

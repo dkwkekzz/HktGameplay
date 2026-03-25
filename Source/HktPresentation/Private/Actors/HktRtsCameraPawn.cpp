@@ -40,7 +40,7 @@ void AHktRtsCameraPawn::BeginPlay()
 	if (Interaction)
 	{
 		WheelInputHandle = Interaction->OnWheelInput().AddUObject(this, &AHktRtsCameraPawn::HandleZoom);
-		SubjectChangedHandle = Interaction->OnSubjectChanged().AddUObject(this, &AHktRtsCameraPawn::OnSubjectChanged);
+		SubjectChangedHandle = Interaction->OnOwnedSubjectChanged().AddUObject(this, &AHktRtsCameraPawn::OnSubjectChanged);
 		CachedPlayerUid = Interaction->GetPlayerUid();
 	}
 
@@ -61,7 +61,7 @@ void AHktRtsCameraPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 			}
 			if (SubjectChangedHandle.IsValid())
 			{
-				Interaction->OnSubjectChanged().Remove(SubjectChangedHandle);
+				Interaction->OnOwnedSubjectChanged().Remove(SubjectChangedHandle);
 				SubjectChangedHandle.Reset();
 			}
 		}
@@ -90,19 +90,12 @@ void AHktRtsCameraPawn::Tick(float DeltaTime)
 		}
 	}
 
-	if (PendingSubjectEntityId != InvalidEntityId && CachedPlayerUid != 0)
+	if (PendingSubjectEntityId != InvalidEntityId)
 	{
 		CurrentSubjectEntityId = PendingSubjectEntityId;
 
-		// PlayerUid가 확정되면 보류 중인 Subject에 대해 소유권 검증 후 모드 재평가
-		if (IsOwnedEntity(PendingSubjectEntityId))
-		{
-			SetCameraMode(EHktCameraMode::SubjectFollow);
-		}
-		else
-		{
-			SetCameraMode(EHktCameraMode::RtsFree);
-		}
+		// OwnedSubjectChanged로 수신하므로 소유권이 보장됨 → SubjectFollow
+		SetCameraMode(EHktCameraMode::SubjectFollow);
 
 		if (ActiveMode)
 		{

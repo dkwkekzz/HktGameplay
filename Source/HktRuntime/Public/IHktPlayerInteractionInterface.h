@@ -40,8 +40,11 @@ public:
 	/** 마우스 휠 등 줌 입력 (RTS 카메라 등에서 구독). 미지원 시 빈 델리게이트 반환. */
 	virtual FOnHktWheelInput& OnWheelInput() = 0;
 
-	/** 선택 주체(Subject) 엔터티 변경 시 브로드캐스트. InvalidEntityId면 선택 해제. */
+	/** 선택 주체(Subject) 엔터티 변경 시 브로드캐스트. InvalidEntityId면 선택 해제. UI 표시용. */
 	virtual FOnHktSubjectChanged& OnSubjectChanged() = 0;
+
+	/** 소유권 있는 Subject 변경 시 브로드캐스트. 카메라 추적 등에 사용. */
+	virtual FOnHktSubjectChanged& OnOwnedSubjectChanged() { static FOnHktSubjectChanged Dummy; return Dummy; }
 
 	/** 대상(Target) 엔터티 변경 시 브로드캐스트. InvalidEntityId면 선택 해제. */
 	virtual FOnHktTargetChanged& OnTargetChanged() = 0;
