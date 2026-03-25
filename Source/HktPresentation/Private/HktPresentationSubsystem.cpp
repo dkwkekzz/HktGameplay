@@ -358,6 +358,17 @@ void UHktPresentationSubsystem::ResolveAssetPathsForSpawned()
 					}
 				}
 			}
+
+			// CapsuleHalfHeight 변경 후 RenderLocation 재계산
+			UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
+			FVector Loc = E->Location.Get();
+			float GroundZ;
+			if (World && TraceGroundZ(World, Loc, GroundZ))
+			{
+				Loc.Z = GroundZ;
+			}
+			Loc.Z += E->CapsuleHalfHeight;
+			E->RenderLocation.Set(Loc, State.GetCurrentFrame());
 		});
 	}
 }
