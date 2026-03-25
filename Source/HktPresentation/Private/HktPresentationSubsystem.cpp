@@ -284,7 +284,7 @@ void UHktPresentationSubsystem::NotifyCameraViewChanged()
 	{
 		if (R && R->NeedsCameraSync())
 		{
-			R->Sync(State);
+			R->OnCameraViewChanged(State);
 		}
 	}
 }

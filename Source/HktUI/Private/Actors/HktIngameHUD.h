@@ -30,6 +30,7 @@ public:
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;
 	virtual bool NeedsCameraSync() const override { return true; }
+	virtual void OnCameraViewChanged(const FHktPresentationState& State) override;
 
 protected:
 	/** 인게임 뷰포트 위젯 태그 (기본값: Widget.IngameHud) */

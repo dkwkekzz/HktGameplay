@@ -82,6 +82,13 @@ void AHktIngameHUD::Sync(const FHktPresentationState& State)
 	UpdateAllElements();
 }
 
+void AHktIngameHUD::OnCameraViewChanged(const FHktPresentationState& State)
+{
+	// 카메라만 변경된 경우: 엔티티 생성/제거/프로퍼티 갱신 없이
+	// 스크린 좌표 재투영만 수행 (1프레임 튀기 방지)
+	UpdateAllElements();
+}
+
 void AHktIngameHUD::Teardown()
 {
 	TrackedEntities.Empty();
