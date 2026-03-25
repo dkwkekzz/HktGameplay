@@ -24,7 +24,7 @@ namespace HktStoryItemPickup
 	 * 아이템 줍기 Flow (Ground → Active)
 	 *
 	 * 자연어로 읽으면:
-	 * "아이템이 Ground 상태이고 거리 3m 이내이며 빈 ActionSlot이 있으면
+	 * "아이템이 Ground 상태이고 거리 3m 이내이며 빈 EquipIndex이 있으면
 	 *  아이템을 즉시 활성화하여 장착하고, 스탯과 Stance를 적용한다."
 	 *
 	 * 클라이언트 인텐트 → 서버 fire.
@@ -54,11 +54,11 @@ namespace HktStoryItemPickup
 				if (DX * DX + DY * DY + DZ * DZ > 300.0f * 300.0f)
 					return false;
 
-				// 빈 ActionSlot 존재 여부 확인 (ItemSlot0~8 중 값==0인 슬롯)
+				// 빈 EquipIndex 존재 여부 확인 (EquipSlot0~8 중 값==0인 슬롯)
 				static constexpr uint16 SlotProps[] = {
-					PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
-					PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
-					PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+					PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
+					PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
+					PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 				};
 				for (uint16 Prop : SlotProps)
 				{
@@ -77,13 +77,13 @@ namespace HktStoryItemPickup
 			.CmpGt(Flag, R0, R1)
 			.JumpIf(Flag, TEXT("fail"));
 
-		// 빈 ActionSlot 탐색 (R3 = 빈 슬롯 인덱스, 없으면 fail)
-		HktSnippetItem::FindEmptyActionSlot(B, R3, TEXT("fail"));
+		// 빈 EquipIndex 탐색 (R3 = 빈 슬롯 인덱스, 없으면 fail)
+		HktSnippetItem::FindEmptyEquipSlot(B, R3, TEXT("fail"));
 
 			// 소유권 설정
 		HktSnippetItem::AssignOwnership(B, Target, Self);
 
-		// Active 상태로 전환 + ActionSlot 등록 + 스탯 적용
+		// Active 상태로 전환 + EquipIndex 등록 + 스탯 적용
 		HktSnippetItem::ActivateInSlot(B, Target, R3, Self);
 
 		B	.Log(TEXT("Item picked up and activated"))

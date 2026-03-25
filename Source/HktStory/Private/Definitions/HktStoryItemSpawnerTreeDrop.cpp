@@ -44,7 +44,7 @@ namespace HktStoryItemSpawnerTreeDrop
 			.SpawnEntity(Entity_Item_Wood)
 			.SaveConstEntity(Spawned, PropertyId::ItemState, 0)               // Ground
 			.SaveConstEntity(Spawned, PropertyId::ItemId, 101)                // Wood = 101
-			.SaveConstEntity(Spawned, PropertyId::ActionSlot, -1)             // 미등록
+			.SaveConstEntity(Spawned, PropertyId::EquipIndex, -1)             // 미등록
 			.AddTag(Spawned, Tag_Item_Material)
 			.AddTag(Spawned, Tag_Item_Wood)
 

@@ -75,7 +75,7 @@ struct FHktEntityPresentation
 
 	// --- Item ---
 	THktVisualField<int32> OwnerEntity;   // 소유 캐릭터 EntityId (0 = 없음)
-	THktVisualField<int32> ActionSlot;    // -1 = 미등록, 0+ = 장착 슬롯
+	THktVisualField<int32> EquipIndex;    // -1 = 미등록, 0+ = 장착 슬롯
 	THktVisualField<int32> ItemState;
 
 	/** Entity의 GameplayTag 컨테이너 (AnimInstance 태그 동기화용) */

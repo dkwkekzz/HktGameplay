@@ -111,14 +111,14 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Deactivate, "Story.Event.Item.Deactivat
 // ============================================================================
 
 
-/** ItemSlot PropertyId 테이블 (서버용) */
-static constexpr uint16 ServerItemSlotPropertyIds[] =
+/** EquipSlot PropertyId 테이블 (서버용) */
+static constexpr uint16 ServerEquipSlotPropertyIds[] =
 {
-	PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
-	PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
-	PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+	PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
+	PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
+	PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 };
-static constexpr int32 MaxServerItemSlots = UE_ARRAY_COUNT(ServerItemSlotPropertyIds);
+static constexpr int32 MaxServerEquipSlots = UE_ARRAY_COUNT(ServerEquipSlotPropertyIds);
 
 /** FHktBagItem → FHktEntityState 변환 (엔티티 복원용) */
 static FHktEntityState BagItemToEntityState(const FHktBagItem& InItem, int64 OwnerUid)
@@ -190,10 +190,10 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	{
 	case EHktBagAction::StoreFromSlot:
 	{
-		// ItemSlot → Bag: 엔티티 프로퍼티 스냅샷 → 가방에 저장 → Deactivate 이벤트
-		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxServerItemSlots) return;
+		// EquipSlot → Bag: 엔티티 프로퍼티 스냅샷 → 가방에 저장 → Deactivate 이벤트
+		if (InRequest.EquipIndex < 0 || InRequest.EquipIndex >= MaxServerEquipSlots) return;
 
-		const FHktEntityId ItemEntity = WS.GetProperty(InRequest.SourceEntity, ServerItemSlotPropertyIds[InRequest.ActionSlot]);
+		const FHktEntityId ItemEntity = WS.GetProperty(InRequest.SourceEntity, ServerEquipSlotPropertyIds[InRequest.EquipIndex]);
 		if (ItemEntity == 0 || !WS.IsValidEntity(ItemEntity)) return;
 
 		// Deactivate 전에 스냅샷 (Deactivate가 엔티티를 파괴하기 때문)
@@ -213,13 +213,13 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	}
 	case EHktBagAction::RestoreToSlot:
 	{
-		// Bag → ItemSlot: 가방에서 아이템 꺼내기 → 엔티티 생성 + Activate (틱에서 처리)
-		if (InRequest.ActionSlot < 0 || InRequest.ActionSlot >= MaxServerItemSlots) return;
+		// Bag → EquipSlot: 가방에서 아이템 꺼내기 → 엔티티 생성 + Activate (틱에서 처리)
+		if (InRequest.EquipIndex < 0 || InRequest.EquipIndex >= MaxServerEquipSlots) return;
 
 		FHktBagItem OutItem;
 		if (!InPlayer.TakeFromBag(InRequest.BagSlot, OutItem)) return;
 
-		PendingBagEntitySpawns.Add({ OutItem, PlayerUid, GroupIndex, InRequest.SourceEntity, InRequest.ActionSlot, false });
+		PendingBagEntitySpawns.Add({ OutItem, PlayerUid, GroupIndex, InRequest.SourceEntity, InRequest.EquipIndex, false });
 		break;
 	}
 	case EHktBagAction::Discard:
@@ -393,7 +393,7 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 			ActivateEvent.SourceEntity = Spawn.CharacterEntity;
 			ActivateEvent.TargetEntity = InvalidEntityId;
 			ActivateEvent.PlayerUid = Spawn.PlayerUid;
-			ActivateEvent.Param0 = Spawn.ActionSlot;
+			ActivateEvent.Param0 = Spawn.EquipIndex;
 			ActivateEvent.Param1 = NewEntityIndex;
 			PendingGroupIntents[Spawn.GroupIndex].Add(ActivateEvent);
 		}

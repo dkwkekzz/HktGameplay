@@ -16,6 +16,7 @@
 #include "IHktPlayerInteractionInterface.h"
 #include "HktCoreProperties.h"
 #include "HktBagTypes.h"
+#include "HktClientRuleInterfaces.h"
 #include "GameplayTagsManager.h"
 
 class APlayerController;
@@ -35,6 +36,8 @@ public:
 
 	void SetOwningPlayerController(APlayerController* InPC);
 
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
 private:
 	FReply OnInventoryClicked();
 	FReply OnEquipmentClicked();
@@ -48,6 +51,22 @@ private:
 
 	/** WorldState에서 엔티티의 EntitySpawnTag를 읽어 마지막 세그먼트 이름 반환 */
 	static FString GetEntityDisplayName(const FHktWorldState* WS, FHktEntityId Id);
+
+	// --- 시스템 메시지 ---
+	struct FHktSystemMessageEntry
+	{
+		TSharedPtr<SBorder> Widget;
+		double ExpireTime;
+	};
+
+	~SHktIngameHudWidget();
+	void AddSystemMessage(const FString& Message);
+	void UnsubscribeSystemMessage();
+
+	TSharedPtr<SVerticalBox> SystemMessageBox;
+	TArray<FHktSystemMessageEntry> ActiveSystemMessages;
+	FDelegateHandle SystemMessageHandle;
+	TWeakObjectPtr<UWorld> CachedWorld;
 
 	TSharedPtr<SBorder> InventoryPanel;
 	TSharedPtr<SBorder> EquipmentPanel;
@@ -271,6 +290,16 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 			+ SHorizontalBox::Slot().AutoWidth().Padding(2.f) [ BuildSkillsPanel() ]
 		]
 
+		// 시스템 메시지 (하단 버튼 바 위, 클릭 투과)
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Bottom)
+		.Padding(0.f, 0.f, 0.f, 50.f)
+		[
+			SAssignNew(SystemMessageBox, SVerticalBox)
+			.Visibility(EVisibility::SelfHitTestInvisible)
+		]
+
 		// 하단 버튼 바
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Center)
@@ -326,6 +355,23 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* InPC)
 {
 	CachedPC = InPC;
+
+	// 기존 시스템 메시지 구독 해제
+	UnsubscribeSystemMessage();
+
+	// 시스템 메시지 구독
+	if (InPC)
+	{
+		if (UWorld* World = InPC->GetWorld())
+		{
+			CachedWorld = World;
+			SystemMessageHandle = HktRule::GetSystemMessageDelegate(World).AddLambda(
+				[this](const FString& Msg)
+				{
+					AddSystemMessage(Msg);
+				});
+		}
+	}
 
 	// 슬롯 바인딩 변경 구독 (아이템 상태 변화 시 모든 패널 갱신)
 	if (InPC)
@@ -478,14 +524,14 @@ inline FString SHktIngameHudWidget::GetEntityDisplayName(const FHktWorldState* W
 	return FString::Printf(TEXT("Item#%d"), WS->GetProperty(Id, PropertyId::ItemId));
 }
 
-/** ItemSlot PropertyId 테이블 (UI용) */
-static constexpr uint16 UIItemSlotPropertyIds[] =
+/** EquipSlot PropertyId 테이블 (UI용) */
+static constexpr uint16 UIEquipSlotPropertyIds[] =
 {
-	PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
-	PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
-	PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+	PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
+	PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
+	PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 };
-static constexpr int32 UIMaxItemSlots = UE_ARRAY_COUNT(UIItemSlotPropertyIds);
+static constexpr int32 UIMaxEquipSlots = UE_ARRAY_COUNT(UIEquipSlotPropertyIds);
 
 // ============================================================================
 // Inventory 패널 (가방에 보관된 아이템 — BagComponent)
@@ -515,21 +561,21 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 		return;
 	}
 
-	// Subject 엔티티의 ItemSlot0~8에서 사용 중인 슬롯 수집
+	// Subject 엔티티의 EquipSlot0~8에서 사용 중인 슬롯 수집
 	const FHktWorldState* WS = nullptr;
 	TSet<int32> UsedSlots;
 	if (Interaction->GetWorldState(WS) && WS
 		&& CachedSubjectEntityId != InvalidEntityId
 		&& WS->IsValidEntity(CachedSubjectEntityId))
 	{
-		for (int32 i = 0; i < UIMaxItemSlots; ++i)
+		for (int32 i = 0; i < UIMaxEquipSlots; ++i)
 		{
-			if (WS->GetProperty(CachedSubjectEntityId, UIItemSlotPropertyIds[i]) != 0)
+			if (WS->GetProperty(CachedSubjectEntityId, UIEquipSlotPropertyIds[i]) != 0)
 				UsedSlots.Add(i);
 		}
 	}
 
-	// 빈 ActionSlot 찾기 함수
+	// 빈 EquipIndex 찾기 함수
 	auto FindNextFreeSlot = [&UsedSlots]() -> int32
 	{
 		for (int32 S = 0; S < 9; ++S)
@@ -602,7 +648,7 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 }
 
 // ============================================================================
-// Equipment 패널 (선택된 엔티티의 ItemSlot0~8 직접 읽기)
+// Equipment 패널 (선택된 엔티티의 EquipSlot0~8 직접 읽기)
 // ============================================================================
 
 inline void SHktIngameHudWidget::RefreshEquipmentPanel()
@@ -620,13 +666,13 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 	if (!Interaction->GetWorldState(WS) || !WS) return;
 	if (CachedSubjectEntityId == InvalidEntityId || !WS->IsValidEntity(CachedSubjectEntityId)) return;
 
-	// Subject 엔티티의 ItemSlot0~8을 직접 읽어 장착 아이템 표시
-	struct FEquipItem { FHktEntityId EntityId; int32 ActionSlot; FString Name; int32 AttackPower; };
+	// Subject 엔티티의 EquipSlot0~8을 직접 읽어 장착 아이템 표시
+	struct FEquipItem { FHktEntityId EntityId; int32 EquipIndex; FString Name; int32 AttackPower; };
 	TArray<FEquipItem> Items;
 
-	for (int32 i = 0; i < UIMaxItemSlots; ++i)
+	for (int32 i = 0; i < UIMaxEquipSlots; ++i)
 	{
-		const FHktEntityId ItemId = WS->GetProperty(CachedSubjectEntityId, UIItemSlotPropertyIds[i]);
+		const FHktEntityId ItemId = WS->GetProperty(CachedSubjectEntityId, UIEquipSlotPropertyIds[i]);
 		if (ItemId == 0 || !WS->IsValidEntity(ItemId))
 			continue;
 
@@ -652,21 +698,21 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 
 	for (const FEquipItem& Item : Items)
 	{
-		FString SlotLabel = FString::Printf(TEXT("Slot %d"), Item.ActionSlot);
-		const int32 ItemActionSlot = Item.ActionSlot;
+		FString SlotLabel = FString::Printf(TEXT("Slot %d"), Item.EquipIndex);
+		const int32 ItemEquipIndex = Item.EquipIndex;
 
 		EquipmentListBox->AddSlot()
 		.AutoHeight().Padding(0.f, 2.f)
 		[
 			SNew(SButton)
 			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-			.OnClicked_Lambda([this, ItemActionSlot]() -> FReply
+			.OnClicked_Lambda([this, ItemEquipIndex]() -> FReply
 			{
 				if (APlayerController* PC = CachedPC.Get())
 				{
 					if (IHktPlayerInteractionInterface* I = Cast<IHktPlayerInteractionInterface>(PC))
 					{
-						I->RequestBagStore(ItemActionSlot);
+						I->RequestBagStore(ItemEquipIndex);
 					}
 				}
 				return FReply::Handled();
@@ -717,19 +763,19 @@ inline void SHktIngameHudWidget::RefreshSkillsPanel()
 	if (!Interaction->GetWorldState(WS) || !WS) return;
 	if (CachedSubjectEntityId == InvalidEntityId || !WS->IsValidEntity(CachedSubjectEntityId)) return;
 
-	// Subject 엔티티의 ItemSlot0~8에서 스킬 정보 수집
+	// Subject 엔티티의 EquipSlot0~8에서 스킬 정보 수집
 	struct FHktSlotInfo
 	{
-		int32 ActionSlot;
+		int32 EquipIndex;
 		FGameplayTag SkillTag;
 		int32 CPCost;
 		int32 RecoveryFrame;
 	};
 	TArray<FHktSlotInfo> SlotInfos;
 
-	for (int32 i = 0; i < UIMaxItemSlots; ++i)
+	for (int32 i = 0; i < UIMaxEquipSlots; ++i)
 	{
-		const FHktEntityId ItemId = WS->GetProperty(CachedSubjectEntityId, UIItemSlotPropertyIds[i]);
+		const FHktEntityId ItemId = WS->GetProperty(CachedSubjectEntityId, UIEquipSlotPropertyIds[i]);
 		if (ItemId == 0 || !WS->IsValidEntity(ItemId))
 			continue;
 
@@ -752,8 +798,8 @@ inline void SHktIngameHudWidget::RefreshSkillsPanel()
 		});
 	}
 
-	// ActionSlot 순으로 정렬
-	SlotInfos.Sort([](const FHktSlotInfo& A, const FHktSlotInfo& B) { return A.ActionSlot < B.ActionSlot; });
+	// EquipIndex 순으로 정렬
+	SlotInfos.Sort([](const FHktSlotInfo& A, const FHktSlotInfo& B) { return A.EquipIndex < B.EquipIndex; });
 
 	if (SlotInfos.Num() == 0)
 	{
@@ -793,7 +839,7 @@ inline void SHktIngameHudWidget::RefreshSkillsPanel()
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
 					[
 						SNew(STextBlock)
-						.Text(FText::FromString(FString::Printf(TEXT("[%d]"), Info.ActionSlot)))
+						.Text(FText::FromString(FString::Printf(TEXT("[%d]"), Info.EquipIndex)))
 						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
 						.ColorAndOpacity(FLinearColor(0.5f, 0.8f, 1.f))
 					]
@@ -847,6 +893,77 @@ inline FReply SHktIngameHudWidget::OnSkillsClicked()
 		RefreshSkillsPanel();
 	}
 	return FReply::Handled();
+}
+
+// ============================================================================
+// 시스템 메시지
+// ============================================================================
+
+inline SHktIngameHudWidget::~SHktIngameHudWidget()
+{
+	UnsubscribeSystemMessage();
+}
+
+inline void SHktIngameHudWidget::UnsubscribeSystemMessage()
+{
+	if (SystemMessageHandle.IsValid() && CachedWorld.IsValid())
+	{
+		HktRule::GetSystemMessageDelegate(CachedWorld.Get()).Remove(SystemMessageHandle);
+		SystemMessageHandle.Reset();
+	}
+}
+
+inline void SHktIngameHudWidget::AddSystemMessage(const FString& Message)
+{
+	if (!SystemMessageBox.IsValid()) return;
+
+	// 최대 3개 — 초과 시 oldest 제거
+	while (ActiveSystemMessages.Num() >= 3)
+	{
+		if (ActiveSystemMessages[0].Widget.IsValid())
+		{
+			SystemMessageBox->RemoveSlot(ActiveSystemMessages[0].Widget.ToSharedRef());
+		}
+		ActiveSystemMessages.RemoveAt(0);
+	}
+
+	TSharedPtr<SBorder> MessageWidget;
+	SystemMessageBox->AddSlot()
+	.AutoHeight()
+	.Padding(0.f, 2.f)
+	[
+		SAssignNew(MessageWidget, SBorder)
+		.Padding(FMargin(12.f, 6.f))
+		.BorderBackgroundColor(FLinearColor(0.8f, 0.2f, 0.1f, 0.75f))
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(Message))
+			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12))
+			.ColorAndOpacity(FLinearColor::White)
+		]
+	];
+
+	ActiveSystemMessages.Add({ MessageWidget, FPlatformTime::Seconds() + 3.0 });
+}
+
+inline void SHktIngameHudWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	if (ActiveSystemMessages.Num() == 0) return;
+
+	const double Now = FPlatformTime::Seconds();
+	for (int32 i = ActiveSystemMessages.Num() - 1; i >= 0; --i)
+	{
+		if (Now >= ActiveSystemMessages[i].ExpireTime)
+		{
+			if (ActiveSystemMessages[i].Widget.IsValid() && SystemMessageBox.IsValid())
+			{
+				SystemMessageBox->RemoveSlot(ActiveSystemMessages[i].Widget.ToSharedRef());
+			}
+			ActiveSystemMessages.RemoveAt(i);
+		}
+	}
 }
 
 inline void SHktIngameHudWidget::TogglePanel(int32 PanelIndex)

@@ -6,14 +6,14 @@
 #include "HktStoryBuilder.h"
 
 /**
- * HktSnippetItem — 아이템 관련 Story 패턴 (슬롯 디스패치, 스탯, 검증)
+ * HktSnippetItem — 아이템 관련 Story 패턴 (장착 슬롯 디스패치, 스탯, 검증)
  *
  * 모든 함수는 FHktStoryBuilder&를 받아 반환하여 fluent chaining을 지원한다.
  */
 namespace HktSnippetItem
 {
 	/**
-	 * Param1(슬롯 인덱스) → ItemSlot[N] 로드 디스패치 테이블
+	 * Param1(슬롯 인덱스) → EquipSlot[N] 로드 디스패치 테이블
 	 * 슬롯 인덱스 무효 또는 아이템 0이면 FailLabel로 점프.
 	 *
 	 * Clobbers: R0, R1, DstReg, R3, Flag
@@ -24,21 +24,21 @@ namespace HktSnippetItem
 		const FString& FailLabel);
 
 	/**
-	 * Self의 ItemSlot[SlotIndexReg]에 ValueReg 저장
+	 * Self의 EquipSlot[SlotIndexReg]에 ValueReg 저장
 	 *
 	 * Clobbers: R4, Flag
 	 */
-	HKTSTORY_API FHktStoryBuilder& SaveItemToSlot(
+	HKTSTORY_API FHktStoryBuilder& SaveItemToEquipSlot(
 		FHktStoryBuilder& B,
 		RegisterIndex SlotIndexReg,
 		RegisterIndex ValueReg);
 
 	/**
-	 * Self의 ItemSlot[SlotIndexReg] = 0 (클리어)
+	 * Self의 EquipSlot[SlotIndexReg] = 0 (클리어)
 	 *
 	 * Clobbers: R3, Flag
 	 */
-	HKTSTORY_API FHktStoryBuilder& ClearItemSlot(
+	HKTSTORY_API FHktStoryBuilder& ClearEquipSlot(
 		FHktStoryBuilder& B,
 		RegisterIndex SlotIndexReg);
 
@@ -89,12 +89,12 @@ namespace HktSnippetItem
 		const FString& FailLabel);
 
 	/**
-	 * Self의 ItemSlot0~8에서 빈 슬롯(값==0)을 찾아 DstReg에 슬롯 인덱스를 저장.
+	 * Self의 EquipSlot0~8에서 빈 슬롯(값==0)을 찾아 DstReg에 슬롯 인덱스를 저장.
 	 * 빈 슬롯이 없으면 FailLabel로 점프.
 	 *
 	 * Clobbers: R4, R5, Flag, DstReg
 	 */
-	HKTSTORY_API FHktStoryBuilder& FindEmptyActionSlot(
+	HKTSTORY_API FHktStoryBuilder& FindEmptyEquipSlot(
 		FHktStoryBuilder& B,
 		RegisterIndex DstReg,
 		const FString& FailLabel);
@@ -123,8 +123,8 @@ namespace HktSnippetItem
 		RegisterIndex ItemEntity);
 
 	/**
-	 * 아이템을 Active 상태로 전환하고 ActionSlot에 등록.
-	 * ItemState = Active, ActionSlot 설정, ItemSlot[N] 저장, 스탯 적용.
+	 * 아이템을 Active 상태로 전환하고 EquipIndex에 등록.
+	 * ItemState = Active, EquipIndex 설정, EquipSlot[N] 저장, 스탯 적용.
 	 *
 	 * Clobbers: R2, R3, R4, Flag
 	 */
@@ -136,8 +136,8 @@ namespace HktSnippetItem
 
 	/**
 	 * Active 아이템을 InBag으로 전환.
-	 * ItemState = InBag, ActionSlot = -1, 스탯 차감.
-	 * Note: ClearItemSlot은 호출 전에 별도로 수행해야 한다.
+	 * ItemState = InBag, EquipIndex = -1, 스탯 차감.
+	 * Note: ClearEquipSlot은 호출 전에 별도로 수행해야 한다.
 	 *
 	 * Clobbers: R0, R1
 	 */
@@ -148,7 +148,7 @@ namespace HktSnippetItem
 
 	/**
 	 * 아이템을 Ground 상태로 전환하고 월드에 드랍.
-	 * ItemState = Ground, 소유권 해제, BagSlot/ActionSlot 초기화, 위치 설정.
+	 * ItemState = Ground, 소유권 해제, EquipIndex 초기화, 위치 설정.
 	 *
 	 * Clobbers: R3
 	 */
@@ -165,7 +165,7 @@ namespace HktSnippetItem
 
 	/**
 	 * 아이템을 월드(Ground 상태)에 생성.
-	 * SpawnEntity + ItemState=Ground + ItemId + ActionSlot=-1 + 위치 설정.
+	 * SpawnEntity + ItemState=Ground + ItemId + EquipIndex=-1 + 위치 설정.
 	 * Spawned 레지스터에 새 아이템 엔티티가 저장된다.
 	 *
 	 * Clobbers: R3

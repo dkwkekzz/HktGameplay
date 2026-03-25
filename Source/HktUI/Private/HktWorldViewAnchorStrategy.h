@@ -18,16 +18,17 @@ class HKTUI_API UHktWorldViewAnchorStrategy : public UHktUIAnchorStrategy
 	GENERATED_BODY()
 
 public:
-	void SetTargetEntity(FHktEntityId InEntityId, FVector InWorldOffset = FVector(0.f, 0.f, 100.f))
+	void SetTargetEntity(FHktEntityId InEntityId, float InHeadClearance = 20.f)
 	{
 		TargetEntityId = InEntityId;
-		WorldOffset = InWorldOffset;
+		HeadClearance = InHeadClearance;
 	}
 
-	/** PresentationState의 Entity Location으로 월드 위치를 갱신 */
-	void SetWorldPosition(const FVector& InWorldPosition)
+	/** RenderLocation(지면 보정 완료 위치) + CapsuleHalfHeight로 머리 위치를 갱신 */
+	void SetWorldPosition(const FVector& InRenderLocation, float InCapsuleHalfHeight)
 	{
-		CachedWorldPosition = InWorldPosition;
+		CachedRenderLocation = InRenderLocation;
+		CapsuleHalfHeight = InCapsuleHalfHeight;
 		bHasWorldPosition = true;
 	}
 
@@ -36,8 +37,12 @@ public:
 	virtual bool CalculateScreenPosition(const UObject* WorldContext, FVector2D& OutScreenPos) override;
 
 private:
+	/** 머리 위 최종 월드 좌표 계산: RenderLocation + (0, 0, CapsuleHalfHeight + HeadClearance) */
+	FVector GetHeadWorldLocation() const;
+
 	FHktEntityId TargetEntityId = InvalidEntityId;
-	FVector CachedWorldPosition = FVector::ZeroVector;
-	FVector WorldOffset = FVector(0.f, 0.f, 100.f);
+	FVector CachedRenderLocation = FVector::ZeroVector;
+	float CapsuleHalfHeight = 90.f;
+	float HeadClearance = 20.f;                         // 머리 위 여백
 	bool bHasWorldPosition = false;
 };

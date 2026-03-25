@@ -52,11 +52,11 @@ public:
 
     // === 가방 상호작용 (UI/입력에서 호출) ===
 
-    /** ItemSlot → Bag (장비 슬롯에서 가방으로 보관) */
-    virtual void RequestBagStore(int32 ActionSlot) override;
+    /** EquipSlot → Bag (장비 슬롯에서 가방으로 보관) */
+    virtual void RequestBagStore(int32 EquipIndex) override;
 
-    /** Bag → ItemSlot (가방에서 장비 슬롯으로 장착) */
-    virtual void RequestBagRestore(int32 BagSlot, int32 ActionSlot) override;
+    /** Bag → EquipSlot (가방에서 장비 슬롯으로 장착) */
+    virtual void RequestBagRestore(int32 BagSlot, int32 EquipIndex) override;
 
     /** Bag → Ground (가방에서 바닥으로 버리기) */
     virtual void RequestBagDiscard(int32 BagSlot) override;
@@ -144,7 +144,7 @@ private:
     /** WorldState에서 나의 엔티티를 찾아 DefaultSubjectEntityId로 설정 */
     void ResolveDefaultSubject();
 
-    /** 캐릭터 엔티티의 ItemSlot0~8 프로퍼티에서 아이템 스킬을 읽어 CommandSlot에 바인딩 */
+    /** 캐릭터 엔티티의 EquipSlot0~8 프로퍼티에서 아이템 스킬을 읽어 CommandSlot에 바인딩 */
     void SyncSlotBindingsFromWorldState(const FHktWorldView& View);
 
 #if ENABLE_HKT_INSIGHTS

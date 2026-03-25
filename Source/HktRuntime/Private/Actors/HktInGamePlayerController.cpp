@@ -333,7 +333,7 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
         View.OwnerDeltas = &Diff.OwnerDeltas;
         WorldViewUpdatedDelegate.Broadcast(View);
 
-        // ActionSlot 변경이 포함된 경우 슬롯 바인딩 동기화
+        // EquipIndex 변경이 포함된 경우 슬롯 바인딩 동기화
         SyncSlotBindingsFromWorldState(View);
     }
 
@@ -447,14 +447,14 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
     }
 }
 
-/** ItemSlot0~8에 대응하는 PropertyId 테이블 */
-static constexpr uint16 ItemSlotPropertyIds[] =
+/** EquipSlot0~8에 대응하는 PropertyId 테이블 */
+static constexpr uint16 EquipSlotPropertyIds[] =
 {
-    PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
-    PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
-    PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+    PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
+    PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
+    PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 };
-static constexpr int32 MaxItemSlots = UE_ARRAY_COUNT(ItemSlotPropertyIds);
+static constexpr int32 MaxEquipSlots = UE_ARRAY_COUNT(EquipSlotPropertyIds);
 
 void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldView& View)
 {
@@ -463,13 +463,13 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
 
     const FHktWorldState& WS = *View.WorldState;
 
-    // InitialSync 또는 ItemSlot/ItemSkillTag 프로퍼티 변경 시 동기화
+    // InitialSync 또는 EquipSlot/ItemSkillTag 프로퍼티 변경 시 동기화
     bool bNeedsSync = View.bIsInitialSync;
     if (!bNeedsSync && View.PropertyDeltas)
     {
         for (const FHktPropertyDelta& D : *View.PropertyDeltas)
         {
-            if (D.PropertyId >= PropertyId::ItemSlot0 && D.PropertyId <= PropertyId::ItemSlot8)
+            if (D.PropertyId >= PropertyId::EquipSlot0 && D.PropertyId <= PropertyId::EquipSlot8)
             {
                 bNeedsSync = true;
                 break;
@@ -484,16 +484,16 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
     if (!bNeedsSync) return;
 
     // 모든 슬롯 클리어
-    const int32 NumSlots = FMath::Min(CachedCommandContainer->GetNumSlots(), MaxItemSlots);
+    const int32 NumSlots = FMath::Min(CachedCommandContainer->GetNumSlots(), MaxEquipSlots);
     for (int32 i = 0; i < NumSlots; ++i)
     {
         CachedCommandContainer->ClearSlotBinding(i);
     }
 
-    // 캐릭터 엔티티의 ItemSlot0~8에서 아이템 EntityId 읽기 → 스킬 바인딩
+    // 캐릭터 엔티티의 EquipSlot0~8에서 아이템 EntityId 읽기 → 스킬 바인딩
     for (int32 i = 0; i < NumSlots; ++i)
     {
-        const FHktEntityId ItemId = WS.GetProperty(DefaultSubjectEntityId, ItemSlotPropertyIds[i]);
+        const FHktEntityId ItemId = WS.GetProperty(DefaultSubjectEntityId, EquipSlotPropertyIds[i]);
         if (ItemId == 0 || !WS.IsValidEntity(ItemId))
             continue;
 
@@ -546,21 +546,21 @@ void AHktIngamePlayerController::Server_ReceiveBagRequest_Implementation(const F
 // 가방 요청 API (UI에서 호출)
 // ============================================================================
 
-void AHktIngamePlayerController::RequestBagStore(int32 ActionSlot)
+void AHktIngamePlayerController::RequestBagStore(int32 EquipIndex)
 {
     if (DefaultSubjectEntityId == InvalidEntityId) return;
 
     FHktBagRequest Req;
     Req.Action = EHktBagAction::StoreFromSlot;
     Req.SourceEntity = DefaultSubjectEntityId;
-    Req.ActionSlot = ActionSlot;
+    Req.EquipIndex = EquipIndex;
     Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
-        FString::Printf(TEXT("RequestBagStore ActionSlot=%d"), ActionSlot), DefaultSubjectEntityId);
+        FString::Printf(TEXT("RequestBagStore EquipIndex=%d"), EquipIndex), DefaultSubjectEntityId);
 }
 
-void AHktIngamePlayerController::RequestBagRestore(int32 BagSlot, int32 ActionSlot)
+void AHktIngamePlayerController::RequestBagRestore(int32 BagSlot, int32 EquipIndex)
 {
     if (DefaultSubjectEntityId == InvalidEntityId) return;
 
@@ -568,11 +568,11 @@ void AHktIngamePlayerController::RequestBagRestore(int32 BagSlot, int32 ActionSl
     Req.Action = EHktBagAction::RestoreToSlot;
     Req.SourceEntity = DefaultSubjectEntityId;
     Req.BagSlot = BagSlot;
-    Req.ActionSlot = ActionSlot;
+    Req.EquipIndex = EquipIndex;
     Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
-        FString::Printf(TEXT("RequestBagRestore BagSlot=%d ActionSlot=%d"), BagSlot, ActionSlot), DefaultSubjectEntityId);
+        FString::Printf(TEXT("RequestBagRestore BagSlot=%d EquipIndex=%d"), BagSlot, EquipIndex), DefaultSubjectEntityId);
 }
 
 void AHktIngamePlayerController::RequestBagDiscard(int32 BagSlot)
