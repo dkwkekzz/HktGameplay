@@ -300,7 +300,9 @@ void FHktVMProcessSystem::Process(
                     Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId,
                     Runtime->PC);
             }
-            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM,
+            HKT_EVENT_LOG_ENTITY_EX(HktLogTags::Core_VM,
+                Result == EVMStatus::Failed ? EHktLogLevel::Error : EHktLogLevel::Info,
+                EHktLogSource::Core,
                 FString::Printf(TEXT("VM %s: %s PC=%d"),
                     Result == EVMStatus::Completed ? TEXT("Completed") : TEXT("Failed"),
                     Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("?"),

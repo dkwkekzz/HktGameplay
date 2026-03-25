@@ -6,6 +6,8 @@
 #include "HktVMWorldStateProxy.h"
 #include "HktCoreEvents.h"
 #include "HktCoreLog.h"
+#include "HktCoreEventLog.h"
+#include "HktCoreProperties.h"
 
 void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy)
 {
@@ -179,33 +181,51 @@ void FHktVMInterpreter::Op_LoadConstHigh(FHktVMRuntime& Runtime, RegisterIndex D
     Runtime.SetReg(Dst, (Runtime.GetReg(Dst) & 0xFFFFF) | (HighBits << 20));
 }
 
-void FHktVMInterpreter::Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, uint16 PropertyId)
-{
-    if (Runtime.Context)
-        Runtime.SetReg(Dst, Runtime.Context->Read(PropertyId));
-}
-
-void FHktVMInterpreter::Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
+void FHktVMInterpreter::Op_LoadStore(FHktVMRuntime& Runtime, RegisterIndex Dst, uint16 PropId)
 {
     if (Runtime.Context)
     {
-        FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.SetReg(Dst, Runtime.Context->ReadEntity(E, PropertyId));
+        const int32 Value = Runtime.Context->Read(PropId);
+        Runtime.SetReg(Dst, Value);
     }
 }
 
-void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropertyId, RegisterIndex Src)
-{
-    if (Runtime.Context)
-        Runtime.Context->Write(PropertyId, Runtime.GetReg(Src));
-}
-
-void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
+void FHktVMInterpreter::Op_LoadStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, uint16 PropId)
 {
     if (Runtime.Context)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        Runtime.Context->WriteEntity(E, PropertyId, Runtime.GetReg(Src));
+        const int32 Value = Runtime.Context->ReadEntity(E, PropId);
+        Runtime.SetReg(Dst, Value);
+    }
+}
+
+void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropId, RegisterIndex Src)
+{
+    if (Runtime.Context)
+    {
+        const int32 Value = Runtime.GetReg(Src);
+        Runtime.Context->Write(PropId, Value);
+        const TCHAR* PropName = GetPropertyName(PropId);
+        HKT_EVENT_LOG_ENTITY_EX(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+            FString::Printf(TEXT("Op_SaveStore %s(%d)=%d"),
+                PropName ? PropName : TEXT("?"), PropId, Value),
+            Runtime.Context->SourceEntity);
+    }
+}
+
+void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex Entity, uint16 PropId, RegisterIndex Src)
+{
+    if (Runtime.Context)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        const int32 Value = Runtime.GetReg(Src);
+        Runtime.Context->WriteEntity(E, PropId, Value);
+        const TCHAR* PropName = GetPropertyName(PropId);
+        HKT_EVENT_LOG_ENTITY_EX(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+            FString::Printf(TEXT("Op_SaveStoreEntity Id=%d %s(%d)=%d"),
+                E, PropName ? PropName : TEXT("?"), PropId, Value),
+            E);
     }
 }
 

@@ -220,7 +220,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 				return;
 			}
 
-			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), *VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
+			HKT_EVENT_LOG_ENTITY_EX(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), *VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
 
 
 			ConfigureCollisionForSelection(SpawnedActor);
@@ -460,7 +460,7 @@ void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresenta
 	AttachedItems.Add(ItemId);
 	PendingAttachments.Remove(ItemId);
 
-	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, FString::Printf(TEXT("AttachItem Socket=%s Owner=%d"), *SocketName.ToString(), OwnerId), ItemId);
+	HKT_EVENT_LOG_ENTITY_EX(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("AttachItem Socket=%s Owner=%d"), *SocketName.ToString(), OwnerId), ItemId);
 }
 
 void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
@@ -477,7 +477,7 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 	AttachedItems.Remove(ItemId);
 	PendingAttachments.Remove(ItemId);
 
-	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
+	HKT_EVENT_LOG_ENTITY_EX(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
 		FString::Printf(TEXT("DetachItem ItemId=%d"), ItemId), ItemId);
 }
 

@@ -191,7 +191,7 @@ void AHktGameMode::PostLogin(APlayerController* NewPlayer)
     // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
     Rule->OnEvent_GameModePostLogin(*WorldPlayer);
 
-    HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+    HKT_EVENT_LOG_EX(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server,
         FString::Printf(TEXT("PostLogin PlayerUid=%lld"), WorldPlayer->GetPlayerUid()));
 }
 
@@ -207,7 +207,7 @@ void AHktGameMode::Logout(AController* Exiting)
     if (!WorldPlayer || !WorldPlayer->IsInitialized()) return;
 
     const int64 PlayerUid = WorldPlayer->GetPlayerUid();
-    HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+    HKT_EVENT_LOG_EX(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server,
         FString::Printf(TEXT("Logout PlayerUid=%lld"), PlayerUid));
 
     // item 1: 액터 이벤트 그대로 전달 (DB 파라미터 없음 — item 2)
@@ -227,7 +227,7 @@ void AHktGameMode::PushRuntimeEvent(int64 PlayerUid, const FHktEvent& Event)
     IHktWorldPlayer* WorldPlayer = Graph->GetWorldPlayer(PlayerUid);
     if (!WorldPlayer) return;
 
-    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Server,
+    HKT_EVENT_LOG_TAG_EX(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server,
         FString::Printf(TEXT("PushRuntimeEvent PlayerUid=%lld %s"), PlayerUid, *Event.ToString()),
         Event.SourceEntity, Event.EventTag);
     Rule->OnReceived_RuntimeEvent(Event, *WorldPlayer);
@@ -244,7 +244,7 @@ void AHktGameMode::PushBagRequest(int64 PlayerUid, const FHktBagRequest& Request
     IHktWorldPlayer* WorldPlayer = Graph->GetWorldPlayer(PlayerUid);
     if (!WorldPlayer) return;
 
-    HKT_EVENT_LOG(HktLogTags::Runtime_Server,
+    HKT_EVENT_LOG_EX(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server,
         FString::Printf(TEXT("PushBagRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString()));
     Rule->OnReceived_BagRequest(Request, *WorldPlayer);
 }

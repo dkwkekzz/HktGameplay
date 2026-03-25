@@ -104,7 +104,7 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     FramesSinceLastServerBatch++;
     if (FramesSinceLastServerBatch > MaxHistoryFrames)
     {
-        HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+        HKT_EVENT_LOG_EX(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
             FString::Printf(TEXT("ServerBatchTimeout: %d frames without response"), FramesSinceLastServerBatch));
         DiffHistory.Empty();
         FramesSinceLastServerBatch = 0;
@@ -129,7 +129,7 @@ FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
 
 void UHktProxySimulatorComponent::EnqueueServerBatch(const FHktSimulationEvent& InBatch)
 {
-    HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+    HKT_EVENT_LOG_EX(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("EnqueueServerBatch Frame=%lld Events=%d"),
             InBatch.FrameNumber, InBatch.NewEvents.Num()));
     PendingServerBatches.Add(InBatch);
@@ -149,7 +149,7 @@ bool UHktProxySimulatorComponent::ConsumePendingDiff(FHktSimulationDiff& OutDiff
 
 void UHktProxySimulatorComponent::ProcessPendingServerBatches()
 {
-    HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+    HKT_EVENT_LOG_EX(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("ProcessServerBatches: %d batches, rollback %d diffs"),
             PendingServerBatches.Num(), DiffHistory.Num()));
 
@@ -205,7 +205,7 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
 
 void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, int32 InGroupIndex)
 {
-    HKT_EVENT_LOG(HktLogTags::Runtime_Client,
+    HKT_EVENT_LOG_EX(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("RestoreState Frame=%lld Entities=%d GroupIndex=%d"),
             InState.FrameNumber, InState.GetEntityCount(), InGroupIndex));
     Simulator->RestoreWorldState(InState);
