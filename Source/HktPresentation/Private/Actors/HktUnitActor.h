@@ -9,6 +9,8 @@
 
 class UCapsuleComponent;
 class USkeletalMeshComponent;
+class UHktAnimInstance;
+struct FHktEntityPresentation;
 
 /**
  * 캐릭터/유닛용 Actor.
@@ -29,6 +31,9 @@ public:
 	// IHktSelectable
 	virtual FHktEntityId GetEntityId() const override { return CachedEntityId; }
 
+	/** ViewModel 값을 Actor에 적용. bForceAll=true면 전체 초기화, false면 dirty만. */
+	void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Unit")
 	TObjectPtr<UCapsuleComponent> CapsuleComponent;
@@ -37,4 +42,10 @@ private:
 	TObjectPtr<USkeletalMeshComponent> MeshComponent;
 
 	FHktEntityId CachedEntityId = InvalidEntityId;
+
+	/** 캐시된 AnimInstance (매 프레임 FindComponent 방지) */
+	UPROPERTY(Transient)
+	TObjectPtr<UHktAnimInstance> CachedAnimInstance;
+
+	UHktAnimInstance* GetAnimInstance();
 };
