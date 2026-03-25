@@ -45,6 +45,7 @@ private:
     TArray<FHktPendingEvent> PendingExternalEvents;
     TArray<FHktPendingEvent> GeneratedMoveEndEvents;
     TArray<FHktEntityId> FrameRemovedEntities;
+    TArray<FHktEvent> DispatchedEvents;
 
     FHktEntityArrangeSystem EntityArrangeSystem;
     FHktVMBuildSystem       VMBuildSystem;

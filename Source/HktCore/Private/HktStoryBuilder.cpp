@@ -643,6 +643,17 @@ FHktStoryBuilder& FHktStoryBuilder::SetItemSkillTag(RegisterIndex Entity, const 
 }
 
 // ============================================================================
+// Event Dispatch
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::DispatchEvent(const FGameplayTag& EventTag)
+{
+    int32 TagIdx = TagToInt(EventTag);
+    Emit(FInstruction::MakeImm(EOpCode::DispatchEvent, 0, TagIdx));
+    return *this;
+}
+
+// ============================================================================
 // Utility
 // ============================================================================
 

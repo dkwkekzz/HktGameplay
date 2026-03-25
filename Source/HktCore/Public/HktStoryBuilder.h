@@ -288,6 +288,11 @@ public:
     /** 아이템의 스킬 태그 설정 (GameplayTag → NetIndex로 저장) */
     FHktStoryBuilder& SetItemSkillTag(RegisterIndex Entity, const FGameplayTag& SkillTag);
 
+    // ========== Event Dispatch ==========
+
+    /** 현재 이벤트의 Source/Target/Location을 유지하면서 다른 Story를 디스패치 */
+    FHktStoryBuilder& DispatchEvent(const FGameplayTag& EventTag);
+
     // ========== Utility ==========
 
     FHktStoryBuilder& Log(const FString& Message);
