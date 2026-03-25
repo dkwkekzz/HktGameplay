@@ -16,21 +16,6 @@ struct FHktActorMotionState
 	bool bNeedsGroundSnap = true;
 };
 
-/** 스폰 시점 ViewModel 스냅샷 — async 콜백에서 actor 초기화에 사용 */
-struct FHktSpawnSnapshot
-{
-	FVector Location;
-	FRotator Rotation;
-	bool bIsMoving = false;
-	FVector Velocity = FVector::ZeroVector;
-	FGameplayTag Stance;
-	FGameplayTagContainer Tags;
-	float AttackSpeed = 0.f;
-	float CPRatio = 0.f;
-	int32 OwnerEntity = 0;
-	int32 ItemState = 0;
-};
-
 class FHktActorRenderer : public IHktPresentationRenderer
 {
 public:
@@ -51,21 +36,23 @@ private:
 	/** 지면 높이 트레이스 (위에서 아래로 라인트레이스) */
 	bool TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ) const;
 
-	/** async 콜백에서 스냅샷으로 actor 즉시 초기화 (motion + animation) */
-	void InitActorFromSnapshot(AActor* Actor, FHktEntityId Id, const FHktSpawnSnapshot& Snap);
+	/** ViewModel에서 직접 읽어 actor 즉시 초기화 (motion + animation) */
+	void InitActorFromPresentation(AActor* Actor, FHktEntityId Id, const FHktEntityPresentation& Entity);
 
-	/** 아이템 Actor를 소유 캐릭터의 소켓에 직접 부착 시도 (실패 시 PendingItemsByOwner에 등록) */
+	/** 아이템 Actor를 소유 캐릭터의 소켓에 직접 부착 시도 */
 	void TryAttachToOwnerDirect(FHktEntityId ItemId, FHktEntityId OwnerId);
-	/** Owner 스폰 시 대기 중인 아이템들 부착 */
-	void ProcessPendingAttachmentsForOwner(FHktEntityId OwnerEntityId);
+	/** Owner 스폰 시 ViewModel 기반으로 부착 대기 아이템 검색 및 부착 */
+	void AttachPendingItemsForOwner(FHktEntityId OwnerEntityId);
 	/** 소켓에서 분리하여 독립 Actor로 복원 */
 	void DetachFromOwner(FHktEntityId ItemId);
 
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
 	TMap<FHktEntityId, FHktActorMotionState> MotionStates;
 	TSet<FHktEntityId> AttachedItems;
-	TMultiMap<FHktEntityId, FHktEntityId> PendingItemsByOwner;  // Owner → 대기 아이템들
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
+
+	/** Sync마다 갱신 — async callback에서 ViewModel 직접 조회용 */
+	const FHktPresentationState* CachedState = nullptr;
 
 	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */
 	TSharedPtr<bool> AliveGuard = MakeShared<bool>(true);
