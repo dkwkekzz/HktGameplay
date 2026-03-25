@@ -11,6 +11,7 @@
 #if ENABLE_HKT_INSIGHTS
 #include "HktCoreDataCollector.h"
 #include "HktCoreDefs.h"
+#include "GameplayTagsManager.h"
 #endif
 
 FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(const FString& InSourceName)
@@ -152,19 +153,51 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         HKT_INSIGHT_COLLECT(WsCat, TEXT("_EntityCount"),
             FString::FromInt(WorldState.GetEntityCount()));
 
+        // Tag NetIndex → 태그 이름 변환 헬퍼
+        auto ResolveTagNetIndex = [](int32 NetIdx) -> FString
+        {
+            if (NetIdx == 0) return FString();
+            FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(
+                static_cast<FGameplayTagNetIndex>(NetIdx));
+            if (TagName.IsNone()) return FString::Printf(TEXT("%d"), NetIdx);
+            return TagName.ToString();
+        };
+
+        // Tag 타입 프로퍼티 판별
+        auto IsTagProperty = [](uint16 PropId) -> bool
+        {
+            return PropId == PropertyId::EntitySpawnTag
+                || PropId == PropertyId::SpawnFlowTag
+                || PropId == PropertyId::ItemSkillTag
+                || PropId == PropertyId::Stance;
+        };
+
         // 엔티티별 속성 요약
         WorldState.ForEachEntity([&](FHktEntityId Id, int32 Slot)
         {
             FString PropSummary;
 
-#if ENABLE_HKT_INSIGHTS
-            // 엔티티 디버그 이름
+            // 엔티티 디버그 정보
             const FHktWorldState::FHktEntityDebugInfo* DebugInfo = WorldState.GetEntityDebugInfo(Id);
-            if (DebugInfo && !DebugInfo->DebugName.IsEmpty())
+            if (DebugInfo)
             {
-                PropSummary += FString::Printf(TEXT("DebugName=%s"), *DebugInfo->DebugName);
+                if (!DebugInfo->DebugName.IsEmpty())
+                {
+                    PropSummary += FString::Printf(TEXT("DebugName=%s"), *DebugInfo->DebugName);
+                }
+                if (!DebugInfo->ClassTag.IsEmpty())
+                {
+                    PropSummary += FString::Printf(TEXT(" | ClassTag=%s"), *DebugInfo->ClassTag);
+                }
+                if (!DebugInfo->StoryTag.IsEmpty())
+                {
+                    PropSummary += FString::Printf(TEXT(" | StoryTag=%s"), *DebugInfo->StoryTag);
+                }
+                if (DebugInfo->CreationFrame > 0)
+                {
+                    PropSummary += FString::Printf(TEXT(" | CreationFrame=%lld"), DebugInfo->CreationFrame);
+                }
             }
-#endif
 
             const FGameplayTagContainer& SlotTags = WorldState.GetTagsBySlot(Slot);
             PropSummary += FString::Printf(TEXT(" | Tags=%s"), *SlotTags.ToStringSimple());
@@ -175,7 +208,19 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
                 if (!PropName) continue;
                 int32 Val = WorldState.Get(Slot, PropId);
                 if (Val == 0) continue;
-                PropSummary += FString::Printf(TEXT(" | %s=%d"), PropName, Val);
+
+                if (IsTagProperty(PropId))
+                {
+                    FString TagStr = ResolveTagNetIndex(Val);
+                    if (!TagStr.IsEmpty())
+                    {
+                        PropSummary += FString::Printf(TEXT(" | %s=%s"), PropName, *TagStr);
+                    }
+                }
+                else
+                {
+                    PropSummary += FString::Printf(TEXT(" | %s=%d"), PropName, Val);
+                }
             }
 
             FString EntityKey = FString::Printf(TEXT("E_%d"), Id);
