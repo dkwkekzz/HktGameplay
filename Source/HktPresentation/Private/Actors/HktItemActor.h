@@ -8,7 +8,6 @@
 #include "HktItemActor.generated.h"
 
 struct FHktEntityPresentation;
-class UHktPresentationSubsystem;
 
 /**
  * 범용 아이템 Actor.

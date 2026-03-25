@@ -25,11 +25,11 @@ AHktUnitActor::AHktUnitActor()
 
 UHktAnimInstance* AHktUnitActor::GetAnimInstance()
 {
-	if (!CachedAnimInstance && MeshComponent)
+	if (!CachedAnimInstance.IsValid() && MeshComponent)
 	{
 		CachedAnimInstance = Cast<UHktAnimInstance>(MeshComponent->GetAnimInstance());
 	}
-	return CachedAnimInstance;
+	return CachedAnimInstance.Get();
 }
 
 void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll)

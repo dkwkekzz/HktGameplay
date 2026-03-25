@@ -337,9 +337,10 @@ void UHktPresentationSubsystem::ResolveAssetPathsForSpawned()
 		if (!VisualTag.IsValid()) continue;
 
 		// 비동기 로드 → 완료 시 ViewModel에 ResolvedAssetPath + CapsuleHalfHeight 설정
-		AssetSubsystem->LoadAssetAsync(VisualTag, [this, Id](UHktTagDataAsset* Asset)
+		TWeakObjectPtr<UHktPresentationSubsystem> WeakThis(this);
+		AssetSubsystem->LoadAssetAsync(VisualTag, [WeakThis, this, Id](UHktTagDataAsset* Asset)
 		{
-			if (!Asset) return;
+			if (!Asset || !WeakThis.IsValid()) return;
 			FHktEntityPresentation* E = State.GetMutable(Id);
 			if (!E || !E->IsAlive()) return;
 			E->ResolvedAssetPath.Set(FSoftObjectPath(Asset), State.GetCurrentFrame());

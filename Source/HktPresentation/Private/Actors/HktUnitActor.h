@@ -44,8 +44,7 @@ private:
 	FHktEntityId CachedEntityId = InvalidEntityId;
 
 	/** 캐시된 AnimInstance (매 프레임 FindComponent 방지) */
-	UPROPERTY(Transient)
-	TObjectPtr<UHktAnimInstance> CachedAnimInstance;
+	TWeakObjectPtr<UHktAnimInstance> CachedAnimInstance;
 
 	UHktAnimInstance* GetAnimInstance();
 };

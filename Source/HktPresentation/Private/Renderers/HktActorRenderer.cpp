@@ -9,7 +9,6 @@
 #include "Actors/HktUnitActor.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
-#include "Components/CapsuleComponent.h"
 #include "HktCoreEventLog.h"
 
 /** 모든 PrimitiveComponent를 QueryOnly + Visibility만 Block으로 설정 */
