@@ -3,14 +3,14 @@
 #include "Snippets/HktSnippetItem.h"
 #include "HktCoreProperties.h"
 
-static constexpr uint16 ItemSlotProperties[] =
+static constexpr uint16 EquipSlotProperties[] =
 {
-	PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
-	PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
-	PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+	PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
+	PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
+	PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 };
 
-static constexpr int32 NumItemSlots = UE_ARRAY_COUNT(ItemSlotProperties);
+static constexpr int32 NumEquipSlots = UE_ARRAY_COUNT(EquipSlotProperties);
 
 FHktStoryBuilder& HktSnippetItem::LoadItemFromSlot(
 	FHktStoryBuilder& B,
@@ -26,7 +26,7 @@ FHktStoryBuilder& HktSnippetItem::LoadItemFromSlot(
 	B.LoadStore(R0, PropertyId::Param1);                                    // R0 = 슬롯 인덱스
 
 	// 디스패치: 각 슬롯 인덱스에 대해 비교 + 점프
-	for (int32 i = 0; i < NumItemSlots; ++i)
+	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_ld%d"), *P, i);
 		B.LoadConst(R1, i).CmpEq(Flag, R0, R1).JumpIf(Flag, BranchLabel);
@@ -34,10 +34,10 @@ FHktStoryBuilder& HktSnippetItem::LoadItemFromSlot(
 	B.Jump(FailLabel);                                                      // 유효하지 않은 슬롯
 
 	// 로드 타겟
-	for (int32 i = 0; i < NumItemSlots; ++i)
+	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_ld%d"), *P, i);
-		B.Label(BranchLabel).LoadStore(DstReg, ItemSlotProperties[i]).Jump(DoneLabel);
+		B.Label(BranchLabel).LoadStore(DstReg, EquipSlotProperties[i]).Jump(DoneLabel);
 	}
 
 	B.Label(DoneLabel);
@@ -50,7 +50,7 @@ FHktStoryBuilder& HktSnippetItem::LoadItemFromSlot(
 	return B;
 }
 
-FHktStoryBuilder& HktSnippetItem::SaveItemToSlot(
+FHktStoryBuilder& HktSnippetItem::SaveItemToEquipSlot(
 	FHktStoryBuilder& B,
 	RegisterIndex SlotIndexReg,
 	RegisterIndex ValueReg)
@@ -60,17 +60,17 @@ FHktStoryBuilder& HktSnippetItem::SaveItemToSlot(
 	FString P = B.MakeInternalLabel(TEXT("sslot"));
 	FString DoneLabel = P + TEXT("_done");
 
-	for (int32 i = 0; i < NumItemSlots; ++i)
+	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_s%d"), *P, i);
 		B.LoadConst(R4, i).CmpEq(Flag, SlotIndexReg, R4).JumpIf(Flag, BranchLabel);
 	}
 	B.Jump(DoneLabel);
 
-	for (int32 i = 0; i < NumItemSlots; ++i)
+	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_s%d"), *P, i);
-		B.Label(BranchLabel).SaveEntityProperty(Self, ItemSlotProperties[i], ValueReg).Jump(DoneLabel);
+		B.Label(BranchLabel).SaveEntityProperty(Self, EquipSlotProperties[i], ValueReg).Jump(DoneLabel);
 	}
 
 	B.Label(DoneLabel);
@@ -78,7 +78,7 @@ FHktStoryBuilder& HktSnippetItem::SaveItemToSlot(
 	return B;
 }
 
-FHktStoryBuilder& HktSnippetItem::ClearItemSlot(
+FHktStoryBuilder& HktSnippetItem::ClearEquipSlot(
 	FHktStoryBuilder& B,
 	RegisterIndex SlotIndexReg)
 {
@@ -87,17 +87,17 @@ FHktStoryBuilder& HktSnippetItem::ClearItemSlot(
 	FString P = B.MakeInternalLabel(TEXT("cslot"));
 	FString DoneLabel = P + TEXT("_done");
 
-	for (int32 i = 0; i < NumItemSlots; ++i)
+	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_c%d"), *P, i);
 		B.LoadConst(R3, i).CmpEq(Flag, SlotIndexReg, R3).JumpIf(Flag, BranchLabel);
 	}
 	B.Jump(DoneLabel);
 
-	for (int32 i = 0; i < NumItemSlots; ++i)
+	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_c%d"), *P, i);
-		B.Label(BranchLabel).SaveConstEntity(Self, ItemSlotProperties[i], 0).Jump(DoneLabel);
+		B.Label(BranchLabel).SaveConstEntity(Self, EquipSlotProperties[i], 0).Jump(DoneLabel);
 	}
 
 	B.Label(DoneLabel);
@@ -176,7 +176,7 @@ FHktStoryBuilder& HktSnippetItem::ValidateItemState(
 	return B;
 }
 
-FHktStoryBuilder& HktSnippetItem::FindEmptyActionSlot(
+FHktStoryBuilder& HktSnippetItem::FindEmptyEquipSlot(
 	FHktStoryBuilder& B,
 	RegisterIndex DstReg,
 	const FString& FailLabel)
@@ -186,18 +186,18 @@ FHktStoryBuilder& HktSnippetItem::FindEmptyActionSlot(
 	FString P = B.MakeInternalLabel(TEXT("fslot"));
 	FString FoundLabel = P + TEXT("_found");
 
-	// ItemSlot0~8 순차 검사: 값이 0이면 빈 슬롯
-	for (int32 i = 0; i < NumItemSlots; ++i)
+	// EquipSlot0~8 순차 검사: 값이 0이면 빈 슬롯
+	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_f%d"), *P, i);
-		B.LoadStore(R4, ItemSlotProperties[i])
+		B.LoadStore(R4, EquipSlotProperties[i])
 		 .LoadConst(R5, 0)
 		 .CmpEq(Flag, R4, R5)
 		 .JumpIf(Flag, BranchLabel);
 	}
 	B.Jump(FailLabel);  // 모든 슬롯이 차 있음
 
-	for (int32 i = 0; i < NumItemSlots; ++i)
+	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_f%d"), *P, i);
 		B.Label(BranchLabel)

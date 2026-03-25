@@ -76,8 +76,8 @@ namespace HktStoryPlayerInWorld
 			.SetOwnerUid(Spawned)                                              // 계정 소유 설정
 			.SaveConstEntity(Spawned, PropertyId::ItemState, 2)                // Active (자동 장착)
 			.SaveConstEntity(Spawned, PropertyId::ItemId, 100)                 // 목검 ID
-			.SaveConstEntity(Spawned, PropertyId::ActionSlot, 0)               // 액션 슬롯 0 (주무기)
-			.SaveEntityProperty(Self, PropertyId::ItemSlot0, Spawned)          // 캐릭터.ItemSlot0 = 아이템 EntityId
+			.SaveConstEntity(Spawned, PropertyId::EquipIndex, 0)               // 액션 슬롯 0 (주무기)
+			.SaveEntityProperty(Self, PropertyId::EquipSlot0, Spawned)          // 캐릭터.EquipSlot0 = 아이템 EntityId
 			.SaveConstEntity(Spawned, PropertyId::AttackPower, 5)              // 공격력 5
 			.SetStance(Spawned, HktStance::Sword1H)                            // Stance
 			.AddTag(Spawned, Tag_Weapon_Sword)

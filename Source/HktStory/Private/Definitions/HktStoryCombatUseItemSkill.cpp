@@ -33,12 +33,12 @@ namespace HktStoryCombatUseItemSkill
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_SkillHit, "Sound.SkillHit", "Item skill hit sound.");
 
-	/** ItemSlot[N] PropertyId 테이블 — Param1(슬롯 인덱스)에서 프로퍼티 ID를 결정 */
-	static constexpr uint16 ItemSlotProperties[] =
+	/** EquipSlot[N] PropertyId 테이블 — Param1(슬롯 인덱스)에서 프로퍼티 ID를 결정 */
+	static constexpr uint16 EquipSlotProperties[] =
 	{
-		PropertyId::ItemSlot0, PropertyId::ItemSlot1, PropertyId::ItemSlot2,
-		PropertyId::ItemSlot3, PropertyId::ItemSlot4, PropertyId::ItemSlot5,
-		PropertyId::ItemSlot6, PropertyId::ItemSlot7, PropertyId::ItemSlot8,
+		PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
+		PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
+		PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 	};
 
 	/**
@@ -47,7 +47,7 @@ namespace HktStoryCombatUseItemSkill
 	 *
 	 * 자연어로 읽으면:
 	 * "슬롯 키를 눌러 아이템 스킬을 사용한다.
-	 *  Param1(슬롯 인덱스)의 ItemSlot에서 아이템을 찾아
+	 *  Param1(슬롯 인덱스)의 EquipSlot에서 아이템을 찾아
 	 *  공속 기반 쿨타임(NextActionFrame)과 CP를 검증한 뒤,
 	 *  CP를 차감하고 스킬 로직(대상에 공격력*2 피해)을 실행한다.
 	 *  스킬의 후딜레이를 AttackSpeed로 나눠 NextActionFrame을 갱신한다."
@@ -70,12 +70,12 @@ namespace HktStoryCombatUseItemSkill
 				if (WS.FrameNumber < NextFrame)
 					return false;
 
-				// Param1 = 슬롯 인덱스 → ItemSlot[N]에서 아이템 EntityId 조회
+				// Param1 = 슬롯 인덱스 → EquipSlot[N]에서 아이템 EntityId 조회
 				int32 SlotIndex = E.Param1;
-				if (SlotIndex < 0 || SlotIndex >= UE_ARRAY_COUNT(ItemSlotProperties))
+				if (SlotIndex < 0 || SlotIndex >= UE_ARRAY_COUNT(EquipSlotProperties))
 					return false;
 
-				FHktEntityId ItemId = WS.GetProperty(E.SourceEntity, ItemSlotProperties[SlotIndex]);
+				FHktEntityId ItemId = WS.GetProperty(E.SourceEntity, EquipSlotProperties[SlotIndex]);
 				if (!WS.IsValidEntity(ItemId))
 					return false;
 
@@ -89,7 +89,7 @@ namespace HktStoryCombatUseItemSkill
 		// === 공속 기반 쿨타임 검증 (서버 이중 검증) ===
 		HktSnippetCombat::CooldownCheck(B, TEXT("fail"));
 
-		// === Param1(슬롯 인덱스)로 ItemSlot[N]에서 아이템 엔티티 조회 ===
+		// === Param1(슬롯 인덱스)로 EquipSlot[N]에서 아이템 엔티티 조회 ===
 		HktSnippetItem::LoadItemFromSlot(B, R2, TEXT("fail"));
 
 		B	// === CP 검증 및 차감 ===

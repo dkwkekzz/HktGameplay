@@ -21,14 +21,14 @@ namespace HktStoryItemActivate
 
 	/**
 	 * ================================================================
-	 * 아이템 활성화 Flow (InBag → Active + ActionSlot + Stance)
+	 * 아이템 활성화 Flow (InBag → Active + EquipIndex + Stance)
 	 *
 	 * 자연어로 읽으면:
 	 * "가방의 아이템을 활성화하여 액션 슬롯에 등록하고,
 	 *  아이템의 Stance를 캐릭터에 적용한다.
-	 *  같은 ActionSlot에 이미 다른 아이템이 있으면 자동으로 비활성화한다."
+	 *  같은 EquipIndex에 이미 다른 아이템이 있으면 자동으로 비활성화한다."
 	 *
-	 * Self = 유닛, Target = 활성화할 아이템(InBag), Param0 = ActionSlot
+	 * Self = 유닛, Target = 활성화할 아이템(InBag), Param0 = EquipIndex
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
@@ -53,10 +53,10 @@ namespace HktStoryItemActivate
 		// 소유자 확인
 		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
 
-		B	// 요청된 ActionSlot 로드
-			.LoadStore(R2, PropertyId::Param0)                              // R2 = ActionSlot from event
+		B	// 요청된 EquipIndex 로드
+			.LoadStore(R2, PropertyId::Param0)                              // R2 = EquipIndex from event
 
-			// 동일 ActionSlot에 이미 활성된 아이템이 있으면 자동 비활성화
+			// 동일 EquipIndex에 이미 활성된 아이템이 있으면 자동 비활성화
 			.FindByOwner(Self, Entity_Item)
 
 		.Label(TEXT("evict_loop"))
@@ -69,31 +69,31 @@ namespace HktStoryItemActivate
 			.CmpNe(R6, R4, R5)
 			.JumpIf(R6, TEXT("evict_loop"))
 
-			// 같은 ActionSlot인지 확인
-			.LoadEntityProperty(R4, Iter, PropertyId::ActionSlot)
+			// 같은 EquipIndex인지 확인
+			.LoadEntityProperty(R4, Iter, PropertyId::EquipIndex)
 			.CmpNe(R6, R4, R2)
 			.JumpIf(R6, TEXT("evict_loop"))
 
 			// 충돌 발견 — 기존 아이템을 InBag으로 전환
 			.SaveConstEntity(Iter, PropertyId::ItemState, 1)                // InBag
-			.SaveConstEntity(Iter, PropertyId::ActionSlot, -1);             // 액션 해제
+			.SaveConstEntity(Iter, PropertyId::EquipIndex, -1);             // 액션 해제
 
 		// 기존 아이템 스탯을 캐릭터에서 차감
 		HktSnippetItem::RemoveItemStats(B, Iter, Self);
 
-		B	.Log(TEXT("Evicted existing item from ActionSlot"))
+		B	.Log(TEXT("Evicted existing item from EquipIndex"))
 			.Jump(TEXT("evict_loop"))                                       // 계속 순회 (비정상 중복 대비)
 
 		.Label(TEXT("evict_done"))
-			// Active 상태로 전환 + ActionSlot 설정
+			// Active 상태로 전환 + EquipIndex 설정
 			.SaveConstEntity(Target, PropertyId::ItemState, 2)              // Active
-			.SaveEntityProperty(Target, PropertyId::ActionSlot, R2)
+			.SaveEntityProperty(Target, PropertyId::EquipIndex, R2)
 
-			// 캐릭터의 ItemSlot[N]에 아이템 EntityId 저장 (R2 = ActionSlot, Target = ItemEntity)
+			// 캐릭터의 EquipSlot[N]에 아이템 EntityId 저장 (R2 = EquipIndex, Target = ItemEntity)
 			.Move(R3, Target);                                              // R3 = 아이템 EntityId
 
-		// ItemSlot[ActionSlot] = 아이템 EntityId
-		HktSnippetItem::SaveItemToSlot(B, R2, R3);
+		// EquipSlot[EquipIndex] = 아이템 EntityId
+		HktSnippetItem::SaveItemToEquipSlot(B, R2, R3);
 
 		// 아이템 스탯 + Stance를 캐릭터에 적용
 		HktSnippetItem::ApplyItemStats(B, Target, Self);
