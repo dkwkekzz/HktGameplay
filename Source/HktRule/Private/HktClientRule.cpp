@@ -100,8 +100,23 @@ void FHktDefaultClientRule::OnUserEvent_SubjectInputAction()
 {
 	if (!CachedPolicy || !CachedBuilder) return;
 
-	// 아무 엔티티나 Subject로 선택 (아이템 포함, 하드코딩 제거)
 	FHktEntityId SelectedEntity = CachedPolicy->ResolveSubject();
+
+	// 제어 가능한 대상만 Subject로 선택 (아이템 제외, 소유권 필요)
+	if (SelectedEntity != InvalidEntityId && CachedSimulator && CachedSimulator->IsInitialized())
+	{
+		const FHktWorldState& WS = CachedSimulator->GetWorldState();
+		const int32 ItemId = WS.GetProperty(SelectedEntity, PropertyId::ItemId);
+		if (ItemId > 0)
+		{
+			return;
+		}
+		if (!IsOwnedByMe(SelectedEntity))
+		{
+			return;
+		}
+	}
+
 	CachedBuilder->SetSubject(SelectedEntity);
 	CachedBuilder->ResetCommand();
 }
