@@ -251,8 +251,9 @@ FHktStoryBuilder& HktSnippetItem::ActivateInSlot(
 	 .SaveEntityProperty(ItemEntity, PropertyId::EquipIndex, SlotIndexReg);
 
 	// 캐릭터의 EquipSlot[N] = 아이템 EntityId
-	B.Move(R2, ItemEntity);
-	SaveItemToEquipSlot(B, SlotIndexReg, R2);
+	// Note: SlotIndexReg과 R3를 분리하여 레지스터 충돌 방지
+	B.Move(R3, ItemEntity);
+	SaveItemToEquipSlot(B, SlotIndexReg, R3);
 
 	// 아이템 스탯 + Stance를 캐릭터에 적용
 	ApplyItemStats(B, ItemEntity, CharEntity);

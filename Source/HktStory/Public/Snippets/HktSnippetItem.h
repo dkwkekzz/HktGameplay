@@ -126,7 +126,7 @@ namespace HktSnippetItem
 	 * 아이템을 Active 상태로 전환하고 EquipIndex에 등록.
 	 * ItemState = Active, EquipIndex 설정, EquipSlot[N] 저장, 스탯 적용.
 	 *
-	 * Clobbers: R2, R3, R4, Flag
+	 * Clobbers: R3, R4, Flag
 	 */
 	HKTSTORY_API FHktStoryBuilder& ActivateInSlot(
 		FHktStoryBuilder& B,
