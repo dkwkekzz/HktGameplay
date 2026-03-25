@@ -12,6 +12,9 @@ public:
 	virtual void Sync(const FHktPresentationState& State) = 0;
 	virtual void Teardown() = 0;
 
+	/** 렌더러가 등록될 때 호출. 기존 State 전달. 기본 구현은 Sync 호출. */
+	virtual void OnRegistered(const FHktPresentationState& State) { Sync(State); }
+
 	/** 비동기 작업 완료 등으로 추가 Sync가 필요한지 여부 */
 	virtual bool NeedsTick() const { return false; }
 

@@ -10,6 +10,7 @@
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
 #include "HktRuntimeTags.h"
+#include "HktAssetSubsystem.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
@@ -179,6 +180,7 @@ void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 	{
 		State.AddEntity(*View.WorldState, Id);
 	});
+	ResolveAssetPathsForSpawned();
 }
 
 void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
@@ -198,6 +200,8 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	{
 		HKT_EVENT_LOG(HktLogTags::Presentation, FString::Printf(TEXT("ProcessDiff Frame=%lld Spawned=%d Removed=%d"), View.FrameNumber, SpawnedCount, RemovedCount));
 	}
+	ResolveAssetPathsForSpawned();
+
 	View.ForEachDelta([this](FHktEntityId Id, uint16 PropId, int32 NewValue)
 	{
 		State.ApplyDelta(Id, PropId, NewValue);
@@ -263,6 +267,30 @@ void UHktPresentationSubsystem::NotifyCameraViewChanged()
 	}
 }
 
+void UHktPresentationSubsystem::ResolveAssetPathsForSpawned()
+{
+	UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
+	UHktAssetSubsystem* AssetSubsystem = World ? UHktAssetSubsystem::Get(World) : nullptr;
+	if (!AssetSubsystem) return;
+
+	for (FHktEntityId Id : State.SpawnedThisFrame)
+	{
+		FHktEntityPresentation* E = State.GetMutable(Id);
+		if (!E) continue;
+		FGameplayTag VisualTag = E->VisualElement.Get();
+		if (!VisualTag.IsValid()) continue;
+
+		// 비동기 로드 → 완료 시 ViewModel에 ResolvedAssetPath 설정
+		AssetSubsystem->LoadAssetAsync(VisualTag, [this, Id](UHktTagDataAsset* Asset)
+		{
+			if (!Asset) return;
+			FHktEntityPresentation* E = State.GetMutable(Id);
+			if (!E || !E->IsAlive()) return;
+			E->ResolvedAssetPath.Set(FSoftObjectPath(Asset), State.GetCurrentFrame());
+		});
+	}
+}
+
 void UHktPresentationSubsystem::SyncRenderers()
 {
 	for (IHktPresentationRenderer* R : Renderers)
@@ -291,10 +319,10 @@ void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationRenderer* InRen
 
 	Renderers.Add(InRenderer);
 
-	// 이미 InitialSync가 완료된 경우 즉시 Sync 호출하여 기존 엔티티 전달
+	// 이미 InitialSync가 완료된 경우 즉시 OnRegistered 호출하여 기존 엔티티 전달
 	if (bInitialSyncDone)
 	{
-		InRenderer->Sync(State);
+		InRenderer->OnRegistered(State);
 	}
 }
 

@@ -11,6 +11,15 @@ namespace
 		FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(InTagNetIndex));
 		return FGameplayTag::RequestGameplayTag(TagName);
 	}
+
+	static const FLinearColor GTeamColors[] = {
+		FLinearColor::White,
+		FLinearColor(0.3f, 0.6f, 1.f),
+		FLinearColor(1.f, 0.3f, 0.3f),
+		FLinearColor(0.3f, 1.f, 0.3f),
+		FLinearColor(1.f, 1.f, 0.3f)
+	};
+	static constexpr int32 GTeamColorCount = UE_ARRAY_COUNT(GTeamColors);
 }
 
 // --------------------------------------------------------------------------- FHktEntityPresentation
@@ -68,6 +77,10 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	// Ownership
 	Team.Set(WS.GetProperty(Id, PropertyId::Team), Frame);
 	OwnedPlayerUid.Set(WS.GetOwnerUid(Id), Frame);
+
+	// Pre-computed Display
+	ComputeOwnerLabel(WS.GetOwnerUid(Id), Frame);
+	ComputeTeamColor(WS.GetProperty(Id, PropertyId::Team), Frame);
 
 	// Animation
 	AnimState.Set(IndexToTag(WS.GetProperty(Id, PropertyId::AnimState)), Frame);
@@ -136,7 +149,7 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	case PropertyId::AttackSpeed: AttackSpeed.Set(NewValue, Frame); break;
 
 	// Ownership
-	case PropertyId::Team: Team.Set(NewValue, Frame); break;
+	case PropertyId::Team: Team.Set(NewValue, Frame); ComputeTeamColor(NewValue, Frame); break;
 
 	// Animation
 	case PropertyId::AnimState:      AnimState.Set(IndexToTag(NewValue), Frame); break;
@@ -157,6 +170,7 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 void FHktEntityPresentation::ApplyOwnerDelta(int64 NewOwnerUid, int64 Frame)
 {
 	OwnedPlayerUid.Set(NewOwnerUid, Frame);
+	ComputeOwnerLabel(NewOwnerUid, Frame);
 }
 
 bool FHktEntityPresentation::IsAlive() const
@@ -172,6 +186,21 @@ bool FHktEntityPresentation::IsSpawnedAt(int64 Frame) const
 bool FHktEntityPresentation::IsRemovedAt(int64 Frame) const
 {
 	return RemovedFrame == Frame;
+}
+
+void FHktEntityPresentation::ComputeOwnerLabel(int64 Uid, int64 Frame)
+{
+	OwnerLabel.Set(Uid != 0 ? FString::Printf(TEXT("P:%lld"), Uid) : TEXT("-"), Frame);
+}
+
+void FHktEntityPresentation::ComputeTeamColor(int32 TeamIndex, int64 Frame)
+{
+	TeamColor.Set(GetTeamColor(TeamIndex), Frame);
+}
+
+FLinearColor FHktEntityPresentation::GetTeamColor(int32 TeamIndex)
+{
+	return GTeamColors[FMath::Clamp(TeamIndex, 0, GTeamColorCount - 1)];
 }
 
 EHktRenderCategory FHktEntityPresentation::DetermineRenderCategory(const FGameplayTagContainer& Tags)

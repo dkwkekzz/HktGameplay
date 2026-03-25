@@ -6,6 +6,8 @@
 #include "HktVisualField.h"
 #include "HktWorldState.h"
 #include "HktCoreProperties.h"
+#include "Math/Color.h"
+#include "UObject/SoftObjectPath.h"
 
 /** 엔터티의 렌더 카테고리 (어떤 렌더러가 담당할지 결정) */
 enum class EHktRenderCategory : uint8
@@ -63,6 +65,11 @@ struct FHktEntityPresentation
 
 	// --- Visualization ---
 	THktVisualField<FGameplayTag> VisualElement;
+	THktVisualField<FSoftObjectPath> ResolvedAssetPath;   // VisualElement에서 비동기 해결된 에셋 경로
+
+	// --- Pre-computed Display ---
+	THktVisualField<FString> OwnerLabel;                   // "P:12345" 또는 "-"
+	THktVisualField<FLinearColor> TeamColor;                // Team 인덱스에서 계산된 색상
 
 	// --- Item ---
 	THktVisualField<int32> OwnerEntity;   // 소유 캐릭터 EntityId (0 = 없음)
@@ -83,6 +90,13 @@ struct FHktEntityPresentation
 	bool IsItemAttached() const { return OwnerEntity.Get() != InvalidEntityId && ItemState.Get() == 2; }
 
 	static EHktRenderCategory DetermineRenderCategory(const FGameplayTagContainer& Tags);
+
+	/** Team 인덱스에서 팀 색상 반환 */
+	static FLinearColor GetTeamColor(int32 TeamIndex);
+
+private:
+	void ComputeOwnerLabel(int64 Uid, int64 Frame);
+	void ComputeTeamColor(int32 TeamIndex, int64 Frame);
 };
 
 /** 전체 Presentation 상태 (렌더러가 그대로 읽어서 그리는 ViewModel) */

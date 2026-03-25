@@ -36,7 +36,7 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 {
 	const int64 Frame = State.GetCurrentFrame();
 
-	// --- 스폰 ---
+	// --- 스폰 → async load 트리거 ---
 	for (FHktEntityId Id : State.SpawnedThisFrame)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
@@ -50,42 +50,7 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		DestroyActor(Id);
 	}
 
-	// --- 비동기 스폰 완료 후 최초 동기화 ---
-	for (auto It = PendingInitSync.CreateIterator(); It; ++It)
-	{
-		FHktEntityId Id = *It;
-		const FHktEntityPresentation* E = State.Get(Id);
-		if (!E) { DestroyActor(Id); It.RemoveCurrent(); continue; }
-		if (!ActorMap.Contains(Id)) { It.RemoveCurrent(); continue; }
-		UpdateMotionTarget(Id, *E, Frame, /*bForceUpdate=*/true);
-		UpdateAnimation(Id, *E, Frame, /*bForceUpdate=*/true);
-		if (E->IsItemAttached())
-		{
-			TryAttachToOwner(Id, State);
-		}
-		It.RemoveCurrent();
-	}
-
-	// --- 대기 중인 소켓 부착 재시도 (Owner Actor가 이번 프레임에 스폰되었을 수 있음) ---
-	// TryAttachToOwner가 PendingAttachments를 수정하므로, 복사본으로 순회
-	{
-		TSet<FHktEntityId> PendingCopy = PendingAttachments;
-		for (FHktEntityId ItemId : PendingCopy)
-		{
-			const FHktEntityPresentation* E = State.Get(ItemId);
-			if (!E || !E->IsItemAttached())
-			{
-				PendingAttachments.Remove(ItemId);
-				continue;
-			}
-			if (GetActor(ItemId) && GetActor(static_cast<FHktEntityId>(E->OwnerEntity.Get())))
-			{
-				TryAttachToOwner(ItemId, State);
-			}
-		}
-	}
-
-	// --- Dirty 엔티티 타겟 갱신 ---
+	// --- Dirty 엔티티 delta 처리 ---
 	for (FHktEntityId Id : State.DirtyThisFrame)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
@@ -94,13 +59,12 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		UpdateMotionTarget(Id, *E, Frame);
 		UpdateAnimation(Id, *E, Frame);
 
-		// 소켓 부착 상태 변경 감지
+		// 부착 상태 변경 (delta)
 		if (E->OwnerEntity.IsDirty(Frame) || E->ItemState.IsDirty(Frame))
 		{
-			// 기존 부착 해제 후 재부착 (ActionSlot 변경 시 소켓이 달라질 수 있으므로)
 			DetachFromOwner(Id);
 			if (E->IsItemAttached())
-				TryAttachToOwner(Id, State);
+				TryAttachToOwnerDirect(Id, static_cast<FHktEntityId>(E->OwnerEntity.Get()));
 		}
 	}
 
@@ -117,9 +81,8 @@ void FHktActorRenderer::Teardown()
 
 	ActorMap.Empty();
 	MotionStates.Empty();
-	PendingInitSync.Empty();
 	AttachedItems.Empty();
-	PendingAttachments.Empty();
+	PendingItemsByOwner.Empty();
 }
 
 AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
@@ -140,21 +103,31 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 	FGameplayTag VisualTag = Entity.VisualElement.Get();
 	if (!VisualTag.IsValid()) return;
 
-	FVector Location = Entity.Location.Get();
-	FRotator Rotation = Entity.Rotation.Get();
 	FHktEntityId EntityId = Entity.EntityId;
-	bool bIsMoving = Entity.bIsMoving.Get();
+
+	// ViewModel 스냅샷 캡처 (async 콜백에서 초기화에 사용)
+	FHktSpawnSnapshot Snap;
+	Snap.Location = Entity.Location.Get();
+	Snap.Rotation = Entity.Rotation.Get();
+	Snap.bIsMoving = Entity.bIsMoving.Get();
+	Snap.Velocity = Entity.Velocity.Get();
+	Snap.Stance = Entity.Stance.Get();
+	Snap.Tags = Entity.Tags;
+	Snap.AttackSpeed = static_cast<float>(Entity.AttackSpeed.Get());
+	Snap.CPRatio = Entity.CPRatio.Get();
+	Snap.OwnerEntity = Entity.OwnerEntity.Get();
+	Snap.ItemState = Entity.ItemState.Get();
 
 	// 스폰 시 지면 높이 적용
 	float GroundZ;
-	if (TraceGroundZ(World, Location, GroundZ))
+	if (TraceGroundZ(World, Snap.Location, GroundZ))
 	{
-		Location.Z = GroundZ;
+		Snap.Location.Z = GroundZ;
 	}
 
 	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
 	TWeakPtr<bool> WeakGuard = AliveGuard;
-	AssetSubsystem->LoadAssetAsync(VisualTag, [WeakGuard, this, VisualTag, EntityId, Location, Rotation, bIsMoving, WeakLP](UHktTagDataAsset* LoadedAsset)
+	AssetSubsystem->LoadAssetAsync(VisualTag, [WeakGuard, this, VisualTag, EntityId, Snap, WeakLP](UHktTagDataAsset* LoadedAsset)
 	{
 		if (!WeakGuard.IsValid()) return;  // Renderer가 소멸됨
 
@@ -170,7 +143,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		if (UHktItemVisualDataAsset* ItemAsset = Cast<UHktItemVisualDataAsset>(LoadedAsset))
 		{
 			FActorSpawnParameters SpawnParams;
-			AHktItemActor* ItemActor = CallbackWorld->SpawnActor<AHktItemActor>(AHktItemActor::StaticClass(), Location, Rotation, SpawnParams);
+			AHktItemActor* ItemActor = CallbackWorld->SpawnActor<AHktItemActor>(AHktItemActor::StaticClass(), Snap.Location, Snap.Rotation, SpawnParams);
 			if (ItemActor)
 			{
 				ItemActor->SetupMesh(ItemAsset->Mesh, ItemAsset->MeshScale, ItemAsset->AttachRotationOffset, ItemAsset->AttachSocketName);
@@ -204,11 +177,11 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 				}
 			}
 
-			FVector SpawnLocation = Location;
+			FVector SpawnLocation = Snap.Location;
 			SpawnLocation.Z += HalfHeight;
 
 			FActorSpawnParameters SpawnParams;
-			SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, Rotation, SpawnParams);
+			SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, Snap.Rotation, SpawnParams);
 		}
 
 		if (SpawnedActor)
@@ -222,7 +195,6 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), *VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
 
-
 			ConfigureCollisionForSelection(SpawnedActor);
 
 			// 캐릭터 Actor에 EntityId 설정 (IHktSelectable 커서 선택용)
@@ -232,15 +204,49 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			}
 
 			ActorMap.Add(EntityId, SpawnedActor);
-			PendingInitSync.Add(EntityId);
 
-			FHktActorMotionState& Motion = MotionStates.FindOrAdd(EntityId);
-			Motion.TargetLocation = SpawnedActor->GetActorLocation();
-			Motion.TargetRotation = Rotation;
-			Motion.bIsMoving = bIsMoving;
-			Motion.bNeedsGroundSnap = false;
+			// 즉시 초기화 — PendingInitSync 불필요
+			InitActorFromSnapshot(SpawnedActor, EntityId, Snap);
+
+			// 아이템 부착 처리
+			if (Snap.OwnerEntity != InvalidEntityId && Snap.ItemState == 2)
+			{
+				TryAttachToOwnerDirect(EntityId, static_cast<FHktEntityId>(Snap.OwnerEntity));
+			}
+
+			// 캐릭터/NPC라면 → 대기 중인 아이템들 부착
+			ProcessPendingAttachmentsForOwner(EntityId);
 		}
 	});
+}
+
+void FHktActorRenderer::InitActorFromSnapshot(AActor* Actor, FHktEntityId Id, const FHktSpawnSnapshot& Snap)
+{
+	// MotionState 초기화
+	FHktActorMotionState& Motion = MotionStates.FindOrAdd(Id);
+	Motion.TargetLocation = Actor->GetActorLocation();
+	Motion.TargetRotation = Snap.Rotation;
+	Motion.bIsMoving = Snap.bIsMoving;
+	Motion.bNeedsGroundSnap = false;
+
+	// Animation 초기화
+	USkeletalMeshComponent* SkelMesh = Actor->FindComponentByClass<USkeletalMeshComponent>();
+	if (!SkelMesh) return;
+
+	UHktAnimInstance* HktAnim = Cast<UHktAnimInstance>(SkelMesh->GetAnimInstance());
+	if (!HktAnim) return;
+
+	HktAnim->bIsMoving = Snap.bIsMoving;
+	HktAnim->MoveSpeed = FVector2D(Snap.Velocity.X, Snap.Velocity.Y).Size();
+	HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
+	HktAnim->SyncStance(Snap.Stance);
+
+	float SpeedScale = Snap.AttackSpeed / 100.0f;
+	if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
+	HktAnim->AttackPlayRate = SpeedScale;
+
+	HktAnim->CPRatio = Snap.CPRatio;
+	HktAnim->SyncFromTagContainer(Snap.Tags);
 }
 
 void FHktActorRenderer::DestroyActor(FHktEntityId Id)
@@ -260,6 +266,9 @@ void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 		}
 	}
 
+	// 이 Owner를 기다리는 대기 아이템들 정리
+	PendingItemsByOwner.Remove(Id);
+
 	if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
 	{
 		if (AActor* A = P->Get())
@@ -267,7 +276,6 @@ void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 		ActorMap.Remove(Id);
 	}
 	MotionStates.Remove(Id);
-	PendingInitSync.Remove(Id);
 }
 
 void FHktActorRenderer::UpdateMotionTarget(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceUpdate)
@@ -367,7 +375,6 @@ void FHktActorRenderer::UpdateAnimation(FHktEntityId Id, const FHktEntityPresent
 	}
 
 	// Entity TagContainer 기반 애니메이션 동기화
-	// Story에서 AddTag/RemoveTag로 상태를 변경하면 AnimInstance가 태그 변화를 감지하여 애니메이션을 자동 재생
 	if (bForceUpdate || Entity.TagsDirtyFrame == Frame)
 	{
 		HktAnim->SyncFromTagContainer(Entity.Tags);
@@ -392,38 +399,19 @@ void FHktActorRenderer::InterpolateActors(float DeltaSeconds)
 			continue;
 
 		AActor* Actor = WeakPtr->Get();
-		//const FVector CurrentLocation = Actor->GetActorLocation();
-		//
-		//// --- 위치: 단순 Lerp (매 프레임 50% → ~2틱에 도달) ---
-		//FVector NewLocation;
-		//if (FVector::DistSquared(CurrentLocation, Motion.TargetLocation) <= SnapDistance * SnapDistance)
-		//{
-		//	NewLocation = Motion.TargetLocation;
-		//}
-		//else
-		//{
-		//	NewLocation = FMath::Lerp(CurrentLocation, Motion.TargetLocation, LerpAlpha);
-		//}
-		//
-		//// --- 회전: 이동 방향에서 직접 계산 ---
-		//FRotator NewRotation = Motion.TargetRotation;
-		//
-		//Actor->SetActorLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
 		Actor->SetActorLocationAndRotation(Motion.TargetLocation, Motion.TargetRotation, false, nullptr, ETeleportType::TeleportPhysics);
 	}
 }
 
-void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresentationState& State)
+void FHktActorRenderer::TryAttachToOwnerDirect(FHktEntityId ItemId, FHktEntityId OwnerId)
 {
-	const FHktEntityPresentation* ItemEntity = State.Get(ItemId);
-	if (!ItemEntity || !ItemEntity->IsItemAttached()) return;
-
-	FHktEntityId OwnerId = static_cast<FHktEntityId>(ItemEntity->OwnerEntity.Get());
-
 	AActor* ItemActor = GetActor(ItemId);
-	if (!ItemActor)
+	AActor* OwnerActor = GetActor(OwnerId);
+
+	if (!ItemActor || !OwnerActor)
 	{
-		PendingAttachments.Add(ItemId);
+		// Owner가 아직 없으면 대기 맵에 등록
+		PendingItemsByOwner.Add(OwnerId, ItemId);
 		return;
 	}
 
@@ -434,17 +422,10 @@ void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresenta
 		return;
 	}
 
-	AActor* OwnerActor = GetActor(OwnerId);
-	if (!OwnerActor)
-	{
-		PendingAttachments.Add(ItemId);
-		return;
-	}
-
 	USkeletalMeshComponent* SkelMesh = OwnerActor->FindComponentByClass<USkeletalMeshComponent>();
 	if (!SkelMesh)
 	{
-		PendingAttachments.Add(ItemId);
+		PendingItemsByOwner.Add(OwnerId, ItemId);
 		return;
 	}
 
@@ -458,9 +439,23 @@ void FHktActorRenderer::TryAttachToOwner(FHktEntityId ItemId, const FHktPresenta
 	ItemActor->SetActorEnableCollision(false);
 	ItemActor->AttachToComponent(SkelMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketName);
 	AttachedItems.Add(ItemId);
-	PendingAttachments.Remove(ItemId);
 
 	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, FString::Printf(TEXT("AttachItem Socket=%s Owner=%d"), *SocketName.ToString(), OwnerId), ItemId);
+}
+
+void FHktActorRenderer::ProcessPendingAttachmentsForOwner(FHktEntityId OwnerEntityId)
+{
+	AActor* OwnerActor = GetActor(OwnerEntityId);
+	if (!OwnerActor) return;
+
+	TArray<FHktEntityId> ItemIds;
+	PendingItemsByOwner.MultiFind(OwnerEntityId, ItemIds);
+	PendingItemsByOwner.Remove(OwnerEntityId);
+
+	for (FHktEntityId ItemId : ItemIds)
+	{
+		TryAttachToOwnerDirect(ItemId, OwnerEntityId);
+	}
 }
 
 void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
@@ -475,7 +470,6 @@ void FHktActorRenderer::DetachFromOwner(FHktEntityId ItemId)
 	}
 
 	AttachedItems.Remove(ItemId);
-	PendingAttachments.Remove(ItemId);
 
 	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
 		FString::Printf(TEXT("DetachItem ItemId=%d"), ItemId), ItemId);

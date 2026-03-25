@@ -193,3 +193,23 @@ void UHktAssetSubsystem::OnAssetLoadedInternal(FGameplayTag Tag, TFunction<void(
         Callback(LoadedAsset);
     }
 }
+
+FSoftObjectPath UHktAssetSubsystem::ResolveTagPath(const FGameplayTag& Tag)
+{
+    return ResolvePath(Tag);
+}
+
+void UHktAssetSubsystem::LoadAssetByPathAsync(FSoftObjectPath Path, TFunction<void(UHktTagDataAsset*)> OnLoaded)
+{
+    if (!Path.IsValid())
+    {
+        if (OnLoaded) OnLoaded(nullptr);
+        return;
+    }
+
+    StreamableManager.RequestAsyncLoad(Path, FStreamableDelegate::CreateLambda([Path, OnLoaded]()
+    {
+        UHktTagDataAsset* Asset = Cast<UHktTagDataAsset>(Path.ResolveObject());
+        if (OnLoaded) OnLoaded(Asset);
+    }));
+}
