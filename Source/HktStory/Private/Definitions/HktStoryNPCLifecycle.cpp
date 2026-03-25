@@ -54,7 +54,7 @@ namespace HktStoryNPCLifecycle
 				.SpawnEntity(Entity_Item_NPCLoot)
 				.SaveConstEntity(Spawned, PropertyId::ItemState, 0)                // Ground
 				.SaveConstEntity(Spawned, PropertyId::ItemId, 201)                 // Loot ID
-				.SaveConstEntity(Spawned, PropertyId::ActionSlot, -1)              // 미등록
+				.SaveConstEntity(Spawned, PropertyId::EquipIndex, -1)              // 미등록
 				.GetPosition(R3, Self)
 				.SetPosition(Spawned, R3)                                    // NPC 위치에 드랍
 				.AddTag(Spawned, Tag_Item_Material)

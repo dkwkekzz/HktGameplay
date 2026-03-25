@@ -67,8 +67,7 @@
     /* 아이템 */              \
     X(ItemState)              \
     X(ItemId)                 \
-    X(BagSlot)                \
-    X(ActionSlot)             \
+    X(EquipIndex)             \
     /* 가방 */                \
     X(BagCapacity)            \
     /* NPC */                 \
@@ -79,16 +78,16 @@
     X(SkillCPCost)            \
     X(RecoveryFrame)          \
     X(SkillTargetRequired)    \
-    /* 캐릭터 아이템 슬롯 (EntityId 참조) */ \
-    X(ItemSlot0)              \
-    X(ItemSlot1)              \
-    X(ItemSlot2)              \
-    X(ItemSlot3)              \
-    X(ItemSlot4)              \
-    X(ItemSlot5)              \
-    X(ItemSlot6)              \
-    X(ItemSlot7)              \
-    X(ItemSlot8)
+    /* 캐릭터 장착 슬롯 (EntityId 참조) */ \
+    X(EquipSlot0)             \
+    X(EquipSlot1)             \
+    X(EquipSlot2)             \
+    X(EquipSlot3)             \
+    X(EquipSlot4)             \
+    X(EquipSlot5)             \
+    X(EquipSlot6)             \
+    X(EquipSlot7)             \
+    X(EquipSlot8)
 
 #define HKT_PROPERTY_LIST(X) \
     HKT_HOT_PROPERTY_LIST(X) \

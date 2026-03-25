@@ -25,7 +25,7 @@ namespace HktStoryItemDeactivate
 	 *
 	 * 자연어로 읽으면:
 	 * "활성화된 아이템을 가방으로 되돌린다.
-	 *  ActionSlot을 해제하고, 같은 ActionSlot의 다른 활성 아이템이
+	 *  EquipIndex을 해제하고, 같은 EquipIndex의 다른 활성 아이템이
 	 *  없으면 Stance를 Unarmed로 복원한다."
 	 *
 	 * Self = 유닛, Target = 비활성화할 아이템(Active)
@@ -53,14 +53,14 @@ namespace HktStoryItemDeactivate
 		// 소유자 확인
 		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
 
-		// 비활성화 전 ActionSlot 값 보존 → 캐릭터의 ItemSlot[N] 클리어
-		B.LoadEntityProperty(R2, Target, PropertyId::ActionSlot);           // R2 = ActionSlot
+		// 비활성화 전 EquipIndex 값 보존 → 캐릭터의 EquipSlot[N] 클리어
+		B.LoadEntityProperty(R2, Target, PropertyId::EquipIndex);           // R2 = EquipIndex
 
-		HktSnippetItem::ClearItemSlot(B, R2);
+		HktSnippetItem::ClearEquipSlot(B, R2);
 
-		B	// InBag 상태로 전환 + ActionSlot 해제
+		B	// InBag 상태로 전환 + EquipIndex 해제
 			.SaveConstEntity(Target, PropertyId::ItemState, 1)              // InBag
-			.SaveConstEntity(Target, PropertyId::ActionSlot, -1);           // 액션 해제
+			.SaveConstEntity(Target, PropertyId::EquipIndex, -1);           // 액션 해제
 
 		// 아이템 스탯을 캐릭터에서 차감
 		HktSnippetItem::RemoveItemStats(B, Target, Self);
