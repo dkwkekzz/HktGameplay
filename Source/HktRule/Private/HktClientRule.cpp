@@ -146,7 +146,7 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 	CachedBuilder->SetPendingRuntimeEvent(Event);
 	CachedBuilder->ResetCommand();
 
-	HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+	HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
 		FString::Printf(TEXT("TargetAction %s"), *Event.ToString()),
 		SubjectEntity, Event.EventTag);
 }

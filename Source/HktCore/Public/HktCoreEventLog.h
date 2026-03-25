@@ -10,6 +10,54 @@
 
 
 // ============================================================================
+// 로그 레벨 및 소스 구분
+//
+// EHktLogLevel: 로그 심각도 구분 (Verbose < Info < Warning < Error)
+// EHktLogSource: 클라/서버 분리 필터링용
+// ============================================================================
+
+enum class EHktLogLevel : uint8
+{
+	Verbose = 0,   // 상세 추적 (물리 업데이트, 매 프레임 속성 변경 등)
+	Info    = 1,   // 일반 정보 (VM 생성/완료, 엔티티 스폰 등)
+	Warning = 2,   // 주의 (풀 부족, 유효하지 않은 태그 등)
+	Error   = 3,   // 오류 (VM 실패, 프로그램 미등록 등)
+};
+
+enum class EHktLogSource : uint8
+{
+	Core    = 0,   // HktCore (VM, WorldState, Simulation)
+	Server  = 1,   // 서버 전용 (GameMode, 서버 RPC)
+	Client  = 2,   // 클라이언트 전용 (PlayerController, Proxy, UI)
+};
+
+/** LogLevel 이름 문자열 */
+inline const TCHAR* GetLogLevelName(EHktLogLevel Level)
+{
+	switch (Level)
+	{
+	case EHktLogLevel::Verbose: return TEXT("VRB");
+	case EHktLogLevel::Info:    return TEXT("INF");
+	case EHktLogLevel::Warning: return TEXT("WRN");
+	case EHktLogLevel::Error:   return TEXT("ERR");
+	default:                    return TEXT("???");
+	}
+}
+
+/** LogSource 이름 문자열 */
+inline const TCHAR* GetLogSourceName(EHktLogSource Source)
+{
+	switch (Source)
+	{
+	case EHktLogSource::Core:   return TEXT("Core");
+	case EHktLogSource::Server: return TEXT("Server");
+	case EHktLogSource::Client: return TEXT("Client");
+	default:                    return TEXT("???");
+	}
+}
+
+
+// ============================================================================
 // 로그 카테고리 GameplayTag 선언
 //
 // 태그 계층: HktLog.{Module}.{Level}
@@ -43,31 +91,30 @@ namespace HktLogTags
 // bActive 플래그를 먼저 확인하여 패널이 닫혀 있으면 즉시 반환 (성능 최적화).
 // FString::Printf 호출도 bActive 체크 이후에만 실행되므로 메모리 할당 없음.
 //
-// Category: HktLogTags 네임스페이스의 FGameplayTag 변수
-// HKT_EVENT_LOG       — 카테고리 + 메시지만 기록
-// HKT_EVENT_LOG_ENTITY — 카테고리 + 메시지 + 엔티티 ID
-// HKT_EVENT_LOG_TAG   — 카테고리 + 메시지 + 엔티티 ID + GameplayTag
+// HKT_EVENT_LOG(CategoryTag, Level, Source, Message)
+// HKT_EVENT_LOG_ENTITY(CategoryTag, Level, Source, Message, EntityId)
+// HKT_EVENT_LOG_TAG(CategoryTag, Level, Source, Message, EntityId, Tag)
 // ============================================================================
 
 #if ENABLE_HKT_INSIGHTS
 
-#define HKT_EVENT_LOG(CategoryTag, Message) \
+#define HKT_EVENT_LOG(CategoryTag, Level, Source, Message) \
 	do { if (FHktCoreEventLog::Get().IsActive()) \
-		FHktCoreEventLog::Get().Log(CategoryTag, Message); } while(0)
+		FHktCoreEventLog::Get().Log(CategoryTag, Message, InvalidEntityId, FGameplayTag(), Level, Source); } while(0)
 
-#define HKT_EVENT_LOG_ENTITY(CategoryTag, Message, EntityId) \
+#define HKT_EVENT_LOG_ENTITY(CategoryTag, Level, Source, Message, EntityId) \
 	do { if (FHktCoreEventLog::Get().IsActive()) \
-		FHktCoreEventLog::Get().Log(CategoryTag, Message, EntityId); } while(0)
+		FHktCoreEventLog::Get().Log(CategoryTag, Message, EntityId, FGameplayTag(), Level, Source); } while(0)
 
-#define HKT_EVENT_LOG_TAG(CategoryTag, Message, EntityId, Tag) \
+#define HKT_EVENT_LOG_TAG(CategoryTag, Level, Source, Message, EntityId, Tag) \
 	do { if (FHktCoreEventLog::Get().IsActive()) \
-		FHktCoreEventLog::Get().Log(CategoryTag, Message, EntityId, Tag); } while(0)
+		FHktCoreEventLog::Get().Log(CategoryTag, Message, EntityId, Tag, Level, Source); } while(0)
 
 #else
 
-#define HKT_EVENT_LOG(CategoryTag, Message)                            do {} while(0)
-#define HKT_EVENT_LOG_ENTITY(CategoryTag, Message, EntityId)           do {} while(0)
-#define HKT_EVENT_LOG_TAG(CategoryTag, Message, EntityId, Tag)         do {} while(0)
+#define HKT_EVENT_LOG(CategoryTag, Level, Source, Message)                       do {} while(0)
+#define HKT_EVENT_LOG_ENTITY(CategoryTag, Level, Source, Message, EntityId)      do {} while(0)
+#define HKT_EVENT_LOG_TAG(CategoryTag, Level, Source, Message, EntityId, Tag)    do {} while(0)
 
 #endif // ENABLE_HKT_INSIGHTS
 
@@ -84,6 +131,8 @@ struct HKTCORE_API FHktLogEntry
 	FString Message;                // 자유 형식 메시지
 	FHktEntityId EntityId = InvalidEntityId;  // 관련 엔티티 (-1 if none)
 	FGameplayTag EventTag;          // 관련 이벤트 태그 (optional)
+	EHktLogLevel Level = EHktLogLevel::Info;    // 로그 심각도
+	EHktLogSource Source = EHktLogSource::Core; // 클라/서버 구분
 };
 
 
@@ -109,7 +158,9 @@ public:
 	/** 로그 추가. bActive==false면 즉시 반환. */
 	void Log(const FGameplayTag& Category, const FString& Message,
 	         FHktEntityId EntityId = InvalidEntityId,
-	         FGameplayTag EventTag = FGameplayTag());
+	         FGameplayTag EventTag = FGameplayTag(),
+	         EHktLogLevel Level = EHktLogLevel::Info,
+	         EHktLogSource Source = EHktLogSource::Core);
 
 	/** 패널에서 호출: 수집 활성화/비활성화 */
 	void SetActive(bool bNewActive);

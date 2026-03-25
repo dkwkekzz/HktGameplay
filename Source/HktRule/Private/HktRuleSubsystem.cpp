@@ -17,7 +17,7 @@ void UHktRuleSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	ServerRule = MakeUnique<FHktDefaultServerRule>();
 	ClientRule = MakeUnique<FHktDefaultClientRule>();
 
-	HKT_EVENT_LOG(HktLogTags::Rule, TEXT("RuleSubsystem initialized"));
+	HKT_EVENT_LOG(HktLogTags::Rule, EHktLogLevel::Info, EHktLogSource::Core, TEXT("RuleSubsystem initialized"));
 }
 
 void UHktRuleSubsystem::Deinitialize()

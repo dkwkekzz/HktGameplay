@@ -16,7 +16,7 @@ UHktIntentBuilderComponent::UHktIntentBuilderComponent()
 void UHktIntentBuilderComponent::SetSubject(FHktEntityId InSubject)
 {
     SubjectEntityId = InSubject;
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("SetSubject Id=%d"), SubjectEntityId), SubjectEntityId);
 }
 
@@ -24,7 +24,7 @@ void UHktIntentBuilderComponent::SetCommand(FGameplayTag InEventTag, bool bInTar
 {
     EventTag = InEventTag;
     bTargetRequired = bInTargetRequired;
-    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("SetCommand Tag=%s TargetRequired=%d"), *EventTag.ToString(), bInTargetRequired),
         SubjectEntityId, EventTag);
 
@@ -89,7 +89,7 @@ bool UHktIntentBuilderComponent::Submit()
 
     bHasPendingSubmit = true;
 
-    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("Submit Tag=%s Subject=%d Target=%d Loc=(%.0f,%.0f,%.0f)"),
             *EventTag.ToString(), SubjectEntityId, TargetEntityId,
             TargetLocation.X, TargetLocation.Y, TargetLocation.Z),
@@ -131,7 +131,7 @@ void UHktIntentBuilderComponent::SetPendingRuntimeEvent(const FHktEvent& InEvent
 {
     PendingRuntimeEvent = InEvent;
     bHasPendingRuntimeEvent = true;
-    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent,
+    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("SetPendingRuntimeEvent %s"), *InEvent.ToString()),
         InEvent.SourceEntity, InEvent.EventTag);
 }
