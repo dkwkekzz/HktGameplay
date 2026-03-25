@@ -108,7 +108,10 @@ void FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst
         int64 DZ = Z2 - Z1;
 
         int32 DistSq = static_cast<int32>(FMath::Min(static_cast<int64>(MAX_int32), DX * DX + DY * DY + DZ * DZ));
-        Runtime.SetReg(Dst, static_cast<int32>(FMath::Sqrt(static_cast<float>(DistSq))));
+        int32 Dist = static_cast<int32>(FMath::Sqrt(static_cast<float>(DistSq)));
+        Runtime.SetReg(Dst, Dist);
+        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+            FString::Printf(TEXT("Op_GetDistance E1=%d E2=%d Dist=%d"), E1, E2, Dist));
     }
 }
 
@@ -146,6 +149,9 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+        FString::Printf(TEXT("Op_FindInRadius Center=%d Radius=%d Found=%d"), Center, RadiusCm, Runtime.SpatialQuery.Entities.Num()),
+        Center);
 }
 
 void FHktVMInterpreter::Op_NextFound(FHktVMRuntime& Runtime)
@@ -160,6 +166,8 @@ void FHktVMInterpreter::Op_NextFound(FHktVMRuntime& Runtime)
         Runtime.SetRegEntity(Reg::Iter, InvalidEntityId);
         Runtime.SetReg(Reg::Flag, 0);
     }
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+        FString::Printf(TEXT("Op_NextFound Iter=%d Flag=%d"), Runtime.GetRegEntity(Reg::Iter), Runtime.GetReg(Reg::Flag)));
 }
 
 // ============================================================================
@@ -267,6 +275,8 @@ void FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, Reg
             bHas = WorldState->HasTag(E, Tag);
     }
     Runtime.SetReg(Dst, bHas ? 1 : 0);
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+        FString::Printf(TEXT("Op_HasTag Result=%d"), bHas ? 1 : 0));
 }
 
 // ============================================================================
@@ -290,6 +300,8 @@ void FHktVMInterpreter::Op_CountByTag(FHktVMRuntime& Runtime, RegisterIndex Dst,
         }
     }
     Runtime.SetReg(Dst, Count);
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+        FString::Printf(TEXT("Op_CountByTag Count=%d"), Count));
 }
 
 void FHktVMInterpreter::Op_GetWorldTime(FHktVMRuntime& Runtime, RegisterIndex Dst)
@@ -302,6 +314,8 @@ void FHktVMInterpreter::Op_GetWorldTime(FHktVMRuntime& Runtime, RegisterIndex Ds
     {
         Runtime.SetReg(Dst, 0);
     }
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+        FString::Printf(TEXT("Op_GetWorldTime=%d"), Runtime.GetReg(Dst)));
 }
 
 void FHktVMInterpreter::Op_RandomInt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex ModulusReg)
@@ -310,12 +324,16 @@ void FHktVMInterpreter::Op_RandomInt(FHktVMRuntime& Runtime, RegisterIndex Dst, 
     if (Modulus <= 0 || !WorldState)
     {
         Runtime.SetReg(Dst, 0);
+        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+            FString::Printf(TEXT("Op_RandomInt Mod=%d Result=0"), Modulus));
         return;
     }
 
     int32 Hash = static_cast<int32>(WorldState->FrameNumber * 2654435761) ^ (WorldState->RandomSeed + Runtime.PC);
     Hash = (Hash < 0) ? -Hash : Hash;
     Runtime.SetReg(Dst, Hash % Modulus);
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+        FString::Printf(TEXT("Op_RandomInt Mod=%d Result=%d"), Modulus, Runtime.GetReg(Dst)));
 }
 
 void FHktVMInterpreter::Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterIndex Dst)
@@ -333,6 +351,8 @@ void FHktVMInterpreter::Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterInde
         }
     }
     Runtime.SetReg(Dst, bHasPlayer ? 1 : 0);
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+        FString::Printf(TEXT("Op_HasPlayerInGroup=%d"), bHasPlayer ? 1 : 0));
 }
 
 // ============================================================================
@@ -359,6 +379,9 @@ void FHktVMInterpreter::Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Ds
         }
     }
     Runtime.SetReg(Dst, Count);
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+        FString::Printf(TEXT("Op_CountByOwner Owner=%d Count=%d"), OwnerId, Count),
+        OwnerId);
 }
 
 void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, int32 StringIndex)
@@ -383,6 +406,9 @@ void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex Own
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+        FString::Printf(TEXT("Op_FindByOwner Owner=%d Found=%d"), OwnerId, Runtime.SpatialQuery.Entities.Num()),
+        OwnerId);
 }
 
 void FHktVMInterpreter::Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity)
