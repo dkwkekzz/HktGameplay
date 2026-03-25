@@ -648,8 +648,8 @@ FHktStoryBuilder& FHktStoryBuilder::SetItemSkillTag(RegisterIndex Entity, const 
 
 FHktStoryBuilder& FHktStoryBuilder::DispatchEvent(const FGameplayTag& EventTag)
 {
-    int32 StrIdx = AddString(EventTag.ToString());
-    Emit(FInstruction::MakeImm(EOpCode::DispatchEvent, 0, StrIdx));
+    int32 TagIdx = TagToInt(EventTag);
+    Emit(FInstruction::MakeImm(EOpCode::DispatchEvent, 0, TagIdx));
     return *this;
 }
 

@@ -411,13 +411,12 @@ void FHktVMInterpreter::Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex E
 // Event Dispatch
 // ============================================================================
 
-void FHktVMInterpreter::Op_DispatchEvent(FHktVMRuntime& Runtime, int32 StringIndex)
+void FHktVMInterpreter::Op_DispatchEvent(FHktVMRuntime& Runtime, int32 TagNetIndex)
 {
-    const FString& TagStr = GetString(Runtime, StringIndex);
-    FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(FName(*TagStr), /*bErrorIfNotFound=*/false);
+    FGameplayTag EventTag = UGameplayTagsManager::Get().GetTagFromNetIndex(static_cast<FGameplayTagNetIndex>(TagNetIndex));
     if (!EventTag.IsValid())
     {
-        UE_LOG(LogHktCore, Error, TEXT("Op_DispatchEvent: invalid tag '%s'"), *TagStr);
+        UE_LOG(LogHktCore, Error, TEXT("Op_DispatchEvent: invalid NetIndex %d"), TagNetIndex);
         return;
     }
 

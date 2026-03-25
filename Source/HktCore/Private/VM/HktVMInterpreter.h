@@ -120,7 +120,7 @@ private:
     void Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
     // ===== Event Dispatch =====
-    void Op_DispatchEvent(FHktVMRuntime& Runtime, int32 StringIndex);
+    void Op_DispatchEvent(FHktVMRuntime& Runtime, int32 TagNetIndex);
 
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);
