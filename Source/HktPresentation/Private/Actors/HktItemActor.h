@@ -7,6 +7,8 @@
 #include "HktSelectable.h"
 #include "HktItemActor.generated.h"
 
+struct FHktEntityPresentation;
+
 /**
  * 범용 아이템 Actor.
  * 모든 아이템 타입이 이 단일 C++ 클래스를 공유합니다.
@@ -32,7 +34,14 @@ public:
 	// IHktSelectable
 	virtual FHktEntityId GetEntityId() const override { return CachedEntityId; }
 
+	/** ViewModel 값을 Actor에 적용. Owner Actor 조회를 위한 콜백 제공. */
+	void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
+		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc);
+
 private:
+	void TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc);
+	void DetachFromOwnerIfNeeded();
+
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Item")
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
 
@@ -41,4 +50,7 @@ private:
 
 	/** 이 Actor가 나타내는 WorldState 엔티티 ID */
 	FHktEntityId CachedEntityId = InvalidEntityId;
+
+	/** 현재 소켓에 부착되어 있는지 여부 */
+	bool bIsAttachedToSocket = false;
 };

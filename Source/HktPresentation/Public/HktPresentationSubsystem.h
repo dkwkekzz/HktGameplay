@@ -62,6 +62,8 @@ private:
 	void OnTargetChanged(FHktEntityId NewTarget);
 	void ProcessInitialSync(const FHktWorldView& View);
 	void ProcessDiff(const FHktWorldView& View);
+	void ResolveAssetPathsForSpawned();
+	void ComputeRenderLocations();
 	void SyncRenderers();
 
 	/** State 변경 시 전체 Sync, 아니면 NeedsTick인 렌더러만 Sync */

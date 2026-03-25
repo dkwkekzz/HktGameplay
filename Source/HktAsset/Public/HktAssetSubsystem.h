@@ -44,6 +44,16 @@ public:
     void LoadAssetAsync(FGameplayTag Tag, TFunction<void(UHktTagDataAsset*)> OnLoaded);
 
     // =========================================================================
+    // 태그 → 경로 해결 (로드하지 않음)
+    // =========================================================================
+
+    /** 태그를 FSoftObjectPath로 해결 (로드X, 맵 룩업 + OnTagMiss). ViewModel 사전 해결용. */
+    FSoftObjectPath ResolveTagPath(const FGameplayTag& Tag);
+
+    /** FSoftObjectPath로 직접 비동기 로드 (태그 해결 불필요 시) */
+    void LoadAssetByPathAsync(FSoftObjectPath Path, TFunction<void(UHktTagDataAsset*)> OnLoaded);
+
+    // =========================================================================
     // Convention Path (Generator 출력 경로 결정용 유틸리티)
     // =========================================================================
 

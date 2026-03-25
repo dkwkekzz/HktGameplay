@@ -173,27 +173,16 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId, const FHktPresent
 
 	if (Entity)
 	{
-		float Health = Entity->Health.Get();
-		float MaxHealth = Entity->MaxHealth.Get();
-		int64 OwnerUid = Entity->OwnedPlayerUid.Get();
-		int32 Team = Entity->Team.Get();
-
-		EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%lld"), OwnerUid) : TEXT("-"));
-		EntityWidget->SetHealthPercent(MaxHealth > 0.f ? Health / MaxHealth : 1.f);
-
-		static const FLinearColor TeamColors[] = {
-			FLinearColor::White,
-			FLinearColor(0.3f, 0.6f, 1.f),
-			FLinearColor(1.f, 0.3f, 0.3f),
-			FLinearColor(0.3f, 1.f, 0.3f),
-			FLinearColor(1.f, 1.f, 0.3f)
-		};
-		EntityWidget->SetTeamColor(TeamColors[FMath::Clamp(Team, 0, 4)]);
+		EntityWidget->SetOwnerLabel(Entity->OwnerLabel.Get());
+		EntityWidget->SetHealthPercent(Entity->HealthRatio.Get());
+		EntityWidget->SetTeamColor(Entity->TeamColor.Get());
 	}
 }
 
 void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 {
+	const int64 Frame = State.GetCurrentFrame();
+
 	for (FHktEntityId EntityId : TrackedEntities)
 	{
 		const FHktEntityPresentation* Entity = State.Get(EntityId);
@@ -204,33 +193,23 @@ void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 		if (!Element) continue;
 
 		UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Element->AnchorStrategy);
-		if (Strategy)
+		if (Strategy && Entity->Location.IsDirty(Frame))
 		{
 			Strategy->SetWorldPosition(Entity->Location.Get());
 		}
 
-		// 위젯 프로퍼티 갱신
+		// 위젯 프로퍼티 갱신 (dirty check)
 		if (!Element->View.IsValid()) continue;
 
 		TSharedRef<SWidget> SlateWidget = Element->View->GetSlateWidget();
 		TSharedPtr<SHktEntityHudWidget> EntityWidget = StaticCastSharedRef<SHktEntityHudWidget>(SlateWidget);
 		if (!EntityWidget.IsValid()) continue;
 
-		float Health = Entity->Health.Get();
-		float MaxHealth = Entity->MaxHealth.Get();
-		int64 OwnerUid = Entity->OwnedPlayerUid.Get();
-		int32 Team = Entity->Team.Get();
-
-		EntityWidget->SetHealthPercent(MaxHealth > 0.f ? Health / MaxHealth : 0.f);
-		EntityWidget->SetOwnerLabel(OwnerUid != 0 ? FString::Printf(TEXT("P:%lld"), OwnerUid) : TEXT("-"));
-
-		static const FLinearColor TeamColors[] = {
-			FLinearColor::White,
-			FLinearColor(0.3f, 0.6f, 1.f),
-			FLinearColor(1.f, 0.3f, 0.3f),
-			FLinearColor(0.3f, 1.f, 0.3f),
-			FLinearColor(1.f, 1.f, 0.3f)
-		};
-		EntityWidget->SetTeamColor(TeamColors[FMath::Clamp(Team, 0, 4)]);
+		if (Entity->HealthRatio.IsDirty(Frame))
+			EntityWidget->SetHealthPercent(Entity->HealthRatio.Get());
+		if (Entity->OwnerLabel.IsDirty(Frame))
+			EntityWidget->SetOwnerLabel(Entity->OwnerLabel.Get());
+		if (Entity->TeamColor.IsDirty(Frame))
+			EntityWidget->SetTeamColor(Entity->TeamColor.Get());
 	}
 }

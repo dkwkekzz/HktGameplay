@@ -10,6 +10,9 @@
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
 #include "HktRuntimeTags.h"
+#include "HktAssetSubsystem.h"
+#include "DataAssets/HktActorVisualDataAsset.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
@@ -171,6 +174,23 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 	}
 }
 
+static bool TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ)
+{
+	if (!World) return false;
+	constexpr float TraceHalfHeight = 500.0f;
+	const FVector Start(Pos.X, Pos.Y, Pos.Z + TraceHalfHeight);
+	const FVector End(Pos.X, Pos.Y, Pos.Z - TraceHalfHeight);
+	FHitResult Hit;
+	FCollisionQueryParams Params;
+	Params.bTraceComplex = false;
+	if (World->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic, Params))
+	{
+		OutZ = Hit.ImpactPoint.Z;
+		return true;
+	}
+	return false;
+}
+
 void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 {
 	State.Clear();
@@ -179,6 +199,8 @@ void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 	{
 		State.AddEntity(*View.WorldState, Id);
 	});
+	ResolveAssetPathsForSpawned();
+	ComputeRenderLocations();
 }
 
 void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
@@ -198,6 +220,8 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	{
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("ProcessDiff Frame=%lld Spawned=%d Removed=%d"), View.FrameNumber, SpawnedCount, RemovedCount));
 	}
+	ResolveAssetPathsForSpawned();
+
 	View.ForEachDelta([this](FHktEntityId Id, uint16 PropId, int32 NewValue)
 	{
 		State.ApplyDelta(Id, PropId, NewValue);
@@ -227,6 +251,8 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 			}
 		}
 	});
+
+	ComputeRenderLocations();
 }
 
 void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
@@ -263,6 +289,91 @@ void UHktPresentationSubsystem::NotifyCameraViewChanged()
 	}
 }
 
+void UHktPresentationSubsystem::ComputeRenderLocations()
+{
+	UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
+	const int64 Frame = State.GetCurrentFrame();
+
+	auto ComputeForEntity = [World, Frame](FHktEntityPresentation& E)
+	{
+		if (!E.Location.IsDirty(Frame) && !E.IsSpawnedAt(Frame)) return;
+
+		FVector Loc = E.Location.Get();
+		float GroundZ;
+		if (World && TraceGroundZ(World, Loc, GroundZ))
+		{
+			Loc.Z = GroundZ;
+		}
+		Loc.Z += E.CapsuleHalfHeight;
+		E.RenderLocation.Set(Loc, Frame);
+	};
+
+	// 신규 스폰 엔티티
+	for (FHktEntityId Id : State.SpawnedThisFrame)
+	{
+		if (FHktEntityPresentation* E = State.GetMutable(Id))
+			ComputeForEntity(*E);
+	}
+
+	// 위치 변경된 엔티티
+	for (FHktEntityId Id : State.DirtyThisFrame)
+	{
+		if (FHktEntityPresentation* E = State.GetMutable(Id))
+			ComputeForEntity(*E);
+	}
+}
+
+void UHktPresentationSubsystem::ResolveAssetPathsForSpawned()
+{
+	UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
+	UHktAssetSubsystem* AssetSubsystem = World ? UHktAssetSubsystem::Get(World) : nullptr;
+	if (!AssetSubsystem) return;
+
+	for (FHktEntityId Id : State.SpawnedThisFrame)
+	{
+		FHktEntityPresentation* E = State.GetMutable(Id);
+		if (!E) continue;
+		FGameplayTag VisualTag = E->VisualElement.Get();
+		if (!VisualTag.IsValid()) continue;
+
+		// 비동기 로드 → 완료 시 ViewModel에 ResolvedAssetPath + CapsuleHalfHeight 설정
+		TWeakObjectPtr<UHktPresentationSubsystem> WeakThis(this);
+		AssetSubsystem->LoadAssetAsync(VisualTag, [WeakThis, this, Id](UHktTagDataAsset* Asset)
+		{
+			if (!Asset || !WeakThis.IsValid()) return;
+			FHktEntityPresentation* E = State.GetMutable(Id);
+			if (!E || !E->IsAlive()) return;
+			E->ResolvedAssetPath.Set(FSoftObjectPath(Asset), State.GetCurrentFrame());
+
+			// ActorVisualDataAsset인 경우 CDO에서 캡슐 반높이 추출
+			if (UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(Asset))
+			{
+				if (VisualAsset->ActorClass)
+				{
+					if (AActor* CDO = VisualAsset->ActorClass->GetDefaultObject<AActor>())
+					{
+						if (UCapsuleComponent* Capsule = CDO->FindComponentByClass<UCapsuleComponent>())
+						{
+							E->CapsuleHalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+						}
+					}
+				}
+			}
+
+			// CapsuleHalfHeight 변경 후 RenderLocation 재계산
+			UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
+			FVector Loc = E->Location.Get();
+			float GroundZ;
+			if (World && TraceGroundZ(World, Loc, GroundZ))
+			{
+				Loc.Z = GroundZ;
+			}
+			Loc.Z += E->CapsuleHalfHeight;
+			E->RenderLocation.Set(Loc, State.GetCurrentFrame());
+		});
+	}
+}
+
 void UHktPresentationSubsystem::SyncRenderers()
 {
 	for (IHktPresentationRenderer* R : Renderers)
@@ -273,16 +384,10 @@ void UHktPresentationSubsystem::SyncRenderers()
 
 FVector UHktPresentationSubsystem::GetEntityLocation(FHktEntityId Id) const
 {
-	if (ActorRenderer)
-	{
-		if (const AActor* Actor = ActorRenderer->GetActor(Id))
-		{
-			return Actor->GetActorLocation();
-		}
-	}
-
 	const FHktEntityPresentation* E = State.Get(Id);
-	return E ? E->Location.Get() : FVector::ZeroVector;
+	if (!E) return FVector::ZeroVector;
+	// RenderLocation이 설정되어 있으면 (지면+캡슐 오프셋 적용) 사용, 아니면 raw Location
+	return E->RenderLocation.Get().IsZero() ? E->Location.Get() : E->RenderLocation.Get();
 }
 
 void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationRenderer* InRenderer)
@@ -291,10 +396,10 @@ void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationRenderer* InRen
 
 	Renderers.Add(InRenderer);
 
-	// 이미 InitialSync가 완료된 경우 즉시 Sync 호출하여 기존 엔티티 전달
+	// 이미 InitialSync가 완료된 경우 즉시 OnRegistered 호출하여 기존 엔티티 전달
 	if (bInitialSyncDone)
 	{
-		InRenderer->Sync(State);
+		InRenderer->OnRegistered(State);
 	}
 }
 
