@@ -13,7 +13,7 @@ UHktProxySimulatorComponent::UHktProxySimulatorComponent()
 void UHktProxySimulatorComponent::BeginPlay()
 {
     Super::BeginPlay();
-    Simulator = CreateDeterminismSimulator(TEXT("Client"));
+    Simulator = CreateDeterminismSimulator(EHktLogSource::Client);
 }
 
 void UHktProxySimulatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)

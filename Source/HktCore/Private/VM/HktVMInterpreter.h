@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "VM/HktVMTypes.h"
 #include "HktVMRuntime.h"
+#include "HktCoreEventLog.h"
 #include "HktCoreProperties.h"
 
 // Forward declarations
@@ -133,4 +134,8 @@ private:
 
     FHktWorldState* WorldState = nullptr;
     FHktVMWorldStateProxy* VMProxy = nullptr;
+
+public:
+    /** 시뮬레이터에서 설정: 로그 소스 (Server/Client) */
+    EHktLogSource LogSource = EHktLogSource::Server;
 };

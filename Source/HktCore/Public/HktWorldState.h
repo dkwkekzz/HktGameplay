@@ -4,6 +4,7 @@
 
 #include "HktCoreDefs.h"
 #include "HktCoreEvents.h"
+#include "HktCoreEventLog.h"
 #include "HktCoreProperties.h"
 
 // ============================================================================
@@ -38,6 +39,9 @@ struct HKTCORE_API FHktWorldState
 {
     static constexpr int32 HotStride = PropertyId::HotMaxCount;
     static constexpr int32 WarmCapacity = 16;
+
+    // --- LogSource (시뮬레이터에서 설정) ---
+    EHktLogSource LogSource = EHktLogSource::Server;
 
     // --- Frame State ---
     int64 FrameNumber = 0;

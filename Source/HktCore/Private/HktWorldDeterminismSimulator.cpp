@@ -13,11 +13,19 @@
 #include "HktCoreDefs.h"
 #endif
 
-FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(const FString& InSourceName)
-    : SourceName(InSourceName)
+FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLogSource)
+    : LogSource(InLogSource)
+    , SourceName(FString(GetLogSourceName(InLogSource)))
 {
     WorldState.Initialize();
     VMProxy.Initialize(WorldState);
+
+    // LogSource를 서브시스템에 전파
+    WorldState.LogSource = LogSource;
+    EntityArrangeSystem.LogSource = LogSource;
+    VMBuildSystem.LogSource = LogSource;
+    VMProcessSystem.LogSource = LogSource;
+    VMCleanupSystem.LogSource = LogSource;
 
     ActiveVMs.Reserve(HktLimits::MaxVMs);
     CompletedVMs.Reserve(HktLimits::MaxVMs);
@@ -32,6 +40,7 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(const FString& InSo
     VMPool = MakeUnique<FHktVMRuntimePool>();
     Interpreter = MakeUnique<FHktVMInterpreter>();
     Interpreter->Initialize(&WorldState, &VMProxy);
+    Interpreter->LogSource = LogSource;
     VMProcessSystem.Interpreter = Interpreter.Get();
 }
 
@@ -254,7 +263,9 @@ FHktPlayerState FHktWorldDeterminismSimulator::ExportPlayerState(int64 OwnerUid)
 
 void FHktWorldDeterminismSimulator::RestoreWorldState(const FHktWorldState& InState)
 {
+    const EHktLogSource SavedLogSource = WorldState.LogSource;
     WorldState.CopyFrom(InState);
+    WorldState.LogSource = SavedLogSource;
 }
 
 void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)
@@ -266,7 +277,7 @@ void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)
 // Factory
 // ============================================================================
 
-TUniquePtr<IHktDeterminismSimulator> CreateDeterminismSimulator(const FString& InSourceName)
+TUniquePtr<IHktDeterminismSimulator> CreateDeterminismSimulator(EHktLogSource InLogSource)
 {
-    return MakeUnique<FHktWorldDeterminismSimulator>(InSourceName);
+    return MakeUnique<FHktWorldDeterminismSimulator>(InLogSource);
 }
