@@ -89,21 +89,7 @@ namespace HktStoryCombatUseSkill
 				if (WS.FrameNumber < NextFrame)
 					return false;
 
-				// 아이템 슬롯 확인 — 아이템이 있으면 CP 검증, 없으면 본연 스킬(무조건 통과)
-				int32 SlotIndex = E.Param1;
-				if (SlotIndex >= 0 && SlotIndex < static_cast<int32>(UE_ARRAY_COUNT(EquipSlotProperties)))
-				{
-					FHktEntityId ItemId = WS.GetProperty(E.SourceEntity, EquipSlotProperties[SlotIndex]);
-					if (WS.IsValidEntity(ItemId))
-					{
-						// 아이템 스킬 → CP 검증
-						int32 CpCost = WS.GetProperty(ItemId, PropertyId::SkillCPCost);
-						int32 CurrentCP = WS.GetProperty(E.SourceEntity, PropertyId::CP);
-						return CurrentCP >= CpCost;
-					}
-				}
-
-				// 아이템 없음 → 본연 스킬 (CP 불요)
+				// 쿨타임만 통과하면 허용 — CP 부족 시에도 본연 스킬(innate)로 fallback
 				return true;
 			})
 			.Log(TEXT("UseSkill: 스킬 시작"));
@@ -126,7 +112,7 @@ namespace HktStoryCombatUseSkill
 			.LoadEntityProperty(R3, R2, PropertyId::SkillCPCost)        // R3 = CP 소모량
 			.LoadStore(R4, PropertyId::CP)                              // R4 = 현재 CP
 			.CmpLt(Flag, R4, R3)                                        // CP < Cost?
-			.JumpIf(Flag, TEXT("fail_cp"))
+			.JumpIf(Flag, TEXT("innate"))                                // CP 부족 → 본연 스킬로 fallback
 
 			// CP 차감
 			.Sub(R4, R4, R3)
@@ -195,10 +181,6 @@ namespace HktStoryCombatUseSkill
 
 		B	.DispatchEvent(Story_BasicAttack)
 			.Halt()
-
-		.Label(TEXT("fail_cp"))
-			.Log(TEXT("UseSkill: CP 부족 — 실패"))
-			.Fail()
 
 		.Label(TEXT("fail"))
 			.Log(TEXT("UseSkill: 사전조건 위반 — 실패"))
