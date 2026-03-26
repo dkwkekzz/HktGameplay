@@ -78,6 +78,8 @@
     X(SkillCPCost)            \
     X(RecoveryFrame)          \
     X(SkillTargetRequired)    \
+    /* 공격 사거리 (cm) */    \
+    X(AttackRange)            \
     /* 캐릭터 장착 슬롯 (EntityId 참조) */ \
     X(EquipSlot0)             \
     X(EquipSlot1)             \
