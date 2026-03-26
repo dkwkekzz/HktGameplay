@@ -56,8 +56,10 @@ namespace HktStoryBasicAttack
 			.LookAt(Self, Target)
 
 			// === 2. 공격 애니메이션 트리거 (fire-and-forget) + 스윙 사운드 ===
-			.AddTag(Self, Tag_Anim_Montage_Attack)
-			.PlaySound(Sound_Swing)
+			.PlaySound(Sound_Swing);
+		HktSnippetCombat::AnimTrigger(B, Self, Tag_Anim_Montage_Attack);
+
+		B
 
 			// === 3. 사거리 내 대상 확인 ===
 			.LoadStore(R0, PropertyId::AttackRange)
@@ -81,7 +83,7 @@ namespace HktStoryBasicAttack
 		 .PlayVFX(R2, VFX_HitSpark);
 
 		// === 6. 피격 대상 히트리액션 (fire-and-forget) ===
-		B.AddTag(Target, Tag_Anim_Montage_HitReaction);
+		HktSnippetCombat::AnimTrigger(B, Target, Tag_Anim_Montage_HitReaction);
 
 		B.Jump(TEXT("done"));
 
