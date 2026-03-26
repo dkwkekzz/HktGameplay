@@ -143,6 +143,7 @@ void AHktHUD::AddElementToCanvas(UHktUIElement* Element)
 	else
 	{
 		// 엔티티 HUD: 좌상단 기준 절대 위치. AutoSize로 위젯이 DesiredSize(100px 등)를 유지하게 함.
+		// Alignment(0.5, 1.0): 위젯의 하단 중앙이 투영 지점(머리 위)에 오도록 앵커링.
 		const float X = Element->CachedScreenPosition.X;
 		const float Y = Element->CachedScreenPosition.Y;
 		MainCanvasWidget->AddSlot()
@@ -150,7 +151,7 @@ void AHktHUD::AddElementToCanvas(UHktUIElement* Element)
 			.Offset(FMargin(X, Y, 0.f, 0.f))
 			.Anchors(FAnchors(0.f, 0.f, 0.f, 0.f))
 			.AutoSize(true)
-			.Alignment(FVector2D(0.5f, 0.5f))
+			.Alignment(FVector2D(0.5f, 1.0f))
 			[
 				SlateWidget
 			];
