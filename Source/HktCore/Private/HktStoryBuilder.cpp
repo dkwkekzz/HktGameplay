@@ -659,6 +659,13 @@ FHktStoryBuilder& FHktStoryBuilder::DispatchEvent(const FGameplayTag& EventTag)
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::DispatchEventTo(const FGameplayTag& EventTag, RegisterIndex TargetEntity)
+{
+    int32 TagIdx = TagToInt(EventTag);
+    Emit(FInstruction::MakeImm(EOpCode::DispatchEventTo, TargetEntity, TagIdx));
+    return *this;
+}
+
 // ============================================================================
 // Utility
 // ============================================================================

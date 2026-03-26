@@ -120,6 +120,7 @@ namespace Reg
     X(ClearOwnerUid,    _, R, _) \
     /* Event Dispatch */    \
     X(DispatchEvent,    _, _, _) \
+    X(DispatchEventTo,  _, R, _) \
     /* Utility */           \
     X(Log,              _, _, _)
 

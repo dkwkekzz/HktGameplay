@@ -71,9 +71,21 @@ namespace HktStoryAttackEngage
 			.Jump(TEXT("check_range"))
 
 		.Label(TEXT("in_range"))
-			// 사거리 안 → 이동 정지 후 공격 디스패치
+			// 사거리 안 → 이동 정지
 			.StopMovement(Self)
-			.Log(TEXT("AttackEngage: 사거리 도달 → BasicAttack 디스패치"))
+
+			// === 쿨타임 검사 ===
+			.GetWorldTime(R2)                                // R2 = 현재 프레임
+			.LoadStore(R3, PropertyId::NextActionFrame)      // R3 = NextActionFrame
+			.CmpGe(Flag, R2, R3)                             // 현재 >= NextActionFrame?
+			.JumpIf(Flag, TEXT("ready"))
+
+			// 쿨타임 미충족 → 1프레임 대기 후 거리+쿨타임 재검사
+			.Yield(1)
+			.Jump(TEXT("check_range"))
+
+		.Label(TEXT("ready"))
+			.Log(TEXT("AttackEngage: 사거리+쿨타임 만족 → BasicAttack 디스패치"))
 			.DispatchEvent(Story_AttackBasic)
 			.Halt()
 

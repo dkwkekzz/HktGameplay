@@ -295,6 +295,8 @@ public:
 
     /** 현재 이벤트의 Source/Target/Location을 유지하면서 다른 Story를 디스패치 */
     FHktStoryBuilder& DispatchEvent(const FGameplayTag& EventTag);
+    /** DispatchEvent 변형 — TargetEntity를 지정 레지스터의 엔티티로 오버라이드 */
+    FHktStoryBuilder& DispatchEventTo(const FGameplayTag& EventTag, RegisterIndex TargetEntity);
 
     // ========== Utility ==========
 
