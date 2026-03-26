@@ -76,8 +76,14 @@ namespace HktStoryBasicAttack
 		 .SaveStoreEntity(Spawned, PropertyId::CollisionRadius, R0);  // CollisionRadius = AttackRange
 
 		// === 4. 충돌 대기 — 물리 시스템이 히트를 감지할 때까지 Yield ===
-		B.WaitCollision(Spawned);
-		// Hit 레지스터 = 충돌된 엔티티
+		// Self-collision 필터: HitArea가 공격자 자신과 충돌할 수 있으므로 제외
+	B.Label(TEXT("wait_hit"))
+		 .WaitCollision(Spawned)
+		 .Move(R3, Hit)
+		 .Move(R4, Self)
+		 .CmpEq(Flag, R3, R4)
+		 .JumpIf(Flag, TEXT("wait_hit"));
+		// Hit 레지스터 = 충돌된 엔티티 (Self 제외)
 
 		// === 5. 히트 영역 제거 ===
 		B.DestroyEntity(Spawned);
