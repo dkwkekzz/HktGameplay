@@ -33,6 +33,18 @@ namespace HktStoryCombatUseItemSkill
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_SkillHit, "Sound.SkillHit", "Item skill hit sound.");
 
+	// === 아이템 스킬 식별 태그 (dispatch 분기용) ===
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Fireball,  "Entity.Attr.Skill.Fireball",  "Item skill identifier: Fireball.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Heal,      "Entity.Attr.Skill.Heal",      "Item skill identifier: Heal.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Lightning,  "Entity.Attr.Skill.Lightning",  "Item skill identifier: Lightning.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Buff,      "Entity.Attr.Skill.Buff",      "Item skill identifier: Buff.");
+
+	// === Dispatch 대상 Story 태그 ===
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Fireball,  "Story.Event.Skill.Fireball",  "Fireball skill story.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Heal,      "Story.Event.Skill.Heal",      "Heal skill story.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Lightning,  "Story.Event.Skill.Lightning",  "Lightning skill story.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Buff,      "Story.Event.Skill.Buff",      "Buff skill story.");
+
 	/** EquipSlot[N] PropertyId 테이블 — Param1(슬롯 인덱스)에서 프로퍼티 ID를 결정 */
 	static constexpr uint16 EquipSlotProperties[] =
 	{
@@ -49,8 +61,9 @@ namespace HktStoryCombatUseItemSkill
 	 * "슬롯 키를 눌러 아이템 스킬을 사용한다.
 	 *  Param1(슬롯 인덱스)의 EquipSlot에서 아이템을 찾아
 	 *  공속 기반 쿨타임(NextActionFrame)과 CP를 검증한 뒤,
-	 *  CP를 차감하고 스킬 로직(대상에 공격력*2 피해)을 실행한다.
-	 *  스킬의 후딜레이를 AttackSpeed로 나눠 NextActionFrame을 갱신한다."
+	 *  CP를 차감하고 NextActionFrame을 갱신한다.
+	 *  아이템에 고유 스킬 태그가 있으면 해당 스킬 Story로 디스패치하고,
+	 *  없으면 기본 일괄 데미지(공격력*2)를 실행한다."
 	 *
 	 * Self = 캐릭터, Param0 = 공격 대상 EntityId, Param1 = 슬롯 인덱스
 	 * ================================================================
@@ -103,29 +116,61 @@ namespace HktStoryCombatUseItemSkill
 			.SaveStore(PropertyId::CP, R4)                              // CP 저장
 
 			// === 타겟 로드 ===
-			.LoadStore(Target, PropertyId::Param0)                      // Param0 = 공격 대상 EntityId
+			.LoadStore(Target, PropertyId::Param0);                     // Param0 = 공격 대상 EntityId
 
-			// === 스킬 애니메이션 ===
+		// === NextActionFrame 갱신 (공속 기반) — dispatch 전에 수행 ===
+		HktSnippetCombat::CooldownUpdateFromEntity(B, R2);
+
+		// === 아이템 스킬 태그 확인 → 고유 스킬 dispatch ===
+		B	.HasTag(R5, R2, Tag_Skill_Fireball)
+			.JumpIf(R5, TEXT("dispatch_fireball"))
+
+			.HasTag(R5, R2, Tag_Skill_Heal)
+			.JumpIf(R5, TEXT("dispatch_heal"))
+
+			.HasTag(R5, R2, Tag_Skill_Lightning)
+			.JumpIf(R5, TEXT("dispatch_lightning"))
+
+			.HasTag(R5, R2, Tag_Skill_Buff)
+			.JumpIf(R5, TEXT("dispatch_buff"))
+
+			// === 기본 일괄 데미지 (고유 스킬 태그 없는 아이템 — 목검 등) ===
 			.AddTag(Self, Tag_Anim_UpperBody_Combat_Skill)
 			.AddTag(Self, Tag_Anim_Montage_Skill)
 			.WaitAnimEnd(Self)
 
-			// === 스킬 데미지 (공격력 * 2) ===
 			.LoadStore(R0, PropertyId::AttackPower)                     // R0 = 공격력
 			.LoadConst(R1, 2)
 			.Mul(R0, R0, R1)                                            // R0 = 공격력 * 2
 			.ApplyDamage(Target, R0)
 			.PlayVFXAttached(Target, VFX_SkillHit)
-			.PlaySound(Sound_SkillHit);
+			.PlaySound(Sound_SkillHit)
 
-		// === NextActionFrame 갱신 (공속 기반) ===
-		HktSnippetCombat::CooldownUpdateFromEntity(B, R2);
-
-		B	// 스킬 태그 제거
 			.RemoveTag(Self, Tag_Anim_UpperBody_Combat_Skill)
 			.RemoveTag(Self, Tag_Anim_Montage_Skill)
 
-			.Log(TEXT("UseItemSkill: 완료"))
+			.Log(TEXT("UseItemSkill: 기본 스킬 완료"))
+			.Halt()
+
+		// === Dispatch 분기 ===
+		.Label(TEXT("dispatch_fireball"))
+			.Log(TEXT("UseItemSkill: → Fireball"))
+			.DispatchEvent(Story_Fireball)
+			.Halt()
+
+		.Label(TEXT("dispatch_heal"))
+			.Log(TEXT("UseItemSkill: → Heal"))
+			.DispatchEvent(Story_Heal)
+			.Halt()
+
+		.Label(TEXT("dispatch_lightning"))
+			.Log(TEXT("UseItemSkill: → Lightning"))
+			.DispatchEvent(Story_Lightning)
+			.Halt()
+
+		.Label(TEXT("dispatch_buff"))
+			.Log(TEXT("UseItemSkill: → Buff"))
+			.DispatchEvent(Story_Buff)
 			.Halt()
 
 		.Label(TEXT("fail_cp"))
