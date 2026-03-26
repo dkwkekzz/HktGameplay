@@ -38,6 +38,9 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	Location.Set(FVector(static_cast<float>(P.X), static_cast<float>(P.Y), static_cast<float>(P.Z)), Frame);
 	Rotation.Set(FRotator(0.f, static_cast<float>(WS.GetProperty(Id, PropertyId::RotYaw)), 0.f), Frame);
 
+	// Physics
+	CollisionRadius.Set(FMath::Max(static_cast<float>(WS.GetProperty(Id, PropertyId::CollisionRadius)), 50.f), Frame);
+
 	// Movement
 	MoveTarget.Set(FVector(
 		static_cast<float>(WS.GetProperty(Id, PropertyId::MoveTargetX)),
@@ -116,6 +119,11 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	case PropertyId::VelX:        Velocity.Value.X = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); break;
 	case PropertyId::VelY:        Velocity.Value.Y = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); break;
 	case PropertyId::VelZ:        Velocity.Value.Z = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); break;
+
+	// Physics
+	case PropertyId::CollisionRadius:
+		CollisionRadius.Set(FMath::Max(static_cast<float>(NewValue), 50.f), Frame);
+		break;
 
 	// Vitals
 	case PropertyId::Health:
