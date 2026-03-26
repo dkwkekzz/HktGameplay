@@ -84,6 +84,7 @@ bool FHktStoryValidator::ValidateEntityFlow()
 			CheckEntityReg(PC, Op, Inst.Src1);
 			break;
 		case EOpCode::GetDistance:
+		case EOpCode::LookAt:
 			CheckEntityReg(PC, Op, Inst.Src1);
 			CheckEntityReg(PC, Op, Inst.Src2);
 			break;

@@ -94,6 +94,7 @@ namespace Reg
     X(DestroyEntity,    _, R, _) \
     /* Spatial Query */     \
     X(GetDistance,       W, R, R) \
+    X(LookAt,           _, R, R) \
     X(FindInRadius,     _, R, _) \
     X(NextFound,        _, _, _) \
     /* Presentation */      \
@@ -119,6 +120,7 @@ namespace Reg
     X(ClearOwnerUid,    _, R, _) \
     /* Event Dispatch */    \
     X(DispatchEvent,    _, _, _) \
+    X(DispatchEventTo,  _, R, _) \
     /* Utility */           \
     X(Log,              _, _, _)
 

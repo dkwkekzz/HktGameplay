@@ -54,4 +54,37 @@ namespace HktSnippetCombat
 		uint16 CurrentProp,
 		uint16 MaxProp,
 		int32 Amount);
+
+	// ========== 애니메이션 제어 ==========
+
+	/**
+	 * 트리거 애니메이션 (일회성 재생)
+	 * AddTag → WaitSeconds(Duration) → RemoveTag
+	 * 애니메이션이 끝날 때까지 대기 후 태그를 제거한다.
+	 *
+	 * @param AnimTag 재생할 애니메이션 태그
+	 * @param DurationSec 애니메이션 지속 시간 (초)
+	 */
+	HKTSTORY_API FHktStoryBuilder& AnimTrigger(
+		FHktStoryBuilder& B,
+		RegisterIndex Entity,
+		const FGameplayTag& AnimTag,
+		float DurationSec);
+
+	/**
+	 * 루프 애니메이션 시작 (태그 추가)
+	 * AddTag로 루프 상태를 활성화. AnimLoopStop으로 해제할 때까지 유지된다.
+	 */
+	HKTSTORY_API FHktStoryBuilder& AnimLoopStart(
+		FHktStoryBuilder& B,
+		RegisterIndex Entity,
+		const FGameplayTag& AnimTag);
+
+	/**
+	 * 루프 애니메이션 정지 (태그 제거)
+	 */
+	HKTSTORY_API FHktStoryBuilder& AnimLoopStop(
+		FHktStoryBuilder& B,
+		RegisterIndex Entity,
+		const FGameplayTag& AnimTag);
 }

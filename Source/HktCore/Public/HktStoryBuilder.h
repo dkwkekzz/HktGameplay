@@ -204,6 +204,9 @@ public:
     /** 거리 계산 (VM opcode — sqrt 필요) */
     FHktStoryBuilder& GetDistance(RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2);
 
+    /** Entity1이 Entity2를 바라보도록 RotYaw 설정 */
+    FHktStoryBuilder& LookAt(RegisterIndex Entity, RegisterIndex TargetEntity);
+
     // ========== Spatial Query ==========
 
     /** 범위 내 엔티티 검색 시작 */
@@ -292,6 +295,8 @@ public:
 
     /** 현재 이벤트의 Source/Target/Location을 유지하면서 다른 Story를 디스패치 */
     FHktStoryBuilder& DispatchEvent(const FGameplayTag& EventTag);
+    /** DispatchEvent 변형 — TargetEntity를 지정 레지스터의 엔티티로 오버라이드 */
+    FHktStoryBuilder& DispatchEventTo(const FGameplayTag& EventTag, RegisterIndex TargetEntity);
 
     // ========== Utility ==========
 

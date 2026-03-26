@@ -553,6 +553,9 @@ void FHktStoryJsonParser::InitializeCoreCommands()
 	RegisterCommand(TEXT("GetDistance"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 		B.GetDistance(A.GetReg(TEXT("dst")), A.GetReg(TEXT("entity1")), A.GetReg(TEXT("entity2")));
 	});
+	RegisterCommand(TEXT("LookAt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.LookAt(A.GetReg(TEXT("entity")), A.GetReg(TEXT("target")));
+	});
 
 	// ======================== Spatial Query ========================
 

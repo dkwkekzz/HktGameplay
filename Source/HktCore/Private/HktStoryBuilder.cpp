@@ -401,6 +401,12 @@ FHktStoryBuilder& FHktStoryBuilder::GetDistance(RegisterIndex Dst, RegisterIndex
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::LookAt(RegisterIndex Entity, RegisterIndex TargetEntity)
+{
+    Emit(FInstruction::Make(EOpCode::LookAt, 0, Entity, TargetEntity, 0));
+    return *this;
+}
+
 // ============================================================================
 // Spatial Query
 // ============================================================================
@@ -650,6 +656,13 @@ FHktStoryBuilder& FHktStoryBuilder::DispatchEvent(const FGameplayTag& EventTag)
 {
     int32 TagIdx = TagToInt(EventTag);
     Emit(FInstruction::MakeImm(EOpCode::DispatchEvent, 0, TagIdx));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::DispatchEventTo(const FGameplayTag& EventTag, RegisterIndex TargetEntity)
+{
+    int32 TagIdx = TagToInt(EventTag);
+    Emit(FInstruction::MakeImm(EOpCode::DispatchEventTo, TargetEntity, TagIdx));
     return *this;
 }
 

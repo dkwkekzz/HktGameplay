@@ -14,8 +14,8 @@ namespace HktStoryTargetDefault
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_TargetDefault, "Story.Event.Target.Default", "Default target action dispatcher — branches by target type.");
 
 	// Dispatch targets
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_ItemPickup,   "Story.Event.Item.Pickup",     "Item pickup story (dispatch target).");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_AttackBasic,  "Story.Event.Attack.Basic",     "Basic attack story (dispatch target).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_ItemPickup,    "Story.Event.Item.Pickup",      "Item pickup story (dispatch target).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_AttackEngage,  "Story.Event.Attack.Engage",    "Attack engage story — range check + approach + attack (dispatch target).");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_MoveToLocation, "Story.Event.Move.ToLocation", "Move to location story (dispatch target).");
 
 	/**
@@ -64,9 +64,9 @@ namespace HktStoryTargetDefault
 			.CmpGt(Flag, R0, R1)
 			.JumpIfNot(Flag, TEXT("dispatch_move"))
 
-			// NPC → 기본 공격 디스패치
-			.Log(TEXT("TargetDefault: NPC → BasicAttack"))
-			.DispatchEvent(Story_AttackBasic)
+			// NPC → 접근 공격 디스패치 (거리 검사 + 이동 + 공격)
+			.Log(TEXT("TargetDefault: NPC → AttackEngage"))
+			.DispatchEvent(Story_AttackEngage)
 			.Halt()
 
 		.Label(TEXT("dispatch_move"))

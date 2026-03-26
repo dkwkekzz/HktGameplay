@@ -77,3 +77,38 @@ FHktStoryBuilder& HktSnippetCombat::ResourceGainClamped(
 
 	return B;
 }
+
+// ============================================================================
+// 애니메이션 제어
+// ============================================================================
+
+FHktStoryBuilder& HktSnippetCombat::AnimTrigger(
+	FHktStoryBuilder& B,
+	RegisterIndex Entity,
+	const FGameplayTag& AnimTag,
+	float DurationSec)
+{
+	B.AddTag(Entity, AnimTag)
+	 .WaitSeconds(DurationSec)
+	 .RemoveTag(Entity, AnimTag);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetCombat::AnimLoopStart(
+	FHktStoryBuilder& B,
+	RegisterIndex Entity,
+	const FGameplayTag& AnimTag)
+{
+	B.AddTag(Entity, AnimTag);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetCombat::AnimLoopStop(
+	FHktStoryBuilder& B,
+	RegisterIndex Entity,
+	const FGameplayTag& AnimTag)
+{
+	B.RemoveTag(Entity, AnimTag);
+	return B;
+}

@@ -91,6 +91,7 @@ private:
 
     // ===== Spatial Query =====
     void Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2);
+    void Op_LookAt(FHktVMRuntime& Runtime, RegisterIndex Entity, RegisterIndex TargetEntity);
     void Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm);
     void Op_NextFound(FHktVMRuntime& Runtime);
 
@@ -121,6 +122,7 @@ private:
 
     // ===== Event Dispatch =====
     void Op_DispatchEvent(FHktVMRuntime& Runtime, int32 TagNetIndex);
+    void Op_DispatchEventTo(FHktVMRuntime& Runtime, RegisterIndex TargetReg, int32 TagNetIndex);
 
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);

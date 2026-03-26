@@ -86,6 +86,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::DestroyEntity: Op_DestroyEntity(Runtime, Inst.Src1); break;
     // Spatial Query
     case EOpCode::GetDistance: Op_GetDistance(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
+    case EOpCode::LookAt: Op_LookAt(Runtime, Inst.Src1, Inst.Src2); break;
     case EOpCode::FindInRadius: Op_FindInRadius(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::NextFound: Op_NextFound(Runtime); break;
     // Presentation
@@ -111,6 +112,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::ClearOwnerUid: Op_ClearOwnerUid(Runtime, Inst.Src1); break;
     // Event Dispatch
     case EOpCode::DispatchEvent: Op_DispatchEvent(Runtime, Inst.GetSignedImm20()); break;
+    case EOpCode::DispatchEventTo: Op_DispatchEventTo(Runtime, Inst.Dst, Inst.GetSignedImm20()); break;
     // Utility
     case EOpCode::Log: Op_Log(Runtime, Inst.GetSignedImm20()); break;
     default: return EVMStatus::Failed;
@@ -403,6 +405,8 @@ bool FHktVMInterpreter::ExecutePrecondition(
         case EOpCode::NextFound:
         case EOpCode::FindByOwner:
         case EOpCode::DispatchEvent:
+        case EOpCode::DispatchEventTo:
+        case EOpCode::LookAt:
             continue;  // skip
         case EOpCode::Yield:
         case EOpCode::YieldSeconds:
