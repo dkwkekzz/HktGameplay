@@ -58,18 +58,15 @@ namespace HktSnippetCombat
 	// ========== 애니메이션 제어 ==========
 
 	/**
-	 * 트리거 애니메이션 (일회성 재생)
-	 * AddTag → WaitSeconds(Duration) → RemoveTag
-	 * 애니메이션이 끝날 때까지 대기 후 태그를 제거한다.
+	 * 트리거 애니메이션 (일회성 재생, fire-and-forget)
+	 * AddTag만 수행. 프레젠테이션 레이어가 한 번 재생 후 자동 정리.
 	 *
 	 * @param AnimTag 재생할 애니메이션 태그
-	 * @param DurationSec 애니메이션 지속 시간 (초)
 	 */
 	HKTSTORY_API FHktStoryBuilder& AnimTrigger(
 		FHktStoryBuilder& B,
 		RegisterIndex Entity,
-		const FGameplayTag& AnimTag,
-		float DurationSec);
+		const FGameplayTag& AnimTag);
 
 	/**
 	 * 루프 애니메이션 시작 (태그 추가)

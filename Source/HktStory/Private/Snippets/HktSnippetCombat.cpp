@@ -85,13 +85,9 @@ FHktStoryBuilder& HktSnippetCombat::ResourceGainClamped(
 FHktStoryBuilder& HktSnippetCombat::AnimTrigger(
 	FHktStoryBuilder& B,
 	RegisterIndex Entity,
-	const FGameplayTag& AnimTag,
-	float DurationSec)
+	const FGameplayTag& AnimTag)
 {
-	B.AddTag(Entity, AnimTag)
-	 .WaitSeconds(DurationSec)
-	 .RemoveTag(Entity, AnimTag);
-
+	B.AddTag(Entity, AnimTag);
 	return B;
 }
 
