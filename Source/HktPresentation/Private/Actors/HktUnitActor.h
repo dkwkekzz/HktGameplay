@@ -46,6 +46,9 @@ private:
 
 	FHktEntityId CachedEntityId = InvalidEntityId;
 
+	/** 위치 보간용 현재 시각 위치 (RenderLocation을 향해 매 프레임 VInterpTo) */
+	FVector InterpLocation = FVector::ZeroVector;
+
 	/** 캐시된 AnimInstance (매 프레임 FindComponent 방지) */
 	TWeakObjectPtr<UHktAnimInstance> CachedAnimInstance;
 

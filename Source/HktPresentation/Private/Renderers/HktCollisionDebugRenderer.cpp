@@ -35,7 +35,7 @@ struct FHktDebugCellCoord
 
 static FHktDebugCellCoord WorldToCell(const FVector& Pos)
 {
-	return { FMath::FloorToInt(Pos.X / GridCellSize), FMath::FloorToInt(Pos.Y / GridCellSize) };
+	return { FMath::FloorToInt((float)Pos.X / GridCellSize), FMath::FloorToInt((float)Pos.Y / GridCellSize) };
 }
 
 // --------------------------------------------------------------------------- Implementation

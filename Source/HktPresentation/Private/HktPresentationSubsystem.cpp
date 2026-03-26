@@ -424,10 +424,7 @@ void UHktPresentationSubsystem::OnIntentSubmitted(const FHktRuntimeEvent& Event)
 	const FHktEvent& CoreEvent = Event.Value;
 
 	// MoveTo intent → 목표 위치에 이동 인디케이터 VFX 재생
-	if (CoreEvent.EventTag.MatchesTag(HktGameplayTags::Story_Event_Move_ToLocation))
-	{
-		PlayVFXAtLocation(Tag_VFX_MoveIndicator, CoreEvent.Location);
-	}
+	PlayVFXAtLocation(Tag_VFX_MoveIndicator, CoreEvent.Location);
 }
 
 void UHktPresentationSubsystem::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)

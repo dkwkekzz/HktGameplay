@@ -34,14 +34,21 @@ UHktAnimInstance* AHktUnitActor::GetAnimInstance()
 
 void AHktUnitActor::ApplyTransform(const FHktEntityPresentation& Entity)
 {
+	const float DeltaSeconds = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.f;
+	constexpr float InterpSpeed = 15.f;
+	InterpLocation = FMath::VInterpTo(InterpLocation, Entity.RenderLocation.Get(), DeltaSeconds, InterpSpeed);
+
 	SetActorLocationAndRotation(
-		Entity.RenderLocation.Get(), Entity.Rotation.Get(),
+		InterpLocation, Entity.Rotation.Get(),
 		false, nullptr, ETeleportType::TeleportPhysics);
 }
 
 void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll)
 {
 	// Transform은 ApplyTransform()에서 매 프레임 처리
+	// bForceAll(스폰 직후)에는 보간 없이 즉시 목표 위치로 스냅
+	if (bForceAll)
+		InterpLocation = Entity.RenderLocation.Get();
 
 	// --- Animation ---
 	UHktAnimInstance* HktAnim = GetAnimInstance();

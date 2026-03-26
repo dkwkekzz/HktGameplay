@@ -42,10 +42,7 @@ void UHktAnimInstance::SyncFromTagContainer(const FGameplayTagContainer& EntityT
 	// 새로 추가된 태그 감지 → 애니메이션 재생
 	for (const FGameplayTag& Tag : CurrentAnimTags)
 	{
-		if (!PrevAnimTags.HasTagExact(Tag))
-		{
-			ApplyAnimTag(Tag);
-		}
+		ApplyAnimTag(Tag);
 	}
 
 	// 제거된 태그 감지 → 애니메이션 중지
@@ -152,8 +149,7 @@ void UHktAnimInstance::RemoveAnimTag(const FGameplayTag& AnimTag)
 		{
 			if (Entry->Montage && IsPlayingMontageAnim())
 			{
-				// TODO: 제거할 방법이 필요.
-				//Montage_Stop(0.25f, Entry->Montage);
+				Montage_Stop(0.25f, Entry->Montage);
 			}
 		}
 	}

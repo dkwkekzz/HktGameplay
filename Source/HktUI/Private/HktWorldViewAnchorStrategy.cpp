@@ -12,7 +12,8 @@ FVector UHktWorldViewAnchorStrategy::GetHeadWorldLocation() const
 {
 	// RenderLocation은 이미 지면 트레이스 + 캡슐 오프셋이 적용된 최종 렌더 위치.
 	// 캡슐 상단(머리) = RenderLocation + CapsuleHalfHeight, 거기에 약간의 여백(HeadClearance)을 추가.
-	return CachedRenderLocation + FVector(0.f, 0.f, CapsuleHalfHeight + HeadClearance);
+	//return CachedRenderLocation + FVector(0.f, 0.f, CapsuleHalfHeight + HeadClearance);
+	return CachedRenderLocation + FVector(0.f, 0.f, 0.f);
 }
 
 bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldContext, FVector2D& OutScreenPos)
@@ -51,20 +52,9 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 		return false;
 	}
 
-	if (!PC->ProjectWorldLocationToScreen(WorldLocation, OutScreenPos, /*bPlayerViewportRelative=*/true))
+	if (!PC->ProjectWorldLocationToScreen(WorldLocation, OutScreenPos))
 	{
 		return false;
-	}
-
-	// ProjectWorldLocationToScreen은 뷰포트 픽셀 좌표를 반환하지만,
-	// SConstraintCanvas의 슬롯 오프셋은 DPI 스케일이 적용된 Slate 단위를 사용.
-	// 픽셀 → Slate 단위 변환을 위해 DPI 스케일로 나눠준다.
-	const float DPIScale = PC->GetLocalPlayer() && PC->GetLocalPlayer()->ViewportClient
-		? PC->GetLocalPlayer()->ViewportClient->GetDPIScale()
-		: 1.f;
-	if (DPIScale > 0.f)
-	{
-		OutScreenPos /= DPIScale;
 	}
 
 	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한 (Slate 단위)
@@ -72,8 +62,8 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 	PC->GetViewportSize(ViewportX, ViewportY);
 	if (ViewportX <= 0 || ViewportY <= 0) return false;
 
-	const float VX = static_cast<float>(ViewportX) / DPIScale;
-	const float VY = static_cast<float>(ViewportY) / DPIScale;
+	const float VX = static_cast<float>(ViewportX);
+	const float VY = static_cast<float>(ViewportY);
 	OutScreenPos.X = FMath::Clamp(OutScreenPos.X, 0.f, VX);
 	OutScreenPos.Y = FMath::Clamp(OutScreenPos.Y, 0.f, VY);
 

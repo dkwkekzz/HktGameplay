@@ -494,7 +494,7 @@ void FHktVMInterpreter::Op_DispatchEventTo(FHktVMRuntime& Runtime, RegisterIndex
 
     Runtime.PendingDispatchedEvents.Add(Event);
 
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_DispatchEventTo: %s Src=%d Tgt=%d"),
             *EventTag.ToString(), Event.SourceEntity, Event.TargetEntity),
         Event.SourceEntity);

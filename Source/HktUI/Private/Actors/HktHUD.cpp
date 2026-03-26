@@ -150,7 +150,7 @@ void AHktHUD::AddElementToCanvas(UHktUIElement* Element)
 			.Offset(FMargin(X, Y, 0.f, 0.f))
 			.Anchors(FAnchors(0.f, 0.f, 0.f, 0.f))
 			.AutoSize(true)
-			.Alignment(FVector2D(0.5f, 1.f))
+			.Alignment(FVector2D(0.5f, 0.5f))
 			[
 				SlateWidget
 			];
