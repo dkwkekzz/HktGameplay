@@ -23,9 +23,6 @@ namespace HktStoryBasicAttack
 	// 히트 영역 엔티티 (공격자 위치에 스폰, CollisionRadius로 충돌 감지)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_HitArea, "Entity.Area.HitTest", "Hit test area entity spawned at attacker position.");
 
-	// 히트 이펙트 엔티티
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_HitEffect, "Entity.Effect.Hit", "Hit effect entity spawned at impact point.");
-
 	// VFX
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HitSpark, "VFX.Niagara.HitSpark", "Melee hit spark VFX.");
 
@@ -96,19 +93,14 @@ namespace HktStoryBasicAttack
 		 .ApplyDamage(Hit, R0)
 		 .PlaySound(Sound_Hit);
 
-		// === 7. 피격 위치에 히트 이펙트 생성 ===
-		B.SpawnEntity(Entity_HitEffect)
-		 .GetPosition(R2, Hit)
-		 .SetPosition(Spawned, R2)
-		 .PlayVFXAttached(Spawned, VFX_HitSpark);
+		// === 7. 피격 위치에 히트 이펙트 (엔티티 없이 위치 기반 VFX) ===
+		B.GetPosition(R2, Hit)
+		 .PlayVFX(R2, VFX_HitSpark);
 
 		// === 8. 피격 대상 히트리액션 (fire-and-forget) ===
 		B.AddTag(Hit, Tag_Anim_Montage_HitReaction);
 
-		// === 9. 히트 이펙트 제거 ===
-		B.DestroyEntity(Spawned);
-
-		// === 10. 쿨타임 갱신 ===
+		// === 9. 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, BasicAttackRecoveryFrame);
 
 		B.Log(TEXT("BasicAttack: 완료"))
