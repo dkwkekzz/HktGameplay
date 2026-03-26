@@ -115,8 +115,8 @@ namespace HktStoryBasicAttack
 		 .SetPosition(Spawned, R2)                 // 히트 엔티티를 타겟 위치에 배치
 		 .PlayVFXAttached(Spawned, VFX_HitSpark);
 
-		// === 7. 피격 대상에 히트리액션 애니메이션 트리거 ===
-		HktSnippetCombat::AnimTrigger(B, Target, Tag_Anim_Montage_HitReaction, HitEffectLifetime);
+		// === 7. 피격 대상에 히트리액션 (fire-and-forget — 상대 VM을 블로킹하지 않음) ===
+		B.AddTag(Target, Tag_Anim_Montage_HitReaction);
 
 		// === 8. 히트 엔티티 제거 ===
 		B.DestroyEntity(Spawned);
