@@ -10,7 +10,7 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
 {
     if (!AssetBank)
     {
-        UE_LOG(LogHktVFX, Warning, TEXT("[VFXResolver] No AssetBank assigned"));
+        HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Warning, EHktLogSource::Client, TEXT("[VFXResolver] No AssetBank assigned"));
         return nullptr;
     }
 
@@ -21,8 +21,8 @@ UNiagaraComponent* UHktVFXRuntimeResolver::PlayVFX(const FHktVFXIntent& Intent)
         System = FallbackSystem;
         if (!System)
         {
-            UE_LOG(LogHktVFX, Warning, TEXT("[VFXResolver] No matching VFX for: %s"),
-                *Intent.GetAssetKey());
+            HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Warning, EHktLogSource::Client,
+                FString::Printf(TEXT("[VFXResolver] No matching VFX for: %s"), *Intent.GetAssetKey()));
             return nullptr;
         }
     }

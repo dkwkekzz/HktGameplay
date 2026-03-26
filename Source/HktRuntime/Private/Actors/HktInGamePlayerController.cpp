@@ -124,7 +124,7 @@ void AHktIngamePlayerController::OnRep_PlayerState()
         CachedWorldPlayer->InvalidatePlayerUidCache();
     }
 
-    UE_LOG(LogHktRuntime, Log, TEXT("OnRep_PlayerState"));
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client, TEXT("OnRep_PlayerState"));
 }
 
 void AHktIngamePlayerController::SetupInputComponent()
@@ -211,7 +211,7 @@ void AHktIngamePlayerController::OnSlotAction(const FInputActionValue& Value, in
         {
             // 타겟 대기 상태 — CommandChanged 브로드캐스트
             CommandChangedDelegate.Broadcast(CachedCommandContainer->GetEventTagAtSlot(SlotIndex));
-            UE_LOG(LogHktRuntime, Verbose, TEXT("OnSlotAction WaitTarget Slot=%d"), SlotIndex);
+            HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Verbose, EHktLogSource::Client, FString::Printf(TEXT("OnSlotAction WaitTarget Slot=%d"), SlotIndex));
             return;
         }
 
@@ -443,7 +443,7 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
     {
         CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
         SubjectChangedDelegate.Broadcast(DefaultSubjectEntityId);
-        UE_LOG(LogHktRuntime, Log, TEXT("ResolveDefaultSubject: DefaultSubjectEntityId=%d PlayerUid=%lld"), DefaultSubjectEntityId, PlayerUid);
+        HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("ResolveDefaultSubject: DefaultSubjectEntityId=%d PlayerUid=%lld"), DefaultSubjectEntityId, PlayerUid));
     }
 }
 
@@ -513,8 +513,8 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
         // 아이템의 SkillTargetRequired 프로퍼티로 타겟 필요 여부 결정 (기본값: 필요)
         bool bTargetRequired = WS.GetProperty(ItemId, PropertyId::SkillTargetRequired) != 0;
         CachedCommandContainer->SetSlotBinding(i, SkillTag, bTargetRequired);
-        UE_LOG(LogHktRuntime, Log, TEXT("SyncSlotBindings: Slot %d -> %s (Item %d)"),
-            i, *SkillTag.ToString(), ItemId);
+        HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SyncSlotBindings: Slot %d -> %s (Item %d)"),
+            i, *SkillTag.ToString(), ItemId));
     }
 
     // 배치 완료 후 한 번만 broadcast — UI 갱신 트리거

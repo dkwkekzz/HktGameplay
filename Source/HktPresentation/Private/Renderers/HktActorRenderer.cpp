@@ -153,7 +153,8 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 			if (!ActorClass)
 			{
-				UE_LOG(LogHktPresentation, Warning, TEXT("SpawnActor: No ActorClass for tag %s"), *VisualTag.ToString());
+				HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+					FString::Printf(TEXT("SpawnActor: No ActorClass for tag %s"), *VisualTag.ToString()));
 				return;
 			}
 

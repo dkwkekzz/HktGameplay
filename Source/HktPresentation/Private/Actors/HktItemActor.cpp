@@ -72,8 +72,9 @@ void AHktItemActor::TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(
 
 	if (!SkelMesh->DoesSocketExist(AttachSocketName))
 	{
-		UE_LOG(LogHktPresentation, Warning, TEXT("Socket '%s' not found on owner %d for item %d"),
-			*AttachSocketName.ToString(), OwnerId, CachedEntityId);
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("Socket '%s' not found on owner %d for item %d"),
+			*AttachSocketName.ToString(), OwnerId, CachedEntityId));
 		return;
 	}
 

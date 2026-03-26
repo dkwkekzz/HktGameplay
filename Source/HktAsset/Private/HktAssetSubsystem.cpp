@@ -56,8 +56,7 @@ void UHktAssetSubsystem::RebuildTagMap()
         }
     }
 
-    UE_LOG(LogHktAsset, Log, TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num());
-    HKT_EVENT_LOG(HktLogTags::Asset, EHktLogLevel::Info, EHktLogSource::Core, FString::Printf(TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num()));
+    HKT_EVENT_LOG(HktLogTags::Asset, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num()));
 }
 
 // ============================================================================
@@ -82,7 +81,7 @@ FSoftObjectPath UHktAssetSubsystem::ResolvePath(FGameplayTag Tag)
         if (GeneratedPath.IsValid())
         {
             TagToPathMap.Add(Tag, GeneratedPath);
-            UE_LOG(LogHktAsset, Log, TEXT("OnTagMiss resolved: %s → %s"), *Tag.ToString(), *GeneratedPath.ToString());
+            HKT_EVENT_LOG(HktLogTags::Asset, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("OnTagMiss resolved: %s → %s"), *Tag.ToString(), *GeneratedPath.ToString()));
             return GeneratedPath;
         }
     }
@@ -129,7 +128,7 @@ void UHktAssetSubsystem::RegisterTagPath(FGameplayTag Tag, FSoftObjectPath Path)
     if (Tag.IsValid() && Path.IsValid())
     {
         TagToPathMap.Add(Tag, Path);
-        UE_LOG(LogHktAsset, Log, TEXT("RegisterTagPath: %s → %s"), *Tag.ToString(), *Path.ToString());
+        HKT_EVENT_LOG(HktLogTags::Asset, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("RegisterTagPath: %s → %s"), *Tag.ToString(), *Path.ToString()));
     }
 }
 
@@ -149,7 +148,7 @@ UHktTagDataAsset* UHktAssetSubsystem::LoadAssetSync(FGameplayTag Tag)
     FSoftObjectPath Path = ResolvePath(Tag);
     if (!Path.IsValid())
     {
-        UE_LOG(LogHktAsset, Warning, TEXT("LoadAssetSync: Tag not resolved: %s"), *Tag.ToString());
+        HKT_EVENT_LOG(HktLogTags::Asset, EHktLogLevel::Warning, EHktLogSource::Client, FString::Printf(TEXT("LoadAssetSync: Tag not resolved: %s"), *Tag.ToString()));
         return nullptr;
     }
 
@@ -175,7 +174,7 @@ void UHktAssetSubsystem::LoadAssetAsync(FGameplayTag Tag, FStreamableDelegate De
         return;
     }
 
-    UE_LOG(LogHktAsset, Warning, TEXT("LoadAssetAsync: Tag not resolved: %s"), *Tag.ToString());
+    HKT_EVENT_LOG(HktLogTags::Asset, EHktLogLevel::Warning, EHktLogSource::Client, FString::Printf(TEXT("LoadAssetAsync: Tag not resolved: %s"), *Tag.ToString()));
 }
 
 void UHktAssetSubsystem::LoadAssetAsync(FGameplayTag Tag, TFunction<void(UHktTagDataAsset*)> OnLoaded)

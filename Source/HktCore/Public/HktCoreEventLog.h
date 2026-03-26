@@ -26,9 +26,8 @@ enum class EHktLogLevel : uint8
 
 enum class EHktLogSource : uint8
 {
-	Core    = 0,   // HktCore (VM, WorldState, Simulation)
-	Server  = 1,   // 서버 전용 (GameMode, 서버 RPC)
-	Client  = 2,   // 클라이언트 전용 (PlayerController, Proxy, UI)
+	Server  = 0,   // 서버 전용 (GameMode, 서버 RPC, Core VM/WorldState/Simulation)
+	Client  = 1,   // 클라이언트 전용 (PlayerController, Proxy, Presentation, UI)
 };
 
 /** LogLevel 이름 문자열 */
@@ -49,7 +48,6 @@ inline const TCHAR* GetLogSourceName(EHktLogSource Source)
 {
 	switch (Source)
 	{
-	case EHktLogSource::Core:   return TEXT("Core");
 	case EHktLogSource::Server: return TEXT("Server");
 	case EHktLogSource::Client: return TEXT("Client");
 	default:                    return TEXT("???");
@@ -132,7 +130,7 @@ struct HKTCORE_API FHktLogEntry
 	FHktEntityId EntityId = InvalidEntityId;  // 관련 엔티티 (-1 if none)
 	FGameplayTag EventTag;          // 관련 이벤트 태그 (optional)
 	EHktLogLevel Level = EHktLogLevel::Info;    // 로그 심각도
-	EHktLogSource Source = EHktLogSource::Core; // 클라/서버 구분
+	EHktLogSource Source = EHktLogSource::Server; // 클라/서버 구분
 };
 
 
@@ -160,7 +158,7 @@ public:
 	         FHktEntityId EntityId = InvalidEntityId,
 	         FGameplayTag EventTag = FGameplayTag(),
 	         EHktLogLevel Level = EHktLogLevel::Info,
-	         EHktLogSource Source = EHktLogSource::Core);
+	         EHktLogSource Source = EHktLogSource::Server);
 
 	/** 패널에서 호출: 수집 활성화/비활성화 */
 	void SetActive(bool bNewActive);

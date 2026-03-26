@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktAnimInstance.h"
+#include "HktCoreEventLog.h"
 #include "HktPresentationLog.h"
 #include "HktRuntimeTags.h"
 #include "Animation/AnimMontage.h"
@@ -93,27 +94,31 @@ void UHktAnimInstance::ApplyAnimTag(const FGameplayTag& AnimTag)
 				Montage_JumpToSection(Entry->StartSection, Entry->Montage);
 				Montage_SetNextSection(Entry->StartSection, NAME_None, Entry->Montage);
 			}
-			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] PlayMontage: %s -> %s Section=%s (Rate=%.2f)"),
+			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+				FString::Printf(TEXT("[HktAnimInst] PlayMontage: %s -> %s Section=%s (Rate=%.2f)"),
 				*AnimTag.ToString(), *Entry->Montage->GetName(),
-				*Entry->StartSection.ToString(), PlayRate);
+				*Entry->StartSection.ToString(), PlayRate));
 		}
 		else if (Entry->Sequence)
 		{
 			PlaySlotAnimationAsDynamicMontage(Entry->Sequence, FName(TEXT("DefaultSlot")), 0.25f, 0.25f, PlayRate);
-			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] PlaySequence: %s -> %s (Rate=%.2f)"),
-				*AnimTag.ToString(), *Entry->Sequence->GetName(), PlayRate);
+			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+				FString::Printf(TEXT("[HktAnimInst] PlaySequence: %s -> %s (Rate=%.2f)"),
+				*AnimTag.ToString(), *Entry->Sequence->GetName(), PlayRate));
 		}
 
 		if (Entry->BlendSpace && ActiveBlendSpace != Entry->BlendSpace)
 		{
 			ActiveBlendSpace = Entry->BlendSpace;
-			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] SetBlendSpace: %s -> %s"),
-				*AnimTag.ToString(), *Entry->BlendSpace->GetName());
+			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+				FString::Printf(TEXT("[HktAnimInst] SetBlendSpace: %s -> %s"),
+				*AnimTag.ToString(), *Entry->BlendSpace->GetName()));
 		}
 	}
 
-	UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] ApplyAnimTag: Parent=%s Anim=%s on %s"),
-		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName());
+	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+		FString::Printf(TEXT("[HktAnimInst] ApplyAnimTag: Parent=%s Anim=%s on %s"),
+		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName()));
 }
 
 void UHktAnimInstance::RemoveAnimTag(const FGameplayTag& AnimTag)
@@ -153,8 +158,9 @@ void UHktAnimInstance::RemoveAnimTag(const FGameplayTag& AnimTag)
 		}
 	}
 
-	UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] RemoveAnimTag: Parent=%s Anim=%s on %s"),
-		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName());
+	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+		FString::Printf(TEXT("[HktAnimInst] RemoveAnimTag: Parent=%s Anim=%s on %s"),
+		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName()));
 }
 
 FGameplayTag UHktAnimInstance::GetAnimLayerTag(const FGameplayTag& LayerTag) const
@@ -200,7 +206,8 @@ void UHktAnimInstance::RegisterAnimMapping(FGameplayTag AnimTag, UAnimMontage* M
 			Entry.StartSection = StartSection;
 			Entry.Sequence = Sequence;
 			Entry.BlendSpace = InBlendSpace;
-			UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] Updated mapping: %s"), *AnimTag.ToString());
+			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+				FString::Printf(TEXT("[HktAnimInst] Updated mapping: %s"), *AnimTag.ToString()));
 			return;
 		}
 	}
@@ -214,11 +221,12 @@ void UHktAnimInstance::RegisterAnimMapping(FGameplayTag AnimTag, UAnimMontage* M
 	NewEntry.BlendSpace = InBlendSpace;
 	AnimMappings.Add(NewEntry);
 
-	UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] Registered mapping: %s (Montage=%s, Sequence=%s, BlendSpace=%s)"),
+	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+		FString::Printf(TEXT("[HktAnimInst] Registered mapping: %s (Montage=%s, Sequence=%s, BlendSpace=%s)"),
 		*AnimTag.ToString(),
 		Montage ? *Montage->GetName() : TEXT("none"),
 		Sequence ? *Sequence->GetName() : TEXT("none"),
-		InBlendSpace ? *InBlendSpace->GetName() : TEXT("none"));
+		InBlendSpace ? *InBlendSpace->GetName() : TEXT("none")));
 }
 
 void UHktAnimInstance::UnregisterAnimMapping(FGameplayTag AnimTag)
@@ -262,16 +270,18 @@ void UHktAnimInstance::SyncStance(FGameplayTag NewStanceTag)
 	if (CurrentLinkedStanceClass)
 	{
 		UnlinkAnimClassLayers(CurrentLinkedStanceClass);
-		UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] UnlinkStanceLayer: %s (Stance %s)"),
-			*CurrentLinkedStanceClass->GetName(), *OldTag.ToString());
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+			FString::Printf(TEXT("[HktAnimInst] UnlinkStanceLayer: %s (Stance %s)"),
+			*CurrentLinkedStanceClass->GetName(), *OldTag.ToString()));
 	}
 
 	// 새 레이어 연결
 	if (NewStanceClass)
 	{
 		LinkAnimClassLayers(NewStanceClass);
-		UE_LOG(LogHktPresentation, Log, TEXT("[HktAnimInst] LinkStanceLayer: %s (Stance %s)"),
-			*NewStanceClass->GetName(), *NewStanceTag.ToString());
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+			FString::Printf(TEXT("[HktAnimInst] LinkStanceLayer: %s (Stance %s)"),
+			*NewStanceClass->GetName(), *NewStanceTag.ToString()));
 	}
 
 	CurrentLinkedStanceClass = NewStanceClass;

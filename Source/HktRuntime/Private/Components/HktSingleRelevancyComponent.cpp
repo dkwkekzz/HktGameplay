@@ -5,7 +5,7 @@
 UHktSingleRelevancyComponent::UHktSingleRelevancyComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
-    Simulator = CreateDeterminismSimulator(TEXT("Server"));
+    Simulator = CreateDeterminismSimulator(EHktLogSource::Server);
 }
 
 void UHktSingleRelevancyComponent::BeginPlay()

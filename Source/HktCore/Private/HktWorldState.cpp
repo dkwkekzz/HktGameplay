@@ -165,7 +165,7 @@ FHktEntityId FHktWorldState::AllocateEntity()
     }
     int32 Slot = AllocateSlot(NewId);
     EntitySlots[NewId] = Slot;
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Entity, EHktLogLevel::Info, EHktLogSource::Core,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("AllocateEntity Id=%d Slot=%d"), NewId, Slot), NewId);
     return NewId;
 }
@@ -173,7 +173,7 @@ FHktEntityId FHktWorldState::AllocateEntity()
 void FHktWorldState::RemoveEntity(FHktEntityId Id)
 {
     if (!IsValidEntity(Id)) return;
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Entity, EHktLogLevel::Info, EHktLogSource::Core,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("RemoveEntity Id=%d"), Id), Id);
     FreeSlot(EntitySlots[Id]);
     EntitySlots[Id] = -1;
@@ -276,7 +276,7 @@ void FHktWorldState::ImportEntityStateWithId(const FHktEntityState& InState)
 
 void FHktWorldState::UndoDiff(const FHktSimulationDiff& Diff)
 {
-    HKT_EVENT_LOG(HktLogTags::Core_Entity, EHktLogLevel::Info, EHktLogSource::Core,
+    HKT_EVENT_LOG(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("UndoDiff Frame=%lld Spawned=%d Removed=%d Props=%d"),
             Diff.FrameNumber, Diff.SpawnedEntities.Num(), Diff.RemovedEntityStates.Num(), Diff.PropertyDeltas.Num()));
     for (const FHktEntityState& S : Diff.SpawnedEntities)
@@ -468,7 +468,7 @@ const FGameplayTagContainer& FHktWorldState::GetTags(FHktEntityId Entity) const
 void FHktWorldState::AddTag(FHktEntityId Entity, const FGameplayTag& Tag)
 {
     if (!IsValidEntity(Entity)) return;
-    HKT_EVENT_LOG_TAG(HktLogTags::Core_Entity, EHktLogLevel::Info, EHktLogSource::Core,
+    HKT_EVENT_LOG_TAG(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("AddTag Id=%d Tag=%s"), Entity, *Tag.ToString()), Entity, Tag);
     TagContainers[EntitySlots[Entity]].AddTag(Tag);
 }
@@ -476,7 +476,7 @@ void FHktWorldState::AddTag(FHktEntityId Entity, const FGameplayTag& Tag)
 void FHktWorldState::RemoveTag(FHktEntityId Entity, const FGameplayTag& Tag)
 {
     if (!IsValidEntity(Entity)) return;
-    HKT_EVENT_LOG_TAG(HktLogTags::Core_Entity, EHktLogLevel::Info, EHktLogSource::Core,
+    HKT_EVENT_LOG_TAG(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("RemoveTag Id=%d Tag=%s"), Entity, *Tag.ToString()), Entity, Tag);
     TagContainers[EntitySlots[Entity]].RemoveTag(Tag);
 }
