@@ -13,8 +13,8 @@ namespace HktStoryAttackEngage
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_AttackEngage, "Story.Event.Attack.Engage", "Engage target — check range, approach if needed, then dispatch BasicAttack.");
 
-	// Dispatch target
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_AttackBasic, "Story.Event.Attack.Basic", "Basic attack story (dispatch target).");
+	// Dispatch target — 통합 스킬 파이프라인 경유
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_UseSkill, "Story.Event.Combat.UseSkill", "Unified skill pipeline (dispatch target).");
 
 	/** 기본 공격 사거리 (cm) — AttackRange 프로퍼티가 0이면 이 값 사용 */
 	static constexpr int32 DefaultAttackRange = 200;
@@ -85,8 +85,8 @@ namespace HktStoryAttackEngage
 			.Jump(TEXT("check_range"))
 
 		.Label(TEXT("ready"))
-			.Log(TEXT("AttackEngage: 사거리+쿨타임 만족 → BasicAttack 디스패치"))
-			.DispatchEvent(Story_AttackBasic)
+			.Log(TEXT("AttackEngage: 사거리+쿨타임 만족 → UseSkill 디스패치"))
+			.DispatchEvent(Story_UseSkill)
 			.Halt()
 
 		.Label(TEXT("target_lost"))

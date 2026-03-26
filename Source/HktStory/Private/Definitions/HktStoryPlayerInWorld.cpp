@@ -21,8 +21,8 @@ namespace HktStoryPlayerInWorld
 
 	// Skill (목검의 고유 스킬 태그 — 추후 아이템별 고유 스킬 Story 등록 시 사용)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_WoodenSwordSlash, "Story.Event.Skill.WoodenSwordSlash", "Wooden sword slash skill.");
-	// 현재는 범용 UseItemSkill Story로 라우팅
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_UseItemSkill_Ref, "Story.Event.Combat.UseItemSkill", "Generic item skill story.");
+	// 통합 UseSkill Story로 라우팅
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_UseSkill_Ref, "Story.Event.Combat.UseSkill", "Unified skill pipeline story.");
 
 	/**
 	 * ================================================================
@@ -85,7 +85,7 @@ namespace HktStoryPlayerInWorld
 			.SetStance(Spawned, HktStance::Sword1H)                            // Stance
 			.AddTag(Spawned, Tag_Weapon_Sword)
 			// 아이템 스킬 데이터
-			.SetItemSkillTag(Spawned, Event_Combat_UseItemSkill_Ref)            // 범용 아이템 스킬 Story로 라우팅
+			.SetItemSkillTag(Spawned, Event_Combat_UseSkill_Ref)            // 범용 아이템 스킬 Story로 라우팅
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 30)             // 스킬 CP 소모 30
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 60);          // 기본 후딜레이 60프레임
 

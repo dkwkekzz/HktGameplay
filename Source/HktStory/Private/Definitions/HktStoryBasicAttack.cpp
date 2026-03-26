@@ -91,8 +91,7 @@ namespace HktStoryBasicAttack
 		// === 6. 피격 대상에게 HitStory 발행 ===
 		B.DispatchEventTo(Story_Hit, Hit);
 
-		// === 7. NextActionFrame 갱신 (공속 기반) ===
-		HktSnippetCombat::CooldownUpdateConst(B, BasicAttackRecoveryFrame);
+		// Note: NextActionFrame 갱신은 UseSkill에서 이미 수행됨 (CooldownUpdateConst)
 
 		B.Log(TEXT("BasicAttack: 완료"))
 		 .Halt()
