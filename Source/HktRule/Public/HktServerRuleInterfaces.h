@@ -213,8 +213,8 @@ struct FHktEventGameModeTickResult
 
 enum class EHktBagAction : uint8
 {
-	StoreFromSlot = 0,    // ItemSlot → Bag (공개 엔티티를 가방으로)
-	RestoreToSlot = 1,    // Bag → ItemSlot (가방에서 공개 엔티티로)
+	StoreFromSlot = 0,    // EquipSlot → Bag (공개 엔티티를 가방으로)
+	RestoreToSlot = 1,    // Bag → EquipSlot (가방에서 공개 엔티티로)
 	Discard       = 2,    // Bag → Ground (가방에서 바닥으로)
 };
 
@@ -227,18 +227,18 @@ struct HKTRULE_API FHktBagRequest
 	EHktBagAction Action = EHktBagAction::StoreFromSlot;
 	FHktEntityId SourceEntity = InvalidEntityId;   // 캐릭터
 	int32 BagSlot = -1;                            // 가방 슬롯 (RestoreToSlot/Discard)
-	int32 ActionSlot = -1;                         // ItemSlot 인덱스 (StoreFromSlot: 출발, RestoreToSlot: 도착)
+	int32 EquipIndex = -1;                         // EquipSlot 인덱스 (StoreFromSlot: 출발, RestoreToSlot: 도착)
 
 	FString ToString() const
 	{
-		return FString::Printf(TEXT("Action=%d Src=%d BagSlot=%d ActionSlot=%d"),
-			static_cast<uint8>(Action), SourceEntity, BagSlot, ActionSlot);
+		return FString::Printf(TEXT("Action=%d Src=%d BagSlot=%d EquipIndex=%d"),
+			static_cast<uint8>(Action), SourceEntity, BagSlot, EquipIndex);
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FHktBagRequest& R)
 	{
 		uint8 ActionByte = static_cast<uint8>(R.Action);
-		Ar << ActionByte << R.SourceEntity << R.BagSlot << R.ActionSlot;
+		Ar << ActionByte << R.SourceEntity << R.BagSlot << R.EquipIndex;
 		if (Ar.IsLoading()) R.Action = static_cast<EHktBagAction>(ActionByte);
 		return Ar;
 	}

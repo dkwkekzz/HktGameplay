@@ -27,7 +27,8 @@ FHktStoryBuilder& HktSnippetNPC::SetupNPCStats(
 	B.SaveConstEntity(Spawned, PropertyId::Team, Stats.Team)
 	 .AddTag(Spawned, Entity_NPC)
 	 .AddTag(Spawned, SpecificTag)
-	 .AddTag(Spawned, Tag_NPC_Hostile);
+	 .AddTag(Spawned, Tag_NPC_Hostile)
+	 .SetStance(Spawned, HktStance::Unarmed);
 
 	if (Stats.MaxSpeed > 0)
 	{
@@ -66,6 +67,22 @@ FHktStoryBuilder& HktSnippetNPC::SpawnerLoopEnd(
 	B.Label(WaitLabel)
 	 .WaitSeconds(IntervalSeconds)
 	 .Jump(LoopLabel);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetNPC::SpawnNPCAtPosition(
+	FHktStoryBuilder& B,
+	const FGameplayTag& NPCTag,
+	const FHktNPCTemplate& Stats,
+	RegisterIndex PosBaseReg)
+{
+	using namespace Reg;
+
+	B.Log(TEXT("[Snippet] SpawnNPCAtPosition"))
+	 .SpawnEntity(NPCTag);
+	SetupNPCStats(B, NPCTag, Stats);
+	B.SetPosition(Spawned, PosBaseReg);
 
 	return B;
 }

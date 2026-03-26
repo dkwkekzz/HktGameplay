@@ -26,10 +26,13 @@ public:
 	IHktServerRule* GetServerRule() { return ServerRule.Get(); }
 	IHktClientRule* GetClientRule() { return ClientRule.Get(); }
 
+	FHktOnSystemMessage& OnSystemMessage() { return SystemMessageDelegate; }
+
 	/** 새 ClientRule 인스턴스 생성 — 각 PlayerController가 독립 인스턴스를 소유 */
 	TUniquePtr<IHktClientRule> CreateClientRule();
 
 private:
 	TUniquePtr<IHktServerRule> ServerRule;
 	TUniquePtr<IHktClientRule> ClientRule;
+	FHktOnSystemMessage SystemMessageDelegate;
 };

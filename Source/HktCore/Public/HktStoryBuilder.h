@@ -288,6 +288,11 @@ public:
     /** 아이템의 스킬 태그 설정 (GameplayTag → NetIndex로 저장) */
     FHktStoryBuilder& SetItemSkillTag(RegisterIndex Entity, const FGameplayTag& SkillTag);
 
+    // ========== Event Dispatch ==========
+
+    /** 현재 이벤트의 Source/Target/Location을 유지하면서 다른 Story를 디스패치 */
+    FHktStoryBuilder& DispatchEvent(const FGameplayTag& EventTag);
+
     // ========== Utility ==========
 
     FHktStoryBuilder& Log(const FString& Message);
@@ -313,9 +318,6 @@ private:
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
     static void ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag);
-
-    /** 빌드 타임 엔티티 레지스터 초기화 순서 검증 — 실패 시 false */
-    bool ValidateEntityFlow();
 
 private:
     TSharedRef<FHktVMProgram> Program;

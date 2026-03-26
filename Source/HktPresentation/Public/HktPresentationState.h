@@ -75,7 +75,7 @@ struct FHktEntityPresentation
 
 	// --- Item ---
 	THktVisualField<int32> OwnerEntity;   // 소유 캐릭터 EntityId (0 = 없음)
-	THktVisualField<int32> ActionSlot;    // -1 = 미등록, 0+ = 장착 슬롯
+	THktVisualField<int32> EquipIndex;    // -1 = 미등록, 0+ = 장착 슬롯
 	THktVisualField<int32> ItemState;
 
 	/** Entity의 GameplayTag 컨테이너 (AnimInstance 태그 동기화용) */
@@ -86,15 +86,15 @@ struct FHktEntityPresentation
 	void ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);
 	void ApplyOwnerDelta(int64 NewOwnerUid, int64 Frame);
 
-	bool IsAlive() const;
-	bool IsSpawnedAt(int64 Frame) const;
-	bool IsRemovedAt(int64 Frame) const;
-	bool IsItemAttached() const { return OwnerEntity.Get() != InvalidEntityId && ItemState.Get() == 2; }
+	HKTPRESENTATION_API bool IsAlive() const;
+	HKTPRESENTATION_API bool IsSpawnedAt(int64 Frame) const;
+	HKTPRESENTATION_API bool IsRemovedAt(int64 Frame) const;
+	HKTPRESENTATION_API bool IsItemAttached() const { return OwnerEntity.Get() != InvalidEntityId && ItemState.Get() == 2; }
 
-	static EHktRenderCategory DetermineRenderCategory(const FGameplayTagContainer& Tags);
+	HKTPRESENTATION_API static EHktRenderCategory DetermineRenderCategory(const FGameplayTagContainer& Tags);
 
 	/** Team 인덱스에서 팀 색상 반환 */
-	static FLinearColor GetTeamColor(int32 TeamIndex);
+	HKTPRESENTATION_API static FLinearColor GetTeamColor(int32 TeamIndex);
 
 private:
 	void ComputeOwnerLabel(int64 Uid, int64 Frame);

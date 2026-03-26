@@ -36,6 +36,7 @@ namespace HktStoryNPCSpawnerWave
 			// 이벤트 Param0/Param1에서 스폰 위치 로드 (Self 엔티티 없음)
 			.LoadStore(R5, PropertyId::Param0)               // R5 = SpawnPosX
 			.LoadStore(R6, PropertyId::Param1)               // R6 = SpawnPosY
+			.LoadConst(R7, 0)                                // R7 = SpawnPosZ (ground)
 
 			// === Wave 1: 고블린 3마리 ===
 			.Label(TEXT("wave1"))
@@ -47,13 +48,12 @@ namespace HktStoryNPCSpawnerWave
 				.CmpGe(Flag, R2, R1)
 				.JumpIf(Flag, TEXT("wave1_wait"))
 
-				.SpawnEntity( Entity_NPC_Goblin);
+				;
 
-		// 고블린 스탯 설정 (Defense, MaxSpeed 미설정 — 원본과 동일)
-		HktSnippetNPC::SetupNPCStats(B, Entity_NPC_Goblin, { 80, 15, 0, 0, 0 });
+		// 고블린 생성 + 스탯 설정 + 위치 지정
+		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Goblin, { 80, 15, 0, 0, 0 }, R5);
 
-		B		.SaveStoreEntity(Spawned, PropertyId::PosX, R5)
-				.SaveStoreEntity(Spawned, PropertyId::PosY, R6)
+		B
 
 				.AddImm(R2, R2, 1)
 				.Jump(TEXT("wave1_loop"))
@@ -76,13 +76,12 @@ namespace HktStoryNPCSpawnerWave
 				.CmpGe(Flag, R2, R1)
 				.JumpIf(Flag, TEXT("wave2_wait"))
 
-				.SpawnEntity( Entity_NPC_Skeleton);
+				;
 
-		// 스켈레톤 스탯 설정 (Defense, MaxSpeed 미설정 — 원본과 동일)
-		HktSnippetNPC::SetupNPCStats(B, Entity_NPC_Skeleton, { 60, 20, 0, 0, 0 });
+		// 스켈레톤 생성 + 스탯 설정 + 위치 지정
+		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Skeleton, { 60, 20, 0, 0, 0 }, R5);
 
-		B		.SaveStoreEntity(Spawned, PropertyId::PosX, R5)
-				.SaveStoreEntity(Spawned, PropertyId::PosY, R6)
+		B
 
 				.AddImm(R2, R2, 1)
 				.Jump(TEXT("wave2_loop"))

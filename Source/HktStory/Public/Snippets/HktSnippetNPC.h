@@ -59,4 +59,18 @@ namespace HktSnippetNPC
 		const FString& LoopLabel,
 		const FString& WaitLabel,
 		float IntervalSeconds);
+
+	/**
+	 * NPC 생성 + 스탯 설정 + 위치 지정을 한 번에 수행.
+	 * SpawnEntity → SetupNPCStats → SetPosition.
+	 * Spawned 레지스터에 새 NPC 엔티티가 저장된다.
+	 *
+	 * Clobbers: Temp (SetupNPCStats 내부)
+	 * @param PosBaseReg 위치 레지스터 베이스 (3개 연속: X, X+1, X+2)
+	 */
+	HKTSTORY_API FHktStoryBuilder& SpawnNPCAtPosition(
+		FHktStoryBuilder& B,
+		const FGameplayTag& NPCTag,
+		const FHktNPCTemplate& Stats,
+		RegisterIndex PosBaseReg);
 }

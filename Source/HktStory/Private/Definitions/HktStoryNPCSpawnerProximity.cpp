@@ -50,15 +50,13 @@ namespace HktStoryNPCSpawnerProximity
 				.CmpGe(Flag, R0, R1)
 				.JumpIf(Flag, TEXT("sleep"))
 
-				// 스켈레톤 NPC 생성
-				.SpawnEntity(Entity_NPC_Skeleton);
+				// 위치 로드
+				.GetPosition(R3, Self);
 
-		// NPC 스탯 설정
-		HktSnippetNPC::SetupNPCStats(B, Entity_NPC_Skeleton, { 60, 20, 2, 100, 0 });
+		// NPC 생성 + 스탯 설정 + 위치 지정
+		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Skeleton, { 60, 20, 2, 100, 0 }, R3);
 
-		B	// 위치: 앵커 위치에 스폰
-			.GetPosition(R3, Self)
-			.SetPosition(Spawned, R3)
+		B
 
 			.Log(TEXT("DungeonEntrance: skeleton spawned"))
 

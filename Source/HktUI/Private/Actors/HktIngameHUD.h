@@ -30,6 +30,7 @@ public:
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;
 	virtual bool NeedsCameraSync() const override { return true; }
+	virtual void OnCameraViewChanged(const FHktPresentationState& State) override;
 
 protected:
 	/** 인게임 뷰포트 위젯 태그 (기본값: Widget.IngameHud) */
@@ -40,9 +41,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI")
 	FGameplayTag EntityWidgetTag;
 
-	/** 엔티티 HUD의 머리 위 오프셋 */
+	/** 엔티티 HUD 머리 위 여백 (CapsuleHalfHeight 위에 추가) */
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI")
-	FVector EntityHudOffset = FVector(0.f, 0.f, 120.f);
+	float EntityHudHeadClearance = 20.f;
 
 private:
 	void SyncEntityElements(const FHktPresentationState& State);

@@ -62,10 +62,10 @@ public:
 	virtual void RequestItemDrop(FHktEntityId ItemEntity) {}
 
 	/** 장비 슬롯 → 가방으로 보관 요청. */
-	virtual void RequestBagStore(int32 ActionSlot) {}
+	virtual void RequestBagStore(int32 EquipIndex) {}
 
 	/** 가방 → 장비 슬롯으로 장착 요청. */
-	virtual void RequestBagRestore(int32 BagSlot, int32 ActionSlot) {}
+	virtual void RequestBagRestore(int32 BagSlot, int32 EquipIndex) {}
 
 	/** 가방 → 바닥으로 버리기 요청. */
 	virtual void RequestBagDiscard(int32 BagSlot) {}

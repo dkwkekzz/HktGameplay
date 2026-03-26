@@ -59,7 +59,7 @@ private:
 		int64 PlayerUid = 0;
 		int32 GroupIndex = INDEX_NONE;
 		FHktEntityId CharacterEntity = InvalidEntityId;
-		int32 ActionSlot = -1;       // RestoreToSlot: 대상 슬롯, Discard: -1
+		int32 EquipIndex = -1;       // RestoreToSlot: 대상 슬롯, Discard: -1
 		bool bDiscard = false;       // true면 Ground 엔티티 생성
 	};
 	TArray<FPendingBagEntitySpawn> PendingBagEntitySpawns;

@@ -25,6 +25,7 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(const FString& InSo
     PendingExternalEvents.Reserve(HktLimits::MaxPendingEvents);
     GeneratedMoveEndEvents.Reserve(HktLimits::MaxPendingEvents);
     FrameRemovedEntities.Reserve(256);
+    DispatchedEvents.Reserve(16);
     EntityArrangeSystem.ScratchRemoveList.Reserve(HktLimits::MaxEntities);
     VMProcessSystem.ScratchEvents.Reserve(HktLimits::MaxPendingEvents);
 
@@ -48,8 +49,41 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     VMBuildSystem.Process(Event.NewEvents, static_cast<int32>(Event.FrameNumber),
                           *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
 
-    VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool,
-                            Event.DeltaSeconds, PendingExternalEvents);
+    // VM 실행 + DispatchEvent 수집 루프 (최대 4회 반복으로 무한 루프 방지)
+    static constexpr int32 MaxDispatchRounds = 4;
+    for (int32 Round = 0; Round < MaxDispatchRounds; ++Round)
+    {
+        VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool,
+                                Event.DeltaSeconds, PendingExternalEvents);
+
+        // 모든 VM에서 PendingDispatchedEvents를 수집
+        DispatchedEvents.Reset();
+        VMPool->ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
+        {
+            if (Runtime.PendingDispatchedEvents.Num() > 0)
+            {
+                DispatchedEvents.Append(Runtime.PendingDispatchedEvents);
+                Runtime.PendingDispatchedEvents.Reset();
+            }
+        });
+        // 완료된 VM에서도 수집
+        for (FHktVMHandle Handle : CompletedVMs)
+        {
+            FHktVMRuntime* Runtime = VMPool->Get(Handle);
+            if (Runtime && Runtime->PendingDispatchedEvents.Num() > 0)
+            {
+                DispatchedEvents.Append(Runtime->PendingDispatchedEvents);
+                Runtime->PendingDispatchedEvents.Reset();
+            }
+        }
+
+        if (DispatchedEvents.Num() == 0)
+            break;
+
+        // 디스패치된 이벤트를 새로운 VM으로 빌드
+        VMBuildSystem.Process(DispatchedEvents, static_cast<int32>(Event.FrameNumber),
+                              *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
+    }
 
     MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents);
     for (const FHktPendingEvent& ME : GeneratedMoveEndEvents)
@@ -157,14 +191,27 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         {
             FString PropSummary;
 
-#if ENABLE_HKT_INSIGHTS
-            // 엔티티 디버그 이름
+            // 엔티티 디버그 정보
             const FHktWorldState::FHktEntityDebugInfo* DebugInfo = WorldState.GetEntityDebugInfo(Id);
-            if (DebugInfo && !DebugInfo->DebugName.IsEmpty())
+            if (DebugInfo)
             {
-                PropSummary += FString::Printf(TEXT("DebugName=%s"), *DebugInfo->DebugName);
+                if (!DebugInfo->DebugName.IsEmpty())
+                {
+                    PropSummary += FString::Printf(TEXT("DebugName=%s"), *DebugInfo->DebugName);
+                }
+                if (!DebugInfo->ClassTag.IsEmpty())
+                {
+                    PropSummary += FString::Printf(TEXT(" | ClassTag=%s"), *DebugInfo->ClassTag);
+                }
+                if (!DebugInfo->StoryTag.IsEmpty())
+                {
+                    PropSummary += FString::Printf(TEXT(" | StoryTag=%s"), *DebugInfo->StoryTag);
+                }
+                if (DebugInfo->CreationFrame > 0)
+                {
+                    PropSummary += FString::Printf(TEXT(" | CreationFrame=%lld"), DebugInfo->CreationFrame);
+                }
             }
-#endif
 
             const FGameplayTagContainer& SlotTags = WorldState.GetTagsBySlot(Slot);
             PropSummary += FString::Printf(TEXT(" | Tags=%s"), *SlotTags.ToStringSimple());

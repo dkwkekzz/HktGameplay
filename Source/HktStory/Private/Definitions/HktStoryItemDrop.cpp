@@ -20,7 +20,7 @@ namespace HktStoryItemDrop
 	 *
 	 * 자연어로 읽으면:
 	 * "내 소유인 활성 아이템을 월드에 내려놓는다.
-	 *  캐릭터의 ItemSlot을 클리어하고, 스탯을 차감한 뒤
+	 *  캐릭터의 EquipSlot을 클리어하고, 스탯을 차감한 뒤
 	 *  소유자를 해제하고 현재 위치에 드랍한다."
 	 *
 	 * Self = 유닛, Target = 드랍할 아이템
@@ -43,30 +43,25 @@ namespace HktStoryItemDrop
 		// 소유자 확인
 		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
 
-		// Active 상태였으면 캐릭터의 ItemSlot 클리어 + 스탯 차감
+		// Active 상태였으면 캐릭터의 EquipSlot 클리어 + 스탯 차감
 		B.LoadEntityProperty(R0, Target, PropertyId::ItemState)
 		 .LoadConst(R1, 2)                                                 // Active = 2
 		 .CmpNe(Flag, R0, R1)
 		 .JumpIf(Flag, TEXT("drop_exec"));
 
-		// ActionSlot 보존 → 캐릭터의 ItemSlot[N] 클리어
-		B.LoadEntityProperty(R2, Target, PropertyId::ActionSlot);
-		HktSnippetItem::ClearItemSlot(B, R2);
+		// EquipIndex 보존 → 캐릭터의 EquipSlot[N] 클리어
+		B.LoadEntityProperty(R2, Target, PropertyId::EquipIndex);
+		HktSnippetItem::ClearEquipSlot(B, R2);
 
 		// Active 아이템 스탯 차감
 		HktSnippetItem::RemoveItemStats(B, Target, Self);
 
-		B.Label(TEXT("drop_exec"))
-			// Ground로 전환
-			.SaveConstEntity(Target, PropertyId::ItemState, 0)                // Ground
-			.SaveConstEntity(Target, PropertyId::OwnerEntity, 0)              // 소유자 해제
-			.ClearOwnerUid(Target)                                            // 계정 소유 해제
-			.SaveConstEntity(Target, PropertyId::BagSlot, 0)                  // 슬롯 초기화
-			.SaveConstEntity(Target, PropertyId::ActionSlot, -1)              // 액션 해제
+		B.Label(TEXT("drop_exec"));
 
-			// 유닛 위치에 드랍
-			.GetPosition(R3, Self)
-			.SetPosition(Target, R3)
+		// Ground로 전환 + 소유 해제 + 위치 설정
+		HktSnippetItem::DropToGround(B, Target, Self);
+
+		B
 
 			.Log(TEXT("Item dropped"))
 			.Halt()

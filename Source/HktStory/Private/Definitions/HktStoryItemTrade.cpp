@@ -22,7 +22,7 @@ namespace HktStoryItemTrade
 	 *
 	 * 자연어로 읽으면:
 	 * "양측 아이템의 소유권을 검증한 뒤,
-	 *  두 아이템의 OwnerEntity/OwnerUid/BagSlot을 원자적으로 교환한다.
+	 *  두 아이템의 OwnerEntity/OwnerUid를 원자적으로 교환한다.
 	 *  Active 상태 아이템은 거래 불가."
 	 *
 	 * Self = 제안자 캐릭터, Target = 상대방 캐릭터
@@ -94,18 +94,11 @@ namespace HktStoryItemTrade
 
 			// === 원자적 교환 ===
 
-			// 제안 아이템의 BagSlot 백업
-			.LoadEntityProperty(R4, R0, PropertyId::BagSlot)                // R4 = OfferItem BagSlot
-			// 요청 아이템의 BagSlot 백업
-			.LoadEntityProperty(R5, R1, PropertyId::BagSlot)                // R5 = RequestItem BagSlot
-
 			// 제안 아이템 → 상대방으로 이전
 			.SaveEntityProperty(R0, PropertyId::OwnerEntity, Target)
-			.SaveEntityProperty(R0, PropertyId::BagSlot, R5)
 
 			// 요청 아이템 → 제안자로 이전
 			.SaveEntityProperty(R1, PropertyId::OwnerEntity, Self)
-			.SaveEntityProperty(R1, PropertyId::BagSlot, R4)
 
 			// OwnerUid Clear — 향후 Pickup 시 재설정 또는 ExportPlayerState 개선 필요
 			.ClearOwnerUid(R0)

@@ -26,11 +26,13 @@ public:
 	void SetOwnerLabel(const FString& InOwnerLabel);
 	void SetHealthPercent(float InPercent);
 	void SetTeamColor(FLinearColor InColor);
+	void SetItemLabel(const FString& InItemLabel);
 
 private:
 	TSharedPtr<STextBlock> EntityIdText;
 	TSharedPtr<STextBlock> OwnerText;
 	TSharedPtr<SProgressBar> HealthBar;
+	TSharedPtr<STextBlock> ItemText;
 };
 
 // ============================================================================
@@ -86,6 +88,19 @@ inline void SHktEntityHudWidget::Construct(const FArguments& InArgs)
 						.BackgroundImage(FCoreStyle::Get().GetBrush("GenericWhiteBox"))
 					]
 				]
+
+				// Equipped Item Nameplate
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 2.f, 0.f, 0.f)
+				.HAlign(HAlign_Center)
+				[
+					SAssignNew(ItemText, STextBlock)
+					.Text(FText::GetEmpty())
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 7))
+					.ColorAndOpacity(FLinearColor(0.9f, 0.8f, 0.5f))
+					.Visibility(EVisibility::Collapsed)
+				]
 			]
 		]
 	];
@@ -134,5 +149,21 @@ inline void SHktEntityHudWidget::SetTeamColor(FLinearColor InColor)
 	if (EntityIdText.IsValid())
 	{
 		EntityIdText->SetColorAndOpacity(InColor);
+	}
+}
+
+inline void SHktEntityHudWidget::SetItemLabel(const FString& InItemLabel)
+{
+	if (ItemText.IsValid())
+	{
+		if (InItemLabel.IsEmpty())
+		{
+			ItemText->SetVisibility(EVisibility::Collapsed);
+		}
+		else
+		{
+			ItemText->SetText(FText::FromString(InItemLabel));
+			ItemText->SetVisibility(EVisibility::SelfHitTestInvisible);
+		}
 	}
 }

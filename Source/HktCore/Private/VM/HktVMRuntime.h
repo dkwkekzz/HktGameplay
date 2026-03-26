@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "VM/HktVMTypes.h"
 #include "HktVMContext.h"
+#include "HktCoreEvents.h"
 #include "HktSimulationLimits.h"
 
 // Forward declarations
@@ -95,6 +96,9 @@ struct HKTCORE_API FHktVMRuntime
 
     /** 공간 검색 결과 (FindInRadius) */
     FSpatialQueryResult SpatialQuery;
+
+    /** DispatchEvent opcode로 생성된 이벤트 큐 — 프레임 내 Build에서 소비 */
+    TArray<FHktEvent> PendingDispatchedEvents;
 
 #if ENABLE_HKT_INSIGHTS
     /** 디버그용: 이 VM을 생성한 이벤트 태그 */
