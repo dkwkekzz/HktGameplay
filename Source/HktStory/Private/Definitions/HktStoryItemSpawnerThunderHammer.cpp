@@ -23,8 +23,8 @@ namespace HktStoryItemSpawnerThunderHammer
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_ThunderHammer, "Entity.Attr.Item.ThunderHammer", "Thunder hammer item tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Lightning, "Entity.Attr.Skill.Lightning", "Item skill identifier: Lightning.");
 
-	// Skill Story reference
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Lightning_Ref, "Story.Event.Combat.UseItemSkill", "Generic item skill story.");
+	// Skill Story reference — 통합 UseSkill 파이프라인
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_UseSkill_Ref, "Story.Event.Combat.UseSkill", "Unified skill pipeline story.");
 
 	/**
 	 * ================================================================
@@ -50,7 +50,7 @@ namespace HktStoryItemSpawnerThunderHammer
 
 		B	// 아이템 속성 설정
 			.SaveConstEntity(Spawned, PropertyId::AttackPower, 12)
-			.SetItemSkillTag(Spawned, Skill_Lightning_Ref)
+			.SetItemSkillTag(Spawned, Skill_UseSkill_Ref)
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 60)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 100)
 			.SaveConstEntity(Spawned, PropertyId::SkillTargetRequired, 1)

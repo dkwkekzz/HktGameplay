@@ -36,8 +36,8 @@ namespace HktStoryNPCLifecycle
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Lightning,  "Entity.Attr.Skill.Lightning",  "Item skill identifier: Lightning.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Buff,      "Entity.Attr.Skill.Buff",      "Item skill identifier: Buff.");
 
-	// === Skill Story reference (모든 아이템이 UseItemSkill을 통해 라우팅) ===
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_UseItemSkill_Ref, "Story.Event.Combat.UseItemSkill", "Generic item skill story.");
+	// === Skill Story reference (모든 아이템이 UseSkill을 통해 라우팅) ===
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_UseSkill_Ref, "Story.Event.Combat.UseSkill", "Unified skill pipeline story.");
 
 	/**
 	 * ================================================================
@@ -93,7 +93,7 @@ namespace HktStoryNPCLifecycle
 
 		HktSnippetItem::SpawnGroundItem(B, Entity_Item_AncientStaff, { 200 }, Self);
 		B	.SaveConstEntity(Spawned, PropertyId::AttackPower, 8)
-			.SetItemSkillTag(Spawned, Skill_UseItemSkill_Ref)
+			.SetItemSkillTag(Spawned, Skill_UseSkill_Ref)
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 50)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 90)
 			.SaveConstEntity(Spawned, PropertyId::SkillTargetRequired, 1)
@@ -107,7 +107,7 @@ namespace HktStoryNPCLifecycle
 
 		HktSnippetItem::SpawnGroundItem(B, Entity_Item_Bandage, { 202 }, Self);
 		B	.SaveConstEntity(Spawned, PropertyId::AttackPower, 0)
-			.SetItemSkillTag(Spawned, Skill_UseItemSkill_Ref)
+			.SetItemSkillTag(Spawned, Skill_UseSkill_Ref)
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 40)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 120)
 			.SaveConstEntity(Spawned, PropertyId::SkillTargetRequired, 0)
@@ -120,7 +120,7 @@ namespace HktStoryNPCLifecycle
 
 		HktSnippetItem::SpawnGroundItem(B, Entity_Item_ThunderHammer, { 203 }, Self);
 		B	.SaveConstEntity(Spawned, PropertyId::AttackPower, 12)
-			.SetItemSkillTag(Spawned, Skill_UseItemSkill_Ref)
+			.SetItemSkillTag(Spawned, Skill_UseSkill_Ref)
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 60)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 100)
 			.SaveConstEntity(Spawned, PropertyId::SkillTargetRequired, 1)
@@ -134,7 +134,7 @@ namespace HktStoryNPCLifecycle
 
 		HktSnippetItem::SpawnGroundItem(B, Entity_Item_WingsOfFreedom, { 204 }, Self);
 		B	.SaveConstEntity(Spawned, PropertyId::AttackPower, 0)
-			.SetItemSkillTag(Spawned, Skill_UseItemSkill_Ref)
+			.SetItemSkillTag(Spawned, Skill_UseSkill_Ref)
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 30)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 150)
 			.SaveConstEntity(Spawned, PropertyId::SkillTargetRequired, 0)

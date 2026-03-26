@@ -23,8 +23,8 @@ namespace HktStoryItemSpawnerBandage
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Bandage, "Entity.Attr.Item.Bandage", "Bandage item tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Heal, "Entity.Attr.Skill.Heal", "Item skill identifier: Heal.");
 
-	// Skill Story reference
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Heal_Ref, "Story.Event.Combat.UseItemSkill", "Generic item skill story.");
+	// Skill Story reference — 통합 UseSkill 파이프라인
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_UseSkill_Ref, "Story.Event.Combat.UseSkill", "Unified skill pipeline story.");
 
 	/**
 	 * ================================================================
@@ -50,7 +50,7 @@ namespace HktStoryItemSpawnerBandage
 
 		B	// 아이템 속성 설정 — 붕대는 공격력 없음, 자가 회복용
 			.SaveConstEntity(Spawned, PropertyId::AttackPower, 0)
-			.SetItemSkillTag(Spawned, Skill_Heal_Ref)
+			.SetItemSkillTag(Spawned, Skill_UseSkill_Ref)
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 40)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 120)
 			.SaveConstEntity(Spawned, PropertyId::SkillTargetRequired, 0)       // 셀프 힐

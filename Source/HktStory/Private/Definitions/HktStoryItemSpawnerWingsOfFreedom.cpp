@@ -23,8 +23,8 @@ namespace HktStoryItemSpawnerWingsOfFreedom
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_WingsOfFreedom, "Entity.Attr.Item.WingsOfFreedom", "Wings of Freedom item tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Buff, "Entity.Attr.Skill.Buff", "Item skill identifier: Buff.");
 
-	// Skill Story reference
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_Buff_Ref, "Story.Event.Combat.UseItemSkill", "Generic item skill story.");
+	// Skill Story reference — 통합 UseSkill 파이프라인
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Skill_UseSkill_Ref, "Story.Event.Combat.UseSkill", "Unified skill pipeline story.");
 
 	/**
 	 * ================================================================
@@ -50,7 +50,7 @@ namespace HktStoryItemSpawnerWingsOfFreedom
 
 		B	// 아이템 속성 설정 — 날개는 공격력 없음, 자가 버프용
 			.SaveConstEntity(Spawned, PropertyId::AttackPower, 0)
-			.SetItemSkillTag(Spawned, Skill_Buff_Ref)
+			.SetItemSkillTag(Spawned, Skill_UseSkill_Ref)
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 30)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 150)
 			.SaveConstEntity(Spawned, PropertyId::SkillTargetRequired, 0)       // 셀프 버프
