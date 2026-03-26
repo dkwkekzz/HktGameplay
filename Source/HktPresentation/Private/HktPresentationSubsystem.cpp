@@ -6,6 +6,9 @@
 #include "Renderers/HktActorRenderer.h"
 #include "Renderers/HktMassEntityRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
+#if ENABLE_HKT_INSIGHTS
+#include "Renderers/HktCollisionDebugRenderer.h"
+#endif
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
@@ -49,6 +52,11 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Renderers.Add(ActorRenderer.Get());
 	Renderers.Add(MassEntityRenderer.Get());
 	Renderers.Add(VFXRenderer.Get());
+
+#if ENABLE_HKT_INSIGHTS
+	CollisionDebugRenderer = MakeShared<FHktCollisionDebugRenderer>(GetLocalPlayer());
+	Renderers.Add(CollisionDebugRenderer.Get());
+#endif
 }
 
 void UHktPresentationSubsystem::Deinitialize()
@@ -61,6 +69,9 @@ void UHktPresentationSubsystem::Deinitialize()
 	}
 	Renderers.Empty();
 
+#if ENABLE_HKT_INSIGHTS
+	CollisionDebugRenderer.Reset();
+#endif
 	VFXRenderer.Reset();
 	MassEntityRenderer.Reset();
 	ActorRenderer.Reset();

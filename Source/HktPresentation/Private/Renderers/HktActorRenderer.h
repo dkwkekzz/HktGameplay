@@ -18,6 +18,7 @@ public:
 	explicit FHktActorRenderer(ULocalPlayer* InLP);
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;
+	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty(); }
 
 	AActor* GetActor(FHktEntityId Id) const;
 

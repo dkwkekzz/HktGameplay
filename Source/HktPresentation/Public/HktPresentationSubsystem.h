@@ -14,6 +14,9 @@ class IHktPlayerInteractionInterface;
 class FHktActorRenderer;
 class FHktMassEntityRenderer;
 class FHktVFXRenderer;
+#if ENABLE_HKT_INSIGHTS
+class FHktCollisionDebugRenderer;
+#endif
 struct FHktRuntimeEvent;
 struct FHktVFXIntent;
 
@@ -79,6 +82,9 @@ private:
 	TSharedPtr<FHktActorRenderer> ActorRenderer;
 	TSharedPtr<FHktMassEntityRenderer> MassEntityRenderer;
 	TSharedPtr<FHktVFXRenderer> VFXRenderer;
+#if ENABLE_HKT_INSIGHTS
+	TSharedPtr<FHktCollisionDebugRenderer> CollisionDebugRenderer;
+#endif
 
 	IHktPlayerInteractionInterface* BoundInteraction = nullptr;
 	FDelegateHandle WorldViewHandle;

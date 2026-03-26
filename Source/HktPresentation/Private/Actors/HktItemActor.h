@@ -38,6 +38,9 @@ public:
 	void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
 		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc);
 
+	/** 매 프레임 Transform 적용 (부착 중이면 건너뜀) */
+	void ApplyTransform(const FHktEntityPresentation& Entity);
+
 private:
 	void TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc);
 	void DetachFromOwnerIfNeeded();

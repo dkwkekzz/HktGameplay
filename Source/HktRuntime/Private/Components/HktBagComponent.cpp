@@ -20,13 +20,13 @@ bool UHktBagComponent::Server_StoreFromEntity(
 {
 	if (!WS.IsValidEntity(ItemEntity))
 	{
-		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreFromEntity — invalid entity %d"), ItemEntity);
+		HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(TEXT("BagComponent::StoreFromEntity — invalid entity %d"), ItemEntity));
 		return false;
 	}
 
 	if (ServerBagState.IsFull())
 	{
-		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreFromEntity — bag is full"));
+		HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Warning, EHktLogSource::Server, TEXT("BagComponent::StoreFromEntity — bag is full"));
 		return false;
 	}
 
@@ -44,7 +44,7 @@ bool UHktBagComponent::Server_StoreFromEntity(
 
 	if (!BagItem.IsValid())
 	{
-		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreFromEntity — item %d has invalid ItemId"), ItemEntity);
+		HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(TEXT("BagComponent::StoreFromEntity — item %d has invalid ItemId"), ItemEntity));
 		return false;
 	}
 
@@ -72,13 +72,13 @@ bool UHktBagComponent::Server_StoreBagItem(const FHktBagItem& InItem, int32& Out
 {
 	if (ServerBagState.IsFull())
 	{
-		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreBagItem — bag is full"));
+		HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Warning, EHktLogSource::Server, TEXT("BagComponent::StoreBagItem — bag is full"));
 		return false;
 	}
 
 	if (!InItem.IsValid())
 	{
-		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::StoreBagItem — invalid item"));
+		HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Warning, EHktLogSource::Server, TEXT("BagComponent::StoreBagItem — invalid item"));
 		return false;
 	}
 
@@ -104,7 +104,7 @@ bool UHktBagComponent::Server_RestoreFromBag(int32 BagSlot, FHktBagItem& OutItem
 {
 	if (!ServerBagState.RemoveBySlot(BagSlot, OutItem))
 	{
-		UE_LOG(LogHktRuntime, Warning, TEXT("BagComponent::RestoreFromBag — BagSlot=%d not found"), BagSlot);
+		HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(TEXT("BagComponent::RestoreFromBag — BagSlot=%d not found"), BagSlot));
 		return false;
 	}
 

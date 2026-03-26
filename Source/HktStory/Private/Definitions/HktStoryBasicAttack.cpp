@@ -27,9 +27,6 @@ namespace HktStoryBasicAttack
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Swing, "Sound.Swing", "Melee swing sound.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Hit, "Sound.Hit", "Melee hit sound.");
 
-	/** 기본 공격 후딜레이 (프레임) — AttackSpeed로 나뉨 */
-	static constexpr int32 BasicAttackRecoveryFrame = 30;
-
 	/** 기본 공격 사거리 (cm) — AttackRange 프로퍼티가 0이면 이 값 사용 */
 	static constexpr int32 DefaultAttackRange = 200;
 
@@ -92,8 +89,8 @@ namespace HktStoryBasicAttack
 		 .Log(TEXT("BasicAttack: 사거리 밖 — 빗나감"));
 
 		// === 후처리 (공통) ===
+		// Note: NextActionFrame 갱신은 UseSkill에서 이미 수행됨 (CooldownUpdateConst)
 		B.Label(TEXT("done"));
-		HktSnippetCombat::CooldownUpdateConst(B, BasicAttackRecoveryFrame);
 
 		B.Log(TEXT("BasicAttack: 완료"))
 		 .Halt()

@@ -2,6 +2,7 @@
 
 #include "HktFileDatabaseComponent.h"
 #include "HktRuntimeLog.h"
+#include "HktCoreEventLog.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Paths.h"
 #include "HktRuntimeTags.h"
@@ -64,7 +65,7 @@ void UHktFileDatabaseComponent::LoadFromSlot(int64 PlayerUid, TFunction<void(TOp
 		UHktPlayerSaveGame* LoadedGame = Cast<UHktPlayerSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, 0));
 		if (LoadedGame)
 		{
-			UE_LOG(LogHktRuntime, Log, TEXT("[FileDatabase] Loaded SaveGame for player: %lld"), PlayerUid);
+			HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server, FString::Printf(TEXT("[FileDatabase] Loaded SaveGame for player: %lld"), PlayerUid));
 			Callback(TOptional<FHktPlayerRecord>(LoadedGame->PlayerRecord));
 			return;
 		}
@@ -85,18 +86,18 @@ void UHktFileDatabaseComponent::SaveToSlot(int64 PlayerUid, const FHktPlayerReco
 
 		if (UGameplayStatics::SaveGameToSlot(SaveGameInstance, SlotName, 0))
 		{
-			UE_LOG(LogHktRuntime, Log, TEXT("[FileDatabase] Saved SaveGame for player: %lld"), PlayerUid);
+			HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server, FString::Printf(TEXT("[FileDatabase] Saved SaveGame for player: %lld"), PlayerUid));
 			Callback(true);
 		}
 		else
 		{
-			UE_LOG(LogHktRuntime, Error, TEXT("[FileDatabase] Failed to write SaveGame to slot: %s"), *SlotName);
+			HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("[FileDatabase] Failed to write SaveGame to slot: %s"), *SlotName));
 			Callback(false);
 		}
 	}
 	else
 	{
-		UE_LOG(LogHktRuntime, Error, TEXT("[FileDatabase] Failed to create SaveGame instance for player: %lld"), PlayerUid);
+		HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("[FileDatabase] Failed to create SaveGame instance for player: %lld"), PlayerUid));
 		Callback(false);
 	}
 }
@@ -185,7 +186,7 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 		{
 			if (!bSuccess)
 			{
-				UE_LOG(LogHktRuntime, Warning, TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), InPlayerUid);
+				HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), InPlayerUid));
 			}
 		});
 	}
@@ -221,7 +222,7 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 			{
 				if (!bSuccess)
 				{
-					UE_LOG(LogHktRuntime, Warning, TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), InPlayerUid);
+					HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(TEXT("[FileDatabase] Save failed for PlayerUid=%lld"), InPlayerUid));
 				}
 			});
 		});

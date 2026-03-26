@@ -20,7 +20,7 @@ struct FHktPendingEvent;
 class HKTCORE_API FHktWorldDeterminismSimulator : public IHktDeterminismSimulator
 {
 public:
-    FHktWorldDeterminismSimulator(const FString& InSourceName);
+    FHktWorldDeterminismSimulator(EHktLogSource InLogSource);
     ~FHktWorldDeterminismSimulator();
 
     virtual FHktSimulationDiff AdvanceFrame(const FHktSimulationEvent& InEvent) override;
@@ -32,6 +32,7 @@ public:
 private:
     void ProcessBatch(const FHktSimulationEvent& Event);
 
+    EHktLogSource LogSource;
     FString SourceName;
     FHktWorldState WorldState;
     FHktVMWorldStateProxy VMProxy;

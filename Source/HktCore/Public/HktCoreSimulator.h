@@ -4,6 +4,7 @@
 
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
+#include "HktCoreEventLog.h"
 
 // ============================================================================
 // FHktVMDebugInfo — VM 실행 상태 디버그 정보 (Public, 순수 데이터)
@@ -44,4 +45,4 @@ public:
 // ============================================================================
 
 /** 클라이언트/서버 공통: 결정론 시뮬레이터 (서버는 반환값을 IHktAuthoritySimulator*로 캐스트하여 사용) */
-HKTCORE_API TUniquePtr<IHktDeterminismSimulator> CreateDeterminismSimulator(const FString& SourceName);
+HKTCORE_API TUniquePtr<IHktDeterminismSimulator> CreateDeterminismSimulator(EHktLogSource InLogSource);

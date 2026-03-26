@@ -410,14 +410,9 @@ inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* In
 
 			Interaction->OnIntentSubmitted().AddLambda([this](const FHktRuntimeEvent& Event)
 			{
-				if (CommandText.IsValid())
-				{
-					CommandText->SetText(FText::FromString(TEXT("None")));
-				}
-				if (TargetText.IsValid())
-				{
-					TargetText->SetText(FText::FromString(TEXT("None")));
-				}
+				// 마지막 제출된 커맨드/타겟 정보를 유지하여 표시
+				UpdateCommandDisplay(Event.Value.EventTag);
+				UpdateTargetDisplay(Event.Value.TargetEntity);
 			});
 		}
 	}

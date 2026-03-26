@@ -48,13 +48,27 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		DestroyActor(Id);
 	}
 
-	// --- Dirty → Actor에 전달 ---
+	// --- Dirty → Actor에 전달 (animation, attachment 등 delta 처리) ---
 	for (FHktEntityId Id : State.DirtyThisFrame)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
 		if (!ActorMap.Contains(Id)) continue;
 		ForwardToActor(Id, *E, Frame, false);
+	}
+
+	// --- 매 프레임 Transform 적용 (Core와 렌더 주기 차이로 인한 끊김 방지) ---
+	for (auto& [Id, WeakActor] : ActorMap)
+	{
+		if (!WeakActor.IsValid()) continue;
+		const FHktEntityPresentation* E = State.Get(Id);
+		if (!E) continue;
+
+		AActor* Actor = WeakActor.Get();
+		if (AHktUnitActor* Unit = Cast<AHktUnitActor>(Actor))
+			Unit->ApplyTransform(*E);
+		else if (AHktItemActor* Item = Cast<AHktItemActor>(Actor))
+			Item->ApplyTransform(*E);
 	}
 }
 
@@ -139,7 +153,8 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 			if (!ActorClass)
 			{
-				UE_LOG(LogHktPresentation, Warning, TEXT("SpawnActor: No ActorClass for tag %s"), *VisualTag.ToString());
+				HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+					FString::Printf(TEXT("SpawnActor: No ActorClass for tag %s"), *VisualTag.ToString()));
 				return;
 			}
 
