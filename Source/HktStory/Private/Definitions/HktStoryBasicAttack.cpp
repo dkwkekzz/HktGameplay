@@ -76,8 +76,8 @@ namespace HktStoryBasicAttack
 		// === 공속 기반 쿨타임 검증 (서버 권위적 이중 검증) ===
 		HktSnippetCombat::CooldownCheck(B, TEXT("fail"));
 
-		B	// 타겟 로드 (IntentEvent에서)
-			.LoadStore(Target, PropertyId::Param0)
+		B	// Target 레지스터는 VM 초기화 시 Event.TargetEntity로 이미 설정됨.
+			// (DispatchEvent는 SourceEntity/TargetEntity를 그대로 전달)
 
 			// === 1. 타겟을 바라본다 ===
 			.LookAt(Self, Target)
