@@ -20,9 +20,6 @@ namespace HktStoryBasicAttack
 	// 피격 애니메이션 (트리거 — fire-and-forget)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_Montage_HitReaction, "Anim.Montage.HitReaction", "Hit reaction montage trigger tag.");
 
-	// 히트 영역 엔티티 (공격자 위치에 스폰, CollisionRadius로 충돌 감지)
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_HitArea, "Entity.Area.HitTest", "Hit test area entity spawned at attacker position.");
-
 	// VFX
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HitSpark, "VFX.Niagara.HitSpark", "Melee hit spark VFX.");
 
@@ -38,13 +35,12 @@ namespace HktStoryBasicAttack
 
 	/**
 	 * ================================================================
-	 * Basic Attack Flow (충돌 기반 히트 판정)
+	 * Basic Attack Flow
 	 *
 	 * 자연어로 읽으면:
 	 * "타겟을 바라보고, 공격 모션을 트리거한다 (fire-and-forget).
-	 *  공격자 위치에 히트테스트 영역을 절차적으로 생성하고,
-	 *  충돌이 감지될 때까지 대기한다.
-	 *  닿은 대상에게 데미지를 적용하고, 부딧친 위치에 히트 이펙트를 생성한다."
+	 *  타겟이 공격 사거리 내에 있는지 확인한다.
+	 *  닿은 대상에게 데미지를 적용하고, 피격 위치에 이펙트를 생성한다."
 	 *
 	 * 쿨타임/사거리 검증은 AttackEngage에서 이미 완료됨.
 	 * ================================================================
@@ -63,44 +59,38 @@ namespace HktStoryBasicAttack
 			.AddTag(Self, Tag_Anim_Montage_Attack)
 			.PlaySound(Sound_Swing)
 
-			// === 3. 히트테스트 영역 절차적 생성 ===
+			// === 3. 사거리 내 대상 확인 ===
 			.LoadStore(R0, PropertyId::AttackRange)
 			.LoadConst(R1, 0)
 			.CmpGt(Flag, R0, R1)
 			.JumpIf(Flag, TEXT("range_ready"))
 			.LoadConst(R0, DefaultAttackRange)
-		.Label(TEXT("range_ready"));
+		.Label(TEXT("range_ready"))
+			// R0 = AttackRange
+			.GetDistance(R1, Self, Target)
+			.CmpLe(Flag, R1, R0)
+			.JumpIfNot(Flag, TEXT("miss"));
 
-		// 히트 영역 엔티티 스폰
-		B.SpawnEntity(Entity_HitArea)
-		 .GetPosition(R2, Self)
-		 .SetPosition(Spawned, R2)
-		 .SaveStoreEntity(Spawned, PropertyId::CollisionRadius, R0);
-
-		// === 4. 충돌 대기 (Self-collision 필터) ===
-		B.Label(TEXT("wait_hit"))
-		 .WaitCollision(Spawned)
-		 .Move(R3, Hit)
-		 .Move(R4, Self)
-		 .CmpEq(Flag, R3, R4)
-		 .JumpIf(Flag, TEXT("wait_hit"));
-
-		// === 5. 히트 영역 제거 ===
-		B.DestroyEntity(Spawned);
-
-		// === 6. 데미지 적용 ===
+		// === 4. 데미지 적용 ===
 		B.LoadStore(R0, PropertyId::AttackPower)
-		 .ApplyDamage(Hit, R0)
+		 .ApplyDamage(Target, R0)
 		 .PlaySound(Sound_Hit);
 
-		// === 7. 피격 위치에 히트 이펙트 (엔티티 없이 위치 기반 VFX) ===
-		B.GetPosition(R2, Hit)
+		// === 5. 피격 위치에 VFX ===
+		B.GetPosition(R2, Target)
 		 .PlayVFX(R2, VFX_HitSpark);
 
-		// === 8. 피격 대상 히트리액션 (fire-and-forget) ===
-		B.AddTag(Hit, Tag_Anim_Montage_HitReaction);
+		// === 6. 피격 대상 히트리액션 (fire-and-forget) ===
+		B.AddTag(Target, Tag_Anim_Montage_HitReaction);
 
-		// === 9. 쿨타임 갱신 ===
+		B.Jump(TEXT("done"));
+
+		// === 빗나감 ===
+		B.Label(TEXT("miss"))
+		 .Log(TEXT("BasicAttack: 사거리 밖 — 빗나감"));
+
+		// === 후처리 (공통) ===
+		B.Label(TEXT("done"));
 		HktSnippetCombat::CooldownUpdateConst(B, BasicAttackRecoveryFrame);
 
 		B.Log(TEXT("BasicAttack: 완료"))
