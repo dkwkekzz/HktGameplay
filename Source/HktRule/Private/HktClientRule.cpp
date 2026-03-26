@@ -148,7 +148,7 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 		Event.SourceEntity = SubjectEntity;
 		Event.TargetEntity = TargetEntity;
 		Event.Location = TargetLocation;
-		Event.Param0 = PendingSlot;
+		Event.Param1 = PendingSlot;
 	}
 	else
 	{
