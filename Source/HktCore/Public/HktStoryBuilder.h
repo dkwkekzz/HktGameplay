@@ -204,6 +204,9 @@ public:
     /** 거리 계산 (VM opcode — sqrt 필요) */
     FHktStoryBuilder& GetDistance(RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2);
 
+    /** Entity1이 Entity2를 바라보도록 RotYaw 설정 */
+    FHktStoryBuilder& LookAt(RegisterIndex Entity, RegisterIndex TargetEntity);
+
     // ========== Spatial Query ==========
 
     /** 범위 내 엔티티 검색 시작 */

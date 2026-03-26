@@ -112,6 +112,29 @@ void FHktVMInterpreter::Op_GetDistance(FHktVMRuntime& Runtime, RegisterIndex Dst
     }
 }
 
+void FHktVMInterpreter::Op_LookAt(FHktVMRuntime& Runtime, RegisterIndex Entity, RegisterIndex TargetEntity)
+{
+    if (Runtime.Context && VMProxy && WorldState)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        FHktEntityId T = Runtime.GetRegEntity(TargetEntity);
+
+        int32 X1 = Runtime.Context->ReadEntity(E, PropertyId::PosX);
+        int32 Y1 = Runtime.Context->ReadEntity(E, PropertyId::PosY);
+        int32 X2 = Runtime.Context->ReadEntity(T, PropertyId::PosX);
+        int32 Y2 = Runtime.Context->ReadEntity(T, PropertyId::PosY);
+
+        float DX = static_cast<float>(X2 - X1);
+        float DY = static_cast<float>(Y2 - Y1);
+
+        if (DX * DX + DY * DY > 1.0f)
+        {
+            int32 YawDeg = FMath::RoundToInt(FMath::Atan2(DY, DX) * (180.0f / PI));
+            VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::RotYaw, YawDeg);
+        }
+    }
+}
+
 void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm)
 {
     Runtime.SpatialQuery.Reset();

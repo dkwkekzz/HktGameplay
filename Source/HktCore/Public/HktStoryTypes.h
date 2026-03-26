@@ -94,6 +94,7 @@ namespace Reg
     X(DestroyEntity,    _, R, _) \
     /* Spatial Query */     \
     X(GetDistance,       W, R, R) \
+    X(LookAt,           _, R, R) \
     X(FindInRadius,     _, R, _) \
     X(NextFound,        _, _, _) \
     /* Presentation */      \
