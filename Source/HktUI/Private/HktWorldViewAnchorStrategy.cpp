@@ -2,6 +2,8 @@
 
 #include "HktWorldViewAnchorStrategy.h"
 #include "Engine/World.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/LocalPlayer.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
@@ -49,18 +51,29 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 		return false;
 	}
 
-	if (!PC->ProjectWorldLocationToScreen(WorldLocation, OutScreenPos))
+	if (!PC->ProjectWorldLocationToScreen(WorldLocation, OutScreenPos, /*bPlayerViewportRelative=*/true))
 	{
 		return false;
 	}
 
-	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한
+	// ProjectWorldLocationToScreen은 뷰포트 픽셀 좌표를 반환하지만,
+	// SConstraintCanvas의 슬롯 오프셋은 DPI 스케일이 적용된 Slate 단위를 사용.
+	// 픽셀 → Slate 단위 변환을 위해 DPI 스케일로 나눠준다.
+	const float DPIScale = PC->GetLocalPlayer() && PC->GetLocalPlayer()->ViewportClient
+		? PC->GetLocalPlayer()->ViewportClient->GetDPIScale()
+		: 1.f;
+	if (DPIScale > 0.f)
+	{
+		OutScreenPos /= DPIScale;
+	}
+
+	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한 (Slate 단위)
 	int32 ViewportX, ViewportY;
 	PC->GetViewportSize(ViewportX, ViewportY);
 	if (ViewportX <= 0 || ViewportY <= 0) return false;
 
-	const float VX = static_cast<float>(ViewportX);
-	const float VY = static_cast<float>(ViewportY);
+	const float VX = static_cast<float>(ViewportX) / DPIScale;
+	const float VY = static_cast<float>(ViewportY) / DPIScale;
 	OutScreenPos.X = FMath::Clamp(OutScreenPos.X, 0.f, VX);
 	OutScreenPos.Y = FMath::Clamp(OutScreenPos.Y, 0.f, VY);
 
