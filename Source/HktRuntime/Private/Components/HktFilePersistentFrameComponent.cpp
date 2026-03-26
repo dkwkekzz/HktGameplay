@@ -2,6 +2,7 @@
 
 #include "HktFilePersistentFrameComponent.h"
 #include "HktRuntimeLog.h"
+#include "HktCoreEventLog.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
@@ -29,7 +30,7 @@ void FHktFilePersistentFrameProvider::ReserveBatch(int64 BatchSize, TFunction<vo
         FString JsonString;
         if (!FFileHelper::LoadFileToString(JsonString, *FilePath))
         {
-            UE_LOG(LogHktRuntime, Error, TEXT("[PersistentFrame] Failed to load file: %s"), *FilePath);
+            HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("[PersistentFrame] Failed to load file: %s"), *FilePath));
             return;
         }
 
@@ -37,7 +38,7 @@ void FHktFilePersistentFrameProvider::ReserveBatch(int64 BatchSize, TFunction<vo
         TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
         if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
         {
-            UE_LOG(LogHktRuntime, Error, TEXT("[PersistentFrame] Failed to parse file"));
+            HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Error, EHktLogSource::Server, TEXT("[PersistentFrame] Failed to parse file"));
             return;
         }
 
@@ -53,13 +54,13 @@ void FHktFilePersistentFrameProvider::ReserveBatch(int64 BatchSize, TFunction<vo
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
     if (!FJsonSerializer::Serialize(RootObject, Writer))
     {
-        UE_LOG(LogHktRuntime, Error, TEXT("[PersistentFrame] Failed to serialize"));
+        HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Error, EHktLogSource::Server, TEXT("[PersistentFrame] Failed to serialize"));
         return;
     }
 
     if (!FFileHelper::SaveStringToFile(JsonString, *FilePath))
     {
-        UE_LOG(LogHktRuntime, Error, TEXT("[PersistentFrame] Failed to save file: %s"), *FilePath);
+        HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("[PersistentFrame] Failed to save file: %s"), *FilePath));
         return;
     }
 
@@ -99,8 +100,8 @@ void UHktFilePersistentFrameComponent::AdvanceFrame()
 
     if (CurrentFrame >= ReservedMaxFrame)
     {
-        UE_LOG(LogHktRuntime, Error, TEXT("[PersistentTick] CRITICAL: Frame range exhausted (Current=%lld, Max=%lld). Waiting for next batch."),
-            CurrentFrame, ReservedMaxFrame);
+        HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("[PersistentTick] CRITICAL: Frame range exhausted (Current=%lld, Max=%lld). Waiting for next batch."),
+            CurrentFrame, ReservedMaxFrame));
         return;
     }
 
@@ -129,8 +130,8 @@ void UHktFilePersistentFrameComponent::ReserveNextBatch()
         {
             CurrentFrame = NewMaxFrame - BatchSize;
             bIsInitialized = true;
-            UE_LOG(LogHktRuntime, Log, TEXT("[PersistentTick] Initialized: CurrentFrame=%lld, ReservedMaxFrame=%lld"),
-                CurrentFrame, ReservedMaxFrame);
+            HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server, FString::Printf(TEXT("[PersistentTick] Initialized: CurrentFrame=%lld, ReservedMaxFrame=%lld"),
+                CurrentFrame, ReservedMaxFrame));
         }
 
         bIsReservePending = false;

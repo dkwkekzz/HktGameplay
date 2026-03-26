@@ -3,6 +3,7 @@
 #include "HktStoryBuilder.h"
 #include "HktStoryValidator.h"
 #include "HktCoreLog.h"
+#include "HktCoreEventLog.h"
 #include "HktCoreProperties.h"
 #include "HktWorldState.h"
 #include "HktCoreEvents.h"
@@ -694,7 +695,7 @@ void FHktStoryBuilder::ResolveLabels(FCodeSection& Section, const FGameplayTag& 
         }
         else
         {
-            UE_LOG(LogHktCore, Error, TEXT("Unresolved label: %s in Flow %s"), *LabelName, *Tag.ToString());
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("Unresolved label: %s in Flow %s"), *LabelName, *Tag.ToString()));
         }
     }
 }
@@ -718,9 +719,9 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
 
     if (!Validator.ValidateEntityFlow())
     {
-        UE_LOG(LogHktCore, Error,
+        HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
             TEXT("Story BUILD FAILED: %s — 엔티티 레지스터 검증 실패. 이 Story는 등록되지 않습니다."),
-            *Program->Tag.ToString());
+            *Program->Tag.ToString()));
         return nullptr;
     }
 
@@ -729,9 +730,9 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
     // Game(Shipping) 빌드: RegisterFlow 경고도 치명적 오류로 처리
     if (RegFlowWarnings > 0)
     {
-        UE_LOG(LogHktCore, Error,
+        HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
             TEXT("Story BUILD FAILED: %s — 레지스터 흐름 검증에서 %d건의 경고 발견. 이 Story는 등록되지 않습니다."),
-            *Program->Tag.ToString(), RegFlowWarnings);
+            *Program->Tag.ToString(), RegFlowWarnings));
         return nullptr;
     }
 #endif

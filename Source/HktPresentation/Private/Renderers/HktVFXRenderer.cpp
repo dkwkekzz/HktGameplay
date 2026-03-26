@@ -2,6 +2,7 @@
 
 #include "HktVFXRenderer.h"
 #include "HktPresentationLog.h"
+#include "HktCoreEventLog.h"
 #include "HktVFXAssetBank.h"
 #include "HktVFXIntent.h"
 #include "HktAssetSubsystem.h"
@@ -77,11 +78,11 @@ void FHktVFXRenderer::LoadNiagaraSystemAsync(FGameplayTag VFXTag, TFunction<void
 		if (System)
 		{
 			NiagaraSystemCache.Add(VFXTag, System);
-			UE_LOG(LogHktPresentation, Verbose, TEXT("LoadNiagaraSystemAsync: [%s] → %s"), *VFXTag.ToString(), *System->GetPathName());
+			HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Verbose, EHktLogSource::Client, FString::Printf(TEXT("LoadNiagaraSystemAsync: [%s] → %s"), *VFXTag.ToString(), *System->GetPathName()));
 		}
 		else
 		{
-			UE_LOG(LogHktPresentation, Warning, TEXT("LoadNiagaraSystemAsync: Failed for tag [%s]"), *VFXTag.ToString());
+			HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Warning, EHktLogSource::Client, FString::Printf(TEXT("LoadNiagaraSystemAsync: Failed for tag [%s]"), *VFXTag.ToString()));
 		}
 
 		OnLoaded(System);
@@ -97,7 +98,7 @@ void FHktVFXRenderer::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)
 	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
 	if (!World)
 	{
-		UE_LOG(LogHktPresentation, Warning, TEXT("PlayVFXAtLocation: No world"));
+		HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Warning, EHktLogSource::Client, TEXT("PlayVFXAtLocation: No world"));
 		return;
 	}
 
@@ -106,7 +107,7 @@ void FHktVFXRenderer::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)
 	{
 		if (!System)
 		{
-			UE_LOG(LogHktPresentation, Warning, TEXT("PlayVFXAtLocation: No NiagaraSystem for tag [%s]"), *VFXTag.ToString());
+			HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Warning, EHktLogSource::Client, FString::Printf(TEXT("PlayVFXAtLocation: No NiagaraSystem for tag [%s]"), *VFXTag.ToString()));
 			return;
 		}
 
@@ -126,7 +127,7 @@ void FHktVFXRenderer::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)
 			true,   // bAutoActivate
 			ENCPoolMethod::AutoRelease);
 
-		UE_LOG(LogHktPresentation, Verbose, TEXT("PlayVFXAtLocation: [%s] at %s"), *VFXTag.ToString(), *Location.ToString());
+		HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Verbose, EHktLogSource::Client, FString::Printf(TEXT("PlayVFXAtLocation: [%s] at %s"), *VFXTag.ToString(), *Location.ToString()));
 	});
 }
 
@@ -139,7 +140,7 @@ void FHktVFXRenderer::PlayVFXWithIntent(const FHktVFXIntent& Intent)
 	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
 	if (!World)
 	{
-		UE_LOG(LogHktPresentation, Warning, TEXT("PlayVFXWithIntent: No world"));
+		HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Warning, EHktLogSource::Client, TEXT("PlayVFXWithIntent: No world"));
 		return;
 	}
 
@@ -156,7 +157,7 @@ void FHktVFXRenderer::PlayVFXWithIntent(const FHktVFXIntent& Intent)
 
 	if (!System)
 	{
-		UE_LOG(LogHktPresentation, Warning, TEXT("PlayVFXWithIntent: No system for [%s]"), *Intent.GetAssetKey());
+		HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Warning, EHktLogSource::Client, FString::Printf(TEXT("PlayVFXWithIntent: No system for [%s]"), *Intent.GetAssetKey()));
 		return;
 	}
 
@@ -175,7 +176,7 @@ void FHktVFXRenderer::PlayVFXWithIntent(const FHktVFXIntent& Intent)
 		ApplyRuntimeOverrides(Comp, Intent);
 	}
 
-	UE_LOG(LogHktPresentation, Verbose, TEXT("PlayVFXWithIntent: [%s] at %s"), *Intent.GetAssetKey(), *Intent.Location.ToString());
+	HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Verbose, EHktLogSource::Client, FString::Printf(TEXT("PlayVFXWithIntent: [%s] at %s"), *Intent.GetAssetKey(), *Intent.Location.ToString()));
 }
 
 void FHktVFXRenderer::ApplyRuntimeOverrides(UNiagaraComponent* Comp, const FHktVFXIntent& Intent)
@@ -243,7 +244,7 @@ void FHktVFXRenderer::AttachVFXToEntity(FGameplayTag VFXTag, FHktEntityId Entity
 
 		if (!System)
 		{
-			UE_LOG(LogHktPresentation, Warning, TEXT("AttachVFXToEntity: No NiagaraSystem for tag [%s]"), *VFXTag.ToString());
+			HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Warning, EHktLogSource::Client, FString::Printf(TEXT("AttachVFXToEntity: No NiagaraSystem for tag [%s]"), *VFXTag.ToString()));
 			return;
 		}
 
@@ -266,7 +267,7 @@ void FHktVFXRenderer::AttachVFXToEntity(FGameplayTag VFXTag, FHktEntityId Entity
 		if (Comp)
 		{
 			EntityVFXMap.Add(Key, Comp);
-			UE_LOG(LogHktPresentation, Verbose, TEXT("AttachVFXToEntity: [%s] on Entity=%d at %s"), *VFXTag.ToString(), EntityId, *Location.ToString());
+			HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Verbose, EHktLogSource::Client, FString::Printf(TEXT("AttachVFXToEntity: [%s] on Entity=%d at %s"), *VFXTag.ToString(), EntityId, *Location.ToString()));
 		}
 	});
 }
@@ -281,7 +282,7 @@ void FHktVFXRenderer::DetachVFXFromEntity(FGameplayTag VFXTag, FHktEntityId Enti
 			Found->Get()->DestroyComponent();
 		}
 		EntityVFXMap.Remove(Key);
-		UE_LOG(LogHktPresentation, Verbose, TEXT("DetachVFXFromEntity: [%s] from Entity=%d"), *VFXTag.ToString(), EntityId);
+		HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Verbose, EHktLogSource::Client, FString::Printf(TEXT("DetachVFXFromEntity: [%s] from Entity=%d"), *VFXTag.ToString(), EntityId));
 	}
 }
 

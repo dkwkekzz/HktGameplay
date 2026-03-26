@@ -159,7 +159,7 @@ EVMStatus FHktVMInterpreter::Op_WaitCollision(FHktVMRuntime& Runtime, RegisterIn
 {
     Runtime.EventWait.Type = EWaitEventType::Collision;
     Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity);
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Server,
         FString::Printf(TEXT("Op_WaitCollision WatchEntity=%d"), Runtime.EventWait.WatchedEntity),
         Runtime.EventWait.WatchedEntity);
     return EVMStatus::WaitingEvent;
@@ -169,7 +169,7 @@ EVMStatus FHktVMInterpreter::Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterInde
 {
     Runtime.EventWait.Type = EWaitEventType::MoveEnd;
     Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity);
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Server,
         FString::Printf(TEXT("Op_WaitMoveEnd WatchEntity=%d"), Runtime.EventWait.WatchedEntity),
         Runtime.EventWait.WatchedEntity);
     return EVMStatus::WaitingEvent;
@@ -218,7 +218,7 @@ void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropId, Regi
         if (OldValue != Value)
         {
             const TCHAR* PropName = GetPropertyName(PropId);
-            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Server,
                 FString::Printf(TEXT("Op_SaveStore %s(%d) %d->%d"),
                     PropName ? PropName : TEXT("?"), PropId, OldValue, Value),
                 Runtime.Context->SourceEntity);
@@ -237,7 +237,7 @@ void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex
         if (OldValue != Value)
         {
             const TCHAR* PropName = GetPropertyName(PropId);
-            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Core,
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, EHktLogSource::Server,
                 FString::Printf(TEXT("Op_SaveStoreEntity Id=%d %s(%d) %d->%d"),
                     E, PropName ? PropName : TEXT("?"), PropId, OldValue, Value),
                 E);

@@ -73,7 +73,7 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
         });
     }
 
-    HKT_EVENT_LOG(HktLogTags::Core_Entity, EHktLogLevel::Info, EHktLogSource::Core,
+    HKT_EVENT_LOG(HktLogTags::Core_Entity, EHktLogLevel::Info, EHktLogSource::Server,
         FString::Printf(TEXT("EntityArrange: Removing %d entities for %d owners"),
             ScratchRemoveList.Num(), RemovedOwnerIds.Num()));
     for (FHktEntityId Id : ScratchRemoveList)
@@ -98,7 +98,7 @@ void FHktVMBuildSystem::Process(
         const FHktVMProgram* Program = FHktVMProgramRegistry::Get().FindProgram(Event.EventTag);
         if (!Program)
         {
-            UE_LOG(LogHktCore, Error, TEXT("VM Build: No program for %s — Story가 등록되지 않았습니다 (빌드 검증 실패 또는 미등록)"), *Event.EventTag.ToString());
+            HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("VM Build: No program for %s — Story가 등록되지 않았습니다 (빌드 검증 실패 또는 미등록)"), *Event.EventTag.ToString()));
             continue;
         }
 
@@ -113,7 +113,7 @@ void FHktVMBuildSystem::Process(
                     && Existing->Context->SourceEntity == Event.SourceEntity)
                 {
                     Existing->Status = EVMStatus::Completed;
-                    HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
+                    HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Server,
                         FString::Printf(TEXT("VM cancelled (duplicate): %s Entity=%d"),
                             *Event.EventTag.ToString(), Event.SourceEntity),
                         Event.SourceEntity, Event.EventTag);
@@ -124,7 +124,7 @@ void FHktVMBuildSystem::Process(
         FHktVMHandle Handle = Pool.Allocate();
         if (!Handle.IsValid())
         {
-            UE_LOG(LogHktCore, Warning, TEXT("VM Build: Pool exhausted"));
+            HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Warning, EHktLogSource::Server, TEXT("VM Build: Pool exhausted"));
             continue;
         }
 
@@ -183,7 +183,7 @@ void FHktVMBuildSystem::Process(
         }
 #endif
 
-        HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
+        HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Server,
             FString::Printf(TEXT("VM created: %s Src=%d Tgt=%d CodeSize=%d"),
                 *Event.EventTag.ToString(), Event.SourceEntity, Event.TargetEntity,
                 Program->CodeSize()),
@@ -295,14 +295,14 @@ void FHktVMProcessSystem::Process(
         {
             if (Result == EVMStatus::Failed)
             {
-                UE_LOG(LogHktCore, Error, TEXT("VM FAILED: %s Src=%d PC=%d — client sent invalid intent"),
+                HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("VM FAILED: %s Src=%d PC=%d — client sent invalid intent"),
                     Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("?"),
                     Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId,
-                    Runtime->PC);
+                    Runtime->PC));
             }
             HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM,
                 Result == EVMStatus::Failed ? EHktLogLevel::Error : EHktLogLevel::Info,
-                EHktLogSource::Core,
+                EHktLogSource::Server,
                 FString::Printf(TEXT("VM %s: %s PC=%d"),
                     Result == EVMStatus::Completed ? TEXT("Completed") : TEXT("Failed"),
                     Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("?"),
@@ -563,7 +563,7 @@ void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRunt
         FHktVMRuntime* Runtime = Pool.Get(Handle);
         if (Runtime)
         {
-            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Core,
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Server,
                 FString::Printf(TEXT("VM finalized: %s"),
                     Runtime->Program ? *Runtime->Program->Tag.ToString() : TEXT("unknown")),
                 Runtime->Context ? Runtime->Context->SourceEntity : InvalidEntityId);

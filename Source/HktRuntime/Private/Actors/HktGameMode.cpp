@@ -26,7 +26,7 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
     CachedServerRule = HktRule::GetServerRule(GetWorld());
     if (!CachedServerRule)
     {
-        UE_LOG(LogHktRuntime, Error, TEXT("InitGame: ServerRule is null"));
+        HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Error, EHktLogSource::Server, TEXT("InitGame: ServerRule is null"));
         return;
     }
 
@@ -101,7 +101,7 @@ void AHktGameMode::SimulationTick()
     IHktServerRule* Rule = GetServerRule();
     if (!Rule)
     {
-        UE_LOG(LogHktRuntime, Warning, TEXT("Tick: ServerRule is null"));
+        HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Warning, EHktLogSource::Server, TEXT("Tick: ServerRule is null"));
         return;
     }
 

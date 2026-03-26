@@ -2,6 +2,7 @@
 
 #include "HktStoryValidator.h"
 #include "HktCoreLog.h"
+#include "HktCoreEventLog.h"
 
 FHktStoryValidator::FHktStoryValidator(
 	const TArray<FInstruction>& InCode,
@@ -49,10 +50,10 @@ bool FHktStoryValidator::ValidateEntityFlow()
 
 		if (!(EntityRegs & (1 << R)))
 		{
-			UE_LOG(LogHktCore, Error,
+			HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
 				TEXT("Story BUILD: %s PC=%d Op=%s — Reg %s (R%d) 가 엔티티로 사용되었지만 이전에 초기화되지 않았습니다. "
 					 "SpawnEntity/WaitCollision/NextFound 호출 순서를 확인하세요."),
-				*Tag.ToString(), PC, GetOpCodeName(Op), Name, R);
+				*Tag.ToString(), PC, GetOpCodeName(Op), Name, R));
 			bValid = false;
 		}
 	};
@@ -143,10 +144,10 @@ int32 FHktStoryValidator::ValidateRegisterFlow()
 		if (R >= NumGPRegs) return;
 		if (State[R] == ERegState::Unknown)
 		{
-			UE_LOG(LogHktCore, Warning,
+			HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(
 				TEXT("Story REGFLOW: %s PC=%d Op=%s — R%d Read-before-Write. "
 					 "초기화되지 않은 레지스터를 읽고 있습니다."),
-				*Tag.ToString(), PC, GetOpCodeName(Op), R);
+				*Tag.ToString(), PC, GetOpCodeName(Op), R));
 			++WarningCount;
 		}
 		State[R] = ERegState::Read;
@@ -157,10 +158,10 @@ int32 FHktStoryValidator::ValidateRegisterFlow()
 		if (R >= NumGPRegs) return;
 		if (State[R] == ERegState::Written)
 		{
-			UE_LOG(LogHktCore, Warning,
+			HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(
 				TEXT("Story REGFLOW: %s PC=%d Op=%s — R%d Dead Write. "
 					 "PC=%d에서 쓴 값을 읽지 않고 덮어쓰고 있습니다. 레지스터 충돌을 확인하세요."),
-				*Tag.ToString(), PC, GetOpCodeName(Op), R, WritePC[R]);
+				*Tag.ToString(), PC, GetOpCodeName(Op), R, WritePC[R]));
 			++WarningCount;
 		}
 		State[R] = ERegState::Written;
