@@ -382,6 +382,10 @@ FHktStoryBuilder& FHktStoryBuilder::MoveToward(RegisterIndex Entity, RegisterInd
 
 FHktStoryBuilder& FHktStoryBuilder::MoveForward(RegisterIndex Entity, int32 Force)
 {
+    // Self의 RotYaw를 투사체에 복사하여 발사 방향 결정
+    LoadStoreEntity(Reg::Temp, Reg::Self, PropertyId::RotYaw);
+    SaveStoreEntity(Entity, PropertyId::RotYaw, Reg::Temp);
+    Emit(FInstruction::Make(EOpCode::SetForwardTarget, 0, Entity, 0, 0));
     SaveConstEntity(Entity, PropertyId::MoveForce, Force);
     SaveConstEntity(Entity, PropertyId::IsMoving, 1);
     return *this;
