@@ -158,11 +158,19 @@ private:
 	void ApplyAnimTag(const FGameplayTag& AnimTag);
 	void RemoveAnimTag(const FGameplayTag& AnimTag);
 
+	/** 몽타주 종료 콜백 — Trigger 태그 자동 정리 */
+	UFUNCTION()
+	void OnMontageEnd(UAnimMontage* Montage, bool bInterrupted);
+
 	static FGameplayTag ExtractLayerParent(const FGameplayTag& AnimTag);
+	static bool IsLoopAnimTag(const FGameplayTag& AnimTag);
 	const FHktAnimMappingEntry* FindMapping(const FGameplayTag& Tag) const;
 
 	/** 이전 프레임의 Anim 태그 (변화 감지용) */
 	FGameplayTagContainer PrevAnimTags;
+
+	/** 재생 중인 몽타주 → AnimTag 역매핑 (종료 콜백에서 태그 조회용) */
+	TMap<TObjectPtr<UAnimMontage>, FGameplayTag> ActiveMontageTagMap;
 
 	/** 현재 링크된 Stance AnimBP 클래스 (중복 Link 방지) */
 	TSubclassOf<UAnimInstance> CurrentLinkedStanceClass;
