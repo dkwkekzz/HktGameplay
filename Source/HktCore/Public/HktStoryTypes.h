@@ -97,6 +97,7 @@ namespace Reg
     X(GetDistance,       W, R, R) \
     X(LookAt,           _, R, R) \
     X(FindInRadius,     _, R, _) \
+    X(FindInRadiusEx,   _, R, R) \
     X(NextFound,        _, _, _) \
     /* Presentation */      \
     X(ApplyEffect,      _, R, _) \
@@ -122,6 +123,8 @@ namespace Reg
     /* Event Dispatch */    \
     X(DispatchEvent,    _, _, _) \
     X(DispatchEventTo,  _, R, _) \
+    /* Movement */          \
+    X(SetForwardTarget, _, R, _) \
     /* Utility */           \
     X(Log,              _, _, _)
 

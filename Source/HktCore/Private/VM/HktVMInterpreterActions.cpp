@@ -4,6 +4,7 @@
 #include "HktVMProgram.h"
 #include "HktVMContext.h"
 #include "HktVMWorldStateProxy.h"
+#include "HktCollisionLayers.h"
 #include "GameplayTagsManager.h"
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
@@ -66,6 +67,20 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex
             Runtime.Context->WriteEntity(NewEntity, PropertyId::Mass, 1);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::MaxSpeed, 100);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::CollisionRadius, 50);
+
+            // 시전자(Self)의 Team을 상속
+            FHktEntityId SelfEntity = Runtime.GetRegEntity(Reg::Self);
+            int32 SelfTeam = Runtime.Context->ReadEntity(SelfEntity, PropertyId::Team);
+            if (SelfTeam != 0)
+            {
+                Runtime.Context->WriteEntity(NewEntity, PropertyId::Team, SelfTeam);
+            }
+
+            // ClassTag 기반 기본 CollisionLayer/Mask 자동 설정
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::CollisionLayer,
+                static_cast<int32>(GetDefaultCollisionLayer(ClassTag)));
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::CollisionMask,
+                static_cast<int32>(GetDefaultCollisionMask(ClassTag)));
 
             if (Runtime.PlayerUid != 0 && VMProxy)
             {
@@ -146,7 +161,8 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
         int32 CX = Runtime.Context->ReadEntity(Center, PropertyId::PosX);
         int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
         int32 CZ = Runtime.Context->ReadEntity(Center, PropertyId::PosZ);
-        int32 Team = Runtime.Context->ReadEntity(Center, PropertyId::Team);
+        int32 CenterTeam = Runtime.Context->ReadEntity(Center, PropertyId::Team);
+        uint32 FilterMask = static_cast<uint32>(Runtime.Context->ReadEntity(Center, PropertyId::CollisionMask));
 
         int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
 
@@ -155,7 +171,56 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
             if (E == Center)
                 return;
 
-            if (WorldState->GetProperty(E, PropertyId::Team) == Team)
+            // Team 필터: 같은 팀 제외 (기존 동작 유지)
+            if (WorldState->GetProperty(E, PropertyId::Team) == CenterTeam)
+                return;
+
+            // CollisionLayer 기반 필터링 (FilterMask == 0이면 모든 레이어 허용)
+            if (FilterMask != 0)
+            {
+                uint32 TargetLayer = static_cast<uint32>(WorldState->GetProperty(E, PropertyId::CollisionLayer));
+                if (TargetLayer != 0 && !(TargetLayer & FilterMask))
+                    return;
+            }
+
+            FIntVector EP = WorldState->GetPosition(E);
+            int64 DX = EP.X - CX;
+            int64 DY = EP.Y - CY;
+            int64 DZ = EP.Z - CZ;
+
+            if (DX * DX + DY * DY + DZ * DZ <= RadiusSq)
+                Runtime.SpatialQuery.Entities.Add(E);
+        });
+    }
+
+    Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
+}
+
+void FHktVMInterpreter::Op_FindInRadiusEx(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, RegisterIndex FilterMaskReg)
+{
+    Runtime.SpatialQuery.Reset();
+
+    if (WorldState && Runtime.Context)
+    {
+        FHktEntityId Center = Runtime.GetRegEntity(CenterEntity);
+        uint32 FilterMask = static_cast<uint32>(Runtime.GetReg(FilterMaskReg));
+
+        int32 CX = Runtime.Context->ReadEntity(Center, PropertyId::PosX);
+        int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
+        int32 CZ = Runtime.Context->ReadEntity(Center, PropertyId::PosZ);
+
+        // Imm12에서 반경 추출 (Op dispatch에서 전달)
+        int32 RadiusCm = Runtime.GetReg(Reg::Temp);
+        int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
+
+        WorldState->ForEachEntity([&](FHktEntityId E, int32 /*SlotIndex*/)
+        {
+            if (E == Center)
+                return;
+
+            // 명시적 마스크 필터링
+            uint32 TargetLayer = static_cast<uint32>(WorldState->GetProperty(E, PropertyId::CollisionLayer));
+            if (FilterMask != 0 && !(TargetLayer & FilterMask))
                 return;
 
             FIntVector EP = WorldState->GetPosition(E);
@@ -498,6 +563,34 @@ void FHktVMInterpreter::Op_DispatchEventTo(FHktVMRuntime& Runtime, RegisterIndex
         FString::Printf(TEXT("Op_DispatchEventTo: %s Src=%d Tgt=%d"),
             *EventTag.ToString(), Event.SourceEntity, Event.TargetEntity),
         Event.SourceEntity);
+}
+
+// ============================================================================
+// Movement
+// ============================================================================
+
+void FHktVMInterpreter::Op_SetForwardTarget(FHktVMRuntime& Runtime, RegisterIndex Entity)
+{
+    if (Runtime.Context && VMProxy && WorldState)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+
+        const int32 PosX = Runtime.Context->ReadEntity(E, PropertyId::PosX);
+        const int32 PosY = Runtime.Context->ReadEntity(E, PropertyId::PosY);
+        const int32 PosZ = Runtime.Context->ReadEntity(E, PropertyId::PosZ);
+        const int32 YawDeg = Runtime.Context->ReadEntity(E, PropertyId::RotYaw);
+
+        const float YawRad = static_cast<float>(YawDeg) * (PI / 180.0f);
+        constexpr float ForwardRange = 100000.0f; // 1km
+
+        const int32 TgtX = PosX + FMath::RoundToInt(FMath::Cos(YawRad) * ForwardRange);
+        const int32 TgtY = PosY + FMath::RoundToInt(FMath::Sin(YawRad) * ForwardRange);
+        const int32 TgtZ = PosZ;
+
+        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetX, TgtX);
+        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetY, TgtY);
+        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetZ, TgtZ);
+    }
 }
 
 // ============================================================================

@@ -52,6 +52,94 @@ static FString VMStatusToString(EVMStatus Status)
     default:                      return TEXT("Unknown");
     }
 }
+
+static const TCHAR* WaitEventTypeToString(EWaitEventType Type)
+{
+    switch (Type)
+    {
+    case EWaitEventType::Timer:     return TEXT("Timer");
+    case EWaitEventType::Collision: return TEXT("Collision");
+    case EWaitEventType::MoveEnd:   return TEXT("MoveEnd");
+    default:                        return TEXT("None");
+    }
+}
+
+static void CollectVMDetailInsights(FHktVMRuntimePool& Pool)
+{
+    if (!FHktCoreDataCollector::Get().IsCollectionEnabled(TEXT("VMDetail")))
+    {
+        return;
+    }
+
+    HKT_INSIGHT_CLEAR_CATEGORY(TEXT("VMDetail"));
+
+    // Entity별 VM 집계용
+    TMap<FHktEntityId, TArray<TPair<int32, FString>>> EntityVMs;  // EntityId → [(SlotIndex, EventTag)]
+
+    Pool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
+    {
+        FHktEntityId SrcEntity = Runtime.Context ? Runtime.Context->SourceEntity : InvalidEntityId;
+        FHktEntityId TgtEntity = Runtime.Context ? Runtime.Context->TargetEntity : InvalidEntityId;
+        FString EventTag = Runtime.Program ? Runtime.Program->Tag.ToString() : TEXT("?");
+        int32 CodeSize = Runtime.Program ? Runtime.Program->CodeSize() : 0;
+
+        // Entity별 VM 집계
+        EntityVMs.FindOrAdd(SrcEntity).Emplace(static_cast<int32>(Handle.Index), EventTag);
+
+        // Last opcode
+        FString OpName = TEXT("-");
+        if (Runtime.Program && Runtime.PC > 0 && Runtime.Program->Code.Num() > 0)
+        {
+            int32 Idx = FMath::Min(Runtime.PC - 1, Runtime.Program->Code.Num() - 1);
+            OpName = GetOpCodeName(Runtime.Program->Code[Idx].GetOpCode());
+        }
+
+        // VM 상세 행
+        FString VMKey = FString::Printf(TEXT("VM_%d"), static_cast<int32>(Handle.Index));
+        FString Detail = FString::Printf(
+            TEXT("Status=%s | Event=%s | Src=%d | Tgt=%d | PC=%d | CodeSize=%d | CreationFrame=%d | PlayerUid=%lld")
+            TEXT(" | WaitType=%s | WaitEntity=%d | WaitTime=%.2f | WaitFrames=%d")
+            TEXT(" | R0=%d | R1=%d | R2=%d | R3=%d | R4=%d | R5=%d | R6=%d | R7=%d")
+            TEXT(" | R8=%d | Self=%d | Target=%d | Spawned=%d | Hit=%d | Iter=%d | Flag=%d")
+            TEXT(" | Op=%s"),
+            *VMStatusToString(Runtime.Status), *EventTag, SrcEntity, TgtEntity,
+            Runtime.PC, CodeSize, Runtime.CreationFrame, Runtime.PlayerUid,
+            WaitEventTypeToString(Runtime.EventWait.Type), Runtime.EventWait.WatchedEntity,
+            Runtime.EventWait.RemainingTime, Runtime.WaitFrames,
+            Runtime.Registers[0], Runtime.Registers[1], Runtime.Registers[2], Runtime.Registers[3],
+            Runtime.Registers[4], Runtime.Registers[5], Runtime.Registers[6], Runtime.Registers[7],
+            Runtime.Registers[8], Runtime.Registers[Reg::Self], Runtime.Registers[Reg::Target],
+            Runtime.Registers[Reg::Spawned], Runtime.Registers[Reg::Hit],
+            Runtime.Registers[Reg::Iter], Runtime.Registers[Reg::Flag],
+            *OpName);
+
+        // Context 파라미터 추가
+        if (Runtime.Context)
+        {
+            Detail += FString::Printf(
+                TEXT(" | Param0=%d | Param1=%d | TargetPos=%d,%d,%d"),
+                Runtime.Context->EventParam0, Runtime.Context->EventParam1,
+                Runtime.Context->EventTargetPosX, Runtime.Context->EventTargetPosY,
+                Runtime.Context->EventTargetPosZ);
+        }
+
+        HKT_INSIGHT_COLLECT(TEXT("VMDetail"), VMKey, Detail);
+    });
+
+    // Entity 요약 행
+    for (auto& KV : EntityVMs)
+    {
+        FString Names;
+        for (int32 i = 0; i < KV.Value.Num(); ++i)
+        {
+            if (i > 0) Names += TEXT(",");
+            Names += KV.Value[i].Value;
+        }
+        FString EntityKey = FString::Printf(TEXT("E_%d"), KV.Key);
+        HKT_INSIGHT_COLLECT(TEXT("VMDetail"), EntityKey,
+            FString::Printf(TEXT("VMCount=%d | Names=%s"), KV.Value.Num(), *Names));
+    }
+}
 #endif
 
 // ============================================================================
@@ -325,6 +413,10 @@ void FHktVMProcessSystem::Process(
             ActiveVMs.RemoveAtSwap(i);
         }
     }
+
+#if ENABLE_HKT_INSIGHTS
+    CollectVMDetailInsights(Pool);
+#endif
 }
 
 // ============================================================================
@@ -481,6 +573,14 @@ void FHktPhysicsSystem::RebuildGrid(const FHktWorldState& WorldState)
     GridMap.Reset();
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
+        const int32 Layer = WorldState.GetProperty(Id, PropertyId::CollisionLayer);
+        const int32 Mask  = WorldState.GetProperty(Id, PropertyId::CollisionMask);
+
+        // Layer와 Mask가 모두 명시적으로 설정된 경우에만 Layer=0을 "불참"으로 처리
+        // 둘 다 0이면 레거시 엔티티 → 기존 동작 유지 (그리드 참여)
+        if (Layer == 0 && Mask != 0)
+            return;
+
         FIntVector P = WorldState.GetPosition(Id);
         FVector Pos(static_cast<float>(P.X), static_cast<float>(P.Y), 0.f);
         FCellCoord Cell = WorldToCell(Pos);
@@ -511,6 +611,31 @@ void FHktPhysicsSystem::Process(
                 if (!WorldState.IsValidEntity(A) || !WorldState.IsValidEntity(B))
                     continue;
 
+                // Layer/Mask 필터: 양방향 동의 필요
+                const uint32 LayerA = static_cast<uint32>(WorldState.GetProperty(A, PropertyId::CollisionLayer));
+                const uint32 MaskA  = static_cast<uint32>(WorldState.GetProperty(A, PropertyId::CollisionMask));
+                const uint32 LayerB = static_cast<uint32>(WorldState.GetProperty(B, PropertyId::CollisionLayer));
+                const uint32 MaskB  = static_cast<uint32>(WorldState.GetProperty(B, PropertyId::CollisionMask));
+                // Layer/Mask가 양쪽 다 설정된 경우에만 필터링 (레거시 엔티티 하위호환)
+                const bool bAHasProfile = (LayerA | MaskA) != 0;
+                const bool bBHasProfile = (LayerB | MaskB) != 0;
+                if (bAHasProfile && bBHasProfile)
+                {
+                    if (!(LayerA & MaskB) || !(LayerB & MaskA))
+                        continue;
+                }
+
+                // OwnerEntity 관계 확인 (투사체 ↔ 시전자 충돌 방지)
+                const int32 OwnerA = WorldState.GetProperty(A, PropertyId::OwnerEntity);
+                const int32 OwnerB = WorldState.GetProperty(B, PropertyId::OwnerEntity);
+                const bool IsProjectileA = (OwnerA != 0);
+                const bool IsProjectileB = (OwnerB != 0);
+
+                if (IsProjectileA && OwnerA == static_cast<int32>(B))
+                    continue;
+                if (IsProjectileB && OwnerB == static_cast<int32>(A))
+                    continue;
+
                 FIntVector PA = WorldState.GetPosition(A);
                 FIntVector PB = WorldState.GetPosition(B);
                 FVector PosA(static_cast<float>(PA.X), static_cast<float>(PA.Y), static_cast<float>(PA.Z));
@@ -530,21 +655,24 @@ void FHktPhysicsSystem::Process(
                     PhysEvent.ContactPoint = (PosA + PosB) * 0.5f;
                     OutPhysicsEvents.Add(PhysEvent);
 
-                    // Push-out 위치 보정
-                    const float Dist = FMath::Sqrt(DistSq);
-                    if (Dist > SMALL_NUMBER)
+                    // Push-out 위치 보정 — 투사체가 포함된 쌍은 제외
+                    if (!IsProjectileA && !IsProjectileB)
                     {
-                        const float Overlap = CombinedRadius - Dist;
-                        const float HalfPush = Overlap * 0.5f;
-                        const FVector Dir = (PosB - PosA) / Dist;
+                        const float Dist = FMath::Sqrt(DistSq);
+                        if (Dist > SMALL_NUMBER)
+                        {
+                            const float Overlap = CombinedRadius - Dist;
+                            const float HalfPush = Overlap * 0.5f;
+                            const FVector Dir = (PosB - PosA) / Dist;
 
-                        const FVector NewA = PosA - Dir * HalfPush;
-                        const FVector NewB = PosB + Dir * HalfPush;
+                            const FVector NewA = PosA - Dir * HalfPush;
+                            const FVector NewB = PosB + Dir * HalfPush;
 
-                        VMProxy.SetPosition(WorldState, A,
-                            FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
-                        VMProxy.SetPosition(WorldState, B,
-                            FMath::RoundToInt(NewB.X), FMath::RoundToInt(NewB.Y), FMath::RoundToInt(NewB.Z));
+                            VMProxy.SetPosition(WorldState, A,
+                                FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
+                            VMProxy.SetPosition(WorldState, B,
+                                FMath::RoundToInt(NewB.X), FMath::RoundToInt(NewB.Y), FMath::RoundToInt(NewB.Z));
+                        }
                     }
                 }
             }

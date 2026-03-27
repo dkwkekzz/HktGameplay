@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
 #include "DrawDebugHelpers.h"
+#include "HktCollisionLayers.h"
 
 // --------------------------------------------------------------------------- CVars
 
@@ -21,6 +22,19 @@ static TAutoConsoleVariable<int32> CVarShowCollisionLabels(
 	0,
 	TEXT("충돌 구체 위에 EntityId 표시. 0=끄기, 1=켜기"),
 	ECVF_Default);
+
+// --------------------------------------------------------------------------- Collision Layer Colors
+
+static FColor GetCollisionLayerColor(int32 Layer)
+{
+    if (Layer & EHktCollisionLayer::Character)  return FColor(77, 153, 255);  // Blue
+    if (Layer & EHktCollisionLayer::NPC)        return FColor(255, 77, 77);   // Red
+    if (Layer & EHktCollisionLayer::Projectile) return FColor(255, 200, 50);  // Yellow
+    if (Layer & EHktCollisionLayer::Building)   return FColor(120, 120, 120); // Gray
+    if (Layer & EHktCollisionLayer::Item)       return FColor(50, 220, 50);   // Green
+    if (Layer & EHktCollisionLayer::Trigger)    return FColor(200, 50, 200);  // Purple
+    return FColor(200, 200, 200);                                              // White (None)
+}
 
 // --------------------------------------------------------------------------- Spatial Grid Constants (HktPhysicsSystem과 동일)
 
@@ -69,13 +83,14 @@ void FHktCollisionDebugRenderer::DrawCollisionSpheres(UWorld* World, const FHktP
 	{
 		const FVector Pos = Entity.RenderLocation.Get().IsZero() ? Entity.Location.Get() : Entity.RenderLocation.Get();
 		const float Radius = Entity.CollisionRadius.Get();
-		const FColor Color = Entity.TeamColor.Get().ToFColor(true);
+		const int32 Layer = Entity.CollisionLayer.Get();
+		const FColor Color = GetCollisionLayerColor(Layer);
 
 		DrawDebugSphere(World, Pos, Radius, 16, Color, false, -1.f, SDPG_World, 1.0f);
 
 		if (bShowLabels)
 		{
-			const FString Label = FString::Printf(TEXT("E:%d R:%.0f"), Entity.EntityId, Radius);
+			const FString Label = FString::Printf(TEXT("E:%d R:%.0f L:0x%X"), Entity.EntityId, Radius, Layer);
 			DrawDebugString(World, Pos + FVector(0, 0, Radius + 20.f), Label, nullptr, Color, -1.f, false, 1.0f);
 		}
 	});

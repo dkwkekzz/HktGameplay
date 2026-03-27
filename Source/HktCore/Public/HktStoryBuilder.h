@@ -209,14 +209,18 @@ public:
 
     // ========== Spatial Query ==========
 
-    /** 범위 내 엔티티 검색 시작 */
+    /** 범위 내 엔티티 검색 (엔티티의 CollisionMask 기반 필터링) */
     FHktStoryBuilder& FindInRadius(RegisterIndex CenterEntity, int32 RadiusCm);
+
+    /** 범위 내 엔티티 검색 (명시적 레이어 마스크 필터) */
+    FHktStoryBuilder& FindInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask);
 
     /** 다음 검색 결과 → Iter, 끝이면 Flag=0 */
     FHktStoryBuilder& NextFound();
 
     /** ForEach 편의 메서드 (FindInRadius + 루프) */
     FHktStoryBuilder& ForEachInRadius(RegisterIndex CenterEntity, int32 RadiusCm);
+    FHktStoryBuilder& ForEachInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask);
     FHktStoryBuilder& EndForEach();
 
     // ========== Combat (조합 연산) ==========

@@ -40,6 +40,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 
 	// Physics
 	CollisionRadius.Set(FMath::Max(static_cast<float>(WS.GetProperty(Id, PropertyId::CollisionRadius)), 50.f), Frame);
+	CollisionLayer.Set(WS.GetProperty(Id, PropertyId::CollisionLayer), Frame);
 
 	// Movement
 	MoveTarget.Set(FVector(
@@ -123,6 +124,9 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	// Physics
 	case PropertyId::CollisionRadius:
 		CollisionRadius.Set(FMath::Max(static_cast<float>(NewValue), 50.f), Frame);
+		break;
+	case PropertyId::CollisionLayer:
+		CollisionLayer.Set(NewValue, Frame);
 		break;
 
 	// Vitals
