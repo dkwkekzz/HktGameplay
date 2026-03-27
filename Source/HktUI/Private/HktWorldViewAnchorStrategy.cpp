@@ -10,10 +10,9 @@
 
 FVector UHktWorldViewAnchorStrategy::GetHeadWorldLocation() const
 {
-	// RenderLocation은 이미 지면 트레이스 + 캡슐 오프셋이 적용된 최종 렌더 위치.
+	// RenderLocation은 이미 지면 트레이스 + 캡슐 오프셋이 적용된 최종 렌더 위치 (캡슐 중심).
 	// 캡슐 상단(머리) = RenderLocation + CapsuleHalfHeight, 거기에 약간의 여백(HeadClearance)을 추가.
-	//return CachedRenderLocation + FVector(0.f, 0.f, CapsuleHalfHeight + HeadClearance);
-	return CachedRenderLocation + FVector(0.f, 0.f, 0.f);
+	return CachedRenderLocation + FVector(0.f, 0.f, CapsuleHalfHeight + HeadClearance);
 }
 
 bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldContext, FVector2D& OutScreenPos)
@@ -57,7 +56,7 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 		return false;
 	}
 
-	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한 (Slate 단위)
+	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한
 	int32 ViewportX, ViewportY;
 	PC->GetViewportSize(ViewportX, ViewportY);
 	if (ViewportX <= 0 || ViewportY <= 0) return false;
