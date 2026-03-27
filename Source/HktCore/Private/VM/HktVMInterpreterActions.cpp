@@ -276,42 +276,36 @@ void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Ta
         FString::Printf(TEXT("Op_RemoveEffect Id=%d Effect=%s"), E, *Effect), E);
 }
 
-void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)
+void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 TagIndex)
 {
-    const FString& VFXName = GetString(Runtime, StringIndex);
     const int32 X = Runtime.GetReg(PosBase);
     const int32 Y = Runtime.GetReg(PosBase + 1);
     const int32 Z = Runtime.GetReg(PosBase + 2);
 
+    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
+    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+
     HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_PlayVFX Pos=(%d,%d,%d) VFX=%s"), X, Y, Z, *VFXName));
+        FString::Printf(TEXT("Op_PlayVFX Pos=(%d,%d,%d) VFX=%s"), X, Y, Z, *TagName.ToString()));
 
-    if (!VMProxy) return;
-
-    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*VFXName), false);
-    if (!Tag.IsValid())
-    {
-        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Warning, LogSource,
-            FString::Printf(TEXT("Op_PlayVFX: invalid tag '%s'"), *VFXName));
-        return;
-    }
+    if (!VMProxy || !Tag.IsValid()) return;
 
     VMProxy->PendingVFXEvents.Add({ Tag, FIntVector(X, Y, Z) });
 }
 
-void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)
+void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagIndex)
 {
     if (!WorldState || !VMProxy) return;
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
-    const FString& VFXName = GetString(Runtime, StringIndex);
-    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*VFXName), false);
+    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
+    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
     if (Tag.IsValid())
     {
         VMProxy->AddTag(*WorldState, E, Tag);
     }
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *VFXName), E);
+        FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *TagName.ToString()), E);
 }
 
 void FHktVMInterpreter::Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex)
