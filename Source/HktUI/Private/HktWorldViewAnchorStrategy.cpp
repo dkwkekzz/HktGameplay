@@ -56,34 +56,13 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 		return false;
 	}
 
-	// ProjectWorldLocationToScreen은 스크린 픽셀 좌표를 반환하지만
-	// SConstraintCanvas는 Slate 단위(DPI 독립)로 동작하므로 DPI 스케일로 나눠야 함.
-	if (UGameViewportClient* ViewportClient = World->GetGameViewport())
-	{
-		const float DPIScale = ViewportClient->GetDPIScale();
-		if (DPIScale > 0.f && DPIScale != 1.f)
-		{
-			OutScreenPos /= DPIScale;
-		}
-	}
-
-	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한 (Slate 단위)
+	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한
 	int32 ViewportX, ViewportY;
 	PC->GetViewportSize(ViewportX, ViewportY);
 	if (ViewportX <= 0 || ViewportY <= 0) return false;
 
-	// GetViewportSize도 픽셀 단위이므로 동일하게 DPI 변환
-	float VX = static_cast<float>(ViewportX);
-	float VY = static_cast<float>(ViewportY);
-	if (UGameViewportClient* ViewportClient = World->GetGameViewport())
-	{
-		const float DPIScale = ViewportClient->GetDPIScale();
-		if (DPIScale > 0.f && DPIScale != 1.f)
-		{
-			VX /= DPIScale;
-			VY /= DPIScale;
-		}
-	}
+	const float VX = static_cast<float>(ViewportX);
+	const float VY = static_cast<float>(ViewportY);
 	OutScreenPos.X = FMath::Clamp(OutScreenPos.X, 0.f, VX);
 	OutScreenPos.Y = FMath::Clamp(OutScreenPos.Y, 0.f, VY);
 

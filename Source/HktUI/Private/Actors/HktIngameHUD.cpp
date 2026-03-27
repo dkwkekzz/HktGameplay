@@ -246,8 +246,11 @@ void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 		UHktUIElement* Element = FindEntityElement(EntityId);
 		if (!Element) continue;
 
+		// Actor는 ApplyTransform에서 RenderLocation.Get()을 매 프레임 직접 읽지만,
+		// HUD Strategy는 캐시된 값을 사용하므로 항상 최신 값으로 갱신해야 함.
+		// (CapsuleHalfHeight는 비동기 에셋 로드 후 설정되어 IsDirty 프레임과 불일치할 수 있음)
 		UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Element->AnchorStrategy);
-		if (Strategy && Entity->RenderLocation.IsDirty(Frame))
+		if (Strategy)
 		{
 			Strategy->SetWorldPosition(Entity->RenderLocation.Get(), Entity->CapsuleHalfHeight);
 		}
