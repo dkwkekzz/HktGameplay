@@ -11,6 +11,8 @@
 void UHktAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
+
+	OnMontageEnded.AddDynamic(this, &UHktAnimInstance::OnMontageEnd);
 }
 
 FGameplayTag UHktAnimInstance::ExtractLayerParent(const FGameplayTag& AnimTag)
@@ -39,24 +41,14 @@ void UHktAnimInstance::SyncFromTagContainer(const FGameplayTagContainer& EntityT
 	// Entity 태그 중 Anim.* 계열만 필터링
 	FGameplayTagContainer CurrentAnimTags = EntityTags.Filter(FGameplayTagContainer(HktGameplayTags::Anim));
 
+	// 새로 추가된 태그만 감지 → 애니메이션 재생
+	// Trigger 태그는 몽타주 종료 시 PrevAnimTags에서 자동 제거되므로
+	// 같은 태그를 다시 AddTag하면 항상 "새 태그"로 감지됨
 	for (const FGameplayTag& Tag : CurrentAnimTags)
 	{
-		const bool bIsNew = !PrevAnimTags.HasTagExact(Tag);
-		if (bIsNew)
+		if (!PrevAnimTags.HasTagExact(Tag))
 		{
-			// 새로 추가된 태그 → 애니메이션 재생
 			ApplyAnimTag(Tag);
-		}
-		else
-		{
-			// 이미 있던 태그 — Montage 계열(Trigger)은 재트리거 허용
-			// Trigger는 fire-and-forget으로 같은 태그를 연속 발동할 수 있어야 함
-			FGameplayTag LayerParent = ExtractLayerParent(Tag);
-			if (LayerParent.MatchesTagExact(HktGameplayTags::Anim_Montage))
-			{
-				ApplyAnimTag(Tag);
-			}
-			// UpperBody(Loop), FullBody 등은 스킵 — 이미 재생 중이므로 재시작 불필요
 		}
 	}
 
@@ -106,6 +98,7 @@ void UHktAnimInstance::ApplyAnimTag(const FGameplayTag& AnimTag)
 				Montage_JumpToSection(Entry->StartSection, Entry->Montage);
 				Montage_SetNextSection(Entry->StartSection, NAME_None, Entry->Montage);
 			}
+			ActiveMontageTagMap.Add(Entry->Montage, AnimTag);
 			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
 				FString::Printf(TEXT("[HktAnimInst] PlayMontage: %s -> %s Section=%s (Rate=%.2f)"),
 				*AnimTag.ToString(), *Entry->Montage->GetName(),
@@ -172,6 +165,42 @@ void UHktAnimInstance::RemoveAnimTag(const FGameplayTag& AnimTag)
 	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
 		FString::Printf(TEXT("[HktAnimInst] RemoveAnimTag: Parent=%s Anim=%s on %s"),
 		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName()));
+}
+
+bool UHktAnimInstance::IsLoopAnimTag(const FGameplayTag& AnimTag)
+{
+	return AnimTag.ToString().Contains(TEXT("Loop"));
+}
+
+void UHktAnimInstance::OnMontageEnd(UAnimMontage* Montage, bool bInterrupted)
+{
+	FGameplayTag AnimTag;
+	if (!ActiveMontageTagMap.RemoveAndCopyValue(Montage, AnimTag))
+	{
+		return;
+	}
+
+	// Loop 태그는 유지 — 외부 RemoveTag 요청이 올 때까지 PrevAnimTags에 남김
+	if (IsLoopAnimTag(AnimTag))
+	{
+		return;
+	}
+
+	// Trigger 태그 — 몽타주 종료 시 자동 정리
+	// PrevAnimTags에서 제거하면 다음 AddTag 시 "새 태그"로 감지되어 재트리거 가능
+	FGameplayTag LayerParent = ExtractLayerParent(AnimTag);
+	if (FGameplayTag* Current = AnimLayerTags.Find(LayerParent))
+	{
+		if (Current->MatchesTagExact(AnimTag))
+		{
+			AnimLayerTags.Remove(LayerParent);
+		}
+	}
+	PrevAnimTags.RemoveTag(AnimTag);
+
+	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+		FString::Printf(TEXT("[HktAnimInst] TriggerAnimEnd: %s on %s (Interrupted=%d)"),
+		*AnimTag.ToString(), *GetOwningActor()->GetName(), bInterrupted));
 }
 
 FGameplayTag UHktAnimInstance::GetAnimLayerTag(const FGameplayTag& LayerTag) const
