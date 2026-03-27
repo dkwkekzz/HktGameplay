@@ -3,9 +3,7 @@
 #include "HktAnimInstance.h"
 #include "HktCoreEventLog.h"
 #include "HktPresentationLog.h"
-#include "HktPresentationSubsystem.h"
 #include "HktRuntimeTags.h"
-#include "Actors/HktUnitActor.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
@@ -179,28 +177,9 @@ void UHktAnimInstance::OnMontageEnd(UAnimMontage* Montage, bool bInterrupted)
 		return;
 	}
 
-	// 소유 Actor에서 EntityId 추출 → PresentationSubsystem에 AnimEnd 이벤트 전달
-	if (AHktUnitActor* UnitActor = Cast<AHktUnitActor>(GetOwningActor()))
-	{
-		FHktEntityId EntityId = UnitActor->GetEntityId();
-		if (UWorld* World = GetWorld())
-		{
-			if (UGameInstance* GI = World->GetGameInstance())
-			{
-				if (ULocalPlayer* LP = GI->GetFirstGamePlayer())
-				{
-					if (UHktPresentationSubsystem* Subsystem = LP->GetSubsystem<UHktPresentationSubsystem>())
-					{
-						Subsystem->NotifyAnimEnd(EntityId);
-					}
-				}
-			}
-		}
-
-		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-			FString::Printf(TEXT("[HktAnimInst] AnimEnd: %s Entity=%d on %s (Interrupted=%d)"),
-			*AnimTag.ToString(), EntityId, *GetOwningActor()->GetName(), bInterrupted));
-	}
+	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+		FString::Printf(TEXT("[HktAnimInst] MontageEnd: %s on %s (Interrupted=%d)"),
+		*AnimTag.ToString(), *GetOwningActor()->GetName(), bInterrupted));
 }
 
 FGameplayTag UHktAnimInstance::GetAnimLayerTag(const FGameplayTag& LayerTag) const

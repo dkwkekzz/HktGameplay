@@ -33,9 +33,6 @@ public:
 
 	/** 마지막 조정으로 생성된 Diff를 소비 (없으면 false) */
 	virtual bool ConsumePendingDiff(FHktSimulationDiff& OutDiff) = 0;
-
-	/** 애니메이션 종료 이벤트 주입 — Presentation에서 몽타주 종료 시 호출 */
-	virtual void NotifyAnimEnd(FHktEntityId Entity) = 0;
 };
 
 // ============================================================================

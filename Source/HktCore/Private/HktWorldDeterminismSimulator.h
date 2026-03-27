@@ -28,7 +28,6 @@ public:
     virtual const FHktWorldState& GetWorldState() const override { return WorldState; }
     virtual void RestoreWorldState(const FHktWorldState& InState) override;
     virtual void UndoDiff(const FHktSimulationDiff& Diff) override;
-    virtual void NotifyAnimEnd(FHktEntityId Entity) override;
 
 private:
     void ProcessBatch(const FHktSimulationEvent& Event);

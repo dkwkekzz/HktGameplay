@@ -180,11 +180,15 @@ EVMStatus FHktVMInterpreter::Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterInde
 
 EVMStatus FHktVMInterpreter::Op_WaitAnimEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity)
 {
-    Runtime.EventWait.Type = EWaitEventType::AnimEnd;
-    Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity);
+    // 결정론적 고정 시간 대기 — 서버/클라 동일한 Timer 사용
+    // 실제 몽타주 길이와 정확히 일치하지 않아도 됨 (태그 제거만 하면 됨)
+    static constexpr float DefaultAnimWaitSeconds = 1.0f;
+    Runtime.EventWait.Type = EWaitEventType::Timer;
+    Runtime.EventWait.RemainingTime = DefaultAnimWaitSeconds;
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_WaitAnimEnd WatchEntity=%d"), Runtime.EventWait.WatchedEntity),
-        Runtime.EventWait.WatchedEntity);
+        FString::Printf(TEXT("Op_WaitAnimEnd WatchEntity=%d (Timer=%.1fs)"),
+        Runtime.GetRegEntity(WatchEntity), DefaultAnimWaitSeconds),
+        Runtime.GetRegEntity(WatchEntity));
     return EVMStatus::WaitingEvent;
 }
 

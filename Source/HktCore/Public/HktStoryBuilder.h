@@ -121,7 +121,7 @@ public:
     /** 충돌 대기 - 충돌 시 Hit 레지스터에 대상 저장 */
     FHktStoryBuilder& WaitCollision(RegisterIndex WatchEntity = Reg::Spawned);
 
-    /** 애니메이션 종료 대기 — 엔티티의 몽타주가 끝날 때까지 VM 중단 */
+    /** 애니메이션 종료 대기 — 결정론적 고정 시간(1초) 대기. 이후 태그 제거로 정리. */
     FHktStoryBuilder& WaitAnimEnd(RegisterIndex Entity = Reg::Self);
 
     /** 이동 완료 대기 */

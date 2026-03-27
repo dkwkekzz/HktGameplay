@@ -15,7 +15,6 @@
 #include "HktCoreProperties.h"
 #include "HktCoreEvents.h"
 #include "HktWorldView.h"
-#include "HktPresentationSubsystem.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "GameplayTagsManager.h"
@@ -318,17 +317,6 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
     if (DefaultSubjectEntityId == InvalidEntityId && CachedProxySimulator && CachedProxySimulator->IsInitialized())
     {
         ResolveDefaultSubject();
-    }
-
-    // Presentation → Simulator: AnimEnd 이벤트 전달
-    if (UHktPresentationSubsystem* PresentationSub = UHktPresentationSubsystem::Get(this))
-    {
-        TArray<FHktEntityId> AnimEndEntities;
-        PresentationSub->DrainPendingAnimEndEntities(AnimEndEntities);
-        for (FHktEntityId Id : AnimEndEntities)
-        {
-            CachedProxySimulator->NotifyAnimEnd(Id);
-        }
     }
 
     FHktSimulationDiff Diff;

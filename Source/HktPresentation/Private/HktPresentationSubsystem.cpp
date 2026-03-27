@@ -300,20 +300,6 @@ void UHktPresentationSubsystem::NotifyCameraViewChanged()
 	}
 }
 
-void UHktPresentationSubsystem::NotifyAnimEnd(FHktEntityId Entity)
-{
-	PendingAnimEndEntities.Add(Entity);
-}
-
-void UHktPresentationSubsystem::DrainPendingAnimEndEntities(TArray<FHktEntityId>& OutEntities)
-{
-	if (PendingAnimEndEntities.Num() > 0)
-	{
-		OutEntities.Append(PendingAnimEndEntities);
-		PendingAnimEndEntities.Reset();
-	}
-}
-
 void UHktPresentationSubsystem::ComputeRenderLocations()
 {
 	UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
