@@ -46,3 +46,23 @@ void FHktCoreDataCollector::Clear()
 	Data.Empty();
 	++Version;
 }
+
+void FHktCoreDataCollector::EnableCollection(const FString& Category)
+{
+	FScopeLock ScopeLock(&Lock);
+	EnabledCollections.Add(Category);
+}
+
+void FHktCoreDataCollector::DisableCollection(const FString& Category)
+{
+	FScopeLock ScopeLock(&Lock);
+	EnabledCollections.Remove(Category);
+	Data.Remove(Category);
+	++Version;
+}
+
+bool FHktCoreDataCollector::IsCollectionEnabled(const FString& Category) const
+{
+	FScopeLock ScopeLock(&Lock);
+	return EnabledCollections.Contains(Category);
+}

@@ -66,6 +66,11 @@ static const TCHAR* WaitEventTypeToString(EWaitEventType Type)
 
 static void CollectVMDetailInsights(FHktVMRuntimePool& Pool)
 {
+    if (!FHktCoreDataCollector::Get().IsCollectionEnabled(TEXT("VMDetail")))
+    {
+        return;
+    }
+
     HKT_INSIGHT_CLEAR_CATEGORY(TEXT("VMDetail"));
 
     // Entity별 VM 집계용
