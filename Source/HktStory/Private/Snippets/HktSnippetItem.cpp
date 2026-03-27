@@ -2,6 +2,7 @@
 
 #include "Snippets/HktSnippetItem.h"
 #include "HktCoreProperties.h"
+#include "HktStoryEventParams.h"
 
 static constexpr uint16 EquipSlotProperties[] =
 {
@@ -22,8 +23,8 @@ FHktStoryBuilder& HktSnippetItem::LoadItemFromSlot(
 	FString P = B.MakeInternalLabel(TEXT("slot"));
 	FString DoneLabel = P + TEXT("_done");
 
-	// Param1에서 슬롯 인덱스 로드
-	B.LoadStore(R0, PropertyId::Param1);                                    // R0 = 슬롯 인덱스
+	// 슬롯 인덱스 로드 (UseSkillParams::EquipSlotIndex = Param1)
+	B.LoadStore(R0, UseSkillParams::EquipSlotIndex);                        // R0 = 슬롯 인덱스
 
 	// 디스패치: 각 슬롯 인덱스에 대해 비교 + 점프
 	for (int32 i = 0; i < NumEquipSlots; ++i)

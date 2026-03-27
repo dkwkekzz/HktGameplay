@@ -3,6 +3,7 @@
 #include "HktIntentBuilderComponent.h"
 #include "HktRuntimeLog.h"
 #include "HktCoreEventLog.h"
+#include "HktStoryEventParams.h"
 
 UHktIntentBuilderComponent::UHktIntentBuilderComponent()
 {
@@ -75,15 +76,8 @@ bool UHktIntentBuilderComponent::Submit()
         return false;
     }
 
-    // Core 구조체로 생성
-    FHktEvent CoreEvent;
-    CoreEvent.EventId = 0;  // 서버가 할당
-    CoreEvent.SourceEntity = SubjectEntityId;
-    CoreEvent.EventTag = EventTag;
-    CoreEvent.TargetEntity = TargetEntityId;
-    CoreEvent.Location = TargetLocation;
-    CoreEvent.Param0 = 0;
-    CoreEvent.Param1 = CommandSlotIndex;
+    // Core 구조체로 생성 — UseSkillFromSlot 빌더로 Param 의미 명시
+    FHktEvent CoreEvent = HktEventBuilder::UseSkillFromSlot(EventTag, SubjectEntityId, TargetEntityId, TargetLocation, CommandSlotIndex);
 
     PendingSubmitEvent = CoreEvent; // 복사 생성자 사용
 

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
+#include "HktStoryEventParams.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
 #include "HktRuntimeTags.h"
@@ -38,8 +39,8 @@ namespace HktStoryNPCSpawnerGoblinCamp
 		HktSnippetNPC::SpawnerLoopBegin(B, TEXT("loop"), TEXT("wait"), Entity_NPC_Goblin, 5);
 
 			// 위치 레지스터 로드 (이벤트 파라미터에서)
-		B.LoadStore(R3, PropertyId::Param0)             // SpawnPosX
-		 .LoadStore(R4, PropertyId::Param1)             // SpawnPosY
+		B.LoadStore(R3, SpawnerParams::SpawnPosX)       // SpawnPosX
+		 .LoadStore(R4, SpawnerParams::SpawnPosY)       // SpawnPosY
 		 .LoadConst(R5, 0);                             // Z = ground
 
 		// NPC 생성 + 스탯 설정 + 위치 지정

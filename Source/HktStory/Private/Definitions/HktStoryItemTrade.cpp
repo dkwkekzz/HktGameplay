@@ -5,6 +5,7 @@
 #include "HktWorldState.h"
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
+#include "HktStoryEventParams.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
@@ -43,6 +44,7 @@ namespace HktStoryItemTrade
 				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
 					return false;
 
+				// ItemTradeParams: Param0 = OfferItem, Param1 = RequestItem
 				FHktEntityId OfferItem = static_cast<FHktEntityId>(E.Param0);
 				FHktEntityId RequestItem = static_cast<FHktEntityId>(E.Param1);
 
@@ -67,9 +69,9 @@ namespace HktStoryItemTrade
 				return true;
 			})
 
-			// Param0 = 제안 아이템, Param1 = 요청 아이템
-			.LoadStore(R0, PropertyId::Param0)                              // R0 = OfferItem EntityId
-			.LoadStore(R1, PropertyId::Param1)                              // R1 = RequestItem EntityId
+			// 제안 아이템 / 요청 아이템 로드
+			.LoadStore(R0, ItemTradeParams::OfferItem)                      // R0 = OfferItem EntityId
+			.LoadStore(R1, ItemTradeParams::RequestItem)                    // R1 = RequestItem EntityId
 
 			// 제안 아이템 소유자 검증
 			.LoadEntityProperty(R2, R0, PropertyId::OwnerEntity)

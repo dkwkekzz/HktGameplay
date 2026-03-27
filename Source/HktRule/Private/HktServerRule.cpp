@@ -4,6 +4,7 @@
 #include "HktCoreSimulator.h"
 #include "HktCoreProperties.h"
 #include "HktBagTypes.h"
+#include "HktStoryEventParams.h"
 #include "GameplayTagsManager.h"
 #include "NativeGameplayTags.h"
 #include "HktTempMapStoryConfig.h"
@@ -354,11 +355,8 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		{
 			for (const FHktTempStoryEntry& Entry : HktTempMapStoryConfig::GetSpawnersForGroup(GroupIndex))
 			{
-				FHktEvent SpawnerEvent;
+				FHktEvent SpawnerEvent = HktEventBuilder::Spawner(Entry.StoryTag, Entry.SpawnPosX, Entry.SpawnPosY);
 				SpawnerEvent.EventId = ++ServerEventSequence;
-				SpawnerEvent.EventTag = Entry.StoryTag;
-				SpawnerEvent.Param0 = Entry.SpawnPosX;
-				SpawnerEvent.Param1 = Entry.SpawnPosY;
 				PendingGroupIntents[GroupIndex].Add(SpawnerEvent);
 				ActiveSpawnerFlows.Add(Entry.StoryTag);
 			}
@@ -397,14 +395,8 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 			// TargetEntity는 ImportEntityState 후 시뮬레이터가 할당하므로 아직 알 수 없음.
 			// Param1에 NewEntityStates 인덱스를 전달 → Story에서 해당 인덱스로 엔티티 참조.
 			// (PendingGroupEntityStates가 GroupBatch.NewEntityStates의 앞부분에 삽입됨)
-			FHktEvent ActivateEvent;
+			FHktEvent ActivateEvent = HktEventBuilder::ItemActivate(Event_Item_Activate, Spawn.CharacterEntity, Spawn.PlayerUid, Spawn.EquipIndex, NewEntityIndex);
 			ActivateEvent.EventId = ++ServerEventSequence;
-			ActivateEvent.EventTag = Event_Item_Activate;
-			ActivateEvent.SourceEntity = Spawn.CharacterEntity;
-			ActivateEvent.TargetEntity = InvalidEntityId;
-			ActivateEvent.PlayerUid = Spawn.PlayerUid;
-			ActivateEvent.Param0 = Spawn.EquipIndex;
-			ActivateEvent.Param1 = NewEntityIndex;
 			PendingGroupIntents[Spawn.GroupIndex].Add(ActivateEvent);
 		}
 	}

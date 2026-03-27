@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
+#include "HktStoryEventParams.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
@@ -49,8 +50,8 @@ namespace HktStoryItemSpawnerTreeDrop
 			.AddTag(Spawned, Tag_Item_Wood)
 
 			// 위치 설정
-			.LoadStore(R3, PropertyId::Param0)
-			.LoadStore(R4, PropertyId::Param1)
+			.LoadStore(R3, SpawnerParams::SpawnPosX)
+			.LoadStore(R4, SpawnerParams::SpawnPosY)
 			.LoadConst(R5, 0)
 			.SetPosition(Spawned, R3)
 

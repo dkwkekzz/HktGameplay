@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
+#include "HktStoryEventParams.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 
@@ -47,8 +48,8 @@ namespace HktStoryHeal
 			.LoadStore(R0, PropertyId::Health)
 			.LoadStore(R1, PropertyId::MaxHealth)
 
-			// 회복량 (Param0에서, 기본 50)
-			.LoadStore(R2, PropertyId::Param0)
+			// 회복량 (HealParams에서, 기본 50)
+			.LoadStore(R2, HealParams::HealAmount)
 			.CmpEq(R3, R2, R3)                          // R2 == 0?
 			.JumpIfNot(R3, TEXT("HasHealAmount"))
 			.LoadConst(R2, 50)                          // 기본값 50

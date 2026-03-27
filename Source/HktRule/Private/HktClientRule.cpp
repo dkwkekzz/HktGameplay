@@ -4,6 +4,7 @@
 #include "HktCoreProperties.h"
 #include "HktCoreEventLog.h"
 #include "HktStoryBuilder.h"
+#include "HktStoryEventParams.h"
 
 // 기본 액션 태그 (슬롯 미선택 시 타겟 유형에 따라 TargetDefault Story가 분기)
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Target_Default, "Story.Event.Target.Default");
@@ -48,19 +49,6 @@ bool FHktDefaultClientRule::IsOwnedByMe(FHktEntityId Entity) const
 
 	const FHktWorldState& WS = CachedSimulator->GetWorldState();
 	return WS.GetOwnerUid(Entity) == MyUid;
-}
-
-// ============================================================================
-// 기본 액션 결정 (슬롯 미선택 시)
-// ============================================================================
-
-FHktEvent FHktDefaultClientRule::BuildDefaultAction(FHktEntityId TargetEntity, FVector TargetLocation) const
-{
-	FHktEvent Event;
-	Event.EventTag = Tag_Event_Target_Default;
-	Event.TargetEntity = TargetEntity;
-	Event.Location = TargetLocation;
-	return Event;
 }
 
 // ============================================================================
@@ -142,19 +130,14 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 	FHktEvent Event;
 	if (PendingSlot >= 0 && CachedContainer)
 	{
-		// SlotAction 선택됨 → 해당 슬롯의 EventTag로 이벤트 생성
+		// SlotAction 선택됨 → 해당 슬롯의 EventTag로 UseSkill 이벤트 생성
 		FGameplayTag EventTag = CachedContainer->GetEventTagAtSlot(PendingSlot);
-		Event.EventTag = EventTag;
-		Event.SourceEntity = SubjectEntity;
-		Event.TargetEntity = TargetEntity;
-		Event.Location = TargetLocation;
-		Event.Param1 = PendingSlot;
+		Event = HktEventBuilder::UseSkillFromSlot(EventTag, SubjectEntity, TargetEntity, TargetLocation, PendingSlot);
 	}
 	else
 	{
 		// SlotAction 없음 → 기본 액션 (타겟 유형 기반)
-		Event = BuildDefaultAction(TargetEntity, TargetLocation);
-		Event.SourceEntity = SubjectEntity;
+		Event = HktEventBuilder::TargetDefault(Tag_Event_Target_Default, SubjectEntity, TargetEntity, TargetLocation);
 	}
 
 	// ValidateStory 사전조건 검증

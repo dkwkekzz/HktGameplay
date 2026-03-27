@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
+#include "HktStoryEventParams.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
 #include "HktRuntimeTags.h"
@@ -33,9 +34,9 @@ namespace HktStoryNPCSpawnerWave
 		auto B = Story(Story_Spawner_Wave_Arena);
 		B.Log(TEXT("Wave spawner: starting"))
 			.LoadConst(R0, 0)                               // R0 = zero constant
-			// 이벤트 Param0/Param1에서 스폰 위치 로드 (Self 엔티티 없음)
-			.LoadStore(R5, PropertyId::Param0)               // R5 = SpawnPosX
-			.LoadStore(R6, PropertyId::Param1)               // R6 = SpawnPosY
+			// 이벤트 파라미터에서 스폰 위치 로드 (Self 엔티티 없음)
+			.LoadStore(R5, SpawnerParams::SpawnPosX)         // R5 = SpawnPosX
+			.LoadStore(R6, SpawnerParams::SpawnPosY)         // R6 = SpawnPosY
 			.LoadConst(R7, 0)                                // R7 = SpawnPosZ (ground)
 
 			// === Wave 1: 고블린 3마리 ===
