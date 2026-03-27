@@ -96,6 +96,7 @@ namespace Reg
     X(GetDistance,       W, R, R) \
     X(LookAt,           _, R, R) \
     X(FindInRadius,     _, R, _) \
+    X(FindInRadiusEx,   _, R, R) \
     X(NextFound,        _, _, _) \
     /* Presentation */      \
     X(ApplyEffect,      _, R, _) \

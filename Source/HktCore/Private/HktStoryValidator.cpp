@@ -82,6 +82,7 @@ bool FHktStoryValidator::ValidateEntityFlow()
 		case EOpCode::SaveStoreEntity:
 		case EOpCode::DestroyEntity:
 		case EOpCode::FindInRadius:
+		case EOpCode::FindInRadiusEx:
 			CheckEntityReg(PC, Op, Inst.Src1);
 			break;
 		case EOpCode::GetDistance:

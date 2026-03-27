@@ -43,7 +43,10 @@
     X(CP)                     \
     X(MaxCP)                  \
     X(AttackSpeed)            \
-    X(NextActionFrame)
+    X(NextActionFrame)            \
+    /* 충돌 레이어 */             \
+    X(CollisionLayer)             \
+    X(CollisionMask)
 
 #define HKT_COLD_PROPERTY_LIST(X) \
     /* 이벤트 파라미터 */     \

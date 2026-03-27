@@ -422,6 +422,15 @@ FHktStoryBuilder& FHktStoryBuilder::FindInRadius(RegisterIndex CenterEntity, int
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::FindInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask)
+{
+    // Temp 레지스터에 반경, R8에 필터 마스크 로드
+    LoadConst(Reg::Temp, RadiusCm);
+    LoadConst(Reg::R8, static_cast<int32>(FilterMask));
+    Emit(FInstruction::Make(EOpCode::FindInRadiusEx, Reg::Count, CenterEntity, Reg::R8, 0));
+    return *this;
+}
+
 FHktStoryBuilder& FHktStoryBuilder::NextFound()
 {
     Emit(FInstruction::Make(EOpCode::NextFound, Reg::Iter, 0, 0, 0));
@@ -437,6 +446,22 @@ FHktStoryBuilder& FHktStoryBuilder::ForEachInRadius(RegisterIndex CenterEntity, 
     ForEachStack.Push(Ctx);
 
     FindInRadius(CenterEntity, RadiusCm);
+    Label(Ctx.LoopLabel);
+    NextFound();
+    JumpIfNot(Reg::Flag, Ctx.EndLabel);
+
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::ForEachInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask)
+{
+    FForEachContext Ctx;
+    Ctx.LoopLabel = FString::Printf(TEXT("__foreach_%d_loop"), ForEachCounter);
+    Ctx.EndLabel = FString::Printf(TEXT("__foreach_%d_end"), ForEachCounter);
+    ForEachCounter++;
+    ForEachStack.Push(Ctx);
+
+    FindInRadiusEx(CenterEntity, RadiusCm, FilterMask);
     Label(Ctx.LoopLabel);
     NextFound();
     JumpIfNot(Reg::Flag, Ctx.EndLabel);
