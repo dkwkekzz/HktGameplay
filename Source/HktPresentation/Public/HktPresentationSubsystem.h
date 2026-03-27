@@ -48,6 +48,12 @@ public:
 	/** 카메라 뷰가 변경되었음을 알림 (카메라 폰에서 호출). NeedsCameraSync 렌더러만 Sync. */
 	void NotifyCameraViewChanged();
 
+	/** 애니메이션 종료 이벤트 버퍼 — AnimInstance에서 호출 */
+	void NotifyAnimEnd(FHktEntityId Entity);
+
+	/** 버퍼에 쌓인 AnimEnd 엔티티 목록을 꺼내감 (PlayerController가 매 Tick 호출) */
+	void DrainPendingAnimEndEntities(TArray<FHktEntityId>& OutEntities);
+
 	/** 월드 위치에 VFX 재생 (클라이언트 즉시, 서버 무관) */
 	void PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location);
 
@@ -98,4 +104,7 @@ private:
 
 	bool bInitialSyncDone = false;
 	bool bStateDirty = false;
+
+	/** AnimInstance → VM 브리지용 AnimEnd 이벤트 버퍼 */
+	TArray<FHktEntityId> PendingAnimEndEntities;
 };

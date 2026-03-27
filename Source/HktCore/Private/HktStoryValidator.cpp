@@ -100,6 +100,7 @@ bool FHktStoryValidator::ValidateEntityFlow()
 		case EOpCode::CountByOwner:
 		case EOpCode::FindByOwner:
 		case EOpCode::WaitMoveEnd:
+		case EOpCode::WaitAnimEnd:
 			CheckEntityReg(PC, Op, Inst.Src1);
 			break;
 

@@ -67,6 +67,7 @@ namespace Reg
     /* Event Wait */        \
     X(WaitCollision,    _, R, _) \
     X(WaitMoveEnd,      _, R, _) \
+    X(WaitAnimEnd,      _, R, _) \
     /* Data Operations */   \
     X(LoadConst,        W, _, _) \
     X(LoadConstHigh,    W, _, _) \

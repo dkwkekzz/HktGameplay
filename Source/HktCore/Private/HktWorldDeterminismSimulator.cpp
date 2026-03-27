@@ -119,6 +119,14 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     VMCleanupSystem.Process(CompletedVMs, *VMPool, WorldState, VMProxy);
 }
 
+void FHktWorldDeterminismSimulator::NotifyAnimEnd(FHktEntityId Entity)
+{
+    FHktPendingEvent Evt;
+    Evt.Type = EWaitEventType::AnimEnd;
+    Evt.WatchedEntity = Entity;
+    PendingExternalEvents.Add(Evt);
+}
+
 FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulationEvent& InEvent)
 {
     for (const FHktEntityState& ES : InEvent.NewEntityStates)

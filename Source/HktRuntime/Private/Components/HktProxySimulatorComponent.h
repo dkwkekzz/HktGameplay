@@ -29,6 +29,7 @@ public:
     virtual void AdvanceLocalFrame(float DeltaSeconds) override;
     virtual void EnqueueServerBatch(const FHktSimulationEvent& InBatch) override;
     virtual bool ConsumePendingDiff(FHktSimulationDiff& OutDiff) override;
+    virtual void NotifyAnimEnd(FHktEntityId Entity) override;
 
 protected:
     virtual void BeginPlay() override;

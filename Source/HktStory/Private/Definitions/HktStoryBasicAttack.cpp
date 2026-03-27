@@ -14,10 +14,10 @@ namespace HktStoryBasicAttack
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_BasicAttack, "Story.Event.Attack.Basic", "Basic attack ability flow.");
 
-	// 공격 애니메이션 (트리거 — fire-and-forget)
+	// 공격 애니메이션 (트리거)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_Montage_Attack, "Anim.Montage.Attack", "Basic attack montage trigger tag.");
 
-	// 피격 애니메이션 (트리거 — fire-and-forget)
+	// 피격 애니메이션 (트리거)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_Montage_HitReaction, "Anim.Montage.HitReaction", "Hit reaction montage trigger tag.");
 
 	// VFX
@@ -92,7 +92,12 @@ namespace HktStoryBasicAttack
 		// Note: NextActionFrame 갱신은 UseSkill에서 이미 수행됨 (CooldownUpdateConst)
 		B.Label(TEXT("done"));
 
-		B.Log(TEXT("BasicAttack: 완료"))
+		// 공격 애니메이션 종료 대기 후 태그 정리
+		B.WaitAnimEnd(Self)
+		 .RemoveTag(Self, Tag_Anim_Montage_Attack)
+		 .RemoveTag(Target, Tag_Anim_Montage_HitReaction)
+
+		 .Log(TEXT("BasicAttack: 완료"))
 		 .Halt()
 		.BuildAndRegister();
 	}

@@ -143,6 +143,14 @@ bool UHktProxySimulatorComponent::ConsumePendingDiff(FHktSimulationDiff& OutDiff
     return true;
 }
 
+void UHktProxySimulatorComponent::NotifyAnimEnd(FHktEntityId Entity)
+{
+    if (Simulator)
+    {
+        Simulator->NotifyAnimEnd(Entity);
+    }
+}
+
 // ============================================================================
 // 서버 Batch 조정 — Diff 역적용으로 롤백(클라 빠름) / 빨리감기(클라 느림)
 // ============================================================================

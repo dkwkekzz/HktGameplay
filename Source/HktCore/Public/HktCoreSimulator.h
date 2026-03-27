@@ -38,6 +38,9 @@ public:
 
     /** Diff 역적용 — 프레임 변경 되돌리기 (클라이언트 예측 롤백용) */
     virtual void UndoDiff(const FHktSimulationDiff& Diff) = 0;
+
+    /** 애니메이션 종료 이벤트 주입 — Presentation에서 몽타주 종료 시 호출 */
+    virtual void NotifyAnimEnd(FHktEntityId Entity) = 0;
 };
 
 // ============================================================================
