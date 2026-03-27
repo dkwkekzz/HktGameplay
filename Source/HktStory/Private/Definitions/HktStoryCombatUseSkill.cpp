@@ -5,6 +5,7 @@
 #include "HktWorldState.h"
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
+#include "HktStoryEventParams.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
 #include "HktRuntimeTags.h"
@@ -97,8 +98,8 @@ namespace HktStoryCombatUseSkill
 		// === 공속 기반 쿨타임 검증 (서버 이중 검증) ===
 		HktSnippetCombat::CooldownCheck(B, TEXT("fail"));
 
-		// === 타겟 해석: Param0이 유효하면 사용, 아니면 기존 Target 레지스터 유지 ===
-		B	.LoadStore(R5, PropertyId::Param0)
+		// === 타겟 해석: TargetOverride가 유효하면 사용, 아니면 기존 Target 레지스터 유지 ===
+		B	.LoadStore(R5, UseSkillParams::TargetOverride)
 			.LoadConst(R6, 0)
 			.CmpNe(Flag, R5, R6)
 			.JumpIfNot(Flag, TEXT("target_resolved"))

@@ -39,7 +39,4 @@ private:
 
 	/** Subject 엔티티가 내 소유인지 확인 */
 	bool IsOwnedByMe(FHktEntityId Entity) const;
-
-	/** 슬롯 없을 때 기본 Target.Default Story 디스패치 (타겟 유형 분기는 Story 내부에서 처리) */
-	FHktEvent BuildDefaultAction(FHktEntityId TargetEntity, FVector TargetLocation) const;
 };

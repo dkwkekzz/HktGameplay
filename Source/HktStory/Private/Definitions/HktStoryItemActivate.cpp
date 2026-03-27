@@ -5,6 +5,7 @@
 #include "HktWorldState.h"
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
+#include "HktStoryEventParams.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
 #include "HktRuntimeTags.h"
@@ -54,7 +55,7 @@ namespace HktStoryItemActivate
 		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
 
 		B	// 요청된 EquipIndex 로드
-			.LoadStore(R2, PropertyId::Param0)                              // R2 = EquipIndex from event
+			.LoadStore(R2, ItemActivateParams::EquipIndex)                  // R2 = EquipIndex from event
 
 			// 동일 EquipIndex에 이미 활성된 아이템이 있으면 자동 비활성화
 			.FindByOwner(Self, Entity_Item)
