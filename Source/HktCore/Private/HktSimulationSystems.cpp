@@ -599,6 +599,12 @@ void FHktPhysicsSystem::Process(
 
     static constexpr float DefaultCollisionRadius = 50.0f;
 
+    int32 TotalPairs = 0;
+    int32 FilteredByLayer = 0;
+    int32 FilteredByOwner = 0;
+    int32 Collisions = 0;
+    int32 PushOuts = 0;
+
     for (auto& CellPair : GridMap)
     {
         const TArray<FHktEntityId>& EntitiesInCell = CellPair.Value;
@@ -612,6 +618,8 @@ void FHktPhysicsSystem::Process(
                 if (!WorldState.IsValidEntity(A) || !WorldState.IsValidEntity(B))
                     continue;
 
+                ++TotalPairs;
+
                 // Layer/Mask 필터: 양방향 동의 필요
                 const uint32 LayerA = static_cast<uint32>(WorldState.GetProperty(A, PropertyId::CollisionLayer));
                 const uint32 MaskA  = static_cast<uint32>(WorldState.GetProperty(A, PropertyId::CollisionMask));
@@ -623,7 +631,10 @@ void FHktPhysicsSystem::Process(
                 if (bAHasProfile && bBHasProfile)
                 {
                     if (!(LayerA & MaskB) || !(LayerB & MaskA))
+                    {
+                        ++FilteredByLayer;
                         continue;
+                    }
                 }
 
                 // OwnerEntity 관계 확인 (투사체 ↔ 시전자 충돌 방지)
@@ -633,9 +644,15 @@ void FHktPhysicsSystem::Process(
                 const bool bProjectileB = (LayerB == EHktCollisionLayer::Projectile);
 
                 if (bProjectileA && OwnerA == static_cast<int32>(B))
+                {
+                    ++FilteredByOwner;
                     continue;
+                }
                 if (bProjectileB && OwnerB == static_cast<int32>(A))
+                {
+                    ++FilteredByOwner;
                     continue;
+                }
 
                 FIntVector PA = WorldState.GetPosition(A);
                 FIntVector PB = WorldState.GetPosition(B);
@@ -656,6 +673,8 @@ void FHktPhysicsSystem::Process(
                     PhysEvent.ContactPoint = (PosA + PosB) * 0.5f;
                     OutPhysicsEvents.Add(PhysEvent);
 
+                    ++Collisions;
+
                     // Push-out 위치 보정 — 투사체가 포함된 쌍은 제외
                     if (!bProjectileA && !bProjectileB)
                     {
@@ -673,11 +692,26 @@ void FHktPhysicsSystem::Process(
                                 FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
                             VMProxy.SetPosition(WorldState, B,
                                 FMath::RoundToInt(NewB.X), FMath::RoundToInt(NewB.Y), FMath::RoundToInt(NewB.Z));
+
+                            ++PushOuts;
                         }
                     }
+
+                    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Server,
+                        FString::Printf(TEXT("PhysCollision A=%d(L=0x%X) B=%d(L=0x%X) ProjA=%d ProjB=%d PushOut=%d"),
+                            A, LayerA, B, LayerB,
+                            bProjectileA ? 1 : 0, bProjectileB ? 1 : 0,
+                            (!bProjectileA && !bProjectileB) ? 1 : 0));
                 }
             }
         }
+    }
+
+    if (TotalPairs > 0 || Collisions > 0)
+    {
+        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, EHktLogSource::Server,
+            FString::Printf(TEXT("Physics: Grid=%d Pairs=%d LayerSkip=%d OwnerSkip=%d Collisions=%d PushOuts=%d"),
+                GridMap.Num(), TotalPairs, FilteredByLayer, FilteredByOwner, Collisions, PushOuts));
     }
 }
 
