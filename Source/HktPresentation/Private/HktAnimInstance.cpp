@@ -50,6 +50,12 @@ void UHktAnimInstance::SyncFromTagContainer(const FGameplayTagContainer& EntityT
 		{
 			ApplyAnimTag(Tag);
 		}
+		else if (!IsLoopAnimTag(Tag))
+		{
+			// Trigger 태그가 재생 중에 다시 AddTag된 경우 (예: 연속 히트리액션)
+			// 아직 OnMontageEnd가 PrevAnimTags를 정리하기 전이므로 직접 재시작
+			ApplyAnimTag(Tag);
+		}
 	}
 
 	// 제거된 태그 감지 → 애니메이션 중지
@@ -106,7 +112,11 @@ void UHktAnimInstance::ApplyAnimTag(const FGameplayTag& AnimTag)
 		}
 		else if (Entry->Sequence)
 		{
-			PlaySlotAnimationAsDynamicMontage(Entry->Sequence, FName(TEXT("DefaultSlot")), 0.25f, 0.25f, PlayRate);
+			UAnimMontage* DynMontage = PlaySlotAnimationAsDynamicMontage(Entry->Sequence, FName(TEXT("DefaultSlot")), 0.25f, 0.25f, PlayRate);
+			if (DynMontage)
+			{
+				ActiveMontageTagMap.Add(DynMontage, AnimTag);
+			}
 			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
 				FString::Printf(TEXT("[HktAnimInst] PlaySequence: %s -> %s (Rate=%.2f)"),
 				*AnimTag.ToString(), *Entry->Sequence->GetName(), PlayRate));
