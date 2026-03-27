@@ -52,6 +52,94 @@ static FString VMStatusToString(EVMStatus Status)
     default:                      return TEXT("Unknown");
     }
 }
+
+static const TCHAR* WaitEventTypeToString(EWaitEventType Type)
+{
+    switch (Type)
+    {
+    case EWaitEventType::Timer:     return TEXT("Timer");
+    case EWaitEventType::Collision: return TEXT("Collision");
+    case EWaitEventType::MoveEnd:   return TEXT("MoveEnd");
+    default:                        return TEXT("None");
+    }
+}
+
+static void CollectVMDetailInsights(FHktVMRuntimePool& Pool)
+{
+    if (!FHktCoreDataCollector::Get().IsCollectionEnabled(TEXT("VMDetail")))
+    {
+        return;
+    }
+
+    HKT_INSIGHT_CLEAR_CATEGORY(TEXT("VMDetail"));
+
+    // Entity별 VM 집계용
+    TMap<FHktEntityId, TArray<TPair<int32, FString>>> EntityVMs;  // EntityId → [(SlotIndex, EventTag)]
+
+    Pool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
+    {
+        FHktEntityId SrcEntity = Runtime.Context ? Runtime.Context->SourceEntity : InvalidEntityId;
+        FHktEntityId TgtEntity = Runtime.Context ? Runtime.Context->TargetEntity : InvalidEntityId;
+        FString EventTag = Runtime.Program ? Runtime.Program->Tag.ToString() : TEXT("?");
+        int32 CodeSize = Runtime.Program ? Runtime.Program->CodeSize() : 0;
+
+        // Entity별 VM 집계
+        EntityVMs.FindOrAdd(SrcEntity).Emplace(static_cast<int32>(Handle.Index), EventTag);
+
+        // Last opcode
+        FString OpName = TEXT("-");
+        if (Runtime.Program && Runtime.PC > 0 && Runtime.Program->Code.Num() > 0)
+        {
+            int32 Idx = FMath::Min(Runtime.PC - 1, Runtime.Program->Code.Num() - 1);
+            OpName = GetOpCodeName(Runtime.Program->Code[Idx].GetOpCode());
+        }
+
+        // VM 상세 행
+        FString VMKey = FString::Printf(TEXT("VM_%d"), static_cast<int32>(Handle.Index));
+        FString Detail = FString::Printf(
+            TEXT("Status=%s | Event=%s | Src=%d | Tgt=%d | PC=%d | CodeSize=%d | CreationFrame=%d | PlayerUid=%lld")
+            TEXT(" | WaitType=%s | WaitEntity=%d | WaitTime=%.2f | WaitFrames=%d")
+            TEXT(" | R0=%d | R1=%d | R2=%d | R3=%d | R4=%d | R5=%d | R6=%d | R7=%d")
+            TEXT(" | R8=%d | Self=%d | Target=%d | Spawned=%d | Hit=%d | Iter=%d | Flag=%d")
+            TEXT(" | Op=%s"),
+            *VMStatusToString(Runtime.Status), *EventTag, SrcEntity, TgtEntity,
+            Runtime.PC, CodeSize, Runtime.CreationFrame, Runtime.PlayerUid,
+            WaitEventTypeToString(Runtime.EventWait.Type), Runtime.EventWait.WatchedEntity,
+            Runtime.EventWait.RemainingTime, Runtime.WaitFrames,
+            Runtime.Registers[0], Runtime.Registers[1], Runtime.Registers[2], Runtime.Registers[3],
+            Runtime.Registers[4], Runtime.Registers[5], Runtime.Registers[6], Runtime.Registers[7],
+            Runtime.Registers[8], Runtime.Registers[Reg::Self], Runtime.Registers[Reg::Target],
+            Runtime.Registers[Reg::Spawned], Runtime.Registers[Reg::Hit],
+            Runtime.Registers[Reg::Iter], Runtime.Registers[Reg::Flag],
+            *OpName);
+
+        // Context 파라미터 추가
+        if (Runtime.Context)
+        {
+            Detail += FString::Printf(
+                TEXT(" | Param0=%d | Param1=%d | TargetPos=%d,%d,%d"),
+                Runtime.Context->EventParam0, Runtime.Context->EventParam1,
+                Runtime.Context->EventTargetPosX, Runtime.Context->EventTargetPosY,
+                Runtime.Context->EventTargetPosZ);
+        }
+
+        HKT_INSIGHT_COLLECT(TEXT("VMDetail"), VMKey, Detail);
+    });
+
+    // Entity 요약 행
+    for (auto& KV : EntityVMs)
+    {
+        FString Names;
+        for (int32 i = 0; i < KV.Value.Num(); ++i)
+        {
+            if (i > 0) Names += TEXT(",");
+            Names += KV.Value[i].Value;
+        }
+        FString EntityKey = FString::Printf(TEXT("E_%d"), KV.Key);
+        HKT_INSIGHT_COLLECT(TEXT("VMDetail"), EntityKey,
+            FString::Printf(TEXT("VMCount=%d | Names=%s"), KV.Value.Num(), *Names));
+    }
+}
 #endif
 
 // ============================================================================
@@ -325,6 +413,10 @@ void FHktVMProcessSystem::Process(
             ActiveVMs.RemoveAtSwap(i);
         }
     }
+
+#if ENABLE_HKT_INSIGHTS
+    CollectVMDetailInsights(Pool);
+#endif
 }
 
 // ============================================================================

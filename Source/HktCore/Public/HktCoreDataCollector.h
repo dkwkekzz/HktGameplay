@@ -71,6 +71,15 @@ public:
 	/** 변경 감지용 버전 카운터 (변경 시 증가) */
 	uint32 GetVersion() const { return Version; }
 
+	/**
+	 * On-demand 수집 플래그.
+	 * 비용이 큰 카테고리(예: VMDetail)는 소비자가 활성화했을 때만 수집.
+	 * 패널 열림/닫힘 시 EnableCollection/DisableCollection 호출.
+	 */
+	void EnableCollection(const FString& Category);
+	void DisableCollection(const FString& Category);
+	bool IsCollectionEnabled(const FString& Category) const;
+
 private:
 	FHktCoreDataCollector() = default;
 
@@ -99,6 +108,7 @@ private:
 	};
 
 	TMap<FString, FCategoryData> Data;
+	TSet<FString> EnabledCollections;
 	uint32 Version = 0;
 	mutable FCriticalSection Lock;
 };
