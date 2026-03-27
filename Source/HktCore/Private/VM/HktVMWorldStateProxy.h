@@ -4,6 +4,7 @@
 
 #include "HktWorldState.h"
 #include "HktCoreProperties.h"
+#include "HktCoreEvents.h"
 
 // ============================================================================
 // FHktVMWorldStateProxy — VM dirty-aware 뮤테이션 API (CorePrivate 전용)
@@ -14,6 +15,8 @@
 
 struct FHktVMWorldStateProxy
 {
+    TArray<FHktVFXEvent> PendingVFXEvents;
+
     TArray<uint64> DirtyMask;
     TArray<int32>  DirtySlots;
     TArray<uint8>  TagsDirtyMask;

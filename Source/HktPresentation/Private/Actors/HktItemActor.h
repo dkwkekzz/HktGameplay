@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "HktSelectable.h"
+#include "IHktPresentableActor.h"
 #include "HktItemActor.generated.h"
 
 struct FHktEntityPresentation;
@@ -15,7 +16,7 @@ struct FHktEntityPresentation;
  * DataAsset(UHktItemVisualDataAsset)으로부터 메시를 받아 설정합니다.
  */
 UCLASS(NotBlueprintable)
-class AHktItemActor : public AActor, public IHktSelectable
+class AHktItemActor : public AActor, public IHktSelectable, public IHktPresentableActor
 {
 	GENERATED_BODY()
 
@@ -28,18 +29,14 @@ public:
 	/** 이 아이템이 부착될 소켓 이름 (DataAsset에서 지정) */
 	FName GetAttachSocketName() const { return AttachSocketName; }
 
-	/** 이 아이템의 EntityId 설정 (ActorRenderer에서 스폰 후 호출) */
-	void SetEntityId(FHktEntityId InEntityId) { CachedEntityId = InEntityId; }
-
 	// IHktSelectable
 	virtual FHktEntityId GetEntityId() const override { return CachedEntityId; }
 
-	/** ViewModel 값을 Actor에 적용. Owner Actor 조회를 위한 콜백 제공. */
-	void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
-		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc);
-
-	/** 매 프레임 Transform 적용 (부착 중이면 건너뜀) */
-	void ApplyTransform(const FHktEntityPresentation& Entity);
+	// IHktPresentableActor
+	virtual void SetEntityId(FHktEntityId InEntityId) override { CachedEntityId = InEntityId; }
+	virtual void ApplyTransform(const FHktEntityPresentation& Entity) override;
+	virtual void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
+		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) override;
 
 private:
 	void TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc);

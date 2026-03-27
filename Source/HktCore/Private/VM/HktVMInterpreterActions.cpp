@@ -56,7 +56,8 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex
 
         if (Runtime.Context)
         {
-            Runtime.Context->WriteEntity(NewEntity, PropertyId::OwnerEntity, Runtime.GetRegEntity(Reg::Self));
+            FHktEntityId SelfEntity = Runtime.GetRegEntity(Reg::Self);
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::OwnerEntity, SelfEntity);
 
             // EntitySpawnTag: net index for presentation visual lookup
             FGameplayTagNetIndex NetIndex = ClassTag.IsValid()
@@ -68,12 +69,14 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex
             Runtime.Context->WriteEntity(NewEntity, PropertyId::MaxSpeed, 100);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::CollisionRadius, 50);
 
-            // 시전자(Self)의 Team을 상속
-            FHktEntityId SelfEntity = Runtime.GetRegEntity(Reg::Self);
-            int32 SelfTeam = Runtime.Context->ReadEntity(SelfEntity, PropertyId::Team);
-            if (SelfTeam != 0)
+            // 시전자(Self)의 Team을 상속 (시전자가 없거나 유효하지 않으면 건너뜀)
+            if (WorldState->IsValidEntity(SelfEntity))
             {
-                Runtime.Context->WriteEntity(NewEntity, PropertyId::Team, SelfTeam);
+                int32 SelfTeam = Runtime.Context->ReadEntity(SelfEntity, PropertyId::Team);
+                if (SelfTeam != 0)
+                {
+                    Runtime.Context->WriteEntity(NewEntity, PropertyId::Team, SelfTeam);
+                }
             }
 
             // ClassTag 기반 기본 CollisionLayer/Mask 자동 설정
@@ -275,10 +278,25 @@ void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Ta
 
 void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex)
 {
+    const FString& VFXName = GetString(Runtime, StringIndex);
+    const int32 X = Runtime.GetReg(PosBase);
+    const int32 Y = Runtime.GetReg(PosBase + 1);
+    const int32 Z = Runtime.GetReg(PosBase + 2);
+
     HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_PlayVFX Pos=(%d,%d,%d) VFX=%s"),
-            Runtime.GetReg(PosBase), Runtime.GetReg(PosBase + 1), Runtime.GetReg(PosBase + 2),
-            *GetString(Runtime, StringIndex)));
+        FString::Printf(TEXT("Op_PlayVFX Pos=(%d,%d,%d) VFX=%s"), X, Y, Z, *VFXName));
+
+    if (!VMProxy) return;
+
+    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*VFXName), false);
+    if (!Tag.IsValid())
+    {
+        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Warning, LogSource,
+            FString::Printf(TEXT("Op_PlayVFX: invalid tag '%s'"), *VFXName));
+        return;
+    }
+
+    VMProxy->PendingVFXEvents.Add({ Tag, FIntVector(X, Y, Z) });
 }
 
 void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex)

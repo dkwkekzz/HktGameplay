@@ -227,6 +227,21 @@ struct HKTCORE_API FHktOwnerDelta
 };
 
 // ============================================================================
+// FHktVFXEvent — VM이 요청한 위치 기반 VFX 이벤트 (엔티티 미부착)
+// ============================================================================
+
+struct HKTCORE_API FHktVFXEvent
+{
+    FGameplayTag Tag;
+    FIntVector Position;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktVFXEvent& V)
+    {
+        return Ar << V.Tag << V.Position;
+    }
+};
+
+// ============================================================================
 // FHktSimulationDiff — 프레임별 변경점 (서버 → 클라이언트)
 // ============================================================================
 
@@ -240,6 +255,7 @@ struct HKTCORE_API FHktSimulationDiff
     TArray<FHktEntityState> RemovedEntityStates;  // 제거된 엔티티 전체 상태 (UndoDiff 복원용)
     TArray<FHktTagDelta> TagDeltas;
     TArray<FHktOwnerDelta> OwnerDeltas;
+    TArray<FHktVFXEvent> VFXEvents;
 
     bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
@@ -247,7 +263,7 @@ struct HKTCORE_API FHktSimulationDiff
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, SpawnedEntities, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, RemovedEntityStates, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, TagDeltas, Map);
-        Ar << OwnerDeltas;
+        Ar << OwnerDeltas << VFXEvents;
         return true;
     }
 };

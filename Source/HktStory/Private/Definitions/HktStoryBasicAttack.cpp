@@ -88,7 +88,7 @@ namespace HktStoryBasicAttack
 				.AddTag(Target, Tag_State_Dead)
 
 			.Label(TEXT("hit_skip"))
-			.EndForEach()
+			.EndForEach();
 
 		// 공격 애니메이션 종료 대기 후 태그 정리
 		B.WaitAnimEnd(Self)

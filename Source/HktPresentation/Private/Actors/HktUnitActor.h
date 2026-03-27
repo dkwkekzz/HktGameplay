@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "HktSelectable.h"
+#include "IHktPresentableActor.h"
 #include "HktUnitActor.generated.h"
 
 class UCapsuleComponent;
@@ -18,24 +19,23 @@ struct FHktEntityPresentation;
  * 물리 충돌 없이 Visibility 채널만 응답 (QueryOnly).
  */
 UCLASS(Blueprintable)
-class AHktUnitActor : public AActor, public IHktSelectable
+class AHktUnitActor : public AActor, public IHktSelectable, public IHktPresentableActor
 {
 	GENERATED_BODY()
 
 public:
 	AHktUnitActor();
 
-	/** EntityId 설정 (ActorRenderer에서 스폰 후 호출) */
-	void SetEntityId(FHktEntityId InEntityId) { CachedEntityId = InEntityId; }
-
 	// IHktSelectable
 	virtual FHktEntityId GetEntityId() const override { return CachedEntityId; }
 
-	/** ViewModel 값을 Actor에 적용. bForceAll=true면 전체 초기화, false면 dirty만. */
-	void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
+	virtual void Tick(float DeltaTime) override;
 
-	/** 매 프레임 Transform 적용 (Sync 주기와 렌더 주기 차이로 인한 끊김 방지) */
-	void ApplyTransform(const FHktEntityPresentation& Entity);
+	// IHktPresentableActor
+	virtual void SetEntityId(FHktEntityId InEntityId) override { CachedEntityId = InEntityId; }
+	virtual void ApplyTransform(const FHktEntityPresentation& Entity) override {}
+	virtual void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
+		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) override;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Unit")
@@ -48,6 +48,9 @@ private:
 
 	/** 위치 보간용 현재 시각 위치 (RenderLocation을 향해 매 프레임 VInterpTo) */
 	FVector InterpLocation = FVector::ZeroVector;
+	FVector CachedRenderLocation = FVector::ZeroVector;
+	FRotator InterpRotation = FRotator::ZeroRotator;
+	FRotator CachedRotation = FRotator::ZeroRotator;
 
 	/** 캐시된 AnimInstance (매 프레임 FindComponent 방지) */
 	TWeakObjectPtr<UHktAnimInstance> CachedAnimInstance;

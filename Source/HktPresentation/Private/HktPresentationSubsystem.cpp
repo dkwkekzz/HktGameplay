@@ -263,6 +263,16 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 		}
 	});
 
+	// Op_PlayVFX 이벤트 처리: 엔티티에 미부착, 지정 위치에 VFX 즉시 재생
+	View.ForEachVFXEvent([this](const FHktVFXEvent& Event)
+	{
+		if (VFXRenderer)
+		{
+			FVector Pos(Event.Position.X, Event.Position.Y, Event.Position.Z);
+			VFXRenderer->PlayVFXAtLocation(Event.Tag, Pos);
+		}
+	});
+
 	ComputeRenderLocations();
 }
 

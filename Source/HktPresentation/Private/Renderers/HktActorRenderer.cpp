@@ -6,7 +6,7 @@
 #include "DataAssets/HktActorVisualDataAsset.h"
 #include "DataAssets/HktItemVisualDataAsset.h"
 #include "Actors/HktItemActor.h"
-#include "Actors/HktUnitActor.h"
+#include "Actors/IHktPresentableActor.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "HktCoreEventLog.h"
@@ -64,11 +64,8 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E) continue;
 
-		AActor* Actor = WeakActor.Get();
-		if (AHktUnitActor* Unit = Cast<AHktUnitActor>(Actor))
-			Unit->ApplyTransform(*E);
-		else if (AHktItemActor* Item = Cast<AHktItemActor>(Actor))
-			Item->ApplyTransform(*E);
+		if (IHktPresentableActor* P = Cast<IHktPresentableActor>(WeakActor.Get()))
+			P->ApplyTransform(*E);
 	}
 }
 
@@ -77,17 +74,11 @@ void FHktActorRenderer::ForwardToActor(FHktEntityId Id, const FHktEntityPresenta
 	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
 	if (!WeakPtr || !WeakPtr->IsValid()) return;
 
-	AActor* Actor = WeakPtr->Get();
+	IHktPresentableActor* P = Cast<IHktPresentableActor>(WeakPtr->Get());
+	if (!P) return;
 
-	if (AHktUnitActor* Unit = Cast<AHktUnitActor>(Actor))
-	{
-		Unit->ApplyPresentation(Entity, Frame, bForceAll);
-	}
-	else if (AHktItemActor* Item = Cast<AHktItemActor>(Actor))
-	{
-		Item->ApplyPresentation(Entity, Frame, bForceAll,
-			[this](FHktEntityId OwnerId) -> AActor* { return GetActor(OwnerId); });
-	}
+	P->ApplyPresentation(Entity, Frame, bForceAll,
+		[this](FHktEntityId OwnerId) -> AActor* { return GetActor(OwnerId); });
 }
 
 void FHktActorRenderer::Teardown()
@@ -140,7 +131,6 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			if (ItemActor)
 			{
 				ItemActor->SetupMesh(ItemAsset->Mesh, ItemAsset->MeshScale, ItemAsset->AttachRotationOffset, ItemAsset->AttachSocketName);
-				ItemActor->SetEntityId(EntityId);
 			}
 			SpawnedActor = ItemActor;
 		}
@@ -170,14 +160,14 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 				return;
 			}
 
-			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"), 
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"),
         *VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
 
 
 			ConfigureCollisionForSelection(SpawnedActor);
 
-			if (AHktUnitActor* Unit = Cast<AHktUnitActor>(SpawnedActor))
-				Unit->SetEntityId(EntityId);
+			if (IHktPresentableActor* P = Cast<IHktPresentableActor>(SpawnedActor))
+				P->SetEntityId(EntityId);
 
 			ActorMap.Add(EntityId, SpawnedActor);
 

@@ -8,6 +8,8 @@
 
 AHktUnitActor::AHktUnitActor()
 {
+	PrimaryActorTick.bCanEverTick = true;
+
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Capsule"));
 	RootComponent = CapsuleComponent;
 
@@ -32,23 +34,25 @@ UHktAnimInstance* AHktUnitActor::GetAnimInstance()
 	return CachedAnimInstance.Get();
 }
 
-void AHktUnitActor::ApplyTransform(const FHktEntityPresentation& Entity)
+void AHktUnitActor::Tick(float DeltaTime)
 {
-	const float DeltaSeconds = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.f;
-	constexpr float InterpSpeed = 15.f;
-	InterpLocation = FMath::VInterpTo(InterpLocation, Entity.RenderLocation.Get(), DeltaSeconds, InterpSpeed);
+	Super::Tick(DeltaTime);
+
+	constexpr float InterpSpeed = 10.f;
+	InterpLocation = FMath::VInterpTo(InterpLocation, CachedRenderLocation, DeltaTime, InterpSpeed);
+	InterpRotation = FMath::RInterpTo(InterpRotation, CachedRotation, DeltaTime, InterpSpeed);
 
 	SetActorLocationAndRotation(
-		InterpLocation, Entity.Rotation.Get(),
+		InterpLocation, InterpRotation,
 		false, nullptr, ETeleportType::TeleportPhysics);
 }
 
-void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll)
+void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
+	TFunctionRef<AActor*(FHktEntityId)> /*GetActorFunc*/)
 {
 	// Transform은 ApplyTransform()에서 매 프레임 처리
-	// bForceAll(스폰 직후)에는 보간 없이 즉시 목표 위치로 스냅
-	if (bForceAll)
-		InterpLocation = Entity.RenderLocation.Get();
+	CachedRenderLocation = Entity.RenderLocation.Get();
+	CachedRotation = Entity.Rotation.Get();
 
 	// --- Animation ---
 	UHktAnimInstance* HktAnim = GetAnimInstance();

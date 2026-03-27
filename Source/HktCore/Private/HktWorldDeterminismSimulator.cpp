@@ -182,6 +182,8 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         Diff.OwnerDeltas.Add(Delta);
     });
 
+    Diff.VFXEvents = MoveTemp(VMProxy.PendingVFXEvents);
+
 #if ENABLE_HKT_INSIGHTS
     if (!SourceName.IsEmpty())
     {
