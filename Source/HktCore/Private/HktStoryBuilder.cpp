@@ -187,7 +187,7 @@ FHktStoryBuilder& FHktStoryBuilder::WaitCollision(RegisterIndex WatchEntity)
 
 FHktStoryBuilder& FHktStoryBuilder::WaitAnimEnd(RegisterIndex Entity)
 {
-    Yield(1);
+    Emit(FInstruction::Make(EOpCode::WaitAnimEnd, 0, Entity, 0, 0));
     return *this;
 }
 

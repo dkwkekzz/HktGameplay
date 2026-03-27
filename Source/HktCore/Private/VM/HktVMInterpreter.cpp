@@ -59,6 +59,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     // Event Wait
     case EOpCode::WaitCollision: return Op_WaitCollision(Runtime, Inst.Src1);
     case EOpCode::WaitMoveEnd: return Op_WaitMoveEnd(Runtime, Inst.Src1);
+    case EOpCode::WaitAnimEnd: return Op_WaitAnimEnd(Runtime, Inst.Src1);
     // Data Operations
     case EOpCode::LoadConst: Op_LoadConst(Runtime, Inst._Dst, Inst.GetSignedImm20()); break;
     case EOpCode::LoadConstHigh: Op_LoadConstHigh(Runtime, Inst.Dst, Inst.Imm12); break;
@@ -177,6 +178,20 @@ EVMStatus FHktVMInterpreter::Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterInde
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_WaitMoveEnd WatchEntity=%d"), Runtime.EventWait.WatchedEntity),
         Runtime.EventWait.WatchedEntity);
+    return EVMStatus::WaitingEvent;
+}
+
+EVMStatus FHktVMInterpreter::Op_WaitAnimEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity)
+{
+    // 결정론적 고정 시간 대기 — 서버/클라 동일한 Timer 사용
+    // 실제 몽타주 길이와 정확히 일치하지 않아도 됨 (태그 제거만 하면 됨)
+    static constexpr float DefaultAnimWaitSeconds = 1.0f;
+    Runtime.EventWait.Type = EWaitEventType::Timer;
+    Runtime.EventWait.RemainingTime = DefaultAnimWaitSeconds;
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_WaitAnimEnd WatchEntity=%d (Timer=%.1fs)"),
+        Runtime.GetRegEntity(WatchEntity), DefaultAnimWaitSeconds),
+        Runtime.GetRegEntity(WatchEntity));
     return EVMStatus::WaitingEvent;
 }
 
@@ -417,6 +432,7 @@ bool FHktVMInterpreter::ExecutePrecondition(
         case EOpCode::YieldSeconds:
         case EOpCode::WaitCollision:
         case EOpCode::WaitMoveEnd:
+        case EOpCode::WaitAnimEnd:
             continue;  // skip
         default:
             break;
