@@ -3,6 +3,7 @@
 #include "HktSimulationSystems.h"
 #include "HktCoreLog.h"
 #include "HktCoreProperties.h"
+#include "HktCollisionLayers.h"
 #include "VM/HktVMProgram.h"
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
@@ -628,12 +629,12 @@ void FHktPhysicsSystem::Process(
                 // OwnerEntity 관계 확인 (투사체 ↔ 시전자 충돌 방지)
                 const int32 OwnerA = WorldState.GetProperty(A, PropertyId::OwnerEntity);
                 const int32 OwnerB = WorldState.GetProperty(B, PropertyId::OwnerEntity);
-                const bool IsProjectileA = (OwnerA != 0);
-                const bool IsProjectileB = (OwnerB != 0);
+                const bool bProjectileA = (LayerA == EHktCollisionLayer::Projectile);
+                const bool bProjectileB = (LayerB == EHktCollisionLayer::Projectile);
 
-                if (IsProjectileA && OwnerA == static_cast<int32>(B))
+                if (bProjectileA && OwnerA == static_cast<int32>(B))
                     continue;
-                if (IsProjectileB && OwnerB == static_cast<int32>(A))
+                if (bProjectileB && OwnerB == static_cast<int32>(A))
                     continue;
 
                 FIntVector PA = WorldState.GetPosition(A);
@@ -656,7 +657,7 @@ void FHktPhysicsSystem::Process(
                     OutPhysicsEvents.Add(PhysEvent);
 
                     // Push-out 위치 보정 — 투사체가 포함된 쌍은 제외
-                    if (!IsProjectileA && !IsProjectileB)
+                    if (!bProjectileA && !bProjectileB)
                     {
                         const float Dist = FMath::Sqrt(DistSq);
                         if (Dist > SMALL_NUMBER)
