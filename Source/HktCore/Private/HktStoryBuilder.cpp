@@ -422,6 +422,27 @@ FHktStoryBuilder& FHktStoryBuilder::FindInRadius(RegisterIndex CenterEntity, int
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::FindInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask)
+{
+    // CenterEntity가 Temp/R8과 겹칠 수 있으므로 순서 주의:
+    // 1) FilterMask를 R8에 로드 (CenterEntity != R8 가정, 아래 방어 코드 참고)
+    // 2) Radius를 Temp에 로드
+    // 3) FindInRadiusEx emit
+    //
+    // 만약 CenterEntity가 R8이면 LoadConst(R8, mask)가 값을 덮어쓰므로
+    // R7에 먼저 복사하여 안전하게 처리
+    RegisterIndex SafeCenter = CenterEntity;
+    if (CenterEntity == Reg::R8 || CenterEntity == Reg::Temp)
+    {
+        Move(Reg::R7, CenterEntity);
+        SafeCenter = Reg::R7;
+    }
+    LoadConst(Reg::Temp, RadiusCm);
+    LoadConst(Reg::R8, static_cast<int32>(FilterMask));
+    Emit(FInstruction::Make(EOpCode::FindInRadiusEx, Reg::Count, SafeCenter, Reg::R8, 0));
+    return *this;
+}
+
 FHktStoryBuilder& FHktStoryBuilder::NextFound()
 {
     Emit(FInstruction::Make(EOpCode::NextFound, Reg::Iter, 0, 0, 0));
@@ -437,6 +458,22 @@ FHktStoryBuilder& FHktStoryBuilder::ForEachInRadius(RegisterIndex CenterEntity, 
     ForEachStack.Push(Ctx);
 
     FindInRadius(CenterEntity, RadiusCm);
+    Label(Ctx.LoopLabel);
+    NextFound();
+    JumpIfNot(Reg::Flag, Ctx.EndLabel);
+
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::ForEachInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask)
+{
+    FForEachContext Ctx;
+    Ctx.LoopLabel = FString::Printf(TEXT("__foreach_%d_loop"), ForEachCounter);
+    Ctx.EndLabel = FString::Printf(TEXT("__foreach_%d_end"), ForEachCounter);
+    ForEachCounter++;
+    ForEachStack.Push(Ctx);
+
+    FindInRadiusEx(CenterEntity, RadiusCm, FilterMask);
     Label(Ctx.LoopLabel);
     NextFound();
     JumpIfNot(Reg::Flag, Ctx.EndLabel);

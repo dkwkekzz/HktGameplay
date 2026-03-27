@@ -573,6 +573,14 @@ void FHktPhysicsSystem::RebuildGrid(const FHktWorldState& WorldState)
     GridMap.Reset();
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
+        const int32 Layer = WorldState.GetProperty(Id, PropertyId::CollisionLayer);
+        const int32 Mask  = WorldState.GetProperty(Id, PropertyId::CollisionMask);
+
+        // Layer와 Mask가 모두 명시적으로 설정된 경우에만 Layer=0을 "불참"으로 처리
+        // 둘 다 0이면 레거시 엔티티 → 기존 동작 유지 (그리드 참여)
+        if (Layer == 0 && Mask != 0)
+            return;
+
         FIntVector P = WorldState.GetPosition(Id);
         FVector Pos(static_cast<float>(P.X), static_cast<float>(P.Y), 0.f);
         FCellCoord Cell = WorldToCell(Pos);
@@ -603,6 +611,20 @@ void FHktPhysicsSystem::Process(
                 if (!WorldState.IsValidEntity(A) || !WorldState.IsValidEntity(B))
                     continue;
 
+                // Layer/Mask 필터: 양방향 동의 필요
+                const uint32 LayerA = static_cast<uint32>(WorldState.GetProperty(A, PropertyId::CollisionLayer));
+                const uint32 MaskA  = static_cast<uint32>(WorldState.GetProperty(A, PropertyId::CollisionMask));
+                const uint32 LayerB = static_cast<uint32>(WorldState.GetProperty(B, PropertyId::CollisionLayer));
+                const uint32 MaskB  = static_cast<uint32>(WorldState.GetProperty(B, PropertyId::CollisionMask));
+                // Layer/Mask가 양쪽 다 설정된 경우에만 필터링 (레거시 엔티티 하위호환)
+                const bool bAHasProfile = (LayerA | MaskA) != 0;
+                const bool bBHasProfile = (LayerB | MaskB) != 0;
+                if (bAHasProfile && bBHasProfile)
+                {
+                    if (!(LayerA & MaskB) || !(LayerB & MaskA))
+                        continue;
+                }
+
                 // OwnerEntity 관계 확인 (투사체 ↔ 시전자 충돌 방지)
                 const int32 OwnerA = WorldState.GetProperty(A, PropertyId::OwnerEntity);
                 const int32 OwnerB = WorldState.GetProperty(B, PropertyId::OwnerEntity);
@@ -610,9 +632,9 @@ void FHktPhysicsSystem::Process(
                 const bool IsProjectileB = (OwnerB != 0);
 
                 if (IsProjectileA && OwnerA == static_cast<int32>(B))
-                    continue; // A는 B가 생성한 투사체 → 무시
+                    continue;
                 if (IsProjectileB && OwnerB == static_cast<int32>(A))
-                    continue; // B는 A가 생성한 투사체 → 무시
+                    continue;
 
                 FIntVector PA = WorldState.GetPosition(A);
                 FIntVector PB = WorldState.GetPosition(B);

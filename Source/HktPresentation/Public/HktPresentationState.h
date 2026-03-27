@@ -35,6 +35,7 @@ struct FHktEntityPresentation
 
 	// --- Physics (Debug) ---
 	THktVisualField<float> CollisionRadius;
+	THktVisualField<int32> CollisionLayer;
 
 	// --- Movement ---
 	THktVisualField<FVector> MoveTarget;

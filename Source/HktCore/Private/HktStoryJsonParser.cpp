@@ -568,6 +568,12 @@ void FHktStoryJsonParser::InitializeCoreCommands()
 	RegisterCommand(TEXT("ForEachInRadius"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 		B.ForEachInRadius(A.GetReg(TEXT("center")), A.GetInt(TEXT("radius")));
 	});
+	RegisterCommand(TEXT("FindInRadiusEx"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.FindInRadiusEx(A.GetReg(TEXT("center")), A.GetInt(TEXT("radius")), static_cast<uint32>(A.GetInt(TEXT("filter"))));
+	});
+	RegisterCommand(TEXT("ForEachInRadiusEx"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.ForEachInRadiusEx(A.GetReg(TEXT("center")), A.GetInt(TEXT("radius")), static_cast<uint32>(A.GetInt(TEXT("filter"))));
+	});
 	RegisterCommand(TEXT("EndForEach"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 		B.EndForEach();
 	});
