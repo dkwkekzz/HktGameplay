@@ -74,6 +74,7 @@ void UHktProxySimulatorComponent::AccumulateDiff(FHktSimulationDiff& InDiff)
     PendingDiff.PropertyDeltas.Append(MoveTemp(InDiff.PropertyDeltas));
     PendingDiff.TagDeltas.Append(MoveTemp(InDiff.TagDeltas));
     PendingDiff.OwnerDeltas.Append(MoveTemp(InDiff.OwnerDeltas));
+    PendingDiff.VFXEvents.Append(MoveTemp(InDiff.VFXEvents));
     bHasPendingDiff = true;
 }
 
