@@ -72,7 +72,7 @@ namespace HktStoryCombatUseSkill
 	 *
 	 * 두 가지 진입 경로:
 	 * 1. 슬롯 키: Param0 = 타겟 EntityId, Param1 = 슬롯 인덱스
-	 * 2. AttackEngage: Target 레지스터에 타겟, Param1 = 0 (기본 슬롯)
+	 * 2. TargetDefault: Target 레지스터에 타겟, Param1 = 0 (기본 슬롯)
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()

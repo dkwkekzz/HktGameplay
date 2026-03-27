@@ -15,7 +15,7 @@ namespace HktStoryTargetDefault
 
 	// Dispatch targets
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_ItemPickup,    "Story.Event.Item.Pickup",      "Item pickup story (dispatch target).");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_AttackEngage,  "Story.Event.Attack.Engage",    "Attack engage story — range check + approach + attack (dispatch target).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_UseSkill,      "Story.Event.Combat.UseSkill",  "Unified skill pipeline (dispatch target).");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_MoveToLocation, "Story.Event.Move.ToLocation", "Move to location story (dispatch target).");
 
 	/**
@@ -64,9 +64,9 @@ namespace HktStoryTargetDefault
 			.CmpGt(Flag, R0, R1)
 			.JumpIfNot(Flag, TEXT("dispatch_move"))
 
-			// NPC → 접근 공격 디스패치 (거리 검사 + 이동 + 공격)
-			.Log(TEXT("TargetDefault: NPC → AttackEngage"))
-			.DispatchEvent(Story_AttackEngage)
+			// NPC → 스킬 파이프라인 직접 디스패치 (추적은 BasicAttack 내부에서 처리)
+			.Log(TEXT("TargetDefault: NPC → UseSkill"))
+			.DispatchEvent(Story_UseSkill)
 			.Halt()
 
 		.Label(TEXT("dispatch_move"))

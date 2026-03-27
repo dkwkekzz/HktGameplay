@@ -511,6 +511,22 @@ void FHktPhysicsSystem::Process(
                 if (!WorldState.IsValidEntity(A) || !WorldState.IsValidEntity(B))
                     continue;
 
+                // OwnerEntity 관계 확인 (투사체 ↔ 시전자 충돌 방지)
+                const int32 OwnerA = WorldState.GetProperty(A, PropertyId::OwnerEntity);
+                const int32 OwnerB = WorldState.GetProperty(B, PropertyId::OwnerEntity);
+                const bool IsProjectileA = (OwnerA != 0);
+                const bool IsProjectileB = (OwnerB != 0);
+
+                if (IsProjectileA && OwnerA == static_cast<int32>(B))
+                    continue; // A는 B가 생성한 투사체 → 무시
+                if (IsProjectileB && OwnerB == static_cast<int32>(A))
+                    continue; // B는 A가 생성한 투사체 → 무시
+
+                // 같은 Team(≠0)이면 충돌 이벤트 생성 안 함
+                const int32 TeamA = WorldState.GetProperty(A, PropertyId::Team);
+                const int32 TeamB = WorldState.GetProperty(B, PropertyId::Team);
+                const bool SameTeam = (TeamA != 0 && TeamA == TeamB);
+
                 FIntVector PA = WorldState.GetPosition(A);
                 FIntVector PB = WorldState.GetPosition(B);
                 FVector PosA(static_cast<float>(PA.X), static_cast<float>(PA.Y), static_cast<float>(PA.Z));
@@ -523,28 +539,34 @@ void FHktPhysicsSystem::Process(
                 const float DistSq = FVector::DistSquared(PosA, PosB);
                 if (DistSq <= CombinedRadius * CombinedRadius)
                 {
-                    // 충돌 이벤트
-                    FHktPhysicsEvent PhysEvent;
-                    PhysEvent.EntityA = A;
-                    PhysEvent.EntityB = B;
-                    PhysEvent.ContactPoint = (PosA + PosB) * 0.5f;
-                    OutPhysicsEvents.Add(PhysEvent);
-
-                    // Push-out 위치 보정
-                    const float Dist = FMath::Sqrt(DistSq);
-                    if (Dist > SMALL_NUMBER)
+                    // 충돌 이벤트 — 같은 팀이면 생성하지 않음
+                    if (!SameTeam)
                     {
-                        const float Overlap = CombinedRadius - Dist;
-                        const float HalfPush = Overlap * 0.5f;
-                        const FVector Dir = (PosB - PosA) / Dist;
+                        FHktPhysicsEvent PhysEvent;
+                        PhysEvent.EntityA = A;
+                        PhysEvent.EntityB = B;
+                        PhysEvent.ContactPoint = (PosA + PosB) * 0.5f;
+                        OutPhysicsEvents.Add(PhysEvent);
+                    }
 
-                        const FVector NewA = PosA - Dir * HalfPush;
-                        const FVector NewB = PosB + Dir * HalfPush;
+                    // Push-out 위치 보정 — 투사체가 포함된 쌍은 제외
+                    if (!IsProjectileA && !IsProjectileB)
+                    {
+                        const float Dist = FMath::Sqrt(DistSq);
+                        if (Dist > SMALL_NUMBER)
+                        {
+                            const float Overlap = CombinedRadius - Dist;
+                            const float HalfPush = Overlap * 0.5f;
+                            const FVector Dir = (PosB - PosA) / Dist;
 
-                        VMProxy.SetPosition(WorldState, A,
-                            FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
-                        VMProxy.SetPosition(WorldState, B,
-                            FMath::RoundToInt(NewB.X), FMath::RoundToInt(NewB.Y), FMath::RoundToInt(NewB.Z));
+                            const FVector NewA = PosA - Dir * HalfPush;
+                            const FVector NewB = PosB + Dir * HalfPush;
+
+                            VMProxy.SetPosition(WorldState, A,
+                                FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
+                            VMProxy.SetPosition(WorldState, B,
+                                FMath::RoundToInt(NewB.X), FMath::RoundToInt(NewB.Y), FMath::RoundToInt(NewB.Z));
+                        }
                     }
                 }
             }
