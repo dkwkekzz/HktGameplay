@@ -573,8 +573,12 @@ void FHktPhysicsSystem::RebuildGrid(const FHktWorldState& WorldState)
     GridMap.Reset();
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
-        // CollisionLayer == 0 이면 물리 충돌 불참 (아이템, 트리거 등 최적화)
-        if (WorldState.GetProperty(Id, PropertyId::CollisionLayer) == 0)
+        const int32 Layer = WorldState.GetProperty(Id, PropertyId::CollisionLayer);
+        const int32 Mask  = WorldState.GetProperty(Id, PropertyId::CollisionMask);
+
+        // Layer와 Mask가 모두 명시적으로 설정된 경우에만 Layer=0을 "불참"으로 처리
+        // 둘 다 0이면 레거시 엔티티 → 기존 동작 유지 (그리드 참여)
+        if (Layer == 0 && Mask != 0)
             return;
 
         FIntVector P = WorldState.GetPosition(Id);

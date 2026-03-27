@@ -65,9 +65,9 @@ inline uint32 GetDefaultCollisionMask(const FGameplayTag& ClassTag)
 
     const FName TagName = ClassTag.GetTagName();
     if (TagName.ToString().StartsWith(TEXT("Entity.Character")))
-        return EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Building;
+        return EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile | EHktCollisionLayer::Building;
     if (TagName.ToString().StartsWith(TEXT("Entity.NPC")))
-        return EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Building;
+        return EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile | EHktCollisionLayer::Building;
     if (TagName.ToString().StartsWith(TEXT("Entity.Projectile")))
         return EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Building;
     if (TagName.ToString().StartsWith(TEXT("Entity.Building")))

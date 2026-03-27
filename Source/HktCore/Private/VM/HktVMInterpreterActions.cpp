@@ -161,6 +161,7 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
         int32 CX = Runtime.Context->ReadEntity(Center, PropertyId::PosX);
         int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
         int32 CZ = Runtime.Context->ReadEntity(Center, PropertyId::PosZ);
+        int32 CenterTeam = Runtime.Context->ReadEntity(Center, PropertyId::Team);
         uint32 FilterMask = static_cast<uint32>(Runtime.Context->ReadEntity(Center, PropertyId::CollisionMask));
 
         int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
@@ -170,10 +171,17 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
             if (E == Center)
                 return;
 
-            // CollisionLayer 기반 필터링
-            uint32 TargetLayer = static_cast<uint32>(WorldState->GetProperty(E, PropertyId::CollisionLayer));
-            if (FilterMask != 0 && !(TargetLayer & FilterMask))
+            // Team 필터: 같은 팀 제외 (기존 동작 유지)
+            if (WorldState->GetProperty(E, PropertyId::Team) == CenterTeam)
                 return;
+
+            // CollisionLayer 기반 필터링 (FilterMask == 0이면 모든 레이어 허용)
+            if (FilterMask != 0)
+            {
+                uint32 TargetLayer = static_cast<uint32>(WorldState->GetProperty(E, PropertyId::CollisionLayer));
+                if (TargetLayer != 0 && !(TargetLayer & FilterMask))
+                    return;
+            }
 
             FIntVector EP = WorldState->GetPosition(E);
             int64 DX = EP.X - CX;
