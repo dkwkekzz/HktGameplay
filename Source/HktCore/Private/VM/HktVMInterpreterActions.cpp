@@ -161,7 +161,6 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
         int32 CX = Runtime.Context->ReadEntity(Center, PropertyId::PosX);
         int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
         int32 CZ = Runtime.Context->ReadEntity(Center, PropertyId::PosZ);
-        int32 CenterTeam = Runtime.Context->ReadEntity(Center, PropertyId::Team);
         uint32 FilterMask = static_cast<uint32>(Runtime.Context->ReadEntity(Center, PropertyId::CollisionMask));
 
         int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
@@ -169,10 +168,6 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
         WorldState->ForEachEntity([&](FHktEntityId E, int32 /*SlotIndex*/)
         {
             if (E == Center)
-                return;
-
-            // Team 필터: 같은 팀 제외 (기존 동작 유지)
-            if (WorldState->GetProperty(E, PropertyId::Team) == CenterTeam)
                 return;
 
             // CollisionLayer 기반 필터링 (FilterMask == 0이면 모든 레이어 허용)
@@ -191,6 +186,10 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
             if (DX * DX + DY * DY + DZ * DZ <= RadiusSq)
                 Runtime.SpatialQuery.Entities.Add(E);
         });
+
+        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+            FString::Printf(TEXT("FindInRadius Center=%d Radius=%d Mask=0x%X Found=%d"),
+                Center, RadiusCm, FilterMask, Runtime.SpatialQuery.Entities.Num()));
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
@@ -231,6 +230,10 @@ void FHktVMInterpreter::Op_FindInRadiusEx(FHktVMRuntime& Runtime, RegisterIndex 
             if (DX * DX + DY * DY + DZ * DZ <= RadiusSq)
                 Runtime.SpatialQuery.Entities.Add(E);
         });
+
+        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+            FString::Printf(TEXT("FindInRadiusEx Center=%d Radius=%d Mask=0x%X Found=%d"),
+                Center, RadiusCm, FilterMask, Runtime.SpatialQuery.Entities.Num()));
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
