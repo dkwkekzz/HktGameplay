@@ -37,6 +37,9 @@ namespace HktStoryCombatUseSkill
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_SkillHit, "Sound.SkillHit", "Item skill hit sound.");
 
+	// 사망 마킹 태그
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — lifecycle stories watch for this.");
+
 	// === 아이템 스킬 식별 태그 (dispatch 분기용) ===
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Fireball,   "Entity.Attr.Skill.Fireball",   "Item skill identifier: Fireball.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Skill_Heal,       "Entity.Attr.Skill.Heal",       "Item skill identifier: Heal.");
@@ -146,6 +149,14 @@ namespace HktStoryCombatUseSkill
 			.ApplyDamage(Target, R0)
 			.PlayVFXAttached(Target, VFX_SkillHit)
 			.PlaySound(Sound_SkillHit)
+
+			// 사망 판정
+			.LoadEntityProperty(R0, Target, PropertyId::Health)
+			.LoadConst(R1, 0)
+			.CmpLe(Flag, R0, R1)
+			.JumpIfNot(Flag, TEXT("skill_alive"))
+			.AddTag(Target, Tag_State_Dead)
+		.Label(TEXT("skill_alive"))
 
 			.RemoveTag(Self, Tag_Anim_UpperBody_Combat_Skill)
 			.RemoveTag(Self, Tag_Anim_Montage_Skill)

@@ -25,6 +25,9 @@ namespace HktStoryLightning
 	// Effect
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Shock, "Effect.Shock", "Shock effect: stun.");
 
+	// 사망 마킹 태그
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — lifecycle stories watch for this.");
+
 	/**
 	 * ================================================================
 	 * 번개 스킬 Flow
@@ -57,6 +60,14 @@ namespace HktStoryLightning
 			.ApplyDamageConst(Target, 80)
 			.PlayVFXAttached(Target, VFX_LightningExplosion)
 
+			// 직격 사망 판정
+			.LoadEntityProperty(R0, Target, PropertyId::Health)
+			.LoadConst(R1, 0)
+			.CmpLe(Flag, R0, R1)
+			.JumpIfNot(Flag, TEXT("direct_alive"))
+			.AddTag(Target, Tag_State_Dead)
+		.Label(TEXT("direct_alive"))
+
 			// === 범위 피해 (반경 200cm) ===
 			.Log(TEXT("Lightning: 범위 피해 적용"))
 			.PlaySoundAtLocation(R3, Sound_ThunderExplosion)
@@ -65,6 +76,13 @@ namespace HktStoryLightning
 				.Move(R6, Iter)
 				.ApplyDamageConst(R6, 30)               // 30 피해
 				.ApplyEffect(R6, Effect_Shock)
+				// AoE 사망 판정
+				.LoadEntityProperty(R0, R6, PropertyId::Health)
+				.LoadConst(R1, 0)
+				.CmpLe(Flag, R0, R1)
+				.JumpIfNot(Flag, TEXT("aoe_alive"))
+				.AddTag(R6, Tag_State_Dead)
+			.Label(TEXT("aoe_alive"))
 			.EndForEach()
 
 			// 시전 상태 태그 제거

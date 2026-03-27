@@ -522,11 +522,6 @@ void FHktPhysicsSystem::Process(
                 if (IsProjectileB && OwnerB == static_cast<int32>(A))
                     continue; // B는 A가 생성한 투사체 → 무시
 
-                // 같은 Team(≠0)이면 충돌 이벤트 생성 안 함
-                const int32 TeamA = WorldState.GetProperty(A, PropertyId::Team);
-                const int32 TeamB = WorldState.GetProperty(B, PropertyId::Team);
-                const bool SameTeam = (TeamA != 0 && TeamA == TeamB);
-
                 FIntVector PA = WorldState.GetPosition(A);
                 FIntVector PB = WorldState.GetPosition(B);
                 FVector PosA(static_cast<float>(PA.X), static_cast<float>(PA.Y), static_cast<float>(PA.Z));
@@ -539,15 +534,12 @@ void FHktPhysicsSystem::Process(
                 const float DistSq = FVector::DistSquared(PosA, PosB);
                 if (DistSq <= CombinedRadius * CombinedRadius)
                 {
-                    // 충돌 이벤트 — 같은 팀이면 생성하지 않음
-                    if (!SameTeam)
-                    {
-                        FHktPhysicsEvent PhysEvent;
-                        PhysEvent.EntityA = A;
-                        PhysEvent.EntityB = B;
-                        PhysEvent.ContactPoint = (PosA + PosB) * 0.5f;
-                        OutPhysicsEvents.Add(PhysEvent);
-                    }
+                    // 충돌 이벤트
+                    FHktPhysicsEvent PhysEvent;
+                    PhysEvent.EntityA = A;
+                    PhysEvent.EntityB = B;
+                    PhysEvent.ContactPoint = (PosA + PosB) * 0.5f;
+                    OutPhysicsEvents.Add(PhysEvent);
 
                     // Push-out 위치 보정 — 투사체가 포함된 쌍은 제외
                     if (!IsProjectileA && !IsProjectileB)

@@ -63,23 +63,12 @@ namespace HktStoryBasicAttack
 
 		B	// === 3. 히트테스트 준비 ===
 			.LoadStore(R0, PropertyId::AttackPower)       // R0 = 공격력 (루프 내 보존)
-			.LoadStore(R5, PropertyId::Team)              // R5 = Self.Team (루프 내 보존)
 
 			// === 4. 히트테스트 영역 — 공간 쿼리만 수행, 물리 영향 없음 ===
 			.ForEachInRadius(Self, DefaultAttackRange)
 				// Self 제외
 				.Move(R6, Iter)
 				.Move(R7, Self)
-				.CmpEq(Flag, R6, R7)
-				.JumpIf(Flag, TEXT("hit_skip"))
-
-				// 같은 팀 제외
-				.LoadEntityProperty(R6, Iter, PropertyId::Team)
-				.CmpEq(Flag, R6, R5)
-				.JumpIf(Flag, TEXT("hit_skip"))
-
-				// Team 0 (비전투 엔티티) 제외
-				.LoadConst(R7, 0)
 				.CmpEq(Flag, R6, R7)
 				.JumpIf(Flag, TEXT("hit_skip"))
 
