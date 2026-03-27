@@ -16,7 +16,8 @@ namespace HktStoryNPCLifecycle
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle, "Story.Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
 
 	// State Tags
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death state tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — set by attack stories when health reaches 0.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death animation state tag.");
 
 	// === Loot Item Entities ===
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_AncientStaff,   "Entity.Item.AncientStaff",   "Ancient staff item — Fireball skill.");
@@ -44,8 +45,8 @@ namespace HktStoryNPCLifecycle
 	 * NPC 생명주기 Flow
 	 *
 	 * 자연어로 읽으면:
-	 * "1초마다 체력을 확인한다.
-	 *  체력이 0 이하이면 죽음 애니메이션을 재생하고
+	 * "사망 태그(State.Dead)가 부여될 때까지 1초마다 확인한다.
+	 *  사망이 감지되면 죽는 애니메이션을 재생하고,
 	 *  NPC 위치에 4종 아이템 중 랜덤 1개를 스킬 속성과 함께 드랍한 뒤
 	 *  3초 후 엔티티를 제거한다."
 	 *
@@ -59,10 +60,8 @@ namespace HktStoryNPCLifecycle
 
 		auto B = Story(Story_NPC_Lifecycle);
 		B.Label(TEXT("check"))
-				.LoadEntityProperty(R0, Self, PropertyId::Health)
-				.LoadConst(R1, 0)
-				.CmpLe(Flag, R0, R1)                    // Health <= 0?
-				.JumpIf(Flag, TEXT("die"))
+				.HasTag(R0, Self, Tag_State_Dead)
+				.JumpIf(R0, TEXT("die"))
 				.WaitSeconds(1.0f)
 				.Jump(TEXT("check"))
 
@@ -141,10 +140,8 @@ namespace HktStoryNPCLifecycle
 			.AddTag(Spawned, Tag_Item_WingsOfFreedom)
 			.AddTag(Spawned, Tag_Skill_Buff)
 
-			// === 공통 사망 처리 ===
+			// === NPC 사망 처리: 죽는 애니메이션 + 페이드아웃 + 제거 ===
 			.Label(TEXT("after_drop"))
-
-				// 죽음 상태 태그 추가 → AnimInstance가 태그를 감지하여 죽음 애니메이션 자동 재생
 				.AddTag(Self, Tag_Anim_FullBody_Action_Death)
 				.WaitSeconds(3.0f)
 				.DestroyEntity(Self)

@@ -28,6 +28,9 @@ namespace HktStoryFireball
 	// Effect
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Burn, "Effect.Burn", "Burn effect: fire damage over time.");
 
+	// 사망 마킹 태그
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — lifecycle stories watch for this.");
+
 	/**
 	 * ================================================================
 	 * 파이어볼 스킬 Flow
@@ -79,6 +82,14 @@ namespace HktStoryFireball
 			.ApplyDamageConst(Hit, 100)
 			.PlayVFXAttached(Hit, VFX_DirectHit)
 
+			// 직격 사망 판정
+			.LoadEntityProperty(R0, Hit, PropertyId::Health)
+			.LoadConst(R1, 0)
+			.CmpLe(Flag, R0, R1)
+			.JumpIfNot(Flag, TEXT("direct_alive"))
+			.AddTag(Hit, Tag_State_Dead)
+		.Label(TEXT("direct_alive"))
+
 			// 폭발 이펙트
 			.PlayVFX(R3, VFX_FireballExplosion)
 			.PlaySoundAtLocation(R3, Sound_Explosion)
@@ -90,6 +101,13 @@ namespace HktStoryFireball
 				.Move(Target, Iter)                     // Target = 현재 순회 대상
 				.ApplyDamageConst(Target, 50)           // 50 피해
 				.ApplyEffect(Target, Effect_Burn)
+				// AoE 사망 판정
+				.LoadEntityProperty(R0, Target, PropertyId::Health)
+				.LoadConst(R1, 0)
+				.CmpLe(Flag, R0, R1)
+				.JumpIfNot(Flag, TEXT("aoe_alive"))
+				.AddTag(Target, Tag_State_Dead)
+			.Label(TEXT("aoe_alive"))
 			.EndForEach()
 
 			// 시전 상태 태그 제거

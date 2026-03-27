@@ -67,6 +67,14 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex
             Runtime.Context->WriteEntity(NewEntity, PropertyId::MaxSpeed, 100);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::CollisionRadius, 50);
 
+            // 시전자(Self)의 Team을 상속
+            FHktEntityId SelfEntity = Runtime.GetRegEntity(Reg::Self);
+            int32 SelfTeam = Runtime.Context->ReadEntity(SelfEntity, PropertyId::Team);
+            if (SelfTeam != 0)
+            {
+                Runtime.Context->WriteEntity(NewEntity, PropertyId::Team, SelfTeam);
+            }
+
             if (Runtime.PlayerUid != 0 && VMProxy)
             {
                 VMProxy->SetOwnerUid(*WorldState, NewEntity, Runtime.PlayerUid);
