@@ -16,7 +16,8 @@ namespace HktStoryNPCLifecycle
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle, "Story.Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
 
 	// State Tags
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death state tag.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — set by HitBasic when health reaches 0.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death animation state tag.");
 
 	// === Loot Item Entities ===
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_AncientStaff,   "Entity.Item.AncientStaff",   "Ancient staff item — Fireball skill.");
@@ -44,10 +45,10 @@ namespace HktStoryNPCLifecycle
 	 * NPC 생명주기 Flow
 	 *
 	 * 자연어로 읽으면:
-	 * "사망 태그(Death)가 부여될 때까지 1초마다 확인한다.
-	 *  사망이 감지되면 NPC 위치에 4종 아이템 중 랜덤 1개를
-	 *  스킬 속성과 함께 드랍한다.
-	 *  사망 애니메이션과 엔티티 제거는 Death 스토리에서 처리된다."
+	 * "사망 태그(State.Dead)가 부여될 때까지 1초마다 확인한다.
+	 *  사망이 감지되면 죽는 애니메이션을 재생하고,
+	 *  NPC 위치에 4종 아이템 중 랜덤 1개를 스킬 속성과 함께 드랍한 뒤
+	 *  3초 후 엔티티를 제거한다."
 	 *
 	 * NPC 스폰 시 함께 fire되어야 함.
 	 * Self = NPC 엔티티
@@ -59,7 +60,7 @@ namespace HktStoryNPCLifecycle
 
 		auto B = Story(Story_NPC_Lifecycle);
 		B.Label(TEXT("check"))
-				.HasTag(R0, Self, Tag_Anim_FullBody_Action_Death)
+				.HasTag(R0, Self, Tag_State_Dead)
 				.JumpIf(R0, TEXT("die"))
 				.WaitSeconds(1.0f)
 				.Jump(TEXT("check"))
@@ -139,9 +140,11 @@ namespace HktStoryNPCLifecycle
 			.AddTag(Spawned, Tag_Item_WingsOfFreedom)
 			.AddTag(Spawned, Tag_Skill_Buff)
 
-			// === 루트 드랍 완료 — 사망 처리는 Death 스토리에서 수행 ===
+			// === NPC 사망 처리: 죽는 애니메이션 + 페이드아웃 + 제거 ===
 			.Label(TEXT("after_drop"))
-				.Log(TEXT("NPC Lifecycle: 루트 드랍 완료"))
+				.AddTag(Self, Tag_Anim_FullBody_Action_Death)
+				.WaitSeconds(3.0f)
+				.DestroyEntity(Self)
 				.Halt()
 			.BuildAndRegister();
 	}

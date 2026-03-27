@@ -10,10 +10,10 @@
 namespace HktStoryHitBasic
 {
 	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_HitBasic, "Story.Event.Combat.Hit.Basic", "Basic attack hit story — damage + reaction + death check.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_HitBasic, "Story.Event.Combat.Hit.Basic", "Basic attack hit story — damage + reaction + death mark.");
 
-	// Death Story (dispatch target)
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Death, "Story.Event.Death", "Death story — death animation + fade + destroy.");
+	// 사망 마킹 태그 — 각 Lifecycle 스토리가 감지하여 캐릭터별 사망 처리 수행
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — lifecycle stories watch for this.");
 
 	// 피격 애니메이션
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_Montage_HitReaction, "Anim.Montage.HitReaction", "Hit reaction montage trigger tag.");
@@ -29,7 +29,8 @@ namespace HktStoryHitBasic
 	 * 자연어로 읽으면:
 	 * "공격자의 공격력으로 피격 대상에게 데미지를 부여한다.
 	 *  피격 위치에 이펙트를 생성하고 피격 모션을 재생한다.
-	 *  대상의 체력이 0 이하이면 Death 스토리를 부여한다."
+	 *  대상의 체력이 0 이하이면 사망 태그를 부여한다.
+	 *  실제 사망 처리는 대상의 Lifecycle 스토리에서 수행된다."
 	 *
 	 * Self = 공격자 (SourceEntity)
 	 * Target = 피격 대상 (TargetEntity)
@@ -54,14 +55,12 @@ namespace HktStoryHitBasic
 		// === 3. 피격 모션 ===
 		HktSnippetCombat::AnimTrigger(B, Target, Tag_Anim_Montage_HitReaction);
 
-		B	// === 4. 체력 확인 → 사망 판정 ===
+		B	// === 4. 사망 판정 — 태그 마킹만 수행, 처리는 Lifecycle에 위임 ===
 			.LoadEntityProperty(R0, Target, PropertyId::Health)
 			.LoadConst(R1, 0)
 			.CmpLe(Flag, R0, R1)
 			.JumpIfNot(Flag, TEXT("alive"))
-
-			// 체력 0 이하 → Death 스토리 디스패치
-			.DispatchEventTo(Story_Death, Target)
+			.AddTag(Target, Tag_State_Dead)
 
 		.Label(TEXT("alive"))
 			.Log(TEXT("HitBasic: 완료"))
