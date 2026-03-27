@@ -39,10 +39,25 @@ void UHktAnimInstance::SyncFromTagContainer(const FGameplayTagContainer& EntityT
 	// Entity 태그 중 Anim.* 계열만 필터링
 	FGameplayTagContainer CurrentAnimTags = EntityTags.Filter(FGameplayTagContainer(HktGameplayTags::Anim));
 
-	// 새로 추가된 태그 감지 → 애니메이션 재생
 	for (const FGameplayTag& Tag : CurrentAnimTags)
 	{
-		ApplyAnimTag(Tag);
+		const bool bIsNew = !PrevAnimTags.HasTagExact(Tag);
+		if (bIsNew)
+		{
+			// 새로 추가된 태그 → 애니메이션 재생
+			ApplyAnimTag(Tag);
+		}
+		else
+		{
+			// 이미 있던 태그 — Montage 계열(Trigger)은 재트리거 허용
+			// Trigger는 fire-and-forget으로 같은 태그를 연속 발동할 수 있어야 함
+			FGameplayTag LayerParent = ExtractLayerParent(Tag);
+			if (LayerParent.MatchesTagExact(HktGameplayTags::Anim_Montage))
+			{
+				ApplyAnimTag(Tag);
+			}
+			// UpperBody(Loop), FullBody 등은 스킵 — 이미 재생 중이므로 재시작 불필요
+		}
 	}
 
 	// 제거된 태그 감지 → 애니메이션 중지
