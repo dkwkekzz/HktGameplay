@@ -501,6 +501,34 @@ void FHktVMInterpreter::Op_DispatchEventTo(FHktVMRuntime& Runtime, RegisterIndex
 }
 
 // ============================================================================
+// Movement
+// ============================================================================
+
+void FHktVMInterpreter::Op_SetForwardTarget(FHktVMRuntime& Runtime, RegisterIndex Entity)
+{
+    if (Runtime.Context && VMProxy && WorldState)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+
+        const int32 PosX = Runtime.Context->ReadEntity(E, PropertyId::PosX);
+        const int32 PosY = Runtime.Context->ReadEntity(E, PropertyId::PosY);
+        const int32 PosZ = Runtime.Context->ReadEntity(E, PropertyId::PosZ);
+        const int32 YawDeg = Runtime.Context->ReadEntity(E, PropertyId::RotYaw);
+
+        const float YawRad = static_cast<float>(YawDeg) * (PI / 180.0f);
+        constexpr float ForwardRange = 100000.0f; // 1km
+
+        const int32 TgtX = PosX + FMath::RoundToInt(FMath::Cos(YawRad) * ForwardRange);
+        const int32 TgtY = PosY + FMath::RoundToInt(FMath::Sin(YawRad) * ForwardRange);
+        const int32 TgtZ = PosZ;
+
+        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetX, TgtX);
+        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetY, TgtY);
+        VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetZ, TgtZ);
+    }
+}
+
+// ============================================================================
 // Utility
 // ============================================================================
 

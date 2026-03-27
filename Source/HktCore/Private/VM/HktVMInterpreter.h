@@ -125,6 +125,9 @@ private:
     void Op_DispatchEvent(FHktVMRuntime& Runtime, int32 TagNetIndex);
     void Op_DispatchEventTo(FHktVMRuntime& Runtime, RegisterIndex TargetReg, int32 TagNetIndex);
 
+    // ===== Movement =====
+    void Op_SetForwardTarget(FHktVMRuntime& Runtime, RegisterIndex Entity);
+
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);
 
