@@ -16,7 +16,7 @@ namespace HktStoryNPCLifecycle
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle, "Story.Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
 
 	// State Tags
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — set by HitBasic when health reaches 0.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — set by attack stories when health reaches 0.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Death, "Anim.FullBody.Action.Death", "Death animation state tag.");
 
 	// === Loot Item Entities ===

@@ -14,14 +14,21 @@ namespace HktStoryBasicAttack
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_BasicAttack, "Story.Event.Attack.Basic", "Basic attack ability flow.");
 
-	// Hit Story (dispatch target)
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_HitBasic, "Story.Event.Combat.Hit.Basic", "Basic attack hit story — damage + reaction.");
-
 	// 공격 애니메이션 (트리거 — fire-and-forget)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_Montage_Attack, "Anim.Montage.Attack", "Basic attack montage trigger tag.");
 
+	// 피격 애니메이션
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_Montage_HitReaction, "Anim.Montage.HitReaction", "Hit reaction montage trigger tag.");
+
+	// 사망 마킹 태그
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — lifecycle stories watch for this.");
+
+	// VFX
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_HitSpark, "VFX.Niagara.HitSpark", "Melee hit spark VFX.");
+
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Swing, "Sound.Swing", "Melee swing sound.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Hit, "Sound.Hit", "Melee hit sound.");
 
 	/** 기본 공격 사거리 (cm) — 히트테스트 반경으로 사용 */
 	static constexpr int32 DefaultAttackRange = 200;
@@ -33,7 +40,8 @@ namespace HktStoryBasicAttack
 	 * 자연어로 읽으면:
 	 * "타겟을 바라보고 공격 애니메이션을 재생한다.
 	 *  공격 사거리 내 히트테스트 영역을 생성하여 적을 검색한다.
-	 *  맞은 대상에게 히트 스토리를 디스패치한다."
+	 *  맞은 대상에게 데미지를 부여하고 피격 이펙트를 생성한다.
+	 *  체력이 0 이하이면 사망 태그를 부여한다."
 	 *
 	 * 사거리 검증과 접근은 TargetDefault에서 완료됨.
 	 * 쿨타임 검증과 갱신은 UseSkill에서 수행됨.
@@ -54,6 +62,7 @@ namespace HktStoryBasicAttack
 		HktSnippetCombat::AnimTrigger(B, Self, Tag_Anim_Montage_Attack);
 
 		B	// === 3. 히트테스트 준비 ===
+			.LoadStore(R0, PropertyId::AttackPower)       // R0 = 공격력 (루프 내 보존)
 			.LoadStore(R5, PropertyId::Team)              // R5 = Self.Team (루프 내 보존)
 
 			// === 4. 히트테스트 영역 — 공간 쿼리만 수행, 물리 영향 없음 ===
@@ -74,8 +83,20 @@ namespace HktStoryBasicAttack
 				.CmpEq(Flag, R6, R7)
 				.JumpIf(Flag, TEXT("hit_skip"))
 
-				// === Hit! 대상에게 히트 스토리 디스패치 ===
-				.DispatchEventTo(Story_HitBasic, Iter)
+				// === Hit! 데미지 + 피격 처리 ===
+				.Move(Target, Iter)
+				.ApplyDamage(Target, R0)
+				.GetPosition(R2, Target)
+				.PlayVFX(R2, VFX_HitSpark)
+				.PlaySound(Sound_Hit);
+			HktSnippetCombat::AnimTrigger(B, Target, Tag_Anim_Montage_HitReaction);
+
+			B	// 사망 판정 — 태그 마킹만, 처리는 Lifecycle에 위임
+				.LoadEntityProperty(R1, Target, PropertyId::Health)
+				.LoadConst(R2, 0)
+				.CmpLe(Flag, R1, R2)
+				.JumpIfNot(Flag, TEXT("hit_skip"))
+				.AddTag(Target, Tag_State_Dead)
 
 			.Label(TEXT("hit_skip"))
 			.EndForEach()
