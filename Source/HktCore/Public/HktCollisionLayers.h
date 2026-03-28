@@ -31,49 +31,75 @@ namespace EHktCollisionLayer
     };
 }
 
+/** 충돌 레이어 매핑 테이블 항목 */
+struct FHktCollisionLayerMapping
+{
+    FGameplayTag ParentTag;
+    uint32 Layer;
+    uint32 Mask;
+};
+
+/**
+ * 충돌 레이어 매핑 테이블 (지연 초기화).
+ * GameplayTag 계층 매칭(MatchesTag)을 사용하여 ClassTag를 판별한다.
+ */
+inline const TArray<FHktCollisionLayerMapping>& GetHktCollisionLayerMappings()
+{
+    static TArray<FHktCollisionLayerMapping> Mappings;
+    static bool bInitialized = false;
+    if (!bInitialized)
+    {
+        bInitialized = true;
+        // 순서 중요: 구체적인 태그를 먼저 배치 (Projectile < NPC < Character 순 우선)
+        Mappings.Add({ FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Projectile"))),
+            EHktCollisionLayer::Projectile,
+            EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Building });
+        Mappings.Add({ FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Item"))),
+            EHktCollisionLayer::Item,
+            EHktCollisionLayer::None });
+        Mappings.Add({ FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Building"))),
+            EHktCollisionLayer::Building,
+            EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile });
+        Mappings.Add({ FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.NPC"))),
+            EHktCollisionLayer::NPC,
+            EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile | EHktCollisionLayer::Building });
+        Mappings.Add({ FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Character"))),
+            EHktCollisionLayer::Character,
+            EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile | EHktCollisionLayer::Building });
+    }
+    return Mappings;
+}
+
 /**
  * 엔티티 ClassTag에 따른 기본 Collision Layer 반환.
- * Tag 이름 계층으로 판단 (Entity.Character, Entity.NPC 등).
+ * GameplayTag 계층 매칭(MatchesTag)으로 판단한다.
  */
 inline uint32 GetDefaultCollisionLayer(const FGameplayTag& ClassTag)
 {
     if (!ClassTag.IsValid())
         return EHktCollisionLayer::None;
 
-    const FName TagName = ClassTag.GetTagName();
-    if (TagName.ToString().StartsWith(TEXT("Entity.Character")))
-        return EHktCollisionLayer::Character;
-    if (TagName.ToString().StartsWith(TEXT("Entity.NPC")))
-        return EHktCollisionLayer::NPC;
-    if (TagName.ToString().StartsWith(TEXT("Entity.Projectile")))
-        return EHktCollisionLayer::Projectile;
-    if (TagName.ToString().StartsWith(TEXT("Entity.Building")))
-        return EHktCollisionLayer::Building;
-    if (TagName.ToString().StartsWith(TEXT("Entity.Item")))
-        return EHktCollisionLayer::Item;
-
+    for (const FHktCollisionLayerMapping& M : GetHktCollisionLayerMappings())
+    {
+        if (ClassTag.MatchesTag(M.ParentTag))
+            return M.Layer;
+    }
     return EHktCollisionLayer::None;
 }
 
 /**
  * 엔티티 ClassTag에 따른 기본 Collision Mask 반환.
+ * GameplayTag 계층 매칭(MatchesTag)으로 판단한다.
  */
 inline uint32 GetDefaultCollisionMask(const FGameplayTag& ClassTag)
 {
     if (!ClassTag.IsValid())
         return EHktCollisionLayer::None;
 
-    const FName TagName = ClassTag.GetTagName();
-    if (TagName.ToString().StartsWith(TEXT("Entity.Character")))
-        return EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile | EHktCollisionLayer::Building;
-    if (TagName.ToString().StartsWith(TEXT("Entity.NPC")))
-        return EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile | EHktCollisionLayer::Building;
-    if (TagName.ToString().StartsWith(TEXT("Entity.Projectile")))
-        return EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Building;
-    if (TagName.ToString().StartsWith(TEXT("Entity.Building")))
-        return EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile;
-    if (TagName.ToString().StartsWith(TEXT("Entity.Item")))
-        return EHktCollisionLayer::None;
-
+    for (const FHktCollisionLayerMapping& M : GetHktCollisionLayerMappings())
+    {
+        if (ClassTag.MatchesTag(M.ParentTag))
+            return M.Mask;
+    }
     return EHktCollisionLayer::None;
 }
