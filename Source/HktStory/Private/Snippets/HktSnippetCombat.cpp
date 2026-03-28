@@ -33,6 +33,15 @@ FHktStoryBuilder& HktSnippetCombat::CooldownUpdateConst(
 	 .Add(R0, R0, R1)                                        // R0 = 현재프레임 + 딜레이
 	 .SaveStore(PropertyId::NextActionFrame, R0);            // NextActionFrame 저장
 
+	// MotionPlayRate = ReferenceRecovery * AttackSpeed / RecoveryFrame
+	// 공격 모션마다 다른 애니메이션 재생 속도를 산출
+	B.LoadConst(R0, ReferenceRecovery)                       // R0 = 기준 후딜레이 (30)
+	 .LoadStore(R1, PropertyId::AttackSpeed)                 // R1 = AttackSpeed
+	 .Mul(R0, R0, R1)                                        // R0 = ReferenceRecovery * AttackSpeed
+	 .LoadConst(R1, RecoveryFrame)                           // R1 = 이 공격의 후딜레이
+	 .Div(R0, R0, R1)                                        // R0 = 모션별 재생 속도
+	 .SaveStore(PropertyId::MotionPlayRate, R0);             // 저장
+
 	return B;
 }
 
@@ -51,6 +60,14 @@ FHktStoryBuilder& HktSnippetCombat::CooldownUpdateFromEntity(
 	 .Div(R1, R1, R3)                                                    // R1 = delay (프레임 수)
 	 .Add(R0, R0, R1)                                                    // R0 = 현재프레임 + delay
 	 .SaveStore(PropertyId::NextActionFrame, R0);
+
+	// MotionPlayRate = ReferenceRecovery * AttackSpeed / Item.RecoveryFrame
+	B.LoadConst(R0, ReferenceRecovery)                                   // R0 = 기준 후딜레이 (30)
+	 .LoadStore(R1, PropertyId::AttackSpeed)                             // R1 = AttackSpeed
+	 .Mul(R0, R0, R1)                                                    // R0 = ReferenceRecovery * AttackSpeed
+	 .LoadEntityProperty(R1, ItemEntity, PropertyId::RecoveryFrame)      // R1 = 아이템의 후딜레이
+	 .Div(R0, R0, R1)                                                    // R0 = 모션별 재생 속도
+	 .SaveStore(PropertyId::MotionPlayRate, R0);                         // 저장
 
 	return B;
 }

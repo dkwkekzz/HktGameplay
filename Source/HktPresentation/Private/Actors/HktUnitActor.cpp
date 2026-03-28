@@ -77,9 +77,12 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	if (bForceAll || Entity.Stance.IsDirty(Frame))
 		HktAnim->SyncStance(Entity.Stance.Get());
 
-	if (bForceAll || Entity.AttackSpeed.IsDirty(Frame))
+	if (bForceAll || Entity.MotionPlayRate.IsDirty(Frame) || Entity.AttackSpeed.IsDirty(Frame))
 	{
-		float SpeedScale = static_cast<float>(Entity.AttackSpeed.Get()) / 100.0f;
+		int32 RawRate = Entity.MotionPlayRate.Get();
+		float SpeedScale = (RawRate > 0)
+			? static_cast<float>(RawRate) / 100.0f
+			: static_cast<float>(Entity.AttackSpeed.Get()) / 100.0f;
 		if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
 		HktAnim->AttackPlayRate = SpeedScale;
 	}

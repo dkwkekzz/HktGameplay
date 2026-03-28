@@ -43,6 +43,7 @@
     X(CP)                     \
     X(MaxCP)                  \
     X(AttackSpeed)            \
+    X(MotionPlayRate)         \
     X(NextActionFrame)            \
     /* 충돌 레이어 */             \
     X(CollisionLayer)             \

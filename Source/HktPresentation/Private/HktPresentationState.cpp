@@ -77,6 +77,10 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 		CPRatio.Set((MaxCpVal > 0) ? static_cast<float>(CpVal) / static_cast<float>(MaxCpVal) : 0.f, Frame);
 	}
 	AttackSpeed.Set(WS.GetProperty(Id, PropertyId::AttackSpeed), Frame);
+	{
+		int32 MprVal = WS.GetProperty(Id, PropertyId::MotionPlayRate);
+		MotionPlayRate.Set(MprVal > 0 ? MprVal : WS.GetProperty(Id, PropertyId::AttackSpeed), Frame);
+	}
 
 	// Ownership
 	Team.Set(WS.GetProperty(Id, PropertyId::Team), Frame);
@@ -159,6 +163,7 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 		CPRatio.Set((NewValue > 0) ? static_cast<float>(CP.Get()) / static_cast<float>(NewValue) : 0.f, Frame);
 		break;
 	case PropertyId::AttackSpeed: AttackSpeed.Set(NewValue, Frame); break;
+	case PropertyId::MotionPlayRate: MotionPlayRate.Set(NewValue, Frame); break;
 
 	// Ownership
 	case PropertyId::Team: Team.Set(NewValue, Frame); ComputeTeamColor(NewValue, Frame); break;
