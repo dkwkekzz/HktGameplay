@@ -35,6 +35,12 @@ static TAutoConsoleVariable<float> CVarMoveMinSpeed(
     TEXT("Minimum speed enforced to prevent infinite arrival time (Zeno's paradox)."),
     ECVF_Default);
 
+static TAutoConsoleVariable<float> CVarPhysicsSoftPushRatio(
+    TEXT("hkt.Physics.SoftPushRatio"),
+    0.1f, // 프레임당 겹침의 10%만 보정 — 일반 이동 시 거의 안 밀림
+    TEXT("Fraction of overlap resolved per frame (0.0=no push, 1.0=instant). Mass ratio also affects push distribution."),
+    ECVF_Default);
+
 
 #if ENABLE_HKT_INSIGHTS
 #include "HktCoreDataCollector.h"
@@ -671,17 +677,22 @@ void FHktPhysicsSystem::Process(
                     OutPhysicsEvents.Add(PhysEvent);
 
                     // Push-out 위치 보정 — 투사체 포함 쌍은 제외
+                    // SoftPushRatio로 프레임당 보정량 조절, Mass 비율로 밀림 분배
                     if (!bProjectileA && !bProjectileB)
                     {
                         const float Dist = FMath::Sqrt(DistSq);
                         if (Dist > SMALL_NUMBER)
                         {
                             const float Overlap = CombinedRadius - Dist;
-                            const float HalfPush = Overlap * 0.5f;
+                            const float SoftRatio = CVarPhysicsSoftPushRatio.GetValueOnAnyThread();
+                            const float MassA = static_cast<float>(FMath::Max(WorldState.GetProperty(A, PropertyId::Mass), 1));
+                            const float MassB = static_cast<float>(FMath::Max(WorldState.GetProperty(B, PropertyId::Mass), 1));
+                            const float InvTotalMass = 1.0f / (MassA + MassB);
                             const FVector Dir = (PosB - PosA) / Dist;
 
-                            const FVector NewA = PosA - Dir * HalfPush;
-                            const FVector NewB = PosB + Dir * HalfPush;
+                            // 무거운 쪽은 적게, 가벼운 쪽은 많이 밀림
+                            const FVector NewA = PosA - Dir * (Overlap * SoftRatio * MassB * InvTotalMass);
+                            const FVector NewB = PosB + Dir * (Overlap * SoftRatio * MassA * InvTotalMass);
 
                             VMProxy.SetPosition(WorldState, A,
                                 FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
@@ -750,11 +761,14 @@ void FHktPhysicsSystem::Process(
                             if (Dist > SMALL_NUMBER)
                             {
                                 const float Overlap = CombinedRadius - Dist;
-                                const float HalfPush = Overlap * 0.5f;
+                                const float SoftRatio = CVarPhysicsSoftPushRatio.GetValueOnAnyThread();
+                                const float MassA = static_cast<float>(FMath::Max(WorldState.GetProperty(A, PropertyId::Mass), 1));
+                                const float MassB = static_cast<float>(FMath::Max(WorldState.GetProperty(B, PropertyId::Mass), 1));
+                                const float InvTotalMass = 1.0f / (MassA + MassB);
                                 const FVector Dir = (PosB - PosA) / Dist;
 
-                                const FVector NewA = PosA - Dir * HalfPush;
-                                const FVector NewB = PosB + Dir * HalfPush;
+                                const FVector NewA = PosA - Dir * (Overlap * SoftRatio * MassB * InvTotalMass);
+                                const FVector NewB = PosB + Dir * (Overlap * SoftRatio * MassA * InvTotalMass);
 
                                 VMProxy.SetPosition(WorldState, A,
                                     FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
