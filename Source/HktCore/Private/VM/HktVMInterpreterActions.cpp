@@ -55,7 +55,7 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 TagIndex)
         {
             FString StoryTag = Runtime.Program ? Runtime.Program->Tag.ToString() : TEXT("Unknown");
             int32 Slot = WorldState->GetSlot(NewEntity);
-            WorldState->SetEntityDebugInfo(Slot, StoryTag, TagName, WorldState->FrameNumber);
+            WorldState->SetEntityDebugInfo(Slot, StoryTag, ClassTag.ToString(), WorldState->FrameNumber);
         }
 #endif
 

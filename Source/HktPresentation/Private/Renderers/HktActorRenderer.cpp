@@ -34,9 +34,10 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 	CachedState = &State;
 	const int64 Frame = State.GetCurrentFrame();
 
-	// --- 스폰 ---
+	// --- 스폰 (ActorMap/PendingSpawnSet에 있으면 스킵 — NeedsTick 재진입 방지) ---
 	for (FHktEntityId Id : State.SpawnedThisFrame)
 	{
+		if (ActorMap.Contains(Id) || PendingSpawnSet.Contains(Id)) continue;
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (E && E->RenderCategory == EHktRenderCategory::Actor)
 			SpawnActor(*E);
@@ -85,6 +86,7 @@ void FHktActorRenderer::Teardown()
 {
 	AliveGuard.Reset();
 	ActorMap.Empty();
+	PendingSpawnSet.Empty();
 	CachedState = nullptr;
 }
 
@@ -109,6 +111,8 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 	FHktEntityId EntityId = Entity.EntityId;
 	FVector SpawnLocation = Entity.RenderLocation.Get();
 	FRotator SpawnRotation = Entity.Rotation.Get();
+
+	PendingSpawnSet.Add(EntityId);
 
 	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
 	TWeakPtr<bool> WeakGuard = AliveGuard;
@@ -169,6 +173,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			if (IHktPresentableActor* P = Cast<IHktPresentableActor>(SpawnedActor))
 				P->SetEntityId(EntityId);
 
+			PendingSpawnSet.Remove(EntityId);
 			ActorMap.Add(EntityId, SpawnedActor);
 
 			// 최초 ViewModel 적용 (bForceAll = true)
@@ -197,6 +202,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 void FHktActorRenderer::DestroyActor(FHktEntityId Id)
 {
+	PendingSpawnSet.Remove(Id);
 	if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
 	{
 		if (AActor* A = P->Get())

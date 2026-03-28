@@ -30,6 +30,7 @@ private:
 	void ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
 
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
+	TSet<FHktEntityId> PendingSpawnSet;
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
 
 	/** Sync마다 갱신 — async callback에서 ViewModel 직접 조회용 */
