@@ -154,8 +154,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
 	bool HasAnimMapping(FGameplayTag AnimTag) const;
 
-private:
+	/** 일회성 애니메이션 트리거 재생 (PlayAnim 이벤트에서 호출) */
 	void ApplyAnimTag(const FGameplayTag& AnimTag);
+
+private:
 	void RemoveAnimTag(const FGameplayTag& AnimTag);
 
 	/** 몽타주 종료 콜백 — AnimEnd 이벤트를 PresentationSubsystem에 전달 */

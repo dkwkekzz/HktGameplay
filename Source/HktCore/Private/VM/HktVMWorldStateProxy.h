@@ -16,6 +16,7 @@
 struct FHktVMWorldStateProxy
 {
     TArray<FHktVFXEvent> PendingVFXEvents;
+    TArray<FHktAnimEvent> PendingAnimEvents;
 
     TArray<uint64> DirtyMask;
     TArray<int32>  DirtySlots;

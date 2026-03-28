@@ -183,6 +183,7 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
     });
 
     Diff.VFXEvents = MoveTemp(VMProxy.PendingVFXEvents);
+    Diff.AnimEvents = MoveTemp(VMProxy.PendingAnimEvents);
 
 #if ENABLE_HKT_INSIGHTS
     if (!SourceName.IsEmpty())

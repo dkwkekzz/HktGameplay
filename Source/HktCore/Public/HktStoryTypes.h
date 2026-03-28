@@ -104,6 +104,7 @@ namespace Reg
     X(RemoveEffect,     _, R, _) \
     X(PlayVFX,          _, R, _) \
     X(PlayVFXAttached,  _, R, _) \
+    X(PlayAnim,         _, R, _) \
     X(PlaySound,        _, _, _) \
     X(PlaySoundAtLocation, _, R, _) \
     /* Tags */              \

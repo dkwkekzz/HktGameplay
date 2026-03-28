@@ -332,6 +332,7 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
         View.TagDeltas = &Diff.TagDeltas;
         View.OwnerDeltas = &Diff.OwnerDeltas;
         View.VFXEvents = &Diff.VFXEvents;
+        View.AnimEvents = &Diff.AnimEvents;
         WorldViewUpdatedDelegate.Broadcast(View);
 
         // EquipIndex 변경이 포함된 경우 슬롯 바인딩 동기화

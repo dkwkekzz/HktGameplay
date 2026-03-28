@@ -103,6 +103,7 @@ private:
     void Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 TagIndex);
     void Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 TagIndex);
     void Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagIndex);
+    void Op_PlayAnim(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagIndex);
     void Op_PlaySound(FHktVMRuntime& Runtime, int32 TagIndex);
     void Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 TagIndex);
 

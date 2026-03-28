@@ -227,7 +227,7 @@ struct HKTCORE_API FHktOwnerDelta
 };
 
 // ============================================================================
-// FHktVFXEvent — VM이 요청한 위치 기반 VFX 이벤트 (엔티티 미부착)
+// FHktVFXEvent — VM이 요청한 일회성 VFX 이벤트 (재생 후 자동 파괴)
 // ============================================================================
 
 struct HKTCORE_API FHktVFXEvent
@@ -238,6 +238,21 @@ struct HKTCORE_API FHktVFXEvent
     friend FArchive& operator<<(FArchive& Ar, FHktVFXEvent& V)
     {
         return Ar << V.Tag << V.Position;
+    }
+};
+
+// ============================================================================
+// FHktAnimEvent — VM이 요청한 일회성 애니메이션 이벤트 (몽타주 fire-and-forget)
+// ============================================================================
+
+struct HKTCORE_API FHktAnimEvent
+{
+    FGameplayTag Tag;
+    FHktEntityId EntityId = InvalidEntityId;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktAnimEvent& V)
+    {
+        return Ar << V.Tag << V.EntityId;
     }
 };
 
@@ -256,6 +271,7 @@ struct HKTCORE_API FHktSimulationDiff
     TArray<FHktTagDelta> TagDeltas;
     TArray<FHktOwnerDelta> OwnerDeltas;
     TArray<FHktVFXEvent> VFXEvents;
+    TArray<FHktAnimEvent> AnimEvents;
 
     bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
@@ -263,7 +279,7 @@ struct HKTCORE_API FHktSimulationDiff
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, SpawnedEntities, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, RemovedEntityStates, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, TagDeltas, Map);
-        Ar << OwnerDeltas << VFXEvents;
+        Ar << OwnerDeltas << VFXEvents << AnimEvents;
         return true;
     }
 };

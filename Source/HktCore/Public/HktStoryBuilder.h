@@ -254,6 +254,9 @@ public:
     /** VFX 재생 (엔티티에 부착) */
     FHktStoryBuilder& PlayVFXAttached(RegisterIndex Entity, const FGameplayTag& VFXTag);
 
+    /** 일회성 애니메이션 재생 (몽타주 fire-and-forget, 태그 상태 비의존) */
+    FHktStoryBuilder& PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag);
+
     FHktStoryBuilder& PlaySound(const FGameplayTag& SoundTag);
     FHktStoryBuilder& PlaySoundAtLocation(RegisterIndex PosBase, const FGameplayTag& SoundTag);
 
