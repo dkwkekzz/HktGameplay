@@ -38,7 +38,7 @@ void AHktUnitActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	constexpr float InterpSpeed = 10.f;
+	constexpr float InterpSpeed = 15.f;
 	InterpLocation = FMath::VInterpTo(InterpLocation, CachedRenderLocation, DeltaTime, InterpSpeed);
 	InterpRotation = FMath::RInterpTo(InterpRotation, CachedRotation, DeltaTime, InterpSpeed);
 
@@ -53,6 +53,12 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	// Transform은 ApplyTransform()에서 매 프레임 처리
 	CachedRenderLocation = Entity.RenderLocation.Get();
 	CachedRotation = Entity.Rotation.Get();
+
+	if (bForceAll)
+	{
+		InterpLocation = CachedRenderLocation;
+		InterpRotation = CachedRotation;
+	}
 
 	// --- Animation ---
 	UHktAnimInstance* HktAnim = GetAnimInstance();

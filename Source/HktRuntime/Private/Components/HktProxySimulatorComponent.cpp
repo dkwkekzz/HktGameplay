@@ -75,6 +75,7 @@ void UHktProxySimulatorComponent::AccumulateDiff(FHktSimulationDiff& InDiff)
     PendingDiff.TagDeltas.Append(MoveTemp(InDiff.TagDeltas));
     PendingDiff.OwnerDeltas.Append(MoveTemp(InDiff.OwnerDeltas));
     PendingDiff.VFXEvents.Append(MoveTemp(InDiff.VFXEvents));
+    PendingDiff.AnimEvents.Append(MoveTemp(InDiff.AnimEvents));
     bHasPendingDiff = true;
 }
 
@@ -90,7 +91,9 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
         || Diff.RemovedEntities.Num() > 0
         || Diff.PropertyDeltas.Num() > 0
         || Diff.TagDeltas.Num() > 0
-        || Diff.OwnerDeltas.Num() > 0;
+        || Diff.OwnerDeltas.Num() > 0
+        || Diff.VFXEvents.Num() > 0
+        || Diff.AnimEvents.Num() > 0;
     if (!bHasChanges)
     {
         return;
