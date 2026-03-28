@@ -21,6 +21,12 @@ const FString& FHktVMInterpreter::GetString(FHktVMRuntime& Runtime, int32 Index)
     return Empty;
 }
 
+FGameplayTag FHktVMInterpreter::ResolveTag(int32 TagIndex)
+{
+    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
+    return FGameplayTag::RequestGameplayTag(TagName, false);
+}
+
 // ============================================================================
 // Entity
 // ============================================================================
@@ -33,13 +39,12 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 TagIndex)
         Runtime.SetRegEntity(Reg::Spawned, NewEntity);
 
         // ClassTag를 영구 태그로 부여
-        FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
+        FGameplayTag ClassTag = ResolveTag(TagIndex);
         HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
             FString::Printf(TEXT("Op_SpawnEntity Id=%d ClassTag=%s Story=%s"),
-                NewEntity, *TagName.ToString(),
+                NewEntity, *ClassTag.ToString(),
                 Runtime.Program ? *Runtime.Program->Tag.ToString() : TEXT("?")),
             NewEntity);
-        FGameplayTag ClassTag = FGameplayTag::RequestGameplayTag(TagName, false);
         if (ClassTag.IsValid() && VMProxy)
         {
             VMProxy->AddTag(*WorldState, NewEntity, ClassTag);
@@ -263,19 +268,17 @@ void FHktVMInterpreter::Op_NextFound(FHktVMRuntime& Runtime)
 void FHktVMInterpreter::Op_ApplyEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 TagIndex)
 {
     FHktEntityId E = Runtime.GetRegEntity(Target);
-    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+    FGameplayTag Tag = ResolveTag(TagIndex);
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_ApplyEffect Id=%d Effect=%s"), E, *TagName.ToString()), E);
+        FString::Printf(TEXT("Op_ApplyEffect Id=%d Effect=%s"), E, *Tag.ToString()), E);
 }
 
 void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 TagIndex)
 {
     FHktEntityId E = Runtime.GetRegEntity(Target);
-    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+    FGameplayTag Tag = ResolveTag(TagIndex);
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_RemoveEffect Id=%d Effect=%s"), E, *TagName.ToString()), E);
+        FString::Printf(TEXT("Op_RemoveEffect Id=%d Effect=%s"), E, *Tag.ToString()), E);
 }
 
 void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 TagIndex)
@@ -284,11 +287,10 @@ void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase
     const int32 Y = Runtime.GetReg(PosBase + 1);
     const int32 Z = Runtime.GetReg(PosBase + 2);
 
-    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+    FGameplayTag Tag = ResolveTag(TagIndex);
 
     HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_PlayVFX Pos=(%d,%d,%d) VFX=%s"), X, Y, Z, *TagName.ToString()));
+        FString::Printf(TEXT("Op_PlayVFX Pos=(%d,%d,%d) VFX=%s"), X, Y, Z, *Tag.ToString()));
 
     if (!VMProxy || !Tag.IsValid()) return;
 
@@ -300,32 +302,29 @@ void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex
     if (!WorldState || !VMProxy) return;
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
-    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+    FGameplayTag Tag = ResolveTag(TagIndex);
     if (Tag.IsValid())
     {
         VMProxy->AddTag(*WorldState, E, Tag);
     }
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *TagName.ToString()), E);
+        FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *Tag.ToString()), E);
 }
 
 void FHktVMInterpreter::Op_PlaySound(FHktVMRuntime& Runtime, int32 TagIndex)
 {
-    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+    FGameplayTag Tag = ResolveTag(TagIndex);
     HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_PlaySound Sound=%s"), *TagName.ToString()));
+        FString::Printf(TEXT("Op_PlaySound Sound=%s"), *Tag.ToString()));
 }
 
 void FHktVMInterpreter::Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 TagIndex)
 {
-    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+    FGameplayTag Tag = ResolveTag(TagIndex);
     HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_PlaySoundAtLocation Pos=(%d,%d,%d) Sound=%s"),
             Runtime.GetReg(PosBase), Runtime.GetReg(PosBase + 1), Runtime.GetReg(PosBase + 2),
-            *TagName.ToString()));
+            *Tag.ToString()));
 }
 
 // ============================================================================
@@ -337,13 +336,11 @@ void FHktVMInterpreter::Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, 
     if (!WorldState || !VMProxy) return;
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
-
-    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+    FGameplayTag Tag = ResolveTag(TagIndex);
     if (Tag.IsValid())
     {
         HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-            FString::Printf(TEXT("Op_AddTag Id=%d Tag=%s"), E, *TagName.ToString()), E, Tag);
+            FString::Printf(TEXT("Op_AddTag Id=%d Tag=%s"), E, *Tag.ToString()), E, Tag);
         VMProxy->AddTag(*WorldState, E, Tag);
     }
 }
@@ -353,13 +350,11 @@ void FHktVMInterpreter::Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entit
     if (!WorldState || !VMProxy) return;
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
-
-    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+    FGameplayTag Tag = ResolveTag(TagIndex);
     if (Tag.IsValid())
     {
         HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-            FString::Printf(TEXT("Op_RemoveTag Id=%d Tag=%s"), E, *TagName.ToString()), E, Tag);
+            FString::Printf(TEXT("Op_RemoveTag Id=%d Tag=%s"), E, *Tag.ToString()), E, Tag);
         VMProxy->RemoveTag(*WorldState, E, Tag);
     }
 }
@@ -370,8 +365,7 @@ void FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, Reg
     if (WorldState)
     {
         FHktEntityId E = Runtime.GetRegEntity(Entity);
-        FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-        FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+        FGameplayTag Tag = ResolveTag(TagIndex);
         if (Tag.IsValid())
             bHas = WorldState->HasTag(E, Tag);
     }
@@ -387,8 +381,7 @@ void FHktVMInterpreter::Op_CountByTag(FHktVMRuntime& Runtime, RegisterIndex Dst,
     int32 Count = 0;
     if (WorldState)
     {
-        FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-        FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+        FGameplayTag Tag = ResolveTag(TagIndex);
         if (Tag.IsValid())
         {
             WorldState->ForEachEntity([&](FHktEntityId E, int32 /*Slot*/)
@@ -453,8 +446,7 @@ void FHktVMInterpreter::Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Ds
     int32 Count = 0;
     if (WorldState)
     {
-        FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-        FGameplayTag FilterTag = FGameplayTag::RequestGameplayTag(TagName, false);
+        FGameplayTag FilterTag = ResolveTag(TagIndex);
         FHktEntityId OwnerId = Runtime.GetRegEntity(OwnerEntity);
 
         if (FilterTag.IsValid())
@@ -476,8 +468,7 @@ void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex Own
 
     if (WorldState)
     {
-        FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagIndex));
-        FGameplayTag FilterTag = FGameplayTag::RequestGameplayTag(TagName, false);
+        FGameplayTag FilterTag = ResolveTag(TagIndex);
         FHktEntityId OwnerId = Runtime.GetRegEntity(OwnerEntity);
 
         if (FilterTag.IsValid())

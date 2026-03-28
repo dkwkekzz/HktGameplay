@@ -135,6 +135,7 @@ private:
 
     // ===== Helper =====
     const FString& GetString(FHktVMRuntime& Runtime, int32 Index);
+    FGameplayTag ResolveTag(int32 TagIndex);
 
 private:
     static constexpr int32 MaxInstructionsPerTick = 10000;
