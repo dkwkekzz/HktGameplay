@@ -577,9 +577,12 @@ void FHktPhysicsSystem::RebuildGrid(const FHktWorldState& WorldState)
         const int32 Layer = WorldState.GetProperty(Id, PropertyId::CollisionLayer);
         const int32 Mask  = WorldState.GetProperty(Id, PropertyId::CollisionMask);
 
-        // Layer와 Mask가 모두 명시적으로 설정된 경우에만 Layer=0을 "불참"으로 처리
-        // 둘 다 0이면 레거시 엔티티 → 기존 동작 유지 (그리드 참여)
-        if (Layer == 0 && Mask != 0)
+        // CollisionLayer와 Mask가 모두 0이면 충돌 불참 엔티티
+        if (Layer == 0 && Mask == 0)
+            return;
+
+        // Layer가 설정되지 않은 엔티티는 충돌 소스가 될 수 없으므로 제외
+        if (Layer == 0)
             return;
 
         FIntVector P = WorldState.GetPosition(Id);
@@ -599,64 +602,75 @@ void FHktPhysicsSystem::Process(
 
     static constexpr float DefaultCollisionRadius = 50.0f;
 
+    // 이미 검사한 엔티티 쌍 중복 방지용 (인접 셀 순회 시 동일 쌍 재검사 방지)
+    TSet<uint64> TestedPairs;
+
+    // 인접 셀 오프셋 (자기 셀 포함 3x3 = 9칸)
+    static constexpr int32 AdjacentOffsets[9][2] = {
+        {0,0}, {1,0}, {-1,0}, {0,1}, {0,-1}, {1,1}, {1,-1}, {-1,1}, {-1,-1}
+    };
+
     for (auto& CellPair : GridMap)
     {
+        const FCellCoord& CellCoord = CellPair.Key;
         const TArray<FHktEntityId>& EntitiesInCell = CellPair.Value;
+
+        // 같은 셀 내 엔티티 간 충돌 + 인접 셀 엔티티와의 충돌
         for (int32 i = 0; i < EntitiesInCell.Num(); ++i)
         {
+            FHktEntityId A = EntitiesInCell[i];
+            if (!WorldState.IsValidEntity(A))
+                continue;
+
+            const uint32 LayerA = static_cast<uint32>(WorldState.GetProperty(A, PropertyId::CollisionLayer));
+            const uint32 MaskA  = static_cast<uint32>(WorldState.GetProperty(A, PropertyId::CollisionMask));
+
+            FIntVector PA = WorldState.GetPosition(A);
+            FVector PosA(static_cast<float>(PA.X), static_cast<float>(PA.Y), static_cast<float>(PA.Z));
+            const float RadiusA = FMath::Max(static_cast<float>(WorldState.GetProperty(A, PropertyId::CollisionRadius)), DefaultCollisionRadius);
+
+            const bool bProjectileA = (LayerA == EHktCollisionLayer::Projectile);
+            const int32 OwnerA = WorldState.GetProperty(A, PropertyId::OwnerEntity);
+
+            // 같은 셀 내 나머지 엔티티와 충돌 검사
             for (int32 j = i + 1; j < EntitiesInCell.Num(); ++j)
             {
-                FHktEntityId A = EntitiesInCell[i];
                 FHktEntityId B = EntitiesInCell[j];
-
-                if (!WorldState.IsValidEntity(A) || !WorldState.IsValidEntity(B))
+                if (!WorldState.IsValidEntity(B))
                     continue;
 
-                // Layer/Mask 필터: 양방향 동의 필요
-                const uint32 LayerA = static_cast<uint32>(WorldState.GetProperty(A, PropertyId::CollisionLayer));
-                const uint32 MaskA  = static_cast<uint32>(WorldState.GetProperty(A, PropertyId::CollisionMask));
                 const uint32 LayerB = static_cast<uint32>(WorldState.GetProperty(B, PropertyId::CollisionLayer));
                 const uint32 MaskB  = static_cast<uint32>(WorldState.GetProperty(B, PropertyId::CollisionMask));
-                // Layer/Mask가 양쪽 다 설정된 경우에만 필터링 (레거시 엔티티 하위호환)
-                const bool bAHasProfile = (LayerA | MaskA) != 0;
-                const bool bBHasProfile = (LayerB | MaskB) != 0;
-                if (bAHasProfile && bBHasProfile)
-                {
-                    if (!(LayerA & MaskB) || !(LayerB & MaskA))
-                        continue;
-                }
 
-                // OwnerEntity 관계 확인 (투사체 ↔ 시전자 충돌 방지)
-                const int32 OwnerA = WorldState.GetProperty(A, PropertyId::OwnerEntity);
-                const int32 OwnerB = WorldState.GetProperty(B, PropertyId::OwnerEntity);
-                const bool bProjectileA = (LayerA == EHktCollisionLayer::Projectile);
+                // Layer/Mask 필터: 양방향 동의 필요
+                if (!(LayerA & MaskB) || !(LayerB & MaskA))
+                    continue;
+
                 const bool bProjectileB = (LayerB == EHktCollisionLayer::Projectile);
+                const int32 OwnerB = WorldState.GetProperty(B, PropertyId::OwnerEntity);
 
+                // 투사체 ↔ 시전자 충돌 방지
                 if (bProjectileA && OwnerA == static_cast<int32>(B))
                     continue;
                 if (bProjectileB && OwnerB == static_cast<int32>(A))
                     continue;
 
-                FIntVector PA = WorldState.GetPosition(A);
                 FIntVector PB = WorldState.GetPosition(B);
-                FVector PosA(static_cast<float>(PA.X), static_cast<float>(PA.Y), static_cast<float>(PA.Z));
                 FVector PosB(static_cast<float>(PB.X), static_cast<float>(PB.Y), static_cast<float>(PB.Z));
 
-                const float RadiusA = FMath::Max(static_cast<float>(WorldState.GetProperty(A, PropertyId::CollisionRadius)), DefaultCollisionRadius);
                 const float RadiusB = FMath::Max(static_cast<float>(WorldState.GetProperty(B, PropertyId::CollisionRadius)), DefaultCollisionRadius);
                 const float CombinedRadius = RadiusA + RadiusB;
 
                 const float DistSq = FVector::DistSquared(PosA, PosB);
                 if (DistSq <= CombinedRadius * CombinedRadius)
                 {
-                    // 충돌 이벤트
                     FHktPhysicsEvent PhysEvent;
                     PhysEvent.EntityA = A;
                     PhysEvent.EntityB = B;
                     PhysEvent.ContactPoint = (PosA + PosB) * 0.5f;
                     OutPhysicsEvents.Add(PhysEvent);
 
-                    // Push-out 위치 보정 — 투사체가 포함된 쌍은 제외
+                    // Push-out 위치 보정 — 투사체 포함 쌍은 제외
                     if (!bProjectileA && !bProjectileB)
                     {
                         const float Dist = FMath::Sqrt(DistSq);
@@ -673,6 +687,80 @@ void FHktPhysicsSystem::Process(
                                 FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
                             VMProxy.SetPosition(WorldState, B,
                                 FMath::RoundToInt(NewB.X), FMath::RoundToInt(NewB.Y), FMath::RoundToInt(NewB.Z));
+                        }
+                    }
+                }
+            }
+
+            // 인접 셀 엔티티와 충돌 검사 (자기 셀(0,0) 제외)
+            for (int32 OffIdx = 1; OffIdx < 9; ++OffIdx)
+            {
+                FCellCoord NeighborCell;
+                NeighborCell.X = CellCoord.X + AdjacentOffsets[OffIdx][0];
+                NeighborCell.Y = CellCoord.Y + AdjacentOffsets[OffIdx][1];
+
+                const TArray<FHktEntityId>* NeighborEntities = GridMap.Find(NeighborCell);
+                if (!NeighborEntities)
+                    continue;
+
+                for (FHktEntityId B : *NeighborEntities)
+                {
+                    if (!WorldState.IsValidEntity(B))
+                        continue;
+
+                    // 엔티티 쌍 중복 검사 방지
+                    uint64 PairKey = (static_cast<uint64>(FMath::Min(A, B)) << 32) | static_cast<uint64>(FMath::Max(A, B));
+                    bool bAlreadyInSet = false;
+                    TestedPairs.Add(PairKey, &bAlreadyInSet);
+                    if (bAlreadyInSet)
+                        continue;
+
+                    const uint32 LayerB = static_cast<uint32>(WorldState.GetProperty(B, PropertyId::CollisionLayer));
+                    const uint32 MaskB  = static_cast<uint32>(WorldState.GetProperty(B, PropertyId::CollisionMask));
+
+                    if (!(LayerA & MaskB) || !(LayerB & MaskA))
+                        continue;
+
+                    const bool bProjectileB = (LayerB == EHktCollisionLayer::Projectile);
+                    const int32 OwnerB = WorldState.GetProperty(B, PropertyId::OwnerEntity);
+
+                    if (bProjectileA && OwnerA == static_cast<int32>(B))
+                        continue;
+                    if (bProjectileB && OwnerB == static_cast<int32>(A))
+                        continue;
+
+                    FIntVector PB = WorldState.GetPosition(B);
+                    FVector PosB(static_cast<float>(PB.X), static_cast<float>(PB.Y), static_cast<float>(PB.Z));
+
+                    const float RadiusB = FMath::Max(static_cast<float>(WorldState.GetProperty(B, PropertyId::CollisionRadius)), DefaultCollisionRadius);
+                    const float CombinedRadius = RadiusA + RadiusB;
+
+                    const float DistSq = FVector::DistSquared(PosA, PosB);
+                    if (DistSq <= CombinedRadius * CombinedRadius)
+                    {
+                        FHktPhysicsEvent PhysEvent;
+                        PhysEvent.EntityA = A;
+                        PhysEvent.EntityB = B;
+                        PhysEvent.ContactPoint = (PosA + PosB) * 0.5f;
+                        OutPhysicsEvents.Add(PhysEvent);
+
+                        if (!bProjectileA && !bProjectileB)
+                        {
+                            const float Dist = FMath::Sqrt(DistSq);
+                            if (Dist > SMALL_NUMBER)
+                            {
+                                const float Overlap = CombinedRadius - Dist;
+                                const float HalfPush = Overlap * 0.5f;
+                                const FVector Dir = (PosB - PosA) / Dist;
+
+                                const FVector NewA = PosA - Dir * HalfPush;
+                                const FVector NewB = PosB + Dir * HalfPush;
+
+                                VMProxy.SetPosition(WorldState, A,
+                                    FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
+                                VMProxy.SetPosition(WorldState, B,
+                                    FMath::RoundToInt(NewB.X), FMath::RoundToInt(NewB.Y), FMath::RoundToInt(NewB.Z));
+                            }
                         }
                     }
                 }
