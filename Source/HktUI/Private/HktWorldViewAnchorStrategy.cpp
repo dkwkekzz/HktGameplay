@@ -7,6 +7,7 @@
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
+#include "DrawDebugHelpers.h"
 
 FVector UHktWorldViewAnchorStrategy::GetHeadWorldLocation() const
 {
@@ -40,6 +41,19 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 	if (!PC) PC = World->GetFirstPlayerController();
 	if (!PC) return false;
 
+	// 디버그 시각화: HUD 앵커 월드 위치 및 캡슐 중심 표시
+#if ENABLE_DRAW_DEBUG
+	if (bDrawDebug)
+	{
+		// 머리 위 앵커 포인트 (HUD가 투영되는 위치) — 노란색
+		DrawDebugSphere(World, WorldLocation, 8.f, 8, FColor::Yellow, false, -1.f, SDPG_World, 1.5f);
+		// 캡슐 중심 (RenderLocation) — 시안색
+		DrawDebugSphere(World, CachedRenderLocation, 6.f, 8, FColor::Cyan, false, -1.f, SDPG_World, 1.0f);
+		// 캡슐 중심 → 앵커까지 연결선
+		DrawDebugLine(World, CachedRenderLocation, WorldLocation, FColor::Yellow, false, -1.f, SDPG_World, 0.8f);
+	}
+#endif
+
 	// 카메라 뒤에 있는 엔티티 필터링: ProjectWorldLocationToScreen은 카메라 뒤 좌표도
 	// 화면에 투영하여 잘못된 위치를 반환할 수 있음.
 	FVector CamLoc;
@@ -55,6 +69,9 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 	{
 		return false;
 	}
+
+	// 스크린 공간 오프셋 적용
+	OutScreenPos += ScreenOffset;
 
 	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한
 	int32 ViewportX, ViewportY;

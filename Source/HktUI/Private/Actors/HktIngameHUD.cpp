@@ -49,25 +49,24 @@ void AHktIngameHUD::BeginPlay()
 	});
 
 	// PresentationSubsystem에 UI 렌더러로 등록
-	if (UHktPresentationSubsystem* PresentationSubsystem = UHktPresentationSubsystem::Get(PC))
+	CachedPresentationSubsystem = UHktPresentationSubsystem::Get(PC);
+	if (CachedPresentationSubsystem)
 	{
-		PresentationSubsystem->RegisterRenderer(this);
+		CachedPresentationSubsystem->RegisterRenderer(this);
 	}
 }
 
 void AHktIngameHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// PresentationSubsystem에서 해제
-	if (APlayerController* PC = GetOwningPlayerController())
+	if (CachedPresentationSubsystem)
 	{
-		if (UHktPresentationSubsystem* PresentationSubsystem = UHktPresentationSubsystem::Get(PC))
-		{
-			PresentationSubsystem->UnregisterRenderer(this);
-		}
+		CachedPresentationSubsystem->UnregisterRenderer(this);
 	}
 
 	TrackedEntities.Empty();
 	CachedEntityHudAsset = nullptr;
+	CachedPresentationSubsystem = nullptr;
 	bInitialSyncDone = false;
 
 	Super::EndPlay(EndPlayReason);
@@ -187,13 +186,33 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId, const FHktPresent
 		Strategy = NewObject<UHktWorldViewAnchorStrategy>(this);
 	}
 
-	Strategy->SetTargetEntity(EntityId, EntityHudHeadClearance);
+	// DataAsset에 HeadClearance가 지정되어 있으면 사용, 아니면 IngameHUD 기본값
+	const float EffectiveHeadClearance = (CachedEntityHudAsset && CachedEntityHudAsset->HeadClearance > 0.f)
+		? CachedEntityHudAsset->HeadClearance
+		: EntityHudHeadClearance;
+	Strategy->SetTargetEntity(EntityId, EffectiveHeadClearance);
 
-	// PresentationState에서 엔티티 RenderLocation + CapsuleHalfHeight로 머리 위치 설정
+	// DataAsset의 스크린 오프셋 및 디버그 설정 적용
+	if (CachedEntityHudAsset)
+	{
+		Strategy->SetScreenOffset(CachedEntityHudAsset->ScreenOffset);
+		Strategy->SetDebugDraw(CachedEntityHudAsset->bDrawDebugAnchor);
+	}
+
+	// Actor의 보간된 위치를 우선 사용 (움직임 튀기 방지), 없으면 RenderLocation 폴백
 	const FHktEntityPresentation* Entity = State.Get(EntityId);
 	if (Entity)
 	{
-		Strategy->SetWorldPosition(Entity->RenderLocation.Get(), Entity->CapsuleHalfHeight);
+		FVector WorldPos = Entity->RenderLocation.Get();
+		if (CachedPresentationSubsystem)
+		{
+			const FVector ActorLoc = CachedPresentationSubsystem->GetEntityActorLocation(EntityId);
+			if (!ActorLoc.IsZero())
+			{
+				WorldPos = ActorLoc;
+			}
+		}
+		Strategy->SetWorldPosition(WorldPos, Entity->CapsuleHalfHeight);
 	}
 
 	Element->InitializeElement(View, Strategy);
@@ -246,13 +265,21 @@ void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 		UHktUIElement* Element = FindEntityElement(EntityId);
 		if (!Element) continue;
 
-		// Actor는 ApplyTransform에서 RenderLocation.Get()을 매 프레임 직접 읽지만,
-		// HUD Strategy는 캐시된 값을 사용하므로 항상 최신 값으로 갱신해야 함.
-		// (CapsuleHalfHeight는 비동기 에셋 로드 후 설정되어 IsDirty 프레임과 불일치할 수 있음)
+		// Actor의 보간된 위치(InterpLocation)를 사용하여 움직임 튀기 방지.
+		// Actor가 아직 스폰되지 않은 경우 RenderLocation 폴백.
 		UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Element->AnchorStrategy);
 		if (Strategy)
 		{
-			Strategy->SetWorldPosition(Entity->RenderLocation.Get(), Entity->CapsuleHalfHeight);
+			FVector WorldPos = Entity->RenderLocation.Get();
+			if (CachedPresentationSubsystem)
+			{
+				const FVector ActorLoc = CachedPresentationSubsystem->GetEntityActorLocation(EntityId);
+				if (!ActorLoc.IsZero())
+				{
+					WorldPos = ActorLoc;
+				}
+			}
+			Strategy->SetWorldPosition(WorldPos, Entity->CapsuleHalfHeight);
 		}
 
 		// 위젯 프로퍼티 갱신 (dirty check)
