@@ -88,10 +88,15 @@ namespace HktStoryTargetDefault
 			.CmpLe(Flag, R1, R0)
 			.JumpIf(Flag, TEXT("npc_check_cd"))
 
-			// 사거리 밖 → 타겟에게 접근
+			// 사거리 밖 → 타겟에게 접근 (R0 = AttackRange 유지)
+		.Label(TEXT("npc_chase_loop"))
 			.GetPosition(R2, Target)
 			.MoveToward(Self, R2, ChaseForce)
-			.WaitMoveEnd(Self)
+			.Yield(1)
+			.GetDistance(R1, Self, Target)
+			.CmpLe(Flag, R1, R0)
+			.JumpIfNot(Flag, TEXT("npc_chase_loop"))
+			.StopMovement(Self)
 
 		.Label(TEXT("npc_check_cd"))
 			// 쿨타임 검증
