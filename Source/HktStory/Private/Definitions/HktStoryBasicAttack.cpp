@@ -33,6 +33,9 @@ namespace HktStoryBasicAttack
 	/** 기본 공격 사거리 (cm) — 히트테스트 반경으로 사용 */
 	static constexpr int32 DefaultAttackRange = 200;
 
+	/** BasicAttack 고유 후딜레이 (빠른 기본 공격) */
+	static constexpr int32 RecoveryFrame = 20;
+
 	/**
 	 * ================================================================
 	 * Basic Attack Flow
@@ -52,6 +55,10 @@ namespace HktStoryBasicAttack
 		using namespace Reg;
 
 		auto B = Story(Story_BasicAttack);
+
+		// === 공격별 쿨타임 갱신 ===
+		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
+
 		B.Log(TEXT("BasicAttack: 공격 시작"))
 
 			// === 1. 타겟을 바라본다 ===

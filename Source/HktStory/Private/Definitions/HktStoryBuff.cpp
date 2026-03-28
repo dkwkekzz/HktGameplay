@@ -5,6 +5,7 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetCombat.h"
 
 namespace HktStoryBuff
 {
@@ -24,6 +25,9 @@ namespace HktStoryBuff
 	// Effect
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_PowerUp, "Effect.PowerUp", "Power up buff effect: increased attack power.");
 
+	/** Buff 고유 후딜레이 (표준) */
+	static constexpr int32 RecoveryFrame = 30;
+
 	/**
 	 * ================================================================
 	 * 자기 버프 스킬 Flow
@@ -39,8 +43,12 @@ namespace HktStoryBuff
 	{
 		using namespace Reg;
 
-		Story(Story_Buff)
-			.Log(TEXT("Buff: 시전 시작"))
+		auto B = Story(Story_Buff);
+
+		// === 공격별 쿨타임 갱신 ===
+		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
+
+		B	.Log(TEXT("Buff: 시전 시작"))
 
 			// 시전 상태 태그 추가 → AnimInstance가 태그를 감지하여 시전 애니메이션 자동 재생
 			.AddTag(Self, Tag_Anim_UpperBody_Cast_Buff)

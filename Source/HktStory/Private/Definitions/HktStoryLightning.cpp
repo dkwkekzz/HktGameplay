@@ -5,6 +5,7 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetCombat.h"
 
 namespace HktStoryLightning
 {
@@ -28,6 +29,9 @@ namespace HktStoryLightning
 	// 사망 마킹 태그
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — lifecycle stories watch for this.");
 
+	/** Lightning 고유 후딜레이 (빠른 시전) */
+	static constexpr int32 RecoveryFrame = 35;
+
 	/**
 	 * ================================================================
 	 * 번개 스킬 Flow
@@ -44,8 +48,12 @@ namespace HktStoryLightning
 	{
 		using namespace Reg;
 
-		Story(Story_Lightning)
-			// === 시전 시작 ===
+		auto B = Story(Story_Lightning);
+
+		// === 공격별 쿨타임 갱신 ===
+		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
+
+		B	// === 시전 시작 ===
 			.Log(TEXT("Lightning: 시전 시작"))
 			.AddTag(Self, Tag_Anim_UpperBody_Cast_Lightning)
 			.WaitSeconds(0.6f)                          // 0.6초 대기

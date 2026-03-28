@@ -6,6 +6,7 @@
 #include "HktStoryEventParams.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetCombat.h"
 
 namespace HktStoryHeal
 {
@@ -22,6 +23,9 @@ namespace HktStoryHeal
 	// Sound
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Heal, "Sound.Heal", "Heal sound.");
 
+	/** Heal 고유 후딜레이 (회복 스킬은 긴 쿨타임) */
+	static constexpr int32 RecoveryFrame = 60;
+
 	/**
 	 * ================================================================
 	 * 회복 스킬 Flow
@@ -36,8 +40,12 @@ namespace HktStoryHeal
 	{
 		using namespace Reg;
 
-		Story(Story_Heal)
-			.Log(TEXT("Heal: 시전 시작"))
+		auto B = Story(Story_Heal);
+
+		// === 공격별 쿨타임 갱신 ===
+		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
+
+		B	.Log(TEXT("Heal: 시전 시작"))
 
 			// 시전 상태 태그 추가 → AnimInstance가 태그를 감지하여 시전 애니메이션 자동 재생
 			.AddTag(Self, Tag_Anim_UpperBody_Cast_Heal)

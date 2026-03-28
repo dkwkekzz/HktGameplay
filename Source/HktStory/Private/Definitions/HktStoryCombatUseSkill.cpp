@@ -60,9 +60,6 @@ namespace HktStoryCombatUseSkill
 		PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 	};
 
-	/** 기본 공격 (innate) 후딜레이 — BasicAttack 전용 (빠른 기본 공격) */
-	static constexpr int32 InnateRecoveryFrame = 20;
-
 	/**
 	 * ================================================================
 	 * 통합 스킬 사용 Flow (Story.Event.Combat.UseSkill)
@@ -72,6 +69,9 @@ namespace HktStoryCombatUseSkill
 	 *  CP를 검증하고 차감한 뒤, 아이템 태그에 따라 고유 스킬 Story로 디스패치한다.
 	 *  태그가 없으면 기본 일괄 데미지(공격력*2)를 실행한다.
 	 *  슬롯에 아이템이 없으면 캐릭터 본연의 기본 공격(BasicAttack)을 디스패치한다."
+	 *
+	 * 쿨타임 갱신은 각 AttackStory가 자체 RecoveryFrame으로 수행한다.
+	 * (인라인 기본 아이템 스킬만 아이템 RecoveryFrame 사용)
 	 *
 	 * 두 가지 진입 경로:
 	 * 1. 슬롯 키: Param0 = 타겟 EntityId, Param1 = 슬롯 인덱스
@@ -122,10 +122,8 @@ namespace HktStoryCombatUseSkill
 			.Sub(R4, R4, R3)
 			.SaveStore(PropertyId::CP, R4);
 
-		// === NextActionFrame 갱신 (아이템 RecoveryFrame 기반) ===
-		HktSnippetCombat::CooldownUpdateFromEntity(B, R2);
-
 		// === 아이템 스킬 태그 확인 → 고유 스킬 dispatch ===
+		// 쿨타임 갱신은 각 스킬 Story가 자체 RecoveryFrame으로 수행
 		B	.HasTag(R5, R2, Tag_Skill_Fireball)
 			.JumpIf(R5, TEXT("dispatch_fireball"))
 
@@ -139,7 +137,11 @@ namespace HktStoryCombatUseSkill
 			.JumpIf(R5, TEXT("dispatch_buff"))
 
 			// === 기본 일괄 데미지 (고유 스킬 태그 없는 아이템 — 목검 등) ===
-			.AddTag(Self, Tag_Anim_UpperBody_Combat_Skill)
+			;
+		// 인라인 스킬은 아이템 RecoveryFrame으로 쿨타임 갱신
+		HktSnippetCombat::CooldownUpdateFromEntity(B, R2);
+
+		B	.AddTag(Self, Tag_Anim_UpperBody_Combat_Skill)
 			.AddTag(Self, Tag_Anim_Montage_Skill)
 			.WaitAnimEnd(Self)
 
@@ -186,12 +188,10 @@ namespace HktStoryCombatUseSkill
 			.Halt()
 
 		// === 본연 스킬 경로 (아이템 없음 → BasicAttack) ===
+		// 쿨타임 갱신은 BasicAttack Story에서 자체 수행
 		.Label(TEXT("innate"))
-			.Log(TEXT("UseSkill: → 본연 스킬 (BasicAttack)"));
-
-		HktSnippetCombat::CooldownUpdateConst(B, InnateRecoveryFrame);
-
-		B	.DispatchEvent(Story_BasicAttack)
+			.Log(TEXT("UseSkill: → 본연 스킬 (BasicAttack)"))
+			.DispatchEvent(Story_BasicAttack)
 			.Halt()
 
 		.Label(TEXT("fail"))

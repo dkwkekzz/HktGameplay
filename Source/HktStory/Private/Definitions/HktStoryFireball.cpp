@@ -5,6 +5,7 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetCombat.h"
 
 namespace HktStoryFireball
 {
@@ -31,6 +32,9 @@ namespace HktStoryFireball
 	// 사망 마킹 태그
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — lifecycle stories watch for this.");
 
+	/** Fireball 고유 후딜레이 (긴 시전 + 투사체) */
+	static constexpr int32 RecoveryFrame = 45;
+
 	/**
 	 * ================================================================
 	 * 파이어볼 스킬 Flow
@@ -47,8 +51,12 @@ namespace HktStoryFireball
 	{
 		using namespace Reg;
 
-		Story(Story_Fireball)
-			// === 시전 시작 ===
+		auto B = Story(Story_Fireball);
+
+		// === 공격별 쿨타임 갱신 ===
+		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
+
+		B	// === 시전 시작 ===
 			.Log(TEXT("Fireball: 시전 시작"))
 			.AddTag(Self, Tag_Anim_UpperBody_Cast_Fireball)
 			.WaitSeconds(1.0f)                          // 1초 대기
