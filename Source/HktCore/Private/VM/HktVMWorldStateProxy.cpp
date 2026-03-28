@@ -35,6 +35,7 @@ void FHktVMWorldStateProxy::ResetDirtyIndices(const FHktWorldState& WS)
     TagsDirtySlots.Reset();
     OwnerDirtySlots.Reset();
     PendingVFXEvents.Reset();
+    PendingAnimEvents.Reset();
 
     if (WS.ActiveCount > 0)
     {

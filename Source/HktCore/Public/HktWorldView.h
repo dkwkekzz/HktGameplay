@@ -26,6 +26,7 @@ struct HKTCORE_API FHktWorldView
 	const TArray<FHktTagDelta>* TagDeltas = nullptr;
 	const TArray<FHktOwnerDelta>* OwnerDeltas = nullptr;
 	const TArray<FHktVFXEvent>* VFXEvents = nullptr;
+	const TArray<FHktAnimEvent>* AnimEvents = nullptr;
 
 	// === 메타 ===
 	int64 FrameNumber = 0;
@@ -95,6 +96,14 @@ struct HKTCORE_API FHktWorldView
 	{
 		if (VFXEvents)
 			for (const FHktVFXEvent& E : *VFXEvents)
+				Cb(E);
+	}
+
+	template<typename F>
+	void ForEachAnimEvent(F&& Cb) const
+	{
+		if (AnimEvents)
+			for (const FHktAnimEvent& E : *AnimEvents)
 				Cb(E);
 	}
 };

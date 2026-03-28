@@ -86,6 +86,9 @@ struct FHktEntityPresentation
 	FGameplayTagContainer Tags;
 	int64 TagsDirtyFrame = -1;
 
+	/** 이번 프레임에 수신된 일회성 애니메이션 이벤트 (소비 후 Clear) */
+	TArray<FGameplayTag> PendingAnimTriggers;
+
 	void InitFromWorldState(const FHktWorldState& WS, FHktEntityId Id, int64 Frame);
 	void ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame);
 	void ApplyOwnerDelta(int64 NewOwnerUid, int64 Frame);

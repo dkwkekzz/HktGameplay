@@ -96,6 +96,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::RemoveEffect: Op_RemoveEffect(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::PlayVFX: Op_PlayVFX(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::PlayVFXAttached: Op_PlayVFXAttached(Runtime, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::PlayAnim: Op_PlayAnim(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::PlaySound: Op_PlaySound(Runtime, Inst.GetSignedImm20()); break;
     case EOpCode::PlaySoundAtLocation: Op_PlaySoundAtLocation(Runtime, Inst.Src1, Inst.Imm12); break;
     // Tags
@@ -415,6 +416,7 @@ bool FHktVMInterpreter::ExecutePrecondition(
         case EOpCode::RemoveEffect:
         case EOpCode::PlayVFX:
         case EOpCode::PlayVFXAttached:
+        case EOpCode::PlayAnim:
         case EOpCode::PlaySound:
         case EOpCode::PlaySoundAtLocation:
         case EOpCode::SetOwnerUid:

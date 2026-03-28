@@ -87,7 +87,7 @@ FHktStoryBuilder& HktSnippetCombat::AnimTrigger(
 	RegisterIndex Entity,
 	const FGameplayTag& AnimTag)
 {
-	B.AddTag(Entity, AnimTag);
+	B.PlayAnim(Entity, AnimTag);
 	return B;
 }
 

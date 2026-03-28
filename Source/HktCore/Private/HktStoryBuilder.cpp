@@ -570,6 +570,13 @@ FHktStoryBuilder& FHktStoryBuilder::PlayVFXAttached(RegisterIndex Entity, const 
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::PlayAnim(RegisterIndex Entity, const FGameplayTag& AnimTag)
+{
+    int32 TagIdx = TagToInt(AnimTag);
+    Emit(FInstruction::Make(EOpCode::PlayAnim, 0, Entity, 0, TagIdx & 0xFFF));
+    return *this;
+}
+
 FHktStoryBuilder& FHktStoryBuilder::PlaySound(const FGameplayTag& SoundTag)
 {
     int32 TagIdx = TagToInt(SoundTag);

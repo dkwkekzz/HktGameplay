@@ -242,6 +242,21 @@ struct HKTCORE_API FHktVFXEvent
 };
 
 // ============================================================================
+// FHktAnimEvent — VM이 요청한 일회성 애니메이션 이벤트 (몽타주 fire-and-forget)
+// ============================================================================
+
+struct HKTCORE_API FHktAnimEvent
+{
+    FGameplayTag Tag;
+    FHktEntityId EntityId = InvalidEntityId;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktAnimEvent& V)
+    {
+        return Ar << V.Tag << V.EntityId;
+    }
+};
+
+// ============================================================================
 // FHktSimulationDiff — 프레임별 변경점 (서버 → 클라이언트)
 // ============================================================================
 
@@ -256,6 +271,7 @@ struct HKTCORE_API FHktSimulationDiff
     TArray<FHktTagDelta> TagDeltas;
     TArray<FHktOwnerDelta> OwnerDeltas;
     TArray<FHktVFXEvent> VFXEvents;
+    TArray<FHktAnimEvent> AnimEvents;
 
     bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
@@ -263,7 +279,7 @@ struct HKTCORE_API FHktSimulationDiff
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, SpawnedEntities, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, RemovedEntityStates, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, TagDeltas, Map);
-        Ar << OwnerDeltas << VFXEvents;
+        Ar << OwnerDeltas << VFXEvents << AnimEvents;
         return true;
     }
 };

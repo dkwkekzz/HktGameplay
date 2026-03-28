@@ -313,6 +313,20 @@ void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex
         FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *Tag.ToString()), E);
 }
 
+void FHktVMInterpreter::Op_PlayAnim(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagIndex)
+{
+    if (!VMProxy) return;
+
+    FHktEntityId E = Runtime.GetRegEntity(Entity);
+    FGameplayTag Tag = ResolveTag(TagIndex);
+    if (!Tag.IsValid()) return;
+
+    VMProxy->PendingAnimEvents.Add({ Tag, E });
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_PlayAnim Id=%d Anim=%s"), E, *Tag.ToString()), E);
+}
+
 void FHktVMInterpreter::Op_PlaySound(FHktVMRuntime& Runtime, int32 TagIndex)
 {
     FGameplayTag Tag = ResolveTag(TagIndex);

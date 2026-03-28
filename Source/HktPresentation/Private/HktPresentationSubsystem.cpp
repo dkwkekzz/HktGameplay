@@ -283,6 +283,18 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 		}
 	});
 
+	// Op_PlayAnim 이벤트 처리: 엔터티 PresentationState에 트리거 적재 → ActorRenderer가 소비
+	View.ForEachAnimEvent([this](const FHktAnimEvent& Event)
+	{
+		FHktEntityPresentation* E = State.GetMutable(Event.EntityId);
+		if (E)
+		{
+			E->PendingAnimTriggers.Add(Event.Tag);
+			// DirtyThisFrame에 추가하여 ActorRenderer::Sync에서 ForwardToActor 호출 보장
+			State.DirtyThisFrame.AddUnique(Event.EntityId);
+		}
+	});
+
 	ComputeRenderLocations();
 }
 
