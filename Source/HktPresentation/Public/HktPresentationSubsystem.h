@@ -41,6 +41,9 @@ public:
 	/** 엔티티의 프레젠테이션 위치 반환. 유효하지 않으면 ZeroVector. */
 	FVector GetEntityLocation(FHktEntityId Id) const;
 
+	/** 엔티티에 바인딩된 Actor의 실제 위치 반환. Actor가 없으면 GetEntityLocation 폴백. */
+	FVector GetEntityActorLocation(FHktEntityId Id) const;
+
 	/** 외부 렌더러 등록/해제 (예: AHktIngameHUD). 등록 시 기존 State 즉시 Sync. */
 	void RegisterRenderer(IHktPresentationRenderer* InRenderer);
 	void UnregisterRenderer(IHktPresentationRenderer* InRenderer);

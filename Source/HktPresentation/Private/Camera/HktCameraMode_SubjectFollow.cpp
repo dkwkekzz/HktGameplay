@@ -16,7 +16,7 @@ void UHktCameraMode_SubjectFollow::OnActivate(AHktRtsCameraPawn* Pawn)
 		UHktPresentationSubsystem* Sub = PC ? UHktPresentationSubsystem::Get(PC) : nullptr;
 		if (Sub)
 		{
-			FVector EntityLoc = Sub->GetEntityLocation(SubjectEntityId);
+			FVector EntityLoc = Sub->GetEntityActorLocation(SubjectEntityId);
 			if (!EntityLoc.IsZero())
 			{
 				FVector CameraLoc = Pawn->GetActorLocation();
@@ -39,7 +39,7 @@ void UHktCameraMode_SubjectFollow::TickMode(AHktRtsCameraPawn* Pawn, float Delta
 	UHktPresentationSubsystem* Sub = UHktPresentationSubsystem::Get(PC);
 	if (!Sub) return;
 
-	FVector EntityLoc = Sub->GetEntityLocation(SubjectEntityId);
+	FVector EntityLoc = Sub->GetEntityActorLocation(SubjectEntityId);
 	if (EntityLoc.IsZero()) return;
 
 	// 오프셋 감쇄

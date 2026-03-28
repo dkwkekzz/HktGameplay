@@ -411,6 +411,19 @@ FVector UHktPresentationSubsystem::GetEntityLocation(FHktEntityId Id) const
 	return E->RenderLocation.Get().IsZero() ? E->Location.Get() : E->RenderLocation.Get();
 }
 
+FVector UHktPresentationSubsystem::GetEntityActorLocation(FHktEntityId Id) const
+{
+	if (ActorRenderer)
+	{
+		AActor* Actor = ActorRenderer->GetActor(Id);
+		if (Actor)
+		{
+			return Actor->GetActorLocation();
+		}
+	}
+	return GetEntityLocation(Id);
+}
+
 void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationRenderer* InRenderer)
 {
 	if (!InRenderer || Renderers.Contains(InRenderer)) return;
