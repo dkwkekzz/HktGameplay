@@ -339,8 +339,8 @@ FHktStoryBuilder& FHktStoryBuilder::CmpGe(RegisterIndex Dst, RegisterIndex Src1,
 
 FHktStoryBuilder& FHktStoryBuilder::SpawnEntity(const FGameplayTag& ClassTag)
 {
-    int32 StrIdx = AddString(ClassTag.ToString());
-    Emit(FInstruction::Make(EOpCode::SpawnEntity, 0, 0, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(ClassTag);
+    Emit(FInstruction::Make(EOpCode::SpawnEntity, 0, 0, 0, TagIdx & 0xFFF));
     return *this;
 }
 
@@ -590,22 +590,22 @@ FHktStoryBuilder& FHktStoryBuilder::PlaySoundAtLocation(RegisterIndex PosBase, c
 
 FHktStoryBuilder& FHktStoryBuilder::AddTag(RegisterIndex Entity, const FGameplayTag& Tag)
 {
-    int32 StrIdx = AddString(Tag.ToString());
-    Emit(FInstruction::Make(EOpCode::AddTag, 0, Entity, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(Tag);
+    Emit(FInstruction::Make(EOpCode::AddTag, 0, Entity, 0, TagIdx & 0xFFF));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::RemoveTag(RegisterIndex Entity, const FGameplayTag& Tag)
 {
-    int32 StrIdx = AddString(Tag.ToString());
-    Emit(FInstruction::Make(EOpCode::RemoveTag, 0, Entity, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(Tag);
+    Emit(FInstruction::Make(EOpCode::RemoveTag, 0, Entity, 0, TagIdx & 0xFFF));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::HasTag(RegisterIndex Dst, RegisterIndex Entity, const FGameplayTag& Tag)
 {
-    int32 StrIdx = AddString(Tag.ToString());
-    Emit(FInstruction::Make(EOpCode::HasTag, Dst, Entity, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(Tag);
+    Emit(FInstruction::Make(EOpCode::HasTag, Dst, Entity, 0, TagIdx & 0xFFF));
     return *this;
 }
 
@@ -615,8 +615,8 @@ FHktStoryBuilder& FHktStoryBuilder::HasTag(RegisterIndex Dst, RegisterIndex Enti
 
 FHktStoryBuilder& FHktStoryBuilder::CountByTag(RegisterIndex Dst, const FGameplayTag& Tag)
 {
-    int32 StrIdx = AddString(Tag.ToString());
-    Emit(FInstruction::Make(EOpCode::CountByTag, Dst, 0, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(Tag);
+    Emit(FInstruction::Make(EOpCode::CountByTag, Dst, 0, 0, TagIdx & 0xFFF));
     return *this;
 }
 
@@ -644,15 +644,15 @@ FHktStoryBuilder& FHktStoryBuilder::HasPlayerInGroup(RegisterIndex Dst)
 
 FHktStoryBuilder& FHktStoryBuilder::CountByOwner(RegisterIndex Dst, RegisterIndex OwnerEntity, const FGameplayTag& Tag)
 {
-    int32 StrIdx = AddString(Tag.ToString());
-    Emit(FInstruction::Make(EOpCode::CountByOwner, Dst, OwnerEntity, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(Tag);
+    Emit(FInstruction::Make(EOpCode::CountByOwner, Dst, OwnerEntity, 0, TagIdx & 0xFFF));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::FindByOwner(RegisterIndex OwnerEntity, const FGameplayTag& Tag)
 {
-    int32 StrIdx = AddString(Tag.ToString());
-    Emit(FInstruction::Make(EOpCode::FindByOwner, Reg::Count, OwnerEntity, 0, StrIdx & 0xFFF));
+    int32 TagIdx = TagToInt(Tag);
+    Emit(FInstruction::Make(EOpCode::FindByOwner, Reg::Count, OwnerEntity, 0, TagIdx & 0xFFF));
     return *this;
 }
 

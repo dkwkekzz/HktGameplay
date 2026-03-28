@@ -88,7 +88,7 @@ private:
     void Op_CmpGe(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
 
     // ===== Entity =====
-    void Op_SpawnEntity(FHktVMRuntime& Runtime, int32 StringIndex);
+    void Op_SpawnEntity(FHktVMRuntime& Runtime, int32 TagIndex);
     void Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
     // ===== Spatial Query =====
@@ -99,27 +99,27 @@ private:
     void Op_NextFound(FHktVMRuntime& Runtime);
 
     // ===== Presentation =====
-    void Op_ApplyEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex);
-    void Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 StringIndex);
-    void Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex);
-    void Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
-    void Op_PlaySound(FHktVMRuntime& Runtime, int32 StringIndex);
-    void Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 StringIndex);
+    void Op_ApplyEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 TagIndex);
+    void Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Target, int32 TagIndex);
+    void Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 TagIndex);
+    void Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagIndex);
+    void Op_PlaySound(FHktVMRuntime& Runtime, int32 TagIndex);
+    void Op_PlaySoundAtLocation(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 TagIndex);
 
     // ===== Tags =====
-    void Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
-    void Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 StringIndex);
-    void Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 StringIndex);
+    void Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagIndex);
+    void Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagIndex);
+    void Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 TagIndex);
 
     // ===== NPC Spawning =====
-    void Op_CountByTag(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 StringIndex);
+    void Op_CountByTag(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 TagIndex);
     void Op_GetWorldTime(FHktVMRuntime& Runtime, RegisterIndex Dst);
     void Op_RandomInt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex ModulusReg);
     void Op_HasPlayerInGroup(FHktVMRuntime& Runtime, RegisterIndex Dst);
 
     // ===== Item System =====
-    void Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, int32 StringIndex);
-    void Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, int32 StringIndex);
+    void Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex OwnerEntity, int32 TagIndex);
+    void Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, int32 TagIndex);
     void Op_SetOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity);
     void Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
