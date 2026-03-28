@@ -24,7 +24,7 @@
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.Niagara.SelectionTarget");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_Prefix, "VFX");
+
 
 UHktPresentationSubsystem* UHktPresentationSubsystem::Get(APlayerController* PC)
 {
@@ -247,30 +247,6 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	{
 		// Entity presentation에 태그 동기화 (AnimInstance 태그 기반 애니메이션용)
 		State.ApplyTagDelta(Id, Tags);
-
-		// VFX 태그 감지: 엔터티에 부착된 VFX 생명주기 관리
-		FGameplayTagContainer CurrentVFX = Tags.Filter(FGameplayTagContainer(Tag_VFX_Prefix));
-		FGameplayTagContainer OldVFX = OldTags.Filter(FGameplayTagContainer(Tag_VFX_Prefix));
-
-		// 새로 추가된 VFX 태그 → AttachVFXToEntity (엔터티 추적 + 사망 시 자동 정리)
-		for (const FGameplayTag& Tag : CurrentVFX)
-		{
-			if (!OldVFX.HasTag(Tag) && VFXRenderer && View.WorldState)
-			{
-				FIntVector IntPos = View.WorldState->GetPosition(Id);
-				FVector Pos(IntPos.X, IntPos.Y, IntPos.Z);
-				VFXRenderer->AttachVFXToEntity(Tag, Id, Pos);
-			}
-		}
-
-		// 제거된 VFX 태그 → DetachVFXFromEntity
-		for (const FGameplayTag& Tag : OldVFX)
-		{
-			if (!CurrentVFX.HasTag(Tag) && VFXRenderer)
-			{
-				VFXRenderer->DetachVFXFromEntity(Tag, Id);
-			}
-		}
 	});
 
 	// Op_PlayVFX / Op_PlayVFXAttached 이벤트 처리: 일회성 VFX (자동 파괴)
