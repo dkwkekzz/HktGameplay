@@ -283,18 +283,19 @@ void FHktVMInterpreter::Op_RemoveEffect(FHktVMRuntime& Runtime, RegisterIndex Ta
 
 void FHktVMInterpreter::Op_PlayVFX(FHktVMRuntime& Runtime, RegisterIndex PosBase, int32 TagIndex)
 {
+    if (!VMProxy) return;
+
     const int32 X = Runtime.GetReg(PosBase);
     const int32 Y = Runtime.GetReg(PosBase + 1);
     const int32 Z = Runtime.GetReg(PosBase + 2);
 
     FGameplayTag Tag = ResolveTag(TagIndex);
+    if (!Tag.IsValid()) return;
+
+    VMProxy->PendingVFXEvents.Add({ Tag, FIntVector(X, Y, Z) });
 
     HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_PlayVFX Pos=(%d,%d,%d) VFX=%s"), X, Y, Z, *Tag.ToString()));
-
-    if (!VMProxy || !Tag.IsValid()) return;
-
-    VMProxy->PendingVFXEvents.Add({ Tag, FIntVector(X, Y, Z) });
 }
 
 void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagIndex)
@@ -303,7 +304,6 @@ void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
     FGameplayTag Tag = ResolveTag(TagIndex);
-
     if (!Tag.IsValid()) return;
 
     FIntVector Pos = WorldState->GetPosition(E);
