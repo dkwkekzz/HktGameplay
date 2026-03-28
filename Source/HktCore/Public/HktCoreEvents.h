@@ -227,20 +227,17 @@ struct HKTCORE_API FHktOwnerDelta
 };
 
 // ============================================================================
-// FHktVFXEvent — VM이 요청한 VFX 이벤트
-//   EntityId == InvalidEntityId → 위치 기반 일회성 VFX
-//   EntityId != InvalidEntityId → 엔터티 부착 VFX (생명주기 추적)
+// FHktVFXEvent — VM이 요청한 일회성 VFX 이벤트 (재생 후 자동 파괴)
 // ============================================================================
 
 struct HKTCORE_API FHktVFXEvent
 {
     FGameplayTag Tag;
     FIntVector Position;
-    FHktEntityId EntityId = InvalidEntityId;
 
     friend FArchive& operator<<(FArchive& Ar, FHktVFXEvent& V)
     {
-        return Ar << V.Tag << V.Position << V.EntityId;
+        return Ar << V.Tag << V.Position;
     }
 };
 

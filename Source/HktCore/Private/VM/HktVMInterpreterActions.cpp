@@ -307,7 +307,7 @@ void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex
     if (!Tag.IsValid()) return;
 
     FIntVector Pos = WorldState->GetPosition(E);
-    VMProxy->PendingVFXEvents.Add({ Tag, Pos, E });
+    VMProxy->PendingVFXEvents.Add({ Tag, Pos });
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *Tag.ToString()), E);

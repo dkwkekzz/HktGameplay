@@ -273,20 +273,12 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 		}
 	});
 
-	// Op_PlayVFX / Op_PlayVFXAttached 이벤트 처리
+	// Op_PlayVFX / Op_PlayVFXAttached 이벤트 처리: 일회성 VFX (자동 파괴)
 	View.ForEachVFXEvent([this](const FHktVFXEvent& Event)
 	{
-		if (!VFXRenderer) return;
-
-		FVector Pos(Event.Position.X, Event.Position.Y, Event.Position.Z);
-		if (Event.EntityId != InvalidEntityId)
+		if (VFXRenderer)
 		{
-			// 엔터티 부착 VFX: 엔터티 추적 + 사망 시 자동 정리
-			VFXRenderer->AttachVFXToEntity(Event.Tag, Event.EntityId, Pos);
-		}
-		else
-		{
-			// 위치 기반 일회성 VFX
+			FVector Pos(Event.Position.X, Event.Position.Y, Event.Position.Z);
 			VFXRenderer->PlayVFXAtLocation(Event.Tag, Pos);
 		}
 	});
