@@ -303,10 +303,12 @@ void FHktVMInterpreter::Op_PlayVFXAttached(FHktVMRuntime& Runtime, RegisterIndex
 
     FHktEntityId E = Runtime.GetRegEntity(Entity);
     FGameplayTag Tag = ResolveTag(TagIndex);
-    if (Tag.IsValid())
-    {
-        VMProxy->AddTag(*WorldState, E, Tag);
-    }
+
+    if (!Tag.IsValid()) return;
+
+    FIntVector Pos = WorldState->GetPosition(E);
+    VMProxy->PendingVFXEvents.Add({ Tag, Pos, E });
+
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_PlayVFXAttached Id=%d VFX=%s"), E, *Tag.ToString()), E);
 }

@@ -248,27 +248,45 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 		// Entity presentation에 태그 동기화 (AnimInstance 태그 기반 애니메이션용)
 		State.ApplyTagDelta(Id, Tags);
 
-		// VFX 태그 감지: OldTags에 없고 Tags에 있는 "VFX." 접두사 태그 → VFXRenderer 호출
-		FGameplayTagContainer NewlyAdded = Tags.Filter(FGameplayTagContainer(Tag_VFX_Prefix));
+		// VFX 태그 감지: 엔터티에 부착된 VFX 생명주기 관리
+		FGameplayTagContainer CurrentVFX = Tags.Filter(FGameplayTagContainer(Tag_VFX_Prefix));
 		FGameplayTagContainer OldVFX = OldTags.Filter(FGameplayTagContainer(Tag_VFX_Prefix));
 
-		for (const FGameplayTag& Tag : NewlyAdded)
+		// 새로 추가된 VFX 태그 → AttachVFXToEntity (엔터티 추적 + 사망 시 자동 정리)
+		for (const FGameplayTag& Tag : CurrentVFX)
 		{
 			if (!OldVFX.HasTag(Tag) && VFXRenderer && View.WorldState)
 			{
 				FIntVector IntPos = View.WorldState->GetPosition(Id);
 				FVector Pos(IntPos.X, IntPos.Y, IntPos.Z);
-				VFXRenderer->PlayVFXAtLocation(Tag, Pos);
+				VFXRenderer->AttachVFXToEntity(Tag, Id, Pos);
+			}
+		}
+
+		// 제거된 VFX 태그 → DetachVFXFromEntity
+		for (const FGameplayTag& Tag : OldVFX)
+		{
+			if (!CurrentVFX.HasTag(Tag) && VFXRenderer)
+			{
+				VFXRenderer->DetachVFXFromEntity(Tag, Id);
 			}
 		}
 	});
 
-	// Op_PlayVFX 이벤트 처리: 엔티티에 미부착, 지정 위치에 VFX 즉시 재생
+	// Op_PlayVFX / Op_PlayVFXAttached 이벤트 처리
 	View.ForEachVFXEvent([this](const FHktVFXEvent& Event)
 	{
-		if (VFXRenderer)
+		if (!VFXRenderer) return;
+
+		FVector Pos(Event.Position.X, Event.Position.Y, Event.Position.Z);
+		if (Event.EntityId != InvalidEntityId)
 		{
-			FVector Pos(Event.Position.X, Event.Position.Y, Event.Position.Z);
+			// 엔터티 부착 VFX: 엔터티 추적 + 사망 시 자동 정리
+			VFXRenderer->AttachVFXToEntity(Event.Tag, Event.EntityId, Pos);
+		}
+		else
+		{
+			// 위치 기반 일회성 VFX
 			VFXRenderer->PlayVFXAtLocation(Event.Tag, Pos);
 		}
 	});
