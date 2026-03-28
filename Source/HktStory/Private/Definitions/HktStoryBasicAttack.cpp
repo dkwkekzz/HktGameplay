@@ -47,7 +47,7 @@ namespace HktStoryBasicAttack
 	 *  체력이 0 이하이면 사망 태그를 부여한다."
 	 *
 	 * 사거리 검증과 접근은 TargetDefault에서 완료됨.
-	 * 쿨타임 검증과 갱신은 UseSkill에서 수행됨.
+	 * 쿨타임 검증은 UseSkill에서, 갱신은 이 Story에서 자체 수행.
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()

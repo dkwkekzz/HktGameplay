@@ -101,6 +101,11 @@ namespace HktStoryCombatUseSkill
 		// === 공속 기반 쿨타임 검증 (서버 이중 검증) ===
 		HktSnippetCombat::CooldownCheck(B, TEXT("fail"));
 
+		// === NextActionFrame 즉시 잠금 — 동일 프레임 중복 실행 방지 ===
+		// 각 AttackStory가 CooldownUpdateConst로 실제 값을 덮어씀
+		B.LoadConst(R0, 0x7FFFFFFF)
+		 .SaveStore(PropertyId::NextActionFrame, R0);
+
 		// === 타겟 해석: TargetOverride가 유효하면 사용, 아니면 기존 Target 레지스터 유지 ===
 		B	.LoadStore(R5, UseSkillParams::TargetOverride)
 			.LoadConst(R6, 0)
