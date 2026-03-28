@@ -12,6 +12,9 @@
  */
 namespace HktSnippetCombat
 {
+	/** 기준 RecoveryFrame — MotionPlayRate 100 (1.0x) 에 대응하는 표준 후딜레이 */
+	inline constexpr int32 ReferenceRecovery = 30;
+
 	/**
 	 * 쿨타임 검증 (공속 기반)
 	 * GetWorldTime → NextActionFrame 비교 → FailLabel 점프
@@ -23,8 +26,9 @@ namespace HktSnippetCombat
 		const FString& FailLabel);
 
 	/**
-	 * 쿨타임 갱신 (상수 RecoveryFrame)
+	 * 쿨타임 갱신 (상수 RecoveryFrame) + 모션별 애니메이션 속도 산출
 	 * NextActionFrame = CurrentFrame + (RecoveryFrame * 100 / AttackSpeed)
+	 * MotionPlayRate  = ReferenceRecovery * AttackSpeed / RecoveryFrame
 	 *
 	 * Clobbers: R0, R1, R2
 	 */
@@ -33,8 +37,9 @@ namespace HktSnippetCombat
 		int32 RecoveryFrame);
 
 	/**
-	 * 쿨타임 갱신 (엔티티에서 RecoveryFrame 읽기)
+	 * 쿨타임 갱신 (엔티티에서 RecoveryFrame 읽기) + 모션별 애니메이션 속도 산출
 	 * NextActionFrame = CurrentFrame + (ItemEntity.RecoveryFrame * 100 / AttackSpeed)
+	 * MotionPlayRate  = ReferenceRecovery * AttackSpeed / ItemEntity.RecoveryFrame
 	 *
 	 * Clobbers: R0, R1, R3
 	 * @param ItemEntity 레지스터 — RecoveryFrame을 읽을 아이템 엔티티

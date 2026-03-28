@@ -60,8 +60,8 @@ namespace HktStoryCombatUseSkill
 		PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 	};
 
-	/** 기본 공격 (innate) 후딜레이 — BasicAttack과 동일 */
-	static constexpr int32 InnateRecoveryFrame = 30;
+	/** 기본 공격 (innate) 후딜레이 — BasicAttack 전용 (빠른 기본 공격) */
+	static constexpr int32 InnateRecoveryFrame = 20;
 
 	/**
 	 * ================================================================

@@ -58,6 +58,7 @@ struct FHktEntityPresentation
 	THktVisualField<int32> MaxCP;
 	THktVisualField<float> CPRatio;
 	THktVisualField<int32> AttackSpeed;
+	THktVisualField<int32> MotionPlayRate;    // 모션별 애니메이션 재생 속도 (100 = 1.0x)
 
 	// --- Ownership ---
 	THktVisualField<int32> Team;
