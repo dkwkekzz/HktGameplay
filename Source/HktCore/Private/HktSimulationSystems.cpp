@@ -37,7 +37,7 @@ static TAutoConsoleVariable<float> CVarMoveMinSpeed(
 
 static TAutoConsoleVariable<float> CVarPhysicsSoftPushRatio(
     TEXT("hkt.Physics.SoftPushRatio"),
-    0.1f, // 프레임당 겹침의 10%만 보정 — 일반 이동 시 거의 안 밀림
+    0.5f, // 프레임당 겹침의 10%만 보정 — 일반 이동 시 거의 안 밀림
     TEXT("Fraction of overlap resolved per frame (0.0=no push, 1.0=instant). Mass ratio also affects push distribution."),
     ECVF_Default);
 
