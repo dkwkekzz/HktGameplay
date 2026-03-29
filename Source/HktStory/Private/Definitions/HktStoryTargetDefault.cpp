@@ -25,6 +25,9 @@ namespace HktStoryTargetDefault
 	/** 접근 이동 Force */
 	static constexpr int32 ChaseForce = 150;
 
+	/** 아이템 줍기 사거리 (cm) — ItemPickup 바이트코드와 동일하게 유지 */
+	static constexpr int32 ItemPickupRange = 300;
+
 	/**
 	 * ================================================================
 	 * Target Default Dispatcher
@@ -61,7 +64,23 @@ namespace HktStoryTargetDefault
 			.CmpEq(Flag, R0, R1)
 			.JumpIfNot(Flag, TEXT("dispatch_move"))
 
-			// 바닥 아이템 → Pickup 디스패치
+			// 바닥 아이템 → 접근 후 Pickup 디스패치
+			.Log(TEXT("TargetDefault: 아이템 → 접근 시작"))
+			.LoadConst(R0, ItemPickupRange)
+			.GetDistance(R1, Self, Target)
+			.CmpLe(Flag, R1, R0)
+			.JumpIf(Flag, TEXT("item_pickup"))
+
+		.Label(TEXT("item_chase_loop"))
+			.GetPosition(R2, Target)
+			.MoveToward(Self, R2, ChaseForce)
+			.Yield(1)
+			.GetDistance(R1, Self, Target)
+			.CmpLe(Flag, R1, R0)
+			.JumpIfNot(Flag, TEXT("item_chase_loop"))
+			.StopMovement(Self)
+
+		.Label(TEXT("item_pickup"))
 			.Log(TEXT("TargetDefault: 아이템 → Pickup"))
 			.DispatchEvent(Story_ItemPickup)
 			.Halt()
