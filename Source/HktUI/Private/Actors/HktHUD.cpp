@@ -142,17 +142,20 @@ void AHktHUD::AddElementToCanvas(UHktUIElement* Element)
 	}
 	else
 	{
-		// 엔티티 HUD: 투영 좌표 기준 위젯의 하단 중앙을 맞추기 위해 수동 오프셋.
-		// SConstraintCanvas에서 AutoSize + 점 앵커 조합은 Alignment이 무효화되므로
-		// (SlotSize == WidgetSize → offset = 0) 직접 위젯 크기로 보정해야 함.
-		const FVector2D DesiredSize = SlateWidget->GetDesiredSize();
-		const float X = Element->CachedScreenPosition.X - DesiredSize.X * 0.5f;
-		const float Y = Element->CachedScreenPosition.Y - DesiredSize.Y;
+		// 엔티티 HUD: 점 크기 슬롯(Left==Right, Top==Bottom) + Alignment(0.5, 1.0)으로
+		// 위젯의 하단 중앙이 투영 좌표에 정렬.
+		// AutoSize=false + 점 슬롯이면 SlotSize=(0,0)이 되어
+		// AlignmentOffset = (0 - DesiredSize) * Alignment → 자동 하단 중앙 보정.
+		// SConstraintCanvas arrange 패스에서 DesiredSize를 직접 사용하므로
+		// GetDesiredSize() 타이밍 문제(Slate prepass 전 0 반환)가 발생하지 않음.
+		const float X = Element->CachedScreenPosition.X;
+		const float Y = Element->CachedScreenPosition.Y;
 		MainCanvasWidget->AddSlot()
 			.Expose(Element->CanvasSlot)
-			.Offset(FMargin(X, Y, 0.f, 0.f))
+			.Offset(FMargin(X, Y, X, Y))
 			.Anchors(FAnchors(0.f, 0.f, 0.f, 0.f))
-			.AutoSize(true)
+			.Alignment(FVector2D(0.5f, 1.0f))
+			.AutoSize(false)
 			[
 				SlateWidget
 			];
@@ -184,12 +187,10 @@ void AHktHUD::UpdateAllElements()
 		{
 			if (Child->OwnerEntityID != -1)
 			{
-				// 엔티티 HUD: 위젯의 하단 중앙이 투영 좌표에 오도록 수동 보정
-				const FVector2D DesiredSize = Child->View->GetSlateWidget()->GetDesiredSize();
-				Child->CanvasSlot->SetOffset(FMargin(
-					Child->CachedScreenPosition.X - DesiredSize.X * 0.5f,
-					Child->CachedScreenPosition.Y - DesiredSize.Y,
-					0.f, 0.f));
+				// 엔티티 HUD: 점 슬롯 위치만 갱신 (Alignment이 하단 중앙 보정 담당)
+				const float X = Child->CachedScreenPosition.X;
+				const float Y = Child->CachedScreenPosition.Y;
+				Child->CanvasSlot->SetOffset(FMargin(X, Y, X, Y));
 
 				Child->View->SetVisibility(Child->bIsOnScreen ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
 			}
