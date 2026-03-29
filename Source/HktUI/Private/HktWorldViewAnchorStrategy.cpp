@@ -76,16 +76,30 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 		return false;
 	}
 
-	// 스크린 공간 오프셋 적용
+	// ProjectWorldLocationToScreen은 스크린 픽셀 좌표를 반환하지만
+	// SConstraintCanvas 슬롯 오프셋은 Slate 단위(DPI 독립)로 동작.
+	// DPI 스케일로 나누어 좌표계를 맞춤.
+	UGameViewportClient* ViewportClient = World->GetGameViewport();
+	if (ViewportClient)
+	{
+		const float DPIScale = ViewportClient->GetDPIScale();
+		if (DPIScale > 0.f && DPIScale != 1.f)
+		{
+			OutScreenPos /= DPIScale;
+		}
+	}
+
+	// 스크린 공간 오프셋 적용 (Slate 단위)
 	OutScreenPos += ScreenOffset;
 
-	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한
+	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한 (Slate 단위)
 	int32 ViewportX, ViewportY;
 	PC->GetViewportSize(ViewportX, ViewportY);
 	if (ViewportX <= 0 || ViewportY <= 0) return false;
 
-	const float VX = static_cast<float>(ViewportX);
-	const float VY = static_cast<float>(ViewportY);
+	const float DPIForClamp = ViewportClient ? ViewportClient->GetDPIScale() : 1.f;
+	const float VX = static_cast<float>(ViewportX) / FMath::Max(DPIForClamp, 1.f);
+	const float VY = static_cast<float>(ViewportY) / FMath::Max(DPIForClamp, 1.f);
 	OutScreenPos.X = FMath::Clamp(OutScreenPos.X, 0.f, VX);
 	OutScreenPos.Y = FMath::Clamp(OutScreenPos.Y, 0.f, VY);
 
