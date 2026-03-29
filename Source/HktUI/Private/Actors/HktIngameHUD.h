@@ -11,6 +11,7 @@
 
 class UHktWidgetEntityHudDataAsset;
 class UHktWorldViewAnchorStrategy;
+class UHktPresentationSubsystem;
 
 /**
  * 인게임 맵 전용 HUD.
@@ -52,6 +53,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UHktWidgetEntityHudDataAsset> CachedEntityHudAsset;
+
+	UPROPERTY()
+	TObjectPtr<UHktPresentationSubsystem> CachedPresentationSubsystem;
 
 	bool bInitialSyncDone = false;
 	TSet<FHktEntityId> TrackedEntities;

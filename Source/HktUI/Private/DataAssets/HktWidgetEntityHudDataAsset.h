@@ -21,6 +21,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI")
 	TSubclassOf<UHktUIAnchorStrategy> DefaultAnchorStrategyClass;
 
+	/** 머리 위 여백 (CapsuleHalfHeight 위에 추가). 0이면 IngameHUD 기본값 사용. */
+	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI|Offset")
+	float HeadClearance = 0.f;
+
+	/** 스크린 공간 오프셋 (투영 후 적용, 픽셀 단위). 위치 미세 조정용. */
+	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI|Offset")
+	FVector2D ScreenOffset = FVector2D::ZeroVector;
+
 	virtual TSharedPtr<IHktUIView> CreateView() const override;
 	virtual UHktUIAnchorStrategy* CreateStrategy(UObject* Outer) const override;
 };

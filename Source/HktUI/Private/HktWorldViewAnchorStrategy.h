@@ -32,6 +32,9 @@ public:
 		bHasWorldPosition = true;
 	}
 
+	/** 스크린 공간 오프셋 (투영 후 적용, 픽셀 단위) */
+	void SetScreenOffset(const FVector2D& InOffset) { ScreenOffset = InOffset; }
+
 	FHktEntityId GetTargetEntityId() const { return TargetEntityId; }
 
 	virtual bool CalculateScreenPosition(const UObject* WorldContext, FVector2D& OutScreenPos) override;
@@ -44,5 +47,6 @@ private:
 	FVector CachedRenderLocation = FVector::ZeroVector;
 	float CapsuleHalfHeight = 90.f;
 	float HeadClearance = 20.f;                         // 머리 위 여백
+	FVector2D ScreenOffset = FVector2D::ZeroVector;     // 스크린 공간 오프셋 (픽셀)
 	bool bHasWorldPosition = false;
 };
