@@ -142,20 +142,19 @@ void AHktHUD::AddElementToCanvas(UHktUIElement* Element)
 	}
 	else
 	{
-		// 엔티티 HUD: 점 크기 슬롯(Left==Right, Top==Bottom) + Alignment(0.5, 1.0)으로
-		// 위젯의 하단 중앙이 투영 좌표에 정렬.
-		// AutoSize=false + 점 슬롯이면 SlotSize=(0,0)이 되어
-		// AlignmentOffset = (0 - DesiredSize) * Alignment → 자동 하단 중앙 보정.
-		// SConstraintCanvas arrange 패스에서 DesiredSize를 직접 사용하므로
-		// GetDesiredSize() 타이밍 문제(Slate prepass 전 0 반환)가 발생하지 않음.
-		const float X = Element->CachedScreenPosition.X;
-		const float Y = Element->CachedScreenPosition.Y;
+		// 엔티티 HUD: 투영 좌표 기준 위젯의 하단 중앙을 맞추기 위해 수동 오프셋.
+		// SConstraintCanvas AutoSize + 점 앵커에서는 Alignment이 무효화되므로
+		// GetDesiredSize()로 직접 보정. 첫 프레임에 Slate prepass 전 DesiredSize가 0이므로
+		// SlatePrepass를 강제 호출하여 올바른 크기를 즉시 확보.
+		SlateWidget->SlatePrepass(1.f);
+		const FVector2D DesiredSize = SlateWidget->GetDesiredSize();
+		const float X = Element->CachedScreenPosition.X - DesiredSize.X * 0.5f;
+		const float Y = Element->CachedScreenPosition.Y - DesiredSize.Y;
 		MainCanvasWidget->AddSlot()
 			.Expose(Element->CanvasSlot)
-			.Offset(FMargin(X, Y, X, Y))
+			.Offset(FMargin(X, Y, 0.f, 0.f))
 			.Anchors(FAnchors(0.f, 0.f, 0.f, 0.f))
-			.Alignment(FVector2D(0.5f, 1.0f))
-			.AutoSize(false)
+			.AutoSize(true)
 			[
 				SlateWidget
 			];
@@ -187,12 +186,19 @@ void AHktHUD::UpdateAllElements()
 		{
 			if (Child->OwnerEntityID != -1)
 			{
-				// 엔티티 HUD: 점 슬롯 위치만 갱신 (Alignment이 하단 중앙 보정 담당)
-				const float X = Child->CachedScreenPosition.X;
-				const float Y = Child->CachedScreenPosition.Y;
-				Child->CanvasSlot->SetOffset(FMargin(X, Y, X, Y));
+				// 엔티티 HUD: 위젯의 하단 중앙이 투영 좌표에 오도록 수동 보정
+				const FVector2D DesiredSize = Child->View->GetSlateWidget()->GetDesiredSize();
+				if (DesiredSize.X > 0.f)
+				{
+					Child->CanvasSlot->SetOffset(FMargin(
+						Child->CachedScreenPosition.X - DesiredSize.X * 0.5f,
+						Child->CachedScreenPosition.Y - DesiredSize.Y,
+						0.f, 0.f));
+				}
 
-				Child->View->SetVisibility(Child->bIsOnScreen ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
+				// Hidden(Collapsed 아님): 비가시 상태에서도 DesiredSize가 유지되어
+				// 다시 화면에 진입할 때 1프레임 위치 튀기가 발생하지 않음
+				Child->View->SetVisibility(Child->bIsOnScreen ? EVisibility::SelfHitTestInvisible : EVisibility::Hidden);
 			}
 			else
 			{
