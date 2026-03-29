@@ -54,6 +54,7 @@ namespace HktStoryItemSpawnerAncientStaff
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 50)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 90)
 			.SaveConstEntity(Spawned, PropertyId::SkillTargetRequired, 1)
+			.SaveConstEntity(Spawned, PropertyId::AttackRange, 800)
 			.SetStance(Spawned, HktStance::Spear)
 			.AddTag(Spawned, Tag_Item_AncientStaff)
 			.AddTag(Spawned, Tag_Skill_Fireball)
