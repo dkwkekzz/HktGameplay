@@ -7,6 +7,7 @@
 #include "HktCoreProperties.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
+#include "Snippets/HktSnippetItem.h"
 
 namespace HktStoryTargetDefault
 {
@@ -39,8 +40,8 @@ namespace HktStoryTargetDefault
 	{
 		using namespace Reg;
 
-		Story(Story_TargetDefault)
-			.CancelOnDuplicate()
+		auto B = Story(Story_TargetDefault);
+		B	.CancelOnDuplicate()
 			.Log(TEXT("TargetDefault: 타겟 유형 판별 시작"))
 
 			// Target이 Invalid이면 이동
@@ -70,28 +71,41 @@ namespace HktStoryTargetDefault
 			.LoadStoreEntity(R0, Target, PropertyId::IsNPC)
 			.LoadConst(R1, 0)
 			.CmpGt(Flag, R0, R1)
-			.JumpIfNot(Flag, TEXT("dispatch_move"))
+			.JumpIfNot(Flag, TEXT("dispatch_move"));
 
 			// === NPC: 거리 검증 + 접근 + 쿨타임 ===
 
-			// 사거리 로드
+			// 장착 아이템의 AttackRange 로드 시도 (Param1 = 슬롯 인덱스, 기본 0)
+			HktSnippetItem::LoadItemFromSlot(B, R4, TEXT("use_self_range"));
+		B	.LoadEntityProperty(R0, R4, PropertyId::AttackRange)
+			.LoadConst(R1, 0)
+			.CmpGt(Flag, R0, R1)
+			.JumpIf(Flag, TEXT("npc_range_ok"))
+
+		.Label(TEXT("use_self_range"))
+			// Self의 AttackRange fallback
 			.LoadStore(R0, PropertyId::AttackRange)
 			.LoadConst(R1, 0)
 			.CmpGt(Flag, R0, R1)
 			.JumpIf(Flag, TEXT("npc_range_ok"))
 			.LoadConst(R0, DefaultAttackRange)
 		.Label(TEXT("npc_range_ok"))
-			// R0 = AttackRange
+			// R0 = effective AttackRange
 
 			// 거리 측정
 			.GetDistance(R1, Self, Target)
 			.CmpLe(Flag, R1, R0)
 			.JumpIf(Flag, TEXT("npc_check_cd"))
 
-			// 사거리 밖 → 타겟에게 접근
+			// 사거리 밖 → 타겟에게 접근 (R0 = AttackRange 유지)
+		.Label(TEXT("npc_chase_loop"))
 			.GetPosition(R2, Target)
 			.MoveToward(Self, R2, ChaseForce)
-			.WaitMoveEnd(Self)
+			.Yield(1)
+			.GetDistance(R1, Self, Target)
+			.CmpLe(Flag, R1, R0)
+			.JumpIfNot(Flag, TEXT("npc_chase_loop"))
+			.StopMovement(Self)
 
 		.Label(TEXT("npc_check_cd"))
 			// 쿨타임 검증

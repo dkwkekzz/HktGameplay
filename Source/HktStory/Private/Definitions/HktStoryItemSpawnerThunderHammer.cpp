@@ -54,6 +54,7 @@ namespace HktStoryItemSpawnerThunderHammer
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 60)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 100)
 			.SaveConstEntity(Spawned, PropertyId::SkillTargetRequired, 1)
+			.SaveConstEntity(Spawned, PropertyId::AttackRange, 500)
 			.SetStance(Spawned, HktStance::Sword1H)
 			.AddTag(Spawned, Tag_Item_ThunderHammer)
 			.AddTag(Spawned, Tag_Skill_Lightning)
