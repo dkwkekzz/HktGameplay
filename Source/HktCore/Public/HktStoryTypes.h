@@ -142,6 +142,72 @@ struct FHktRegAllocator
         }
         return Count;
     }
+
+    /** 외부에서 직접 지정한 레지스터를 사용 중으로 표시 (GP 범위 외이면 무시) */
+    void Reserve(RegisterIndex Reg)
+    {
+        if (Reg < NumGPRegs)
+        {
+            InUse |= (1 << Reg);
+        }
+    }
+
+    /** Reserve()로 표시한 레지스터를 해제 (GP 범위 외이면 무시) */
+    void Unreserve(RegisterIndex Reg)
+    {
+        if (Reg < NumGPRegs)
+        {
+            InUse &= ~(1 << Reg);
+        }
+    }
+};
+
+/**
+ * FHktRegReserve — 외부 레지스터 보호 RAII 가드
+ *
+ * 조합 연산에 인자로 전달된 레지스터를 할당기에 임시 등록하여
+ * FHktScopedReg가 해당 레지스터를 스크래치로 할당하지 못하게 한다.
+ * 특수 레지스터(R10~R15)는 할당 대상이 아니므로 자동 무시.
+ *
+ * 사용 예:
+ *   FHktStoryBuilder& ApplyDamage(RegisterIndex Target, RegisterIndex Amount) {
+ *       FHktRegReserve guard(RegAllocator, {Target, Amount});
+ *       FHktScopedReg Dmg(*this);    // Target, Amount를 피해서 할당
+ *       ...
+ *   }
+ */
+struct FHktRegReserve
+{
+    FHktRegAllocator& Allocator;
+    uint16 NewlyReserved = 0;  // 이 가드가 새로 예약한 비트만 추적
+
+    FHktRegReserve(FHktRegAllocator& InAllocator, std::initializer_list<RegisterIndex> Regs)
+        : Allocator(InAllocator)
+    {
+        for (RegisterIndex R : Regs)
+        {
+            if (R < FHktRegAllocator::NumGPRegs && Allocator.IsAvailable(R))
+            {
+                Allocator.Reserve(R);
+                NewlyReserved |= (1 << R);
+            }
+        }
+    }
+
+    ~FHktRegReserve()
+    {
+        // 이 가드가 예약한 것만 해제 (이전에 이미 사용 중이던 것은 건드리지 않음)
+        for (int32 i = 0; i < FHktRegAllocator::NumGPRegs; ++i)
+        {
+            if (NewlyReserved & (1 << i))
+            {
+                Allocator.Unreserve(static_cast<RegisterIndex>(i));
+            }
+        }
+    }
+
+    FHktRegReserve(const FHktRegReserve&) = delete;
+    FHktRegReserve& operator=(const FHktRegReserve&) = delete;
 };
 
 // ============================================================================

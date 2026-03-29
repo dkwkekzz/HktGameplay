@@ -298,6 +298,7 @@ FHktStoryBuilder& FHktStoryBuilder::SaveConst(uint16 PropertyId, int32 Value)
 
 FHktStoryBuilder& FHktStoryBuilder::SaveConstEntity(RegisterIndex Entity, uint16 PropertyId, int32 Value)
 {
+    FHktRegReserve Guard(RegAllocator, {Entity});
     FHktScopedReg Tmp(*this);
     LoadConst(Tmp, Value);
     SaveStoreEntity(Entity, PropertyId, Tmp);
@@ -434,6 +435,7 @@ FHktStoryBuilder& FHktStoryBuilder::MoveToward(RegisterIndex Entity, RegisterInd
 FHktStoryBuilder& FHktStoryBuilder::MoveForward(RegisterIndex Entity, int32 Force)
 {
     // Self의 RotYaw를 투사체에 복사하여 발사 방향 결정
+    FHktRegReserve Guard(RegAllocator, {Entity});
     FHktScopedReg Tmp(*this);
     LoadStoreEntity(Tmp, Reg::Self, PropertyId::RotYaw);
     SaveStoreEntity(Entity, PropertyId::RotYaw, Tmp);
@@ -476,6 +478,7 @@ FHktStoryBuilder& FHktStoryBuilder::FindInRadius(RegisterIndex CenterEntity, int
 
 FHktStoryBuilder& FHktStoryBuilder::FindInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask)
 {
+    FHktRegReserve Guard(RegAllocator, {CenterEntity});
     FHktScopedReg RadiusReg(*this);
     FHktScopedReg MaskReg(*this);
     LoadConst(RadiusReg, RadiusCm);
@@ -542,6 +545,7 @@ FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(RegisterIndex Target, RegisterIn
 {
     // ActualDmg = Max(1, Amount - Defense)
     // NewHealth = Max(0, Health - ActualDmg)
+    FHktRegReserve Guard(RegAllocator, {Target, Amount});
     FHktScopedReg Dmg(*this);
     FHktScopedReg Scratch(*this);
 
@@ -578,6 +582,7 @@ FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(RegisterIndex Target, RegisterIn
 
 FHktStoryBuilder& FHktStoryBuilder::ApplyDamageConst(RegisterIndex Target, int32 Amount)
 {
+    FHktRegReserve Guard(RegAllocator, {Target});
     FHktScopedReg AmountReg(*this);
     LoadConst(AmountReg, Amount);
     ApplyDamage(Target, AmountReg);

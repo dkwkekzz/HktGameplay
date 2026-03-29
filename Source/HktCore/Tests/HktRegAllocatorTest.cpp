@@ -220,4 +220,107 @@ bool FHktRegAllocator_ScopedRegBlockRAII::RunTest(const FString& Parameters)
     return true;
 }
 
+// ----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHktRegAllocator_ReserveProtectsCallerRegisters,
+    "HktCore.RegAllocator.ReserveProtectsCallerRegisters",
+    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FHktRegAllocator_ReserveProtectsCallerRegisters::RunTest(const FString& Parameters)
+{
+    FHktRegAllocator Alloc;
+
+    // R0, R1을 외부에서 사용 중이라고 가정 (직접 지정된 레지스터)
+    // FHktRegReserve로 보호
+    {
+        FHktRegReserve Guard(Alloc, {Reg::R0, Reg::R1});
+
+        // Guard 활성 중에는 R0, R1이 사용 불가
+        TestFalse(TEXT("R0 예약됨"), Alloc.IsAvailable(Reg::R0));
+        TestFalse(TEXT("R1 예약됨"), Alloc.IsAvailable(Reg::R1));
+
+        // Alloc()은 R0, R1을 건너뜀
+        RegisterIndex S0 = Alloc.Alloc();
+        TestNotEqual(TEXT("스크래치 != R0"), S0, Reg::R0);
+        TestNotEqual(TEXT("스크래치 != R1"), S0, Reg::R1);
+
+        RegisterIndex S1 = Alloc.Alloc();
+        TestNotEqual(TEXT("스크래치2 != R0"), S1, Reg::R0);
+        TestNotEqual(TEXT("스크래치2 != R1"), S1, Reg::R1);
+
+        Alloc.Free(S0);
+        Alloc.Free(S1);
+    }
+
+    // Guard 소멸 후 R0, R1 다시 사용 가능
+    TestTrue(TEXT("Guard 해제 후 R0 사용 가능"), Alloc.IsAvailable(Reg::R0));
+    TestTrue(TEXT("Guard 해제 후 R1 사용 가능"), Alloc.IsAvailable(Reg::R1));
+    TestEqual(TEXT("전체 10개 사용 가능"), Alloc.AvailableCount(), 10);
+
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHktRegAllocator_ReserveIgnoresSpecialRegisters,
+    "HktCore.RegAllocator.ReserveIgnoresSpecialRegisters",
+    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FHktRegAllocator_ReserveIgnoresSpecialRegisters::RunTest(const FString& Parameters)
+{
+    FHktRegAllocator Alloc;
+
+    // 특수 레지스터(R10~R15)는 Reserve 대상이 아님
+    {
+        FHktRegReserve Guard(Alloc, {Reg::Self, Reg::Target, Reg::Spawned});
+
+        // GP 레지스터 수에 영향 없음
+        TestEqual(TEXT("특수 레지스터는 GP 풀에 영향 없음"), Alloc.AvailableCount(), 10);
+    }
+
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHktRegAllocator_NestedReserveAndAlloc,
+    "HktCore.RegAllocator.NestedReserveAndAlloc",
+    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FHktRegAllocator_NestedReserveAndAlloc::RunTest(const FString& Parameters)
+{
+    // ApplyDamageConst(Target=R11, Amount=100) → ApplyDamage(Target=R11, Amount=ScopedReg) 시뮬레이션
+    // Target은 특수 레지스터(R11), Amount는 ScopedReg
+    FHktRegAllocator Alloc;
+
+    // 외부: ApplyDamageConst가 AmountReg 할당
+    {
+        FHktRegReserve OuterGuard(Alloc, {Reg::Target}); // R11 → GP 범위 밖 → 무시됨
+        RegisterIndex AmountReg = Alloc.Alloc(); // R0
+
+        // 내부: ApplyDamage가 Target(R11), Amount(R0) 보호 후 스크래치 할당
+        {
+            FHktRegReserve InnerGuard(Alloc, {Reg::Target, AmountReg});
+            RegisterIndex Dmg = Alloc.Alloc();
+            RegisterIndex Scratch = Alloc.Alloc();
+
+            // 스크래치가 AmountReg(R0)과 다른지 확인
+            TestNotEqual(TEXT("Dmg != AmountReg"), Dmg, AmountReg);
+            TestNotEqual(TEXT("Scratch != AmountReg"), Scratch, AmountReg);
+            TestNotEqual(TEXT("Dmg != Scratch"), Dmg, Scratch);
+
+            Alloc.Free(Dmg);
+            Alloc.Free(Scratch);
+        }
+
+        Alloc.Free(AmountReg);
+    }
+
+    TestEqual(TEXT("모두 해제 후 10개 사용 가능"), Alloc.AvailableCount(), 10);
+    return true;
+}
+
 #endif // WITH_AUTOMATION_TESTS
