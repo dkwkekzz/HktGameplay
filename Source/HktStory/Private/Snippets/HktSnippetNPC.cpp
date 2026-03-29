@@ -82,7 +82,8 @@ FHktStoryBuilder& HktSnippetNPC::SpawnNPCAtPosition(
 	B.Log(TEXT("[Snippet] SpawnNPCAtPosition"))
 	 .SpawnEntity(NPCTag);
 	SetupNPCStats(B, NPCTag, Stats);
-	B.SetPosition(Spawned, PosBaseReg);
+	B.SetPosition(Spawned, PosBaseReg)
+	 .DispatchEventFrom(HktStoryTags::Story_NPC_Lifecycle, Spawned);
 
 	return B;
 }
