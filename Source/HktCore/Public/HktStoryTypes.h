@@ -124,6 +124,7 @@ namespace Reg
     /* Event Dispatch */    \
     X(DispatchEvent,    _, _, _) \
     X(DispatchEventTo,  _, R, _) \
+    X(DispatchEventFrom, _, R, _) \
     /* Movement */          \
     X(SetForwardTarget, _, R, _) \
     /* Utility */           \

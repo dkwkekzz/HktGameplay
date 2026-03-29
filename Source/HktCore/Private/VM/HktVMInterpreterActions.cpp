@@ -593,6 +593,39 @@ void FHktVMInterpreter::Op_DispatchEventTo(FHktVMRuntime& Runtime, RegisterIndex
         Event.SourceEntity);
 }
 
+void FHktVMInterpreter::Op_DispatchEventFrom(FHktVMRuntime& Runtime, RegisterIndex SourceReg, int32 TagNetIndex)
+{
+    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagNetIndex));
+    FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TagName);
+    if (!EventTag.IsValid())
+    {
+        UE_LOG(LogHktCore, Error, TEXT("Op_DispatchEventFrom: invalid NetIndex %d"), TagNetIndex);
+        return;
+    }
+
+    FHktEvent Event;
+    Event.EventTag = EventTag;
+    Event.SourceEntity = Runtime.GetRegEntity(SourceReg);
+    Event.TargetEntity = Runtime.Context ? Runtime.Context->TargetEntity : InvalidEntityId;
+    Event.PlayerUid = Runtime.PlayerUid;
+    if (Runtime.Context)
+    {
+        Event.Location = FVector(
+            static_cast<float>(Runtime.Context->EventTargetPosX),
+            static_cast<float>(Runtime.Context->EventTargetPosY),
+            static_cast<float>(Runtime.Context->EventTargetPosZ));
+        Event.Param0 = Runtime.Context->EventParam0;
+        Event.Param1 = Runtime.Context->EventParam1;
+    }
+
+    Runtime.PendingDispatchedEvents.Add(Event);
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_DispatchEventFrom: %s Src=%d Tgt=%d"),
+            *EventTag.ToString(), Event.SourceEntity, Event.TargetEntity),
+        Event.SourceEntity);
+}
+
 // ============================================================================
 // Movement
 // ============================================================================

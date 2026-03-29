@@ -26,6 +26,9 @@ namespace HktStoryTags
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_NPC_Hostile);              // Entity.Attr.NPC.Hostile
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_Item_Material);            // Entity.Attr.Item.Material
 
+	// --- NPC Flow ---
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_NPC_Lifecycle);            // Story.Flow.NPC.Lifecycle
+
 	// --- Anim ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_Anim_FullBody_Action_Spawn); // Anim.FullBody.Action.Spawn
 

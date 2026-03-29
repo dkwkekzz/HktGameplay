@@ -12,8 +12,7 @@ namespace HktStoryNPCLifecycle
 {
 	using namespace HktStoryTags;
 
-	// Story Name
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle, "Story.Flow.NPC.Lifecycle", "NPC lifecycle management (death/despawn).");
+	// Story Name — 공유 태그 (HktStoryTags.h에서 선언/정의)
 
 	// State Tags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_State_Dead, "State.Dead", "Dead state tag — set by attack stories when health reaches 0.");
