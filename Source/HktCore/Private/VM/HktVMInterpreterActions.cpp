@@ -203,7 +203,7 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
 }
 
-void FHktVMInterpreter::Op_FindInRadiusEx(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, RegisterIndex FilterMaskReg)
+void FHktVMInterpreter::Op_FindInRadiusEx(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, RegisterIndex FilterMaskReg, RegisterIndex RadiusReg)
 {
     Runtime.SpatialQuery.Reset();
 
@@ -216,8 +216,7 @@ void FHktVMInterpreter::Op_FindInRadiusEx(FHktVMRuntime& Runtime, RegisterIndex 
         int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
         int32 CZ = Runtime.Context->ReadEntity(Center, PropertyId::PosZ);
 
-        // Imm12에서 반경 추출 (Op dispatch에서 전달)
-        int32 RadiusCm = Runtime.GetReg(Reg::Temp);
+        int32 RadiusCm = Runtime.GetReg(RadiusReg);
         int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
 
         WorldState->ForEachEntity([&](FHktEntityId E, int32 /*SlotIndex*/)
