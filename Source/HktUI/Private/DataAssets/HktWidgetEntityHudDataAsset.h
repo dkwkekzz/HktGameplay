@@ -29,10 +29,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI|Offset")
 	FVector2D ScreenOffset = FVector2D::ZeroVector;
 
-	/** 디버그: HUD 앵커 월드 위치를 시각화 (노란색=앵커, 시안색=캡슐 중심) */
-	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI|Debug")
-	bool bDrawDebugAnchor = false;
-
 	virtual TSharedPtr<IHktUIView> CreateView() const override;
 	virtual UHktUIAnchorStrategy* CreateStrategy(UObject* Outer) const override;
 };

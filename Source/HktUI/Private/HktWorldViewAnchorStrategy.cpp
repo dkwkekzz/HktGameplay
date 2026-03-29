@@ -9,6 +9,12 @@
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "DrawDebugHelpers.h"
 
+static TAutoConsoleVariable<int32> CVarShowEntityHud(
+	TEXT("hkt.Debug.ShowEntityHud"),
+	0,
+	TEXT("EntityHud 앵커 시각화. 0=끄기, 1=앵커+캡슐 중심"),
+	ECVF_Default);
+
 FVector UHktWorldViewAnchorStrategy::GetHeadWorldLocation() const
 {
 	// RenderLocation은 이미 지면 트레이스 + 캡슐 오프셋이 적용된 최종 렌더 위치 (캡슐 중심).
@@ -43,7 +49,7 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 
 	// 디버그 시각화: HUD 앵커 월드 위치 및 캡슐 중심 표시
 #if ENABLE_DRAW_DEBUG
-	if (bDrawDebug)
+	if (CVarShowEntityHud.GetValueOnGameThread() > 0)
 	{
 		// 머리 위 앵커 포인트 (HUD가 투영되는 위치) — 노란색
 		DrawDebugSphere(World, WorldLocation, 8.f, 8, FColor::Yellow, false, -1.f, SDPG_World, 1.5f);

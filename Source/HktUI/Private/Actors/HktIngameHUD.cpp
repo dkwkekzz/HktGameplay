@@ -192,11 +192,10 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId, const FHktPresent
 		: EntityHudHeadClearance;
 	Strategy->SetTargetEntity(EntityId, EffectiveHeadClearance);
 
-	// DataAsset의 스크린 오프셋 및 디버그 설정 적용
+	// DataAsset의 스크린 오프셋 적용
 	if (CachedEntityHudAsset)
 	{
 		Strategy->SetScreenOffset(CachedEntityHudAsset->ScreenOffset);
-		Strategy->SetDebugDraw(CachedEntityHudAsset->bDrawDebugAnchor);
 	}
 
 	// Actor의 보간된 위치를 우선 사용 (움직임 튀기 방지), 없으면 RenderLocation 폴백

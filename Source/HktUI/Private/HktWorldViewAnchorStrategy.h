@@ -35,9 +35,6 @@ public:
 	/** 스크린 공간 오프셋 (투영 후 적용, 픽셀 단위) */
 	void SetScreenOffset(const FVector2D& InOffset) { ScreenOffset = InOffset; }
 
-	/** 디버그 시각화 토글 */
-	void SetDebugDraw(bool bEnable) { bDrawDebug = bEnable; }
-
 	FHktEntityId GetTargetEntityId() const { return TargetEntityId; }
 
 	virtual bool CalculateScreenPosition(const UObject* WorldContext, FVector2D& OutScreenPos) override;
@@ -52,5 +49,4 @@ private:
 	float HeadClearance = 20.f;                         // 머리 위 여백
 	FVector2D ScreenOffset = FVector2D::ZeroVector;     // 스크린 공간 오프셋 (픽셀)
 	bool bHasWorldPosition = false;
-	bool bDrawDebug = false;
 };
