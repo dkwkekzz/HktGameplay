@@ -25,7 +25,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI|Offset")
 	float HeadClearance = 0.f;
 
-	/** 스크린 공간 오프셋 (투영 후 적용, 픽셀 단위). 위치 미세 조정용. */
+	/** 스크린 공간 오프셋 (투영+DPI보정 후 적용, Slate 좌표 단위). 위치 미세 조정용. */
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI|Offset")
 	FVector2D ScreenOffset = FVector2D::ZeroVector;
 
