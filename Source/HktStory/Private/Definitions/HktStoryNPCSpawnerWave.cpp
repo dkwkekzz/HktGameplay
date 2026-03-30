@@ -33,21 +33,19 @@ namespace HktStoryNPCSpawnerWave
 
 		auto B = Story(Story_Spawner_Wave_Arena);
 
-		FHktScopedReg r0(B);       // zero constant
-		FHktScopedReg r1(B);       // spawn count
-		FHktScopedReg r2(B);       // counter
-		FHktScopedReg r3(B);       // count by tag (wave1)
-		FHktScopedReg r4(B);       // count by tag (wave2)
-		FHktScopedReg r5(B);       // SpawnPosX
-		FHktScopedReg r6(B);       // SpawnPosY
-		FHktScopedReg r7(B);       // SpawnPosZ
+		FHktScopedReg r0(B);            // zero constant
+		FHktScopedReg r1(B);            // spawn count
+		FHktScopedReg r2(B);            // counter
+		FHktScopedReg r3(B);            // count by tag (wave1)
+		FHktScopedReg r4(B);            // count by tag (wave2)
+		FHktScopedRegBlock pos(B, 3);   // 스폰 위치 (X, Y, Z) — 연속 보장
 
 		B.Log(TEXT("Wave spawner: starting"))
 			.LoadConst(r0, 0)                               // r0 = zero constant
-			// 이벤트 파라미터에서 스폰 위치 로드 (Self 엔티티 없음)
-			.LoadStore(r5, SpawnerParams::SpawnPosX)         // r5 = SpawnPosX
-			.LoadStore(r6, SpawnerParams::SpawnPosY)         // r6 = SpawnPosY
-			.LoadConst(r7, 0)                                // r7 = SpawnPosZ (ground)
+			// 이벤트 파라미터에서 스폰 위치 로드
+			.LoadStore(pos, SpawnerParams::SpawnPosX)
+			.LoadStore(pos + 1, SpawnerParams::SpawnPosY)
+			.LoadConst(pos + 2, 0)                          // Z = ground
 
 			// === Wave 1: 고블린 3마리 ===
 			.Label(TEXT("wave1"))
@@ -62,7 +60,7 @@ namespace HktStoryNPCSpawnerWave
 				;
 
 		// 고블린 생성 + 스탯 설정 + 위치 지정
-		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Goblin, { 80, 15, 0, 0, 0 }, r5);
+		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Goblin, { 80, 15, 0, 0, 0 }, pos);
 
 		B
 
@@ -90,7 +88,7 @@ namespace HktStoryNPCSpawnerWave
 				;
 
 		// 스켈레톤 생성 + 스탯 설정 + 위치 지정
-		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Skeleton, { 60, 20, 0, 0, 0 }, r5);
+		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Skeleton, { 60, 20, 0, 0, 0 }, pos);
 
 		B
 

@@ -50,6 +50,8 @@ namespace HktStoryCharacterSpawn
 
 			// 스폰 위치 설정 (IntentEvent에서)
 			.LoadStore(pos, PropertyId::TargetPosX)
+			.LoadStore(pos + 1, PropertyId::TargetPosY)
+			.LoadStore(pos + 2, PropertyId::TargetPosZ)
 			.SetPosition(Self, pos)
 
 			// 스폰 이펙트
