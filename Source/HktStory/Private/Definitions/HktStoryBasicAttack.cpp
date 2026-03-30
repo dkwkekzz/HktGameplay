@@ -95,8 +95,8 @@ namespace HktStoryBasicAttack
 
 			B	// 사망 판정 — 태그 마킹만, 처리는 Lifecycle에 위임
 				.LoadEntityProperty(tmp1, Target, PropertyId::Health)
-				.LoadConst(pos, 0)
-				.CmpLe(Flag, tmp1, pos)
+				.LoadConst(cmpA, 0)
+				.CmpLe(Flag, tmp1, cmpA)
 				.JumpIfNot(Flag, TEXT("hit_skip"))
 				.AddTag(Target, Tag_State_Dead)
 
