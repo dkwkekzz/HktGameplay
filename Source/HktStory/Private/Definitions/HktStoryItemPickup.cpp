@@ -36,6 +36,10 @@ namespace HktStoryItemPickup
 		using namespace Reg;
 
 		auto B = Story(Event_Item_Pickup);
+		FHktScopedReg r0(B);
+		FHktScopedReg r1(B);
+		FHktScopedReg r3(B);
+
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
@@ -72,19 +76,19 @@ namespace HktStoryItemPickup
 		HktSnippetItem::ValidateItemState(B, Target, 0, TEXT("fail"));
 
 		B	// 거리 검증
-			.GetDistance(R0, Self, Target)
-			.LoadConst(R1, 300)                                         // 3m = 300cm
-			.CmpGt(Flag, R0, R1)
+			.GetDistance(r0, Self, Target)
+			.LoadConst(r1, 300)                                         // 3m = 300cm
+			.CmpGt(Flag, r0, r1)
 			.JumpIf(Flag, TEXT("fail"));
 
-		// 빈 EquipIndex 탐색 (R3 = 빈 슬롯 인덱스, 없으면 fail)
-		HktSnippetItem::FindEmptyEquipSlot(B, R3, TEXT("fail"));
+		// 빈 EquipIndex 탐색 (r3 = 빈 슬롯 인덱스, 없으면 fail)
+		HktSnippetItem::FindEmptyEquipSlot(B, r3, TEXT("fail"));
 
 			// 소유권 설정
 		HktSnippetItem::AssignOwnership(B, Target, Self);
 
 		// Active 상태로 전환 + EquipIndex 등록 + 스탯 적용
-		HktSnippetItem::ActivateInSlot(B, Target, R3, Self);
+		HktSnippetItem::ActivateInSlot(B, Target, r3, Self);
 
 		B	.Log(TEXT("Item picked up and activated"))
 			.Halt()

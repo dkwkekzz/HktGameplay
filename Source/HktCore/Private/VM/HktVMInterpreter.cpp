@@ -89,7 +89,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::GetDistance: Op_GetDistance(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     case EOpCode::LookAt: Op_LookAt(Runtime, Inst.Src1, Inst.Src2); break;
     case EOpCode::FindInRadius: Op_FindInRadius(Runtime, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::FindInRadiusEx: Op_FindInRadiusEx(Runtime, Inst.Src1, Inst.Src2); break;
+    case EOpCode::FindInRadiusEx: Op_FindInRadiusEx(Runtime, Inst.Src1, Inst.Src2, static_cast<RegisterIndex>(Inst.Imm12 & 0xF)); break;
     case EOpCode::NextFound: Op_NextFound(Runtime); break;
     // Presentation
     case EOpCode::ApplyEffect: Op_ApplyEffect(Runtime, Inst.Src1, Inst.Imm12); break;

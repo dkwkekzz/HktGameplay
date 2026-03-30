@@ -39,6 +39,10 @@ namespace HktStoryPlayerInWorld
 		using namespace Reg;
 
 		auto B = Story(Story_PlayerInWorld);
+		FHktScopedRegBlock pos(B, 3);
+		FHktScopedReg r0(B);
+		FHktScopedReg r1(B);
+
 		B.Log(TEXT("PlayerInWorld: 플레이어 캐릭터 생성"))
 
 			// 캐릭터 엔티티 생성
@@ -46,10 +50,10 @@ namespace HktStoryPlayerInWorld
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
 			// 위치 설정 (이벤트의 Location에서)
-			.LoadConst(R0, 0.f)
-			.LoadConst(R1, 0.f)
-			.LoadConst(R2, 0.f)
-			.SetPosition(Self, R0)
+			.LoadConst(pos, 0.f)
+			.LoadConst(pos + 1, 0.f)
+			.LoadConst(pos + 2, 0.f)
+			.SetPosition(Self, pos)
 
 			// 스폰 이펙트
 			.PlayVFXAttached(Self, VFX_SpawnEffect)
@@ -64,9 +68,9 @@ namespace HktStoryPlayerInWorld
 			.SaveConstEntity(Self, PropertyId::NextActionFrame, 0)      // 즉시 행동 가능
 
 			// === 복귀 플레이어 검사 ===
-			.CountByOwner(R0, Self, Entity_Item)
-			.LoadConst(R1, 0)
-			.CmpNe(Flag, R0, R1)
+			.CountByOwner(r0, Self, Entity_Item)
+			.LoadConst(r1, 0)
+			.CmpNe(Flag, r0, r1)
 			.JumpIf(Flag, TEXT("skip_grant"))
 
 			// === 초기 아이템: 목검 (신규 플레이어만) ===

@@ -10,6 +10,72 @@
 struct FHktVMProgram;
 struct FHktWorldState;
 struct FHktEvent;
+class FHktStoryBuilder;
+
+// ============================================================================
+// RAII 레지스터 핸들 — 스코프 종료 시 자동 반환
+// ============================================================================
+
+/**
+ * FHktScopedReg — 단일 GP 레지스터 RAII 핸들
+ *
+ * 생성 시 FHktRegAllocator에서 빈 레지스터를 할당받고,
+ * 소멸 시 자동 반환한다. RegisterIndex로 암묵 변환 가능.
+ *
+ * 사용 예:
+ *   {
+ *       FHktScopedReg scratch(Builder);
+ *       Builder.LoadConst(scratch, 100);
+ *       Builder.SaveStore(PropertyId::Health, scratch);
+ *   } // scratch 자동 반환
+ */
+struct HKTCORE_API FHktScopedReg
+{
+    FHktScopedReg(FHktStoryBuilder& InBuilder);
+    ~FHktScopedReg();
+
+    FHktScopedReg(const FHktScopedReg&) = delete;
+    FHktScopedReg& operator=(const FHktScopedReg&) = delete;
+    FHktScopedReg(FHktScopedReg&& Other) noexcept;
+    FHktScopedReg& operator=(FHktScopedReg&&) = delete;
+
+    operator RegisterIndex() const { return Reg; }
+
+private:
+    FHktRegAllocator* Allocator;
+    RegisterIndex Reg;
+};
+
+/**
+ * FHktScopedRegBlock — 연속 GP 레지스터 RAII 핸들
+ *
+ * Position(X,Y,Z) 등 연속 레지스터가 필요한 경우 사용.
+ * RegisterIndex로 변환 시 Base를 반환한다.
+ *
+ * 사용 예:
+ *   {
+ *       FHktScopedRegBlock pos(Builder, 3);
+ *       Builder.GetPosition(pos, Self);     // pos, pos+1, pos+2
+ *       Builder.SetPosition(Spawned, pos);
+ *   } // 3개 모두 반환
+ */
+struct HKTCORE_API FHktScopedRegBlock
+{
+    FHktScopedRegBlock(FHktStoryBuilder& InBuilder, int32 InCount);
+    ~FHktScopedRegBlock();
+
+    FHktScopedRegBlock(const FHktScopedRegBlock&) = delete;
+    FHktScopedRegBlock& operator=(const FHktScopedRegBlock&) = delete;
+    FHktScopedRegBlock(FHktScopedRegBlock&& Other) noexcept;
+    FHktScopedRegBlock& operator=(FHktScopedRegBlock&&) = delete;
+
+    operator RegisterIndex() const { return Base; }
+
+private:
+    FHktRegAllocator* Allocator;
+    RegisterIndex Base;
+    int32 Count;
+};
 
 /**
  * FHktEventPrecondition — Story 사전조건 검증 함수
@@ -65,7 +131,15 @@ struct FCodeSection
 
 class HKTCORE_API FHktStoryBuilder
 {
+    friend struct FHktScopedReg;
+    friend struct FHktScopedRegBlock;
+
 public:
+    /** 레지스터 할당기 접근 — ScopedReg가 내부에서 사용 */
+    FHktRegAllocator& GetRegAllocator() { return RegAllocator; }
+    const FHktRegAllocator& GetRegAllocator() const { return RegAllocator; }
+
+
     static FHktStoryBuilder Create(const FGameplayTag& Tag);
     static FHktStoryBuilder Create(const FName& TagName);
 
@@ -151,10 +225,10 @@ public:
     FHktStoryBuilder& SaveEntityProperty(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
     { return SaveStoreEntity(Entity, PropertyId, Src); }
 
-    /** 상수 값을 SourceEntity 프로퍼티에 직접 저장 (LoadConst + SaveStore 조합) — Reg::Temp 클로버 */
+    /** 상수 값을 SourceEntity 프로퍼티에 직접 저장 (LoadConst + SaveStore 조합) */
     FHktStoryBuilder& SaveConst(uint16 PropertyId, int32 Value);
 
-    /** 상수 값을 임의 엔티티 프로퍼티에 직접 저장 (LoadConst + SaveStoreEntity 조합) — Reg::Temp 클로버 */
+    /** 상수 값을 임의 엔티티 프로퍼티에 직접 저장 (LoadConst + SaveStoreEntity 조합) */
     FHktStoryBuilder& SaveConstEntity(RegisterIndex Entity, uint16 PropertyId, int32 Value);
 
     FHktStoryBuilder& Move(RegisterIndex Dst, RegisterIndex Src);
@@ -225,7 +299,7 @@ public:
 
     // ========== Combat (조합 연산) ==========
 
-    /** 데미지 적용 (R7-R9 클로버) */
+    /** 데미지 적용 */
     FHktStoryBuilder& ApplyDamage(RegisterIndex Target, RegisterIndex Amount);
     FHktStoryBuilder& ApplyDamageConst(RegisterIndex Target, int32 Amount);
 
@@ -335,6 +409,7 @@ private:
 
 private:
     TSharedRef<FHktVMProgram> Program;
+    FHktRegAllocator RegAllocator;
 
     FCodeSection MainSection;
     FCodeSection PreconditionSection;

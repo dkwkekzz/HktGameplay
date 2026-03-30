@@ -45,15 +45,16 @@ FHktStoryBuilder& HktSnippetNPC::SpawnerLoopBegin(
 	const FGameplayTag& CountTag,
 	int32 Cap)
 {
-	using namespace Reg;
+	FHktScopedReg Count(B);
+	FHktScopedReg CapReg(B);
 
 	B.Label(LoopLabel)
-	 .HasPlayerInGroup(Flag)
-	 .JumpIfNot(Flag, WaitLabel)
-	 .CountByTag(R0, CountTag)
-	 .LoadConst(R1, Cap)
-	 .CmpGe(Flag, R0, R1)
-	 .JumpIf(Flag, WaitLabel);
+	 .HasPlayerInGroup(Reg::Flag)
+	 .JumpIfNot(Reg::Flag, WaitLabel)
+	 .CountByTag(Count, CountTag)
+	 .LoadConst(CapReg, Cap)
+	 .CmpGe(Reg::Flag, Count, CapReg)
+	 .JumpIf(Reg::Flag, WaitLabel);
 
 	return B;
 }
@@ -77,13 +78,13 @@ FHktStoryBuilder& HktSnippetNPC::SpawnNPCAtPosition(
 	const FHktNPCTemplate& Stats,
 	RegisterIndex PosBaseReg)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {PosBaseReg, static_cast<RegisterIndex>(PosBaseReg + 1), static_cast<RegisterIndex>(PosBaseReg + 2)});
 
 	B.Log(TEXT("[Snippet] SpawnNPCAtPosition"))
 	 .SpawnEntity(NPCTag);
 	SetupNPCStats(B, NPCTag, Stats);
-	B.SetPosition(Spawned, PosBaseReg)
-	 .DispatchEventFrom(HktStoryTags::Story_NPC_Lifecycle, Spawned);
+	B.SetPosition(Reg::Spawned, PosBaseReg)
+	 .DispatchEventFrom(HktStoryTags::Story_NPC_Lifecycle, Reg::Spawned);
 
 	return B;
 }

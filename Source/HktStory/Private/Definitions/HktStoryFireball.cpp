@@ -52,6 +52,10 @@ namespace HktStoryFireball
 		using namespace Reg;
 
 		auto B = Story(Story_Fireball);
+		FHktScopedRegBlock spawnPos(B, 3);
+		FHktScopedRegBlock explosionPos(B, 3);
+		FHktScopedReg r0(B);
+		FHktScopedReg r1(B);
 
 		// === 공격별 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
@@ -66,8 +70,8 @@ namespace HktStoryFireball
 			.SpawnEntity(Entity_Projectile_Fireball)
 
 			// 파이어볼 위치를 시전자 위치로 설정
-			.GetPosition(R0, Self)                      // R0,R1,R2 = 시전자 위치
-			.SetPosition(Spawned, R0)                   // 파이어볼 위치 = 시전자 위치
+			.GetPosition(spawnPos, Self)                 // spawnPos = 시전자 위치
+			.SetPosition(Spawned, spawnPos)              // 파이어볼 위치 = 시전자 위치
 
 			// 파이어볼을 전방으로 이동 (속도 500 cm/s)
 			.MoveForward(Spawned, 500)
@@ -81,7 +85,7 @@ namespace HktStoryFireball
 			.Log(TEXT("Fireball: 충돌! 폭발 처리"))
 
 			// 파이어볼 위치 저장 (폭발 위치)
-			.GetPosition(R3, Spawned)                   // R3,R4,R5 = 폭발 위치
+			.GetPosition(explosionPos, Spawned)          // explosionPos = 폭발 위치
 
 			// 파이어볼 제거
 			.DestroyEntity(Spawned)
@@ -91,16 +95,16 @@ namespace HktStoryFireball
 			.PlayVFXAttached(Hit, VFX_DirectHit)
 
 			// 직격 사망 판정
-			.LoadEntityProperty(R0, Hit, PropertyId::Health)
-			.LoadConst(R1, 0)
-			.CmpLe(Flag, R0, R1)
+			.LoadEntityProperty(r0, Hit, PropertyId::Health)
+			.LoadConst(r1, 0)
+			.CmpLe(Flag, r0, r1)
 			.JumpIfNot(Flag, TEXT("direct_alive"))
 			.AddTag(Hit, Tag_State_Dead)
 		.Label(TEXT("direct_alive"))
 
 			// 폭발 이펙트
-			.PlayVFX(R3, VFX_FireballExplosion)
-			.PlaySoundAtLocation(R3, Sound_Explosion)
+			.PlayVFX(explosionPos, VFX_FireballExplosion)
+			.PlaySoundAtLocation(explosionPos, Sound_Explosion)
 
 			// === 범위 피해 (반경 300cm) ===
 			.Log(TEXT("Fireball: 범위 피해 적용"))
@@ -110,9 +114,9 @@ namespace HktStoryFireball
 				.ApplyDamageConst(Target, 50)           // 50 피해
 				.ApplyEffect(Target, Effect_Burn)
 				// AoE 사망 판정
-				.LoadEntityProperty(R0, Target, PropertyId::Health)
-				.LoadConst(R1, 0)
-				.CmpLe(Flag, R0, R1)
+				.LoadEntityProperty(r0, Target, PropertyId::Health)
+				.LoadConst(r1, 0)
+				.CmpLe(Flag, r0, r1)
 				.JumpIfNot(Flag, TEXT("aoe_alive"))
 				.AddTag(Target, Tag_State_Dead)
 			.Label(TEXT("aoe_alive"))

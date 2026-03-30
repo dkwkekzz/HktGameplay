@@ -36,6 +36,13 @@ namespace HktStoryItemDeactivate
 		using namespace Reg;
 
 		auto B = Story(Event_Item_Deactivate);
+
+		FHktScopedReg r2(B);       // EquipIndex
+		FHktScopedReg r3(B);       // Stance
+		FHktScopedReg r4(B);       // 활성 아이템 존재 플래그
+		FHktScopedReg r5(B);       // 비교용
+		FHktScopedReg r6(B);       // 비교용 상수
+
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
@@ -54,41 +61,41 @@ namespace HktStoryItemDeactivate
 		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
 
 		// 비활성화 전 EquipIndex 값 보존 → 캐릭터의 EquipSlot[N] 클리어
-		B.LoadEntityProperty(R2, Target, PropertyId::EquipIndex);           // R2 = EquipIndex
+		B.LoadEntityProperty(r2, Target, PropertyId::EquipIndex);           // r2 = EquipIndex
 
-		HktSnippetItem::ClearEquipSlot(B, R2);
+		HktSnippetItem::ClearEquipSlot(B, r2);
 
 		// InBag으로 전환 + 스탯 차감
 		HktSnippetItem::DeactivateToBag(B, Target, Self);
 
 		B	// 다른 활성 아이템이 있는지 확인하여 Stance 복원 결정
 			.FindByOwner(Self, Entity_Item)
-			.LoadConst(R4, 0)                                               // R4 = 활성 아이템 존재 플래그
+			.LoadConst(r4, 0)                                               // r4 = 활성 아이템 존재 플래그
 
 		.Label(TEXT("check_loop"))
 			.NextFound()
 			.JumpIfNot(Flag, TEXT("check_done"))
 
 			// 방금 비활성화한 아이템은 스킵 (이미 InBag으로 변경됨)
-			.CmpEq(R5, Iter, Target)
-			.JumpIf(R5, TEXT("check_loop"))
+			.CmpEq(r5, Iter, Target)
+			.JumpIf(r5, TEXT("check_loop"))
 
 			// 이 아이템이 Active 상태인지 확인
-			.LoadEntityProperty(R5, Iter, PropertyId::ItemState)
-			.LoadConst(R6, 2)
-			.CmpEq(R5, R5, R6)
-			.JumpIfNot(R5, TEXT("check_loop"))
+			.LoadEntityProperty(r5, Iter, PropertyId::ItemState)
+			.LoadConst(r6, 2)
+			.CmpEq(r5, r5, r6)
+			.JumpIfNot(r5, TEXT("check_loop"))
 
 			// 활성 아이템 발견 — Stance를 그 아이템의 것으로 유지
-			.LoadEntityProperty(R3, Iter, PropertyId::Stance)
-			.SaveEntityProperty(Self, PropertyId::Stance, R3)
-			.LoadConst(R4, 1)                                               // 활성 아이템 있음 표시
+			.LoadEntityProperty(r3, Iter, PropertyId::Stance)
+			.SaveEntityProperty(Self, PropertyId::Stance, r3)
+			.LoadConst(r4, 1)                                               // 활성 아이템 있음 표시
 			.Jump(TEXT("done"))
 
 		.Label(TEXT("check_done"))
-			// R4 == 0이면 다른 활성 아이템 없음 — Unarmed로 복원
-			.LoadConst(R5, 0)
-			.CmpNe(Flag, R4, R5)
+			// r4 == 0이면 다른 활성 아이템 없음 — Unarmed로 복원
+			.LoadConst(r5, 0)
+			.CmpNe(Flag, r4, r5)
 			.JumpIf(Flag, TEXT("done"))
 			.SetStance(Self, HktStance::Unarmed)
 

@@ -130,7 +130,7 @@ int32 FHktStoryValidator::ValidateRegisterFlow()
 	 *
 	 * Label(합류점)에서는 상태를 보수적으로 리셋하여 오탐을 방지한다.
 	 */
-	constexpr int32 NumGPRegs = 9;  // R0~R8
+	constexpr int32 NumGPRegs = 10; // R0~R9 (ScopedReg 도입으로 R9 예약 해제)
 	int32 WarningCount = 0;
 
 	enum class ERegState : uint8 { Unknown, Written, Read };

@@ -44,6 +44,7 @@ namespace HktStoryBuff
 		using namespace Reg;
 
 		auto B = Story(Story_Buff);
+		FHktScopedReg r0(B);
 
 		// === 공격별 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
@@ -59,9 +60,9 @@ namespace HktStoryBuff
 			.ApplyEffect(Self, Effect_PowerUp)
 
 			// 공격력 +10
-			.LoadStore(R0, PropertyId::AttackPower)
-			.AddImm(R0, R0, 10)
-			.SaveStore(PropertyId::AttackPower, R0)
+			.LoadStore(r0, PropertyId::AttackPower)
+			.AddImm(r0, r0, 10)
+			.SaveStore(PropertyId::AttackPower, r0)
 
 			// 버프 오라 VFX + Sound
 			.PlayVFXAttached(Self, VFX_BuffAura)

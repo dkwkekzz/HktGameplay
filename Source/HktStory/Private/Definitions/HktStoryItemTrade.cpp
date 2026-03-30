@@ -19,7 +19,7 @@ namespace HktStoryItemTrade
 
 	/**
 	 * ================================================================
-	 * 아이템 거래 Flow (2-phase: 검증 → 원자적 교환)
+	 * 아이템 거래 Flow (2-phase: 검증 -> 원자적 교환)
 	 *
 	 * 자연어로 읽으면:
 	 * "양측 아이템의 소유권을 검증한 뒤,
@@ -38,8 +38,13 @@ namespace HktStoryItemTrade
 	{
 		using namespace Reg;
 
-		Story(Event_Item_Trade)
-			.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
+		auto B = Story(Event_Item_Trade);
+		FHktScopedReg r0(B);
+		FHktScopedReg r1(B);
+		FHktScopedReg r2(B);
+		FHktScopedReg r3(B);
+
+		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
 					return false;
@@ -70,41 +75,41 @@ namespace HktStoryItemTrade
 			})
 
 			// 제안 아이템 / 요청 아이템 로드
-			.LoadStore(R0, ItemTradeParams::OfferItem)                      // R0 = OfferItem EntityId
-			.LoadStore(R1, ItemTradeParams::RequestItem)                    // R1 = RequestItem EntityId
+			.LoadStore(r0, ItemTradeParams::OfferItem)                      // r0 = OfferItem EntityId
+			.LoadStore(r1, ItemTradeParams::RequestItem)                    // r1 = RequestItem EntityId
 
 			// 제안 아이템 소유자 검증
-			.LoadEntityProperty(R2, R0, PropertyId::OwnerEntity)
-			.CmpNe(Flag, R2, Self)
+			.LoadEntityProperty(r2, r0, PropertyId::OwnerEntity)
+			.CmpNe(Flag, r2, Self)
 			.JumpIf(Flag, TEXT("fail"))
 
 			// 요청 아이템 소유자 검증
-			.LoadEntityProperty(R2, R1, PropertyId::OwnerEntity)
-			.CmpNe(Flag, R2, Target)
+			.LoadEntityProperty(r2, r1, PropertyId::OwnerEntity)
+			.CmpNe(Flag, r2, Target)
 			.JumpIf(Flag, TEXT("fail"))
 
 			// Active 상태 검증 — 제안 아이템
-			.LoadEntityProperty(R2, R0, PropertyId::ItemState)
-			.LoadConst(R3, 2)
-			.CmpEq(Flag, R2, R3)
+			.LoadEntityProperty(r2, r0, PropertyId::ItemState)
+			.LoadConst(r3, 2)
+			.CmpEq(Flag, r2, r3)
 			.JumpIf(Flag, TEXT("fail"))
 
 			// Active 상태 검증 — 요청 아이템
-			.LoadEntityProperty(R2, R1, PropertyId::ItemState)
-			.CmpEq(Flag, R2, R3)
+			.LoadEntityProperty(r2, r1, PropertyId::ItemState)
+			.CmpEq(Flag, r2, r3)
 			.JumpIf(Flag, TEXT("fail"))
 
 			// === 원자적 교환 ===
 
-			// 제안 아이템 → 상대방으로 이전
-			.SaveEntityProperty(R0, PropertyId::OwnerEntity, Target)
+			// 제안 아이템 -> 상대방으로 이전
+			.SaveEntityProperty(r0, PropertyId::OwnerEntity, Target)
 
-			// 요청 아이템 → 제안자로 이전
-			.SaveEntityProperty(R1, PropertyId::OwnerEntity, Self)
+			// 요청 아이템 -> 제안자로 이전
+			.SaveEntityProperty(r1, PropertyId::OwnerEntity, Self)
 
 			// OwnerUid Clear — 향후 Pickup 시 재설정 또는 ExportPlayerState 개선 필요
-			.ClearOwnerUid(R0)
-			.ClearOwnerUid(R1)
+			.ClearOwnerUid(r0)
+			.ClearOwnerUid(r1)
 
 			.Log(TEXT("Item trade completed"))
 			.Halt()

@@ -58,9 +58,13 @@ namespace HktStoryNPCLifecycle
 		using namespace Reg;
 
 		auto B = Story(Story_NPC_Lifecycle);
+
+		FHktScopedReg r0(B);       // 범용 임시 / 랜덤 범위 / 비교용
+		FHktScopedReg r1(B);       // 랜덤 결과
+
 		B.Label(TEXT("check"))
-				.HasTag(R0, Self, Tag_State_Dead)
-				.JumpIf(R0, TEXT("die"))
+				.HasTag(r0, Self, Tag_State_Dead)
+				.JumpIf(r0, TEXT("die"))
 				.WaitSeconds(1.0f)
 				.Jump(TEXT("check"))
 
@@ -68,19 +72,19 @@ namespace HktStoryNPCLifecycle
 				.Log(TEXT("NPC died — random loot drop"))
 
 				// === 랜덤 아이템 선택 (0~3) ===
-				.LoadConst(R0, 4)
-				.RandomInt(R1, R0)                       // R1 = 0~3
+				.LoadConst(r0, 4)
+				.RandomInt(r1, r0)                       // r1 = 0~3
 
-				.LoadConst(R0, 0)
-				.CmpEq(Flag, R1, R0)
+				.LoadConst(r0, 0)
+				.CmpEq(Flag, r1, r0)
 				.JumpIf(Flag, TEXT("drop_staff"))
 
-				.LoadConst(R0, 1)
-				.CmpEq(Flag, R1, R0)
+				.LoadConst(r0, 1)
+				.CmpEq(Flag, r1, r0)
 				.JumpIf(Flag, TEXT("drop_bandage"))
 
-				.LoadConst(R0, 2)
-				.CmpEq(Flag, R1, R0)
+				.LoadConst(r0, 2)
+				.CmpEq(Flag, r1, r0)
 				.JumpIf(Flag, TEXT("drop_hammer"))
 
 				// 기본(3) → 자유의 날개

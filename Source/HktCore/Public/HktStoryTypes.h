@@ -30,7 +30,8 @@ namespace Reg
     constexpr RegisterIndex R6 = 6;
     constexpr RegisterIndex R7 = 7;
     constexpr RegisterIndex R8 = 8;
-    // R9는 Builder 내부 헬퍼(SaveConst, MoveToward 등)가 Temp로 사용 — 직접 사용 금지
+    constexpr RegisterIndex R9 = 9;
+    // 하위 호환 별칭 (ScopedReg 도입으로 R9도 정식 GP 레지스터)
     constexpr RegisterIndex Temp = 9;
 
     // 특수 목적 레지스터
@@ -42,6 +43,172 @@ namespace Reg
     constexpr RegisterIndex Flag = 15;      // 범용 플래그/상태
     constexpr RegisterIndex Count = 15;     // 카운트 (Flag와 동일 슬롯)
 }
+
+// ============================================================================
+// 레지스터 할당기 (Builder 전용 — 빌드 타임에 물리 레지스터 동적 배정)
+// ============================================================================
+
+/**
+ * FHktRegAllocator — GP 레지스터(R0~R9) 동적 할당기
+ *
+ * 조합 연산(ApplyDamage, SaveConst 등)이 고정 레지스터를 사용하던 방식을
+ * 동적 할당으로 대체하여 레지스터 충돌을 구조적으로 제거한다.
+ *
+ * - Alloc(): 빈 GP 레지스터 1개 할당
+ * - AllocBlock(N): 연속 N개 할당 (Position 등에 사용)
+ * - Free/FreeBlock: 반환
+ *
+ * 독립 struct이므로 Builder 없이 단위 테스트 가능.
+ */
+struct FHktRegAllocator
+{
+    static constexpr int32 NumGPRegs = 10;  // R0~R9
+
+    uint16 InUse = 0;  // 비트마스크: bit i set → R(i) 사용 중
+
+    /** 빈 GP 레지스터 1개 할당 (R0부터 탐색). 실패 시 check. */
+    RegisterIndex Alloc()
+    {
+        for (int32 i = 0; i < NumGPRegs; ++i)
+        {
+            if (!(InUse & (1 << i)))
+            {
+                InUse |= (1 << i);
+                return static_cast<RegisterIndex>(i);
+            }
+        }
+        checkf(false, TEXT("FHktRegAllocator: 모든 GP 레지스터 소진 (InUse=0x%X)"), InUse);
+        return 0;
+    }
+
+    /** 연속 N개 GP 레지스터 할당 (base 반환). 실패 시 check. */
+    RegisterIndex AllocBlock(int32 Count)
+    {
+        check(Count > 0 && Count <= NumGPRegs);
+        for (int32 base = 0; base <= NumGPRegs - Count; ++base)
+        {
+            bool bFree = true;
+            for (int32 j = 0; j < Count; ++j)
+            {
+                if (InUse & (1 << (base + j)))
+                {
+                    bFree = false;
+                    break;
+                }
+            }
+            if (bFree)
+            {
+                for (int32 j = 0; j < Count; ++j)
+                {
+                    InUse |= (1 << (base + j));
+                }
+                return static_cast<RegisterIndex>(base);
+            }
+        }
+        checkf(false, TEXT("FHktRegAllocator: 연속 %d개 GP 레지스터 확보 실패 (InUse=0x%X)"), Count, InUse);
+        return 0;
+    }
+
+    /** 단일 레지스터 반환 */
+    void Free(RegisterIndex Reg)
+    {
+        check(Reg < NumGPRegs);
+        check(InUse & (1 << Reg));
+        InUse &= ~(1 << Reg);
+    }
+
+    /** 연속 레지스터 블록 반환 */
+    void FreeBlock(RegisterIndex Base, int32 Count)
+    {
+        for (int32 j = 0; j < Count; ++j)
+        {
+            Free(Base + j);
+        }
+    }
+
+    /** 특정 레지스터가 사용 가능한지 확인 */
+    bool IsAvailable(RegisterIndex Reg) const
+    {
+        return Reg < NumGPRegs && !(InUse & (1 << Reg));
+    }
+
+    /** 현재 사용 가능한 GP 레지스터 수 */
+    int32 AvailableCount() const
+    {
+        int32 Count = 0;
+        for (int32 i = 0; i < NumGPRegs; ++i)
+        {
+            if (!(InUse & (1 << i))) ++Count;
+        }
+        return Count;
+    }
+
+    /** 외부에서 직접 지정한 레지스터를 사용 중으로 표시 (GP 범위 외이면 무시) */
+    void Reserve(RegisterIndex Reg)
+    {
+        if (Reg < NumGPRegs)
+        {
+            InUse |= (1 << Reg);
+        }
+    }
+
+    /** Reserve()로 표시한 레지스터를 해제 (GP 범위 외이면 무시) */
+    void Unreserve(RegisterIndex Reg)
+    {
+        if (Reg < NumGPRegs)
+        {
+            InUse &= ~(1 << Reg);
+        }
+    }
+};
+
+/**
+ * FHktRegReserve — 외부 레지스터 보호 RAII 가드
+ *
+ * 조합 연산에 인자로 전달된 레지스터를 할당기에 임시 등록하여
+ * FHktScopedReg가 해당 레지스터를 스크래치로 할당하지 못하게 한다.
+ * 특수 레지스터(R10~R15)는 할당 대상이 아니므로 자동 무시.
+ *
+ * 사용 예:
+ *   FHktStoryBuilder& ApplyDamage(RegisterIndex Target, RegisterIndex Amount) {
+ *       FHktRegReserve guard(RegAllocator, {Target, Amount});
+ *       FHktScopedReg Dmg(*this);    // Target, Amount를 피해서 할당
+ *       ...
+ *   }
+ */
+struct FHktRegReserve
+{
+    FHktRegAllocator& Allocator;
+    uint16 NewlyReserved = 0;  // 이 가드가 새로 예약한 비트만 추적
+
+    FHktRegReserve(FHktRegAllocator& InAllocator, std::initializer_list<RegisterIndex> Regs)
+        : Allocator(InAllocator)
+    {
+        for (RegisterIndex R : Regs)
+        {
+            if (R < FHktRegAllocator::NumGPRegs && Allocator.IsAvailable(R))
+            {
+                Allocator.Reserve(R);
+                NewlyReserved |= (1 << R);
+            }
+        }
+    }
+
+    ~FHktRegReserve()
+    {
+        // 이 가드가 예약한 것만 해제 (이전에 이미 사용 중이던 것은 건드리지 않음)
+        for (int32 i = 0; i < FHktRegAllocator::NumGPRegs; ++i)
+        {
+            if (NewlyReserved & (1 << i))
+            {
+                Allocator.Unreserve(static_cast<RegisterIndex>(i));
+            }
+        }
+    }
+
+    FHktRegReserve(const FHktRegReserve&) = delete;
+    FHktRegReserve& operator=(const FHktRegReserve&) = delete;
+};
 
 // ============================================================================
 // OpCode 정의 (Flow 빌더 / VM 공통)

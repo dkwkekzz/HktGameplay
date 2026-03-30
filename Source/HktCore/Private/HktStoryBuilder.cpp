@@ -34,6 +34,7 @@ FHktStoryBuilder::FHktStoryBuilder(const FGameplayTag& Tag)
 
 FHktStoryBuilder::FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept
     : Program(MoveTemp(Other.Program))
+    , RegAllocator(Other.RegAllocator)
     , MainSection(MoveTemp(Other.MainSection))
     , PreconditionSection(MoveTemp(Other.PreconditionSection))
     , ForEachStack(MoveTemp(Other.ForEachStack))
@@ -44,6 +45,54 @@ FHktStoryBuilder::FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept
     ActiveSection = (Other.ActiveSection == &Other.PreconditionSection)
         ? &PreconditionSection
         : &MainSection;
+}
+
+// ============================================================================
+// FHktScopedReg / FHktScopedRegBlock — RAII 레지스터 핸들
+// ============================================================================
+
+FHktScopedReg::FHktScopedReg(FHktStoryBuilder& InBuilder)
+    : Allocator(&InBuilder.RegAllocator)
+    , Reg(Allocator->Alloc())
+{
+}
+
+FHktScopedReg::~FHktScopedReg()
+{
+    if (Allocator)
+    {
+        Allocator->Free(Reg);
+    }
+}
+
+FHktScopedReg::FHktScopedReg(FHktScopedReg&& Other) noexcept
+    : Allocator(Other.Allocator)
+    , Reg(Other.Reg)
+{
+    Other.Allocator = nullptr;
+}
+
+FHktScopedRegBlock::FHktScopedRegBlock(FHktStoryBuilder& InBuilder, int32 InCount)
+    : Allocator(&InBuilder.RegAllocator)
+    , Base(Allocator->AllocBlock(InCount))
+    , Count(InCount)
+{
+}
+
+FHktScopedRegBlock::~FHktScopedRegBlock()
+{
+    if (Allocator)
+    {
+        Allocator->FreeBlock(Base, Count);
+    }
+}
+
+FHktScopedRegBlock::FHktScopedRegBlock(FHktScopedRegBlock&& Other) noexcept
+    : Allocator(Other.Allocator)
+    , Base(Other.Base)
+    , Count(Other.Count)
+{
+    Other.Allocator = nullptr;
 }
 
 void FHktStoryBuilder::Emit(FInstruction Inst)
@@ -241,15 +290,18 @@ FHktStoryBuilder& FHktStoryBuilder::SaveStoreEntity(RegisterIndex Entity, uint16
 
 FHktStoryBuilder& FHktStoryBuilder::SaveConst(uint16 PropertyId, int32 Value)
 {
-    LoadConst(Reg::Temp, Value);
-    SaveStore(PropertyId, Reg::Temp);
+    FHktScopedReg Tmp(*this);
+    LoadConst(Tmp, Value);
+    SaveStore(PropertyId, Tmp);
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::SaveConstEntity(RegisterIndex Entity, uint16 PropertyId, int32 Value)
 {
-    LoadConst(Reg::Temp, Value);
-    SaveStoreEntity(Entity, PropertyId, Reg::Temp);
+    FHktRegReserve Guard(RegAllocator, {Entity});
+    FHktScopedReg Tmp(*this);
+    LoadConst(Tmp, Value);
+    SaveStoreEntity(Entity, PropertyId, Tmp);
     return *this;
 }
 
@@ -383,8 +435,10 @@ FHktStoryBuilder& FHktStoryBuilder::MoveToward(RegisterIndex Entity, RegisterInd
 FHktStoryBuilder& FHktStoryBuilder::MoveForward(RegisterIndex Entity, int32 Force)
 {
     // Self의 RotYaw를 투사체에 복사하여 발사 방향 결정
-    LoadStoreEntity(Reg::Temp, Reg::Self, PropertyId::RotYaw);
-    SaveStoreEntity(Entity, PropertyId::RotYaw, Reg::Temp);
+    FHktRegReserve Guard(RegAllocator, {Entity});
+    FHktScopedReg Tmp(*this);
+    LoadStoreEntity(Tmp, Reg::Self, PropertyId::RotYaw);
+    SaveStoreEntity(Entity, PropertyId::RotYaw, Tmp);
     Emit(FInstruction::Make(EOpCode::SetForwardTarget, 0, Entity, 0, 0));
     SaveConstEntity(Entity, PropertyId::MoveForce, Force);
     SaveConstEntity(Entity, PropertyId::IsMoving, 1);
@@ -424,22 +478,13 @@ FHktStoryBuilder& FHktStoryBuilder::FindInRadius(RegisterIndex CenterEntity, int
 
 FHktStoryBuilder& FHktStoryBuilder::FindInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask)
 {
-    // CenterEntity가 Temp/R8과 겹칠 수 있으므로 순서 주의:
-    // 1) FilterMask를 R8에 로드 (CenterEntity != R8 가정, 아래 방어 코드 참고)
-    // 2) Radius를 Temp에 로드
-    // 3) FindInRadiusEx emit
-    //
-    // 만약 CenterEntity가 R8이면 LoadConst(R8, mask)가 값을 덮어쓰므로
-    // R7에 먼저 복사하여 안전하게 처리
-    RegisterIndex SafeCenter = CenterEntity;
-    if (CenterEntity == Reg::R8 || CenterEntity == Reg::Temp)
-    {
-        Move(Reg::R7, CenterEntity);
-        SafeCenter = Reg::R7;
-    }
-    LoadConst(Reg::Temp, RadiusCm);
-    LoadConst(Reg::R8, static_cast<int32>(FilterMask));
-    Emit(FInstruction::Make(EOpCode::FindInRadiusEx, Reg::Count, SafeCenter, Reg::R8, 0));
+    FHktRegReserve Guard(RegAllocator, {CenterEntity});
+    FHktScopedReg RadiusReg(*this);
+    FHktScopedReg MaskReg(*this);
+    LoadConst(RadiusReg, RadiusCm);
+    LoadConst(MaskReg, static_cast<int32>(FilterMask));
+    // Imm12 필드에 RadiusReg 인덱스를 인코딩하여 인터프리터에 전달
+    Emit(FInstruction::Make(EOpCode::FindInRadiusEx, Reg::Count, CenterEntity, MaskReg, static_cast<uint16>(static_cast<RegisterIndex>(RadiusReg))));
     return *this;
 }
 
@@ -500,41 +545,47 @@ FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(RegisterIndex Target, RegisterIn
 {
     // ActualDmg = Max(1, Amount - Defense)
     // NewHealth = Max(0, Health - ActualDmg)
-    // 사용 레지스터: R7(scratch), R8(scratch), R9(Temp), Flag
-    // 주의: Amount가 R7/R8/R9일 경우를 위해 첫 번째 연산에서 즉시 소비
+    FHktRegReserve Guard(RegAllocator, {Target, Amount});
+    FHktScopedReg Dmg(*this);
+    FHktScopedReg Scratch(*this);
 
-    Move(Reg::R7, Amount);                                    // R7 = Amount (즉시 복사하여 안전)
-    LoadStoreEntity(Reg::R8, Target, PropertyId::Defense);    // R8 = Defense
-    Sub(Reg::R7, Reg::R7, Reg::R8);                           // R7 = Dmg - Defense
+    Move(Dmg, Amount);                                        // Dmg = Amount (즉시 복사하여 안전)
+    LoadStoreEntity(Scratch, Target, PropertyId::Defense);    // Scratch = Defense
+    Sub(Dmg, Dmg, Scratch);                                   // Dmg = Amount - Defense
 
     // Clamp to min 1
-    LoadConst(Reg::R8, 1);
-    CmpLt(Reg::Flag, Reg::R7, Reg::R8);                     // Flag = (R7 < 1)
+    LoadConst(Scratch, 1);
+    CmpLt(Reg::Flag, Dmg, Scratch);                          // Flag = (Dmg < 1)
     FString skipClamp1 = MakeInternalLabel(TEXT("dmg"));
     JumpIfNot(Reg::Flag, skipClamp1);
-    Move(Reg::R7, Reg::R8);                                  // R7 = 1
+    Move(Dmg, Scratch);                                       // Dmg = 1
     Label(skipClamp1);
 
     // NewHealth = Health - ActualDmg
-    LoadStoreEntity(Reg::R8, Target, PropertyId::Health);    // R8 = Health
-    Sub(Reg::R8, Reg::R8, Reg::R7);                          // R8 = Health - ActualDmg
+    LoadStoreEntity(Scratch, Target, PropertyId::Health);     // Scratch = Health
+    Sub(Scratch, Scratch, Dmg);                               // Scratch = Health - ActualDmg
 
     // Clamp to min 0
-    LoadConst(Reg::Temp, 0);
-    CmpLt(Reg::Flag, Reg::R8, Reg::Temp);                   // Flag = (R8 < 0)
-    FString skipClamp2 = MakeInternalLabel(TEXT("dmg"));
-    JumpIfNot(Reg::Flag, skipClamp2);
-    Move(Reg::R8, Reg::Temp);                                // R8 = 0
-    Label(skipClamp2);
+    {
+        FHktScopedReg Zero(*this);
+        LoadConst(Zero, 0);
+        CmpLt(Reg::Flag, Scratch, Zero);                     // Flag = (Scratch < 0)
+        FString skipClamp2 = MakeInternalLabel(TEXT("dmg"));
+        JumpIfNot(Reg::Flag, skipClamp2);
+        Move(Scratch, Zero);                                  // Scratch = 0
+        Label(skipClamp2);
+    }
 
-    SaveStoreEntity(Target, PropertyId::Health, Reg::R8);    // Health = NewHealth
+    SaveStoreEntity(Target, PropertyId::Health, Scratch);     // Health = NewHealth
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::ApplyDamageConst(RegisterIndex Target, int32 Amount)
 {
-    LoadConst(Reg::Temp, Amount);
-    ApplyDamage(Target, Reg::Temp);
+    FHktRegReserve Guard(RegAllocator, {Target});
+    FHktScopedReg AmountReg(*this);
+    LoadConst(AmountReg, Amount);
+    ApplyDamage(Target, AmountReg);
     return *this;
 }
 

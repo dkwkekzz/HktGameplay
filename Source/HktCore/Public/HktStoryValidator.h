@@ -14,7 +14,7 @@
  *
  * 검증 항목:
  * 1. EntityFlow: 엔티티 레지스터(R10~R14) 초기화 순서 검증
- * 2. RegisterFlow: 범용 레지스터(R0~R8) Read-before-Write / Dead Write 감지
+ * 2. RegisterFlow: 범용 레지스터(R0~R9) Read-before-Write / Dead Write 감지
  *
  * 검증 정책:
  * - Editor: Warning 로그 출력, 게임 실행 허용 (무시 가능)
@@ -40,7 +40,7 @@ public:
 	bool ValidateEntityFlow();
 
 	/**
-	 * 범용 레지스터(R0~R8) 흐름 검증
+	 * 범용 레지스터(R0~R9) 흐름 검증
 	 * - Read-before-Write: 초기화 안 된 레지스터 읽기
 	 * - Dead Write: 값을 쓰고 읽지 않고 다시 덮어쓰기
 	 *
