@@ -15,13 +15,17 @@ FHktAnimRenderer::FHktAnimRenderer(FHktActorRenderer* InActorRenderer)
 
 void FHktAnimRenderer::Sync(const FHktPresentationState& State)
 {
+	static const FGameplayTagContainer AnimFilterContainer(HktGameplayTags::Anim);
+
 	// --- 제거된 엔터티 정리 ---
 	for (FHktEntityId Id : State.RemovedThisFrame)
 	{
 		PrevAnimTagsMap.Remove(Id);
 	}
 
-	// --- 처리 대상: 신규 스폰 + Dirty 엔터티 ---
+	// --- 처리 대상 수집 (Spawned + Dirty 중복 방지) ---
+	ProcessedThisSync.Reset();
+
 	auto ProcessEntity = [this, &State](FHktEntityId Id, bool bIsSpawned)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
@@ -35,12 +39,9 @@ void FHktAnimRenderer::Sync(const FHktPresentationState& State)
 		// Tag diff: Anim.* 태그 변화 감지
 		if (bIsSpawned || E->TagsDirtyFrame == Frame)
 		{
-			FGameplayTagContainer CurrentAnimTags = E->Tags.Filter(
-				FGameplayTagContainer(HktGameplayTags::Anim));
-
+			FGameplayTagContainer CurrentAnimTags = E->Tags.Filter(AnimFilterContainer);
 			FGameplayTagContainer& PrevAnimTags = PrevAnimTagsMap.FindOrAdd(Id);
 
-			// 새로 추가된 태그 → play
 			for (const FGameplayTag& Tag : CurrentAnimTags)
 			{
 				if (!PrevAnimTags.HasTagExact(Tag))
@@ -49,7 +50,6 @@ void FHktAnimRenderer::Sync(const FHktPresentationState& State)
 				}
 			}
 
-			// 제거된 태그 → stop
 			for (const FGameplayTag& Tag : PrevAnimTags)
 			{
 				if (!CurrentAnimTags.HasTagExact(Tag))
@@ -75,11 +75,15 @@ void FHktAnimRenderer::Sync(const FHktPresentationState& State)
 	for (FHktEntityId Id : State.SpawnedThisFrame)
 	{
 		ProcessEntity(Id, true);
+		ProcessedThisSync.Add(Id);
 	}
 
 	for (FHktEntityId Id : State.DirtyThisFrame)
 	{
-		ProcessEntity(Id, false);
+		if (!ProcessedThisSync.Contains(Id))
+		{
+			ProcessEntity(Id, false);
+		}
 	}
 }
 

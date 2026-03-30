@@ -98,7 +98,7 @@ void UHktAnimInstance::PlayAnimByTag(const FGameplayTag& AnimTag)
 	}
 
 	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-		FString::Printf(TEXT("[HktAnimInst] ApplyAnimTag: Parent=%s Anim=%s on %s"),
+		FString::Printf(TEXT("[HktAnimInst] PlayAnimByTag: Parent=%s Anim=%s on %s"),
 		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName()));
 }
 
@@ -139,7 +139,7 @@ void UHktAnimInstance::StopAnimByTag(const FGameplayTag& AnimTag)
 	}
 
 	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-		FString::Printf(TEXT("[HktAnimInst] RemoveAnimTag: Parent=%s Anim=%s on %s"),
+		FString::Printf(TEXT("[HktAnimInst] StopAnimByTag: Parent=%s Anim=%s on %s"),
 		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName()));
 }
 

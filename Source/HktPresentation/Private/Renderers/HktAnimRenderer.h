@@ -34,4 +34,7 @@ private:
 
 	/** 엔터티별 이전 프레임의 Anim.* 태그 (변화 감지용) */
 	TMap<FHktEntityId, FGameplayTagContainer> PrevAnimTagsMap;
+
+	/** Sync 내 중복 처리 방지용 (SpawnedThisFrame ∩ DirtyThisFrame) */
+	TSet<FHktEntityId> ProcessedThisSync;
 };

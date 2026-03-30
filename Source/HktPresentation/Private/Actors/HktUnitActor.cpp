@@ -94,6 +94,4 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 
 	if (bForceAll || Entity.CPRatio.IsDirty(Frame))
 		HktAnim->CPRatio = Entity.CPRatio.Get();
-
-	// Anim tag diff + play/stop은 FHktAnimRenderer가 처리
 }
