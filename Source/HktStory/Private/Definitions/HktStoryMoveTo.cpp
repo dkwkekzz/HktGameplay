@@ -34,7 +34,7 @@ namespace HktStoryMoveTo
 			.Log(TEXT("MoveTo: 이동 시작"))
 
 			// 목표 위치 로드 (IntentEvent에서 설정됨)
-			.LoadStore(pos, PropertyId::TargetPosX)
+			.ReadProperty(pos, PropertyId::TargetPosX)
 
 			// 목표 위치로 이동 시작 (힘 1500, Mass=100일 때 가속도 15cm/s²)
 			.MoveToward(Self, pos, 150)

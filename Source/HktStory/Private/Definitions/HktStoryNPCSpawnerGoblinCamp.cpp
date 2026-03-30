@@ -41,9 +41,9 @@ namespace HktStoryNPCSpawnerGoblinCamp
 		HktSnippetNPC::SpawnerLoopBegin(B, TEXT("loop"), TEXT("wait"), Entity_NPC_Goblin, 5);
 
 			// 위치 레지스터 로드 (이벤트 파라미터에서)
-		B.LoadStore(pos, SpawnerParams::SpawnPosX)          // SpawnPosX
-		 .LoadStore(pos + 1, SpawnerParams::SpawnPosY)      // SpawnPosY
-		 .LoadConst(pos + 2, 0);                            // Z = ground
+		B.ReadProperty(pos, SpawnerParams::SpawnPosX)          // SpawnPosX
+		 .ReadProperty(pos + 1, SpawnerParams::SpawnPosY)      // SpawnPosY
+		 .LoadConst(pos + 2, 0);                               // Z = ground
 
 		// NPC 생성 + 스탯 설정 + 위치 지정
 		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Goblin, { 80, 15, 3, 120, 0 }, pos);

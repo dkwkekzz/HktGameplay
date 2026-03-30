@@ -49,7 +49,7 @@ namespace HktStoryCharacterSpawn
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
 			// 스폰 위치 설정 (IntentEvent에서)
-			.LoadStore(pos, PropertyId::TargetPosX)
+			.ReadProperty(pos, PropertyId::TargetPosX)
 			.SetPosition(Self, pos)
 
 			// 스폰 이펙트

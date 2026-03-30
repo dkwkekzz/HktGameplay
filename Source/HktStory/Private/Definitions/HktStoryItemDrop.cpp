@@ -32,7 +32,6 @@ namespace HktStoryItemDrop
 
 		auto B = Story(Event_Item_Drop);
 		FHktScopedReg r0(B);
-		FHktScopedReg r1(B);
 		FHktScopedReg r2(B);
 
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
@@ -49,8 +48,7 @@ namespace HktStoryItemDrop
 
 		// Active 상태였으면 캐릭터의 EquipSlot 클리어 + 스탯 차감
 		B.LoadEntityProperty(r0, Target, PropertyId::ItemState)
-		 .LoadConst(r1, 2)                                                 // Active = 2
-		 .CmpNe(Flag, r0, r1)
+		 .CmpNeConst(Flag, r0, 2)                                          // Active = 2
 		 .JumpIf(Flag, TEXT("drop_exec"));
 
 		// EquipIndex 보존 → 캐릭터의 EquipSlot[N] 클리어

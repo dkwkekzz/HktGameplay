@@ -83,4 +83,16 @@ namespace HktSnippetCombat
 		FHktStoryBuilder& B,
 		RegisterIndex Entity,
 		const FGameplayTag& AnimTag);
+
+	/**
+	 * 사망 판정 — Health <= 0 이면 DeadTag 부여
+	 * IfPropertyLe + AddTag + EndIf 조합.
+	 *
+	 * @param Entity 사망 여부를 검사할 엔티티 레지스터
+	 * @param DeadTag 사망 시 부여할 태그 (예: "State.Dead")
+	 */
+	HKTSTORY_API FHktStoryBuilder& CheckDeath(
+		FHktStoryBuilder& B,
+		RegisterIndex Entity,
+		const FGameplayTag& DeadTag);
 }

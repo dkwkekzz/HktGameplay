@@ -40,7 +40,6 @@ namespace HktStoryItemActivate
 
 		FHktScopedReg r2(B);       // EquipIndex
 		FHktScopedReg r4(B);       // ItemState 로드
-		FHktScopedReg r5(B);       // 비교용 상수
 		FHktScopedReg r6(B);       // 비교 결과
 
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
@@ -61,7 +60,7 @@ namespace HktStoryItemActivate
 		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
 
 		B	// 요청된 EquipIndex 로드
-			.LoadStore(r2, ItemActivateParams::EquipIndex)                  // r2 = EquipIndex from event
+			.ReadProperty(r2, ItemActivateParams::EquipIndex)               // r2 = EquipIndex from event
 
 			// 동일 EquipIndex에 이미 활성된 아이템이 있으면 자동 비활성화
 			.FindByOwner(Self, Entity_Item)
@@ -72,8 +71,7 @@ namespace HktStoryItemActivate
 
 			// Active(State==2) 상태인지 확인
 			.LoadEntityProperty(r4, Iter, PropertyId::ItemState)
-			.LoadConst(r5, 2)
-			.CmpNe(r6, r4, r5)
+			.CmpNeConst(r6, r4, 2)
 			.JumpIf(r6, TEXT("evict_loop"))
 
 			// 같은 EquipIndex인지 확인

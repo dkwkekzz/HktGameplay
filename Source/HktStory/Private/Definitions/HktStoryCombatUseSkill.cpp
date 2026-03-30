@@ -90,7 +90,6 @@ namespace HktStoryCombatUseSkill
 		FHktScopedReg r3(B);       // CP 소모량
 		FHktScopedReg r4(B);       // 현재 CP
 		FHktScopedReg r5(B);       // 타겟 오버라이드 / 태그 체크
-		FHktScopedReg r6(B);       // 비교용
 
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
@@ -112,29 +111,26 @@ namespace HktStoryCombatUseSkill
 
 		// === NextActionFrame 즉시 잠금 — 동일 프레임 중복 실행 방지 ===
 		// 각 AttackStory가 CooldownUpdateConst로 실제 값을 덮어씀
-		B.LoadConst(r0, 0x7FFFFFFF)
-		 .SaveStore(PropertyId::NextActionFrame, r0);
+		B.WriteConst(PropertyId::NextActionFrame, 0x7FFFFFFF);
 
 		// === 타겟 해석: TargetOverride가 유효하면 사용, 아니면 기존 Target 레지스터 유지 ===
-		B	.LoadStore(r5, UseSkillParams::TargetOverride)
-			.LoadConst(r6, 0)
-			.CmpNe(Flag, r5, r6)
-			.JumpIfNot(Flag, TEXT("target_resolved"))
-			.Move(Target, r5)
-		.Label(TEXT("target_resolved"));
+		B	.ReadProperty(r5, UseSkillParams::TargetOverride)
+			.IfNeConst(r5, 0)
+				.Move(Target, r5)
+			.EndIf();
 
 		// === Param1(슬롯)로 아이템 로드 시도 — 실패 시 innate 경로 ===
 		HktSnippetItem::LoadItemFromSlot(B, r2, TEXT("innate"));
 
 		B	// === 아이템 스킬 경로: CP 검증 및 차감 ===
 			.LoadEntityProperty(r3, r2, PropertyId::SkillCPCost)        // r3 = CP 소모량
-			.LoadStore(r4, PropertyId::CP)                              // r4 = 현재 CP
+			.ReadProperty(r4, PropertyId::CP)                           // r4 = 현재 CP
 			.CmpLt(Flag, r4, r3)                                        // CP < Cost?
 			.JumpIf(Flag, TEXT("innate"))                                // CP 부족 → 본연 스킬로 fallback
 
 			// CP 차감
 			.Sub(r4, r4, r3)
-			.SaveStore(PropertyId::CP, r4);
+			.WriteProperty(PropertyId::CP, r4);
 
 		// === 아이템 스킬 태그 확인 → 고유 스킬 dispatch ===
 		// 쿨타임 갱신은 각 스킬 Story가 자체 RecoveryFrame으로 수행
@@ -159,22 +155,17 @@ namespace HktStoryCombatUseSkill
 			.AddTag(Self, Tag_Anim_Montage_Skill)
 			.WaitAnimEnd(Self)
 
-			.LoadStore(r0, PropertyId::AttackPower)
+			.ReadProperty(r0, PropertyId::AttackPower)
 			.LoadConst(r1, 2)
 			.Mul(r0, r0, r1)
 			.ApplyDamage(Target, r0)
 			.PlayVFXAttached(Target, VFX_SkillHit)
-			.PlaySound(Sound_SkillHit)
+			.PlaySound(Sound_SkillHit);
 
-			// 사망 판정
-			.LoadEntityProperty(r0, Target, PropertyId::Health)
-			.LoadConst(r1, 0)
-			.CmpLe(Flag, r0, r1)
-			.JumpIfNot(Flag, TEXT("skill_alive"))
-			.AddTag(Target, Tag_State_Dead)
-		.Label(TEXT("skill_alive"))
+		// 사망 판정
+		HktSnippetCombat::CheckDeath(B, Target, Tag_State_Dead);
 
-			.RemoveTag(Self, Tag_Anim_UpperBody_Combat_Skill)
+		B	.RemoveTag(Self, Tag_Anim_UpperBody_Combat_Skill)
 			.RemoveTag(Self, Tag_Anim_Montage_Skill)
 
 			.Log(TEXT("UseSkill: 아이템 기본 스킬 완료"))

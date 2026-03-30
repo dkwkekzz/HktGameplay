@@ -57,10 +57,7 @@ namespace HktStoryBasicAttack
 		auto B = Story(Story_BasicAttack);
 
 		FHktScopedReg atkPow(B);     // 공격력 (루프 내 보존)
-		FHktScopedReg tmp1(B);       // 범용 임시
 		FHktScopedRegBlock pos(B, 3); // 위치 (X, Y, Z)
-		FHktScopedReg cmpA(B);       // 비교용
-		FHktScopedReg cmpB(B);       // 비교용
 
 		// === 공격별 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
@@ -75,32 +72,25 @@ namespace HktStoryBasicAttack
 		HktSnippetCombat::AnimTrigger(B, Self, Tag_Anim_Montage_Attack);
 
 		B	// === 3. 히트테스트 준비 ===
-			.LoadStore(atkPow, PropertyId::AttackPower)       // atkPow = 공격력 (루프 내 보존)
+			.ReadProperty(atkPow, PropertyId::AttackPower)       // atkPow = 공격력 (루프 내 보존)
 
 			// === 4. 히트테스트 영역 — 공간 쿼리만 수행, 물리 영향 없음 ===
 			.ForEachInRadius(Self, DefaultAttackRange)
 				// Self 제외
-				.Move(cmpA, Iter)
-				.Move(cmpB, Self)
-				.CmpEq(Flag, cmpA, cmpB)
-				.JumpIf(Flag, TEXT("hit_skip"))
+				.IfNe(Iter, Self)
 
-				// === Hit! 데미지 + 피격 처리 ===
-				.Move(Target, Iter)
-				.ApplyDamage(Target, atkPow)
-				.GetPosition(pos, Target)
-				.PlayVFX(pos, VFX_HitSpark)
-				.PlaySound(Sound_Hit);
-			HktSnippetCombat::AnimTrigger(B, Target, Tag_Anim_Montage_HitReaction);
+					// === Hit! 데미지 + 피격 처리 ===
+					.Move(Target, Iter)
+					.ApplyDamage(Target, atkPow)
+					.GetPosition(pos, Target)
+					.PlayVFX(pos, VFX_HitSpark)
+					.PlaySound(Sound_Hit);
+				HktSnippetCombat::AnimTrigger(B, Target, Tag_Anim_Montage_HitReaction);
 
-			B	// 사망 판정 — 태그 마킹만, 처리는 Lifecycle에 위임
-				.LoadEntityProperty(tmp1, Target, PropertyId::Health)
-				.LoadConst(cmpA, 0)
-				.CmpLe(Flag, tmp1, cmpA)
-				.JumpIfNot(Flag, TEXT("hit_skip"))
-				.AddTag(Target, Tag_State_Dead)
+				// 사망 판정 — 태그 마킹만, 처리는 Lifecycle에 위임
+				HktSnippetCombat::CheckDeath(B, Target, Tag_State_Dead);
 
-			.Label(TEXT("hit_skip"))
+			B.EndIf()
 			.EndForEach();
 
 		// 공격 애니메이션 종료 대기 후 태그 정리

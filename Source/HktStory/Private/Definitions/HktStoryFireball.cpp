@@ -54,8 +54,6 @@ namespace HktStoryFireball
 		auto B = Story(Story_Fireball);
 		FHktScopedRegBlock spawnPos(B, 3);
 		FHktScopedRegBlock explosionPos(B, 3);
-		FHktScopedReg r0(B);
-		FHktScopedReg r1(B);
 
 		// === 공격별 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
@@ -92,17 +90,12 @@ namespace HktStoryFireball
 
 			// 직격 대상에게 100 피해
 			.ApplyDamageConst(Hit, 100)
-			.PlayVFXAttached(Hit, VFX_DirectHit)
+			.PlayVFXAttached(Hit, VFX_DirectHit);
 
-			// 직격 사망 판정
-			.LoadEntityProperty(r0, Hit, PropertyId::Health)
-			.LoadConst(r1, 0)
-			.CmpLe(Flag, r0, r1)
-			.JumpIfNot(Flag, TEXT("direct_alive"))
-			.AddTag(Hit, Tag_State_Dead)
-		.Label(TEXT("direct_alive"))
+		// 직격 사망 판정
+		HktSnippetCombat::CheckDeath(B, Hit, Tag_State_Dead);
 
-			// 폭발 이펙트
+		B	// 폭발 이펙트
 			.PlayVFX(explosionPos, VFX_FireballExplosion)
 			.PlaySoundAtLocation(explosionPos, Sound_Explosion)
 
@@ -112,15 +105,12 @@ namespace HktStoryFireball
 			.ForEachInRadius(Hit, 300)                  // Hit 주변 300cm 내 적들
 				.Move(Target, Iter)                     // Target = 현재 순회 대상
 				.ApplyDamageConst(Target, 50)           // 50 피해
-				.ApplyEffect(Target, Effect_Burn)
-				// AoE 사망 판정
-				.LoadEntityProperty(r0, Target, PropertyId::Health)
-				.LoadConst(r1, 0)
-				.CmpLe(Flag, r0, r1)
-				.JumpIfNot(Flag, TEXT("aoe_alive"))
-				.AddTag(Target, Tag_State_Dead)
-			.Label(TEXT("aoe_alive"))
-			.EndForEach()
+				.ApplyEffect(Target, Effect_Burn);
+
+			// AoE 사망 판정
+			HktSnippetCombat::CheckDeath(B, Target, Tag_State_Dead);
+
+		B	.EndForEach()
 
 			// 시전 상태 태그 제거
 			.RemoveTag(Self, Tag_Anim_UpperBody_Cast_Fireball)

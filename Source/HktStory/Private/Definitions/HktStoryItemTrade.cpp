@@ -42,7 +42,6 @@ namespace HktStoryItemTrade
 		FHktScopedReg r0(B);
 		FHktScopedReg r1(B);
 		FHktScopedReg r2(B);
-		FHktScopedReg r3(B);
 
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
@@ -75,8 +74,8 @@ namespace HktStoryItemTrade
 			})
 
 			// 제안 아이템 / 요청 아이템 로드
-			.LoadStore(r0, ItemTradeParams::OfferItem)                      // r0 = OfferItem EntityId
-			.LoadStore(r1, ItemTradeParams::RequestItem)                    // r1 = RequestItem EntityId
+			.ReadProperty(r0, ItemTradeParams::OfferItem)                   // r0 = OfferItem EntityId
+			.ReadProperty(r1, ItemTradeParams::RequestItem)                 // r1 = RequestItem EntityId
 
 			// 제안 아이템 소유자 검증
 			.LoadEntityProperty(r2, r0, PropertyId::OwnerEntity)
@@ -90,13 +89,12 @@ namespace HktStoryItemTrade
 
 			// Active 상태 검증 — 제안 아이템
 			.LoadEntityProperty(r2, r0, PropertyId::ItemState)
-			.LoadConst(r3, 2)
-			.CmpEq(Flag, r2, r3)
+			.CmpEqConst(Flag, r2, 2)
 			.JumpIf(Flag, TEXT("fail"))
 
 			// Active 상태 검증 — 요청 아이템
 			.LoadEntityProperty(r2, r1, PropertyId::ItemState)
-			.CmpEq(Flag, r2, r3)
+			.CmpEqConst(Flag, r2, 2)
 			.JumpIf(Flag, TEXT("fail"))
 
 			// === 원자적 교환 ===

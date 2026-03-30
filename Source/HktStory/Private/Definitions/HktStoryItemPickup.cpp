@@ -37,7 +37,6 @@ namespace HktStoryItemPickup
 
 		auto B = Story(Event_Item_Pickup);
 		FHktScopedReg r0(B);
-		FHktScopedReg r1(B);
 		FHktScopedReg r3(B);
 
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
@@ -77,8 +76,7 @@ namespace HktStoryItemPickup
 
 		B	// 거리 검증
 			.GetDistance(r0, Self, Target)
-			.LoadConst(r1, 300)                                         // 3m = 300cm
-			.CmpGt(Flag, r0, r1)
+			.CmpGtConst(Flag, r0, 300)                                  // 3m = 300cm
 			.JumpIf(Flag, TEXT("fail"));
 
 		// 빈 EquipIndex 탐색 (r3 = 빈 슬롯 인덱스, 없으면 fail)

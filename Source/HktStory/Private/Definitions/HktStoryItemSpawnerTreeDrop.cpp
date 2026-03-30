@@ -53,8 +53,8 @@ namespace HktStoryItemSpawnerTreeDrop
 			.AddTag(Spawned, Tag_Item_Wood)
 
 			// 위치 설정
-			.LoadStore(pos, SpawnerParams::SpawnPosX)
-			.LoadStore(pos + 1, SpawnerParams::SpawnPosY)
+			.ReadProperty(pos, SpawnerParams::SpawnPosX)
+			.ReadProperty(pos + 1, SpawnerParams::SpawnPosY)
 			.LoadConst(pos + 2, 0)
 			.SetPosition(Spawned, pos)
 

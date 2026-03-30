@@ -41,7 +41,6 @@ namespace HktStoryPlayerInWorld
 		auto B = Story(Story_PlayerInWorld);
 		FHktScopedRegBlock pos(B, 3);
 		FHktScopedReg r0(B);
-		FHktScopedReg r1(B);
 
 		B.Log(TEXT("PlayerInWorld: 플레이어 캐릭터 생성"))
 
@@ -69,8 +68,7 @@ namespace HktStoryPlayerInWorld
 
 			// === 복귀 플레이어 검사 ===
 			.CountByOwner(r0, Self, Entity_Item)
-			.LoadConst(r1, 0)
-			.CmpNe(Flag, r0, r1)
+			.CmpNeConst(Flag, r0, 0)
 			.JumpIf(Flag, TEXT("skip_grant"))
 
 			// === 초기 아이템: 목검 (신규 플레이어만) ===

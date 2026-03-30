@@ -133,3 +133,14 @@ FHktStoryBuilder& HktSnippetCombat::AnimLoopStop(
 	B.RemoveTag(Entity, AnimTag);
 	return B;
 }
+
+FHktStoryBuilder& HktSnippetCombat::CheckDeath(
+	FHktStoryBuilder& B,
+	RegisterIndex Entity,
+	const FGameplayTag& DeadTag)
+{
+	B.IfPropertyLe(Entity, PropertyId::Health, 0)
+		.AddTag(Entity, DeadTag)
+	.EndIf();
+	return B;
+}
