@@ -46,7 +46,7 @@ namespace HktStoryTargetDefault
 		auto B = Story(Story_TargetDefault);
 
 		FHktScopedReg r0(B);       // 범용: 범위/속성값
-		FHktScopedReg r1(B);       // 범용: 거리/비교값
+		FHktScopedReg r1(B);       // 범용: 거리
 		FHktScopedReg r2(B);       // 위치 / 월드타임
 		FHktScopedReg r3(B);       // NextActionFrame
 		FHktScopedReg r4(B);       // 아이템 엔티티
@@ -55,27 +55,23 @@ namespace HktStoryTargetDefault
 			.Log(TEXT("TargetDefault: 타겟 유형 판별 시작"))
 
 			// Target이 Invalid이면 이동
-			.LoadConst(r0, InvalidEntityId)
-			.Move(r1, Target)
-			.CmpEq(Flag, r1, r0)
+			.CmpEqConst(Flag, Target, InvalidEntityId)
 			.JumpIf(Flag, TEXT("dispatch_move"))
 
 			// Target의 ItemId 확인
 			.LoadStoreEntity(r0, Target, PropertyId::ItemId)
-			.LoadConst(r1, 0)
-			.CmpGt(Flag, r0, r1)
+			.CmpGtConst(Flag, r0, 0)
 			.JumpIfNot(Flag, TEXT("check_npc"))
 
 			// ItemState == 0 (Ground) 확인
 			.LoadStoreEntity(r0, Target, PropertyId::ItemState)
-			.CmpEq(Flag, r0, r1)
+			.CmpEqConst(Flag, r0, 0)
 			.JumpIfNot(Flag, TEXT("dispatch_move"))
 
 			// 바닥 아이템 → 접근 후 Pickup 디스패치
 			.Log(TEXT("TargetDefault: 아이템 → 접근 시작"))
-			.LoadConst(r0, ItemPickupRange)
 			.GetDistance(r1, Self, Target)
-			.CmpLe(Flag, r1, r0)
+			.CmpLeConst(Flag, r1, ItemPickupRange)
 			.JumpIf(Flag, TEXT("item_pickup"))
 
 		.Label(TEXT("item_chase_loop"))
@@ -83,7 +79,7 @@ namespace HktStoryTargetDefault
 			.MoveToward(Self, r2, ChaseForce)
 			.Yield(1)
 			.GetDistance(r1, Self, Target)
-			.CmpLe(Flag, r1, r0)
+			.CmpLeConst(Flag, r1, ItemPickupRange)
 			.JumpIfNot(Flag, TEXT("item_chase_loop"))
 			.StopMovement(Self)
 
@@ -95,8 +91,7 @@ namespace HktStoryTargetDefault
 		.Label(TEXT("check_npc"))
 			// IsNPC > 0 확인
 			.LoadStoreEntity(r0, Target, PropertyId::IsNPC)
-			.LoadConst(r1, 0)
-			.CmpGt(Flag, r0, r1)
+			.CmpGtConst(Flag, r0, 0)
 			.JumpIfNot(Flag, TEXT("dispatch_move"));
 
 			// === NPC: 거리 검증 + 접근 + 쿨타임 ===
@@ -104,15 +99,13 @@ namespace HktStoryTargetDefault
 			// 장착 아이템의 AttackRange 로드 시도 (Param1 = 슬롯 인덱스, 기본 0)
 			HktSnippetItem::LoadItemFromSlot(B, r4, TEXT("use_self_range"));
 		B	.LoadEntityProperty(r0, r4, PropertyId::AttackRange)
-			.LoadConst(r1, 0)
-			.CmpGt(Flag, r0, r1)
+			.CmpGtConst(Flag, r0, 0)
 			.JumpIf(Flag, TEXT("npc_range_ok"))
 
 		.Label(TEXT("use_self_range"))
 			// Self의 AttackRange fallback
-			.LoadStore(r0, PropertyId::AttackRange)
-			.LoadConst(r1, 0)
-			.CmpGt(Flag, r0, r1)
+			.ReadProperty(r0, PropertyId::AttackRange)
+			.CmpGtConst(Flag, r0, 0)
 			.JumpIf(Flag, TEXT("npc_range_ok"))
 			.LoadConst(r0, DefaultAttackRange)
 		.Label(TEXT("npc_range_ok"))
@@ -136,7 +129,7 @@ namespace HktStoryTargetDefault
 		.Label(TEXT("npc_check_cd"))
 			// 쿨타임 검증
 			.GetWorldTime(r2)
-			.LoadStore(r3, PropertyId::NextActionFrame)
+			.ReadProperty(r3, PropertyId::NextActionFrame)
 			.CmpGe(Flag, r2, r3)
 			.JumpIfNot(Flag, TEXT("npc_done"))
 

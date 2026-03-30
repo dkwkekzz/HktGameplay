@@ -75,17 +75,17 @@ namespace HktStoryNPCLifecycle
 				.LoadConst(r0, 4)
 				.RandomInt(r1, r0)                       // r1 = 0~3
 
-				.LoadConst(r0, 0)
-				.CmpEq(Flag, r1, r0)
-				.JumpIf(Flag, TEXT("drop_staff"))
+				.IfEqConst(r1, 0)
+					.Jump(TEXT("drop_staff"))
+				.EndIf()
 
-				.LoadConst(r0, 1)
-				.CmpEq(Flag, r1, r0)
-				.JumpIf(Flag, TEXT("drop_bandage"))
+				.IfEqConst(r1, 1)
+					.Jump(TEXT("drop_bandage"))
+				.EndIf()
 
-				.LoadConst(r0, 2)
-				.CmpEq(Flag, r1, r0)
-				.JumpIf(Flag, TEXT("drop_hammer"))
+				.IfEqConst(r1, 2)
+					.Jump(TEXT("drop_hammer"))
+				.EndIf()
 
 				// 기본(3) → 자유의 날개
 				.Jump(TEXT("drop_wings"))

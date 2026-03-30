@@ -60,9 +60,9 @@ namespace HktStoryBuff
 			.ApplyEffect(Self, Effect_PowerUp)
 
 			// 공격력 +10
-			.LoadStore(r0, PropertyId::AttackPower)
+			.ReadProperty(r0, PropertyId::AttackPower)
 			.AddImm(r0, r0, 10)
-			.SaveStore(PropertyId::AttackPower, r0)
+			.WriteProperty(PropertyId::AttackPower, r0)
 
 			// 버프 오라 VFX + Sound
 			.PlayVFXAttached(Self, VFX_BuffAura)

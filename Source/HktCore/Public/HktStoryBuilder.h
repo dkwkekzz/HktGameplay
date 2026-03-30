@@ -201,7 +201,78 @@ public:
     /** 이동 완료 대기 */
     FHktStoryBuilder& WaitMoveEnd(RegisterIndex Entity = Reg::Self);
 
-    // ========== Data Operations (근본 opcode 래퍼) ==========
+    // ========== Structured Control Flow ==========
+
+    /** 조건이 참이면 블록 진입, EndIf()까지 실행 */
+    FHktStoryBuilder& If(RegisterIndex Cond);
+
+    /** 조건이 거짓이면 블록 진입, EndIf()까지 실행 */
+    FHktStoryBuilder& IfNot(RegisterIndex Cond);
+
+    /** If 블록의 거짓 분기 시작 */
+    FHktStoryBuilder& Else();
+
+    /** If/Else 블록 종료 */
+    FHktStoryBuilder& EndIf();
+
+    // ========== Register Comparison + If ==========
+
+    /** 두 레지스터 비교 후 If 블록 진입 */
+    FHktStoryBuilder& IfEq(RegisterIndex A, RegisterIndex B);
+    FHktStoryBuilder& IfNe(RegisterIndex A, RegisterIndex B);
+    FHktStoryBuilder& IfLt(RegisterIndex A, RegisterIndex B);
+    FHktStoryBuilder& IfLe(RegisterIndex A, RegisterIndex B);
+    FHktStoryBuilder& IfGt(RegisterIndex A, RegisterIndex B);
+    FHktStoryBuilder& IfGe(RegisterIndex A, RegisterIndex B);
+
+    // ========== Register vs Constant + If ==========
+
+    /** 레지스터와 상수 비교 후 If 블록 진입 (임시 레지스터 자동 할당) */
+    FHktStoryBuilder& IfEqConst(RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& IfNeConst(RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& IfLtConst(RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& IfLeConst(RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& IfGtConst(RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& IfGeConst(RegisterIndex Src, int32 Value);
+
+    // ========== Entity Property vs Constant + If ==========
+
+    /** Entity 프로퍼티를 상수와 비교 후 If 블록 진입 (레지스터 자동 할당) */
+    FHktStoryBuilder& IfPropertyEq(RegisterIndex Entity, uint16 PropertyId, int32 Value);
+    FHktStoryBuilder& IfPropertyNe(RegisterIndex Entity, uint16 PropertyId, int32 Value);
+    FHktStoryBuilder& IfPropertyLt(RegisterIndex Entity, uint16 PropertyId, int32 Value);
+    FHktStoryBuilder& IfPropertyLe(RegisterIndex Entity, uint16 PropertyId, int32 Value);
+    FHktStoryBuilder& IfPropertyGt(RegisterIndex Entity, uint16 PropertyId, int32 Value);
+    FHktStoryBuilder& IfPropertyGe(RegisterIndex Entity, uint16 PropertyId, int32 Value);
+
+    // ========== Repeat Loop ==========
+
+    /** N회 반복 루프 시작 — EndRepeat()에서 자동으로 카운터 증가 및 점프 */
+    FHktStoryBuilder& Repeat(int32 Count);
+
+    /** Repeat 루프 종료 */
+    FHktStoryBuilder& EndRepeat();
+
+    // ========== Wait Patterns ==========
+
+    /** 특정 태그 엔티티가 0이 될 때까지 폴링 대기 (예: 전멸 대기) */
+    FHktStoryBuilder& WaitUntilCountZero(const FGameplayTag& Tag, float PollIntervalSeconds = 2.0f);
+
+    // ========== Property Access (고수준 별칭) ==========
+
+    /** Self/Context 프로퍼티 읽기 → Dst (연산 피연산자용) */
+    FHktStoryBuilder& ReadProperty(RegisterIndex Dst, uint16 PropertyId)
+    { return LoadStore(Dst, PropertyId); }
+
+    /** Src → Self 프로퍼티 쓰기 */
+    FHktStoryBuilder& WriteProperty(uint16 PropertyId, RegisterIndex Src)
+    { return SaveStore(PropertyId, Src); }
+
+    /** 상수 → Self 프로퍼티 쓰기 */
+    FHktStoryBuilder& WriteConst(uint16 PropertyId, int32 Value)
+    { return SaveConst(PropertyId, Value); }
+
+    // ========== Data Operations (opcode 래퍼 — Snippet/내부용) ==========
 
     FHktStoryBuilder& LoadConst(RegisterIndex Dst, int32 Value);
 
@@ -241,7 +312,7 @@ public:
     FHktStoryBuilder& Div(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
     FHktStoryBuilder& AddImm(RegisterIndex Dst, RegisterIndex Src, int32 Imm);
 
-    // ========== Comparison ==========
+    // ========== Comparison (Snippet/내부용) ==========
 
     FHktStoryBuilder& CmpEq(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
     FHktStoryBuilder& CmpNe(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
@@ -249,6 +320,14 @@ public:
     FHktStoryBuilder& CmpLe(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
     FHktStoryBuilder& CmpGt(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
     FHktStoryBuilder& CmpGe(RegisterIndex Dst, RegisterIndex Src1, RegisterIndex Src2);
+
+    /** 레지스터와 상수 비교 — 임시 레지스터 자동 할당 (Snippet/내부용) */
+    FHktStoryBuilder& CmpEqConst(RegisterIndex Dst, RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& CmpNeConst(RegisterIndex Dst, RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& CmpLtConst(RegisterIndex Dst, RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& CmpLeConst(RegisterIndex Dst, RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& CmpGtConst(RegisterIndex Dst, RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& CmpGeConst(RegisterIndex Dst, RegisterIndex Src, int32 Value);
 
     // ========== Entity Management ==========
 
@@ -407,6 +486,12 @@ private:
     int32 TagToInt(const FGameplayTag& Tag);
     static void ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag);
 
+    // 비교 + If 헬퍼 (18개 public 메서드의 공통 구현)
+    FHktStoryBuilder& IfCmp(EOpCode CmpOp, RegisterIndex A, RegisterIndex B);
+    FHktStoryBuilder& IfCmpConst(EOpCode CmpOp, RegisterIndex Src, int32 Value);
+    FHktStoryBuilder& IfPropertyCmp(EOpCode CmpOp, RegisterIndex Entity, uint16 PropertyId, int32 Value);
+    FHktStoryBuilder& CmpConst(EOpCode CmpOp, RegisterIndex Dst, RegisterIndex Src, int32 Value);
+
 private:
     TSharedRef<FHktVMProgram> Program;
     FHktRegAllocator RegAllocator;
@@ -424,6 +509,27 @@ private:
     TArray<FForEachContext> ForEachStack;
     int32 ForEachCounter = 0;
     int32 InternalLabelCounter = 0;
+
+    // If 스택 (중첩 지원)
+    struct FIfContext
+    {
+        FString FalseBranchLabel;
+        FString EndLabel;
+        bool bHasElse = false;
+    };
+    TArray<FIfContext> IfStack;
+    int32 IfCounter = 0;
+
+    // Repeat 스택 (중첩 지원)
+    struct FRepeatContext
+    {
+        FString LoopLabel;
+        FString EndLabel;
+        RegisterIndex CounterReg;
+        int32 Count;
+    };
+    TArray<FRepeatContext> RepeatStack;
+    int32 RepeatCounter = 0;
 };
 
 // ============================================================================

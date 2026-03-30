@@ -40,6 +40,10 @@ FHktStoryBuilder::FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept
     , ForEachStack(MoveTemp(Other.ForEachStack))
     , ForEachCounter(Other.ForEachCounter)
     , InternalLabelCounter(Other.InternalLabelCounter)
+    , IfStack(MoveTemp(Other.IfStack))
+    , IfCounter(Other.IfCounter)
+    , RepeatStack(MoveTemp(Other.RepeatStack))
+    , RepeatCounter(Other.RepeatCounter)
 {
     // ActiveSection 포인터 재조정: 원본이 어느 섹션을 가리키고 있었는지에 따라 결정
     ActiveSection = (Other.ActiveSection == &Other.PreconditionSection)
@@ -165,6 +169,197 @@ FHktStoryBuilder& FHktStoryBuilder::EndPrecondition()
     check(ActiveSection == &PreconditionSection);
     ResolveLabels(PreconditionSection, Program->Tag);
     ActiveSection = &MainSection;
+    return *this;
+}
+
+// ============================================================================
+// Structured Control Flow (If / Else / EndIf)
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::If(RegisterIndex Cond)
+{
+    FIfContext Ctx;
+    Ctx.FalseBranchLabel = FString::Printf(TEXT("__if_%d_false"), IfCounter);
+    Ctx.EndLabel = FString::Printf(TEXT("__if_%d_end"), IfCounter);
+    IfCounter++;
+    IfStack.Push(Ctx);
+
+    JumpIfNot(Cond, Ctx.FalseBranchLabel);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::IfNot(RegisterIndex Cond)
+{
+    FIfContext Ctx;
+    Ctx.FalseBranchLabel = FString::Printf(TEXT("__if_%d_false"), IfCounter);
+    Ctx.EndLabel = FString::Printf(TEXT("__if_%d_end"), IfCounter);
+    IfCounter++;
+    IfStack.Push(Ctx);
+
+    JumpIf(Cond, Ctx.FalseBranchLabel);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::Else()
+{
+    check(IfStack.Num() > 0);
+    FIfContext& Ctx = IfStack.Last();
+    check(!Ctx.bHasElse);
+
+    Jump(Ctx.EndLabel);
+    Label(Ctx.FalseBranchLabel);
+    Ctx.bHasElse = true;
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::EndIf()
+{
+    check(IfStack.Num() > 0);
+    FIfContext Ctx = IfStack.Pop();
+
+    if (Ctx.bHasElse)
+    {
+        Label(Ctx.EndLabel);
+    }
+    else
+    {
+        Label(Ctx.FalseBranchLabel);
+    }
+    return *this;
+}
+
+// ============================================================================
+// Register Comparison + If
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::IfCmp(EOpCode CmpOp, RegisterIndex A, RegisterIndex B)
+{
+    Emit(FInstruction::Make(CmpOp, Reg::Flag, A, B, 0));
+    return If(Reg::Flag);
+}
+
+FHktStoryBuilder& FHktStoryBuilder::IfEq(RegisterIndex A, RegisterIndex B) { return IfCmp(EOpCode::CmpEq, A, B); }
+FHktStoryBuilder& FHktStoryBuilder::IfNe(RegisterIndex A, RegisterIndex B) { return IfCmp(EOpCode::CmpNe, A, B); }
+FHktStoryBuilder& FHktStoryBuilder::IfLt(RegisterIndex A, RegisterIndex B) { return IfCmp(EOpCode::CmpLt, A, B); }
+FHktStoryBuilder& FHktStoryBuilder::IfLe(RegisterIndex A, RegisterIndex B) { return IfCmp(EOpCode::CmpLe, A, B); }
+FHktStoryBuilder& FHktStoryBuilder::IfGt(RegisterIndex A, RegisterIndex B) { return IfCmp(EOpCode::CmpGt, A, B); }
+FHktStoryBuilder& FHktStoryBuilder::IfGe(RegisterIndex A, RegisterIndex B) { return IfCmp(EOpCode::CmpGe, A, B); }
+
+// ============================================================================
+// Register vs Constant + If
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::IfCmpConst(EOpCode CmpOp, RegisterIndex Src, int32 Value)
+{
+    FHktRegReserve Guard(RegAllocator, {Src});
+    FHktScopedReg Tmp(*this);
+    LoadConst(Tmp, Value);
+    Emit(FInstruction::Make(CmpOp, Reg::Flag, Src, Tmp, 0));
+    return If(Reg::Flag);
+}
+
+FHktStoryBuilder& FHktStoryBuilder::IfEqConst(RegisterIndex Src, int32 Value) { return IfCmpConst(EOpCode::CmpEq, Src, Value); }
+FHktStoryBuilder& FHktStoryBuilder::IfNeConst(RegisterIndex Src, int32 Value) { return IfCmpConst(EOpCode::CmpNe, Src, Value); }
+FHktStoryBuilder& FHktStoryBuilder::IfLtConst(RegisterIndex Src, int32 Value) { return IfCmpConst(EOpCode::CmpLt, Src, Value); }
+FHktStoryBuilder& FHktStoryBuilder::IfLeConst(RegisterIndex Src, int32 Value) { return IfCmpConst(EOpCode::CmpLe, Src, Value); }
+FHktStoryBuilder& FHktStoryBuilder::IfGtConst(RegisterIndex Src, int32 Value) { return IfCmpConst(EOpCode::CmpGt, Src, Value); }
+FHktStoryBuilder& FHktStoryBuilder::IfGeConst(RegisterIndex Src, int32 Value) { return IfCmpConst(EOpCode::CmpGe, Src, Value); }
+
+// ============================================================================
+// Entity Property vs Constant + If
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::IfPropertyCmp(EOpCode CmpOp, RegisterIndex Entity, uint16 PropertyId, int32 Value)
+{
+    FHktRegReserve Guard(RegAllocator, {Entity});
+    FHktScopedReg Prop(*this);
+    FHktScopedReg Const(*this);
+    LoadStoreEntity(Prop, Entity, PropertyId);
+    LoadConst(Const, Value);
+    Emit(FInstruction::Make(CmpOp, Reg::Flag, Prop, Const, 0));
+    return If(Reg::Flag);
+}
+
+FHktStoryBuilder& FHktStoryBuilder::IfPropertyEq(RegisterIndex Entity, uint16 PropertyId, int32 Value) { return IfPropertyCmp(EOpCode::CmpEq, Entity, PropertyId, Value); }
+FHktStoryBuilder& FHktStoryBuilder::IfPropertyNe(RegisterIndex Entity, uint16 PropertyId, int32 Value) { return IfPropertyCmp(EOpCode::CmpNe, Entity, PropertyId, Value); }
+FHktStoryBuilder& FHktStoryBuilder::IfPropertyLt(RegisterIndex Entity, uint16 PropertyId, int32 Value) { return IfPropertyCmp(EOpCode::CmpLt, Entity, PropertyId, Value); }
+FHktStoryBuilder& FHktStoryBuilder::IfPropertyLe(RegisterIndex Entity, uint16 PropertyId, int32 Value) { return IfPropertyCmp(EOpCode::CmpLe, Entity, PropertyId, Value); }
+FHktStoryBuilder& FHktStoryBuilder::IfPropertyGt(RegisterIndex Entity, uint16 PropertyId, int32 Value) { return IfPropertyCmp(EOpCode::CmpGt, Entity, PropertyId, Value); }
+FHktStoryBuilder& FHktStoryBuilder::IfPropertyGe(RegisterIndex Entity, uint16 PropertyId, int32 Value) { return IfPropertyCmp(EOpCode::CmpGe, Entity, PropertyId, Value); }
+
+// ============================================================================
+// CmpXxConst (상수 비교 — Snippet/내부용)
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::CmpConst(EOpCode CmpOp, RegisterIndex Dst, RegisterIndex Src, int32 Value)
+{
+    FHktRegReserve Guard(RegAllocator, {Dst, Src});
+    FHktScopedReg Tmp(*this);
+    LoadConst(Tmp, Value);
+    Emit(FInstruction::Make(CmpOp, Dst, Src, Tmp, 0));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::CmpEqConst(RegisterIndex Dst, RegisterIndex Src, int32 Value) { return CmpConst(EOpCode::CmpEq, Dst, Src, Value); }
+FHktStoryBuilder& FHktStoryBuilder::CmpNeConst(RegisterIndex Dst, RegisterIndex Src, int32 Value) { return CmpConst(EOpCode::CmpNe, Dst, Src, Value); }
+FHktStoryBuilder& FHktStoryBuilder::CmpLtConst(RegisterIndex Dst, RegisterIndex Src, int32 Value) { return CmpConst(EOpCode::CmpLt, Dst, Src, Value); }
+FHktStoryBuilder& FHktStoryBuilder::CmpLeConst(RegisterIndex Dst, RegisterIndex Src, int32 Value) { return CmpConst(EOpCode::CmpLe, Dst, Src, Value); }
+FHktStoryBuilder& FHktStoryBuilder::CmpGtConst(RegisterIndex Dst, RegisterIndex Src, int32 Value) { return CmpConst(EOpCode::CmpGt, Dst, Src, Value); }
+FHktStoryBuilder& FHktStoryBuilder::CmpGeConst(RegisterIndex Dst, RegisterIndex Src, int32 Value) { return CmpConst(EOpCode::CmpGe, Dst, Src, Value); }
+
+// ============================================================================
+// Repeat / EndRepeat
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::Repeat(int32 Count)
+{
+    FRepeatContext Ctx;
+    Ctx.LoopLabel = FString::Printf(TEXT("__repeat_%d_loop"), RepeatCounter);
+    Ctx.EndLabel = FString::Printf(TEXT("__repeat_%d_end"), RepeatCounter);
+    Ctx.CounterReg = RegAllocator.Alloc();
+    Ctx.Count = Count;
+    RepeatCounter++;
+
+    LoadConst(Ctx.CounterReg, 0);
+    Label(Ctx.LoopLabel);
+    CmpGeConst(Reg::Flag, Ctx.CounterReg, Count);
+    JumpIf(Reg::Flag, Ctx.EndLabel);
+
+    RepeatStack.Push(Ctx);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::EndRepeat()
+{
+    check(RepeatStack.Num() > 0);
+    FRepeatContext Ctx = RepeatStack.Pop();
+
+    AddImm(Ctx.CounterReg, Ctx.CounterReg, 1);
+    Jump(Ctx.LoopLabel);
+    Label(Ctx.EndLabel);
+
+    RegAllocator.Free(Ctx.CounterReg);
+    return *this;
+}
+
+// ============================================================================
+// WaitUntilCountZero
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::WaitUntilCountZero(const FGameplayTag& Tag, float PollIntervalSeconds)
+{
+    FHktScopedReg Count(*this);
+    FString LoopLabel = MakeInternalLabel(TEXT("waitcount"));
+    FString DoneLabel = MakeInternalLabel(TEXT("waitcount_done"));
+
+    Label(LoopLabel);
+    CountByTag(Count, Tag);
+    CmpLeConst(Reg::Flag, Count, 0);
+    JumpIf(Reg::Flag, DoneLabel);
+    WaitSeconds(PollIntervalSeconds);
+    Jump(LoopLabel);
+    Label(DoneLabel);
+
     return *this;
 }
 

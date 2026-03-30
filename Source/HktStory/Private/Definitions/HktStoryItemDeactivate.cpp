@@ -41,7 +41,6 @@ namespace HktStoryItemDeactivate
 		FHktScopedReg r3(B);       // Stance
 		FHktScopedReg r4(B);       // 활성 아이템 존재 플래그
 		FHktScopedReg r5(B);       // 비교용
-		FHktScopedReg r6(B);       // 비교용 상수
 
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
@@ -82,8 +81,7 @@ namespace HktStoryItemDeactivate
 
 			// 이 아이템이 Active 상태인지 확인
 			.LoadEntityProperty(r5, Iter, PropertyId::ItemState)
-			.LoadConst(r6, 2)
-			.CmpEq(r5, r5, r6)
+			.CmpEqConst(r5, r5, 2)
 			.JumpIfNot(r5, TEXT("check_loop"))
 
 			// 활성 아이템 발견 — Stance를 그 아이템의 것으로 유지
@@ -94,8 +92,7 @@ namespace HktStoryItemDeactivate
 
 		.Label(TEXT("check_done"))
 			// r4 == 0이면 다른 활성 아이템 없음 — Unarmed로 복원
-			.LoadConst(r5, 0)
-			.CmpNe(Flag, r4, r5)
+			.CmpNeConst(Flag, r4, 0)
 			.JumpIf(Flag, TEXT("done"))
 			.SetStance(Self, HktStance::Unarmed)
 

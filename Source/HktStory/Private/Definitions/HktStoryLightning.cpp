@@ -50,8 +50,6 @@ namespace HktStoryLightning
 
 		auto B = Story(Story_Lightning);
 		FHktScopedRegBlock targetPos(B, 3);
-		FHktScopedReg r0(B);
-		FHktScopedReg r1(B);
 		FHktScopedReg r6(B);
 
 		// === 공격별 쿨타임 갱신 ===
@@ -70,32 +68,24 @@ namespace HktStoryLightning
 
 			// === 직격 대상에게 80 피해 ===
 			.ApplyDamageConst(Target, 80)
-			.PlayVFXAttached(Target, VFX_LightningExplosion)
+			.PlayVFXAttached(Target, VFX_LightningExplosion);
 
-			// 직격 사망 판정
-			.LoadEntityProperty(r0, Target, PropertyId::Health)
-			.LoadConst(r1, 0)
-			.CmpLe(Flag, r0, r1)
-			.JumpIfNot(Flag, TEXT("direct_alive"))
-			.AddTag(Target, Tag_State_Dead)
-		.Label(TEXT("direct_alive"))
+		// 직격 사망 판정
+		HktSnippetCombat::CheckDeath(B, Target, Tag_State_Dead);
 
-			// === 범위 피해 (반경 200cm) ===
+		B	// === 범위 피해 (반경 200cm) ===
 			.Log(TEXT("Lightning: 범위 피해 적용"))
 			.PlaySoundAtLocation(targetPos, Sound_ThunderExplosion)
 
 			.ForEachInRadius(Target, 200)               // Target 주변 200cm 내 적들
 				.Move(r6, Iter)
 				.ApplyDamageConst(r6, 30)               // 30 피해
-				.ApplyEffect(r6, Effect_Shock)
-				// AoE 사망 판정
-				.LoadEntityProperty(r0, r6, PropertyId::Health)
-				.LoadConst(r1, 0)
-				.CmpLe(Flag, r0, r1)
-				.JumpIfNot(Flag, TEXT("aoe_alive"))
-				.AddTag(r6, Tag_State_Dead)
-			.Label(TEXT("aoe_alive"))
-			.EndForEach()
+				.ApplyEffect(r6, Effect_Shock);
+
+			// AoE 사망 판정
+			HktSnippetCombat::CheckDeath(B, r6, Tag_State_Dead);
+
+		B	.EndForEach()
 
 			// 시전 상태 태그 제거
 			.RemoveTag(Self, Tag_Anim_UpperBody_Cast_Lightning)

@@ -44,7 +44,6 @@ namespace HktStoryHeal
 		FHktScopedReg r0(B);
 		FHktScopedReg r1(B);
 		FHktScopedReg r2(B);
-		FHktScopedReg r3(B);
 
 		// === 공격별 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
@@ -57,27 +56,25 @@ namespace HktStoryHeal
 			.WaitSeconds(0.8f)
 
 			// 현재 체력과 최대 체력 로드
-			.LoadStore(r0, PropertyId::Health)
-			.LoadStore(r1, PropertyId::MaxHealth)
+			.ReadProperty(r0, PropertyId::Health)
+			.ReadProperty(r1, PropertyId::MaxHealth)
 
 			// 회복량 (HealParams에서, 기본 50)
-			.LoadStore(r2, HealParams::HealAmount)
-			.CmpEq(r3, r2, r3)                          // r2 == 0?
-			.JumpIfNot(r3, TEXT("HasHealAmount"))
-			.LoadConst(r2, 50)                          // 기본값 50
-			.Label(TEXT("HasHealAmount"))
+			.ReadProperty(r2, HealParams::HealAmount)
+			.IfEqConst(r2, 0)
+				.LoadConst(r2, 50)                          // 기본값 50
+			.EndIf()
 
 			// 새 체력 = 현재 + 회복량
 			.Add(r0, r0, r2)
 
 			// 최대 체력 제한
-			.CmpGt(r3, r0, r1)                          // 새 체력 > 최대?
-			.JumpIfNot(r3, TEXT("NoClamp"))
-			.Move(r0, r1)                               // 최대로 제한
-			.Label(TEXT("NoClamp"))
+			.IfGt(r0, r1)
+				.Move(r0, r1)                               // 최대로 제한
+			.EndIf()
 
 			// 체력 저장
-			.SaveStore(PropertyId::Health, r0)
+			.WriteProperty(PropertyId::Health, r0)
 
 			// 회복 이펙트
 			.PlayVFXAttached(Self, VFX_HealBurst)
