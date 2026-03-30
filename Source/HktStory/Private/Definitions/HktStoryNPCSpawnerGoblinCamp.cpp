@@ -33,18 +33,20 @@ namespace HktStoryNPCSpawnerGoblinCamp
 		using namespace Reg;
 
 		auto B = Story(Story_Spawner_GoblinCamp);
+		FHktScopedRegBlock pos(B, 3);
+
 		B.Log(TEXT("GoblinCamp spawner: activated"));
 
 		// 주기적 스포너 루프 시작 (플레이어 체크 + 인구 5마리 상한)
 		HktSnippetNPC::SpawnerLoopBegin(B, TEXT("loop"), TEXT("wait"), Entity_NPC_Goblin, 5);
 
 			// 위치 레지스터 로드 (이벤트 파라미터에서)
-		B.LoadStore(R3, SpawnerParams::SpawnPosX)       // SpawnPosX
-		 .LoadStore(R4, SpawnerParams::SpawnPosY)       // SpawnPosY
-		 .LoadConst(R5, 0);                             // Z = ground
+		B.LoadStore(pos, SpawnerParams::SpawnPosX)          // SpawnPosX
+		 .LoadStore(pos + 1, SpawnerParams::SpawnPosY)      // SpawnPosY
+		 .LoadConst(pos + 2, 0);                            // Z = ground
 
 		// NPC 생성 + 스탯 설정 + 위치 지정
-		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Goblin, { 80, 15, 3, 120, 0 }, R3);
+		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Goblin, { 80, 15, 3, 120, 0 }, pos);
 
 		B.Log(TEXT("GoblinCamp: goblin spawned"));
 
