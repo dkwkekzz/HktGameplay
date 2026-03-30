@@ -37,6 +37,8 @@ namespace HktStoryItemDeactivate
 
 		auto B = Story(Event_Item_Deactivate);
 
+		int32 FailLabel = B.AllocLabel();
+
 		FHktScopedReg r2(B);       // EquipIndex
 		FHktScopedReg r3(B);       // Stance
 		FHktScopedReg r4(B);       // 활성 아이템 존재 플래그
@@ -54,10 +56,10 @@ namespace HktStoryItemDeactivate
 			});
 
 		// Active 상태 확인
-		HktSnippetItem::ValidateItemState(B, Target, 2, TEXT("fail"));
+		HktSnippetItem::ValidateItemState(B, Target, 2, FailLabel);
 
 		// 소유자 확인
-		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
+		HktSnippetItem::ValidateOwnership(B, Target, FailLabel);
 
 		// 비활성화 전 EquipIndex 값 보존 → 캐릭터의 EquipSlot[N] 클리어
 		B.LoadEntityProperty(r2, Target, PropertyId::EquipIndex);           // r2 = EquipIndex
@@ -100,7 +102,7 @@ namespace HktStoryItemDeactivate
 			.Log(TEXT("Item deactivated"))
 			.Halt()
 
-		.Label(TEXT("fail"))
+		.Label(FailLabel)
 			.Log(TEXT("Item deactivate failed — precondition violation"))
 			.Fail()
 		.BuildAndRegister();

@@ -43,8 +43,8 @@ namespace HktSnippetNPC
 	 */
 	HKTSTORY_API FHktStoryBuilder& SpawnerLoopBegin(
 		FHktStoryBuilder& B,
-		const FString& LoopLabel,
-		const FString& WaitLabel,
+		int32 LoopLabel,
+		int32 WaitLabel,
 		const FGameplayTag& CountTag,
 		int32 Cap);
 
@@ -54,8 +54,8 @@ namespace HktSnippetNPC
 	 */
 	HKTSTORY_API FHktStoryBuilder& SpawnerLoopEnd(
 		FHktStoryBuilder& B,
-		const FString& LoopLabel,
-		const FString& WaitLabel,
+		int32 LoopLabel,
+		int32 WaitLabel,
 		float IntervalSeconds);
 
 	/**

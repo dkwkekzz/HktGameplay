@@ -40,10 +40,13 @@ namespace HktStoryItemSpawnerAncientStaff
 		using namespace Reg;
 
 		auto B = Story(Story_Spawner_Item_AncientStaff);
+		int32 LoopLabel = B.AllocLabel();
+		int32 WaitLabel = B.AllocLabel();
+
 		B.Log(TEXT("AncientStaff spawner: activated"));
 
 		// 주기적 스포너 루프 시작 (플레이어 체크 + 아이템 1개 상한)
-		HktSnippetNPC::SpawnerLoopBegin(B, TEXT("loop"), TEXT("wait"), Tag_Item_AncientStaff, 1);
+		HktSnippetNPC::SpawnerLoopBegin(B, LoopLabel, WaitLabel, Tag_Item_AncientStaff, 1);
 
 		// 아이템 엔티티 생성
 		HktSnippetItem::SpawnGroundItem(B, Entity_Item_AncientStaff, { 200 }, Self);
@@ -62,7 +65,7 @@ namespace HktStoryItemSpawnerAncientStaff
 			.Log(TEXT("AncientStaff: item spawned"));
 
 		// 주기적 스포너 루프 종결 (60초 대기)
-		HktSnippetNPC::SpawnerLoopEnd(B, TEXT("loop"), TEXT("wait"), 60.0f);
+		HktSnippetNPC::SpawnerLoopEnd(B, LoopLabel, WaitLabel, 60.0f);
 
 		B.BuildAndRegister();
 	}

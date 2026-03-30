@@ -36,13 +36,15 @@ namespace HktStoryItemSpawnerTreeDrop
 		using namespace Reg;
 
 		auto B = Story(Story_Spawner_Item_TreeDrop);
+		int32 LoopLabel = B.AllocLabel();
+		int32 WaitLabel = B.AllocLabel();
 
 		FHktScopedRegBlock pos(B, 3); // 위치 (X, Y, Z)
 
 		B.Log(TEXT("TreeDrop spawner: activated"));
 
 		// 주기적 스포너 루프 시작 (플레이어 체크 + 아이템 10개 상한)
-		HktSnippetNPC::SpawnerLoopBegin(B, TEXT("loop"), TEXT("wait"), Tag_Item_Wood, 10);
+		HktSnippetNPC::SpawnerLoopBegin(B, LoopLabel, WaitLabel, Tag_Item_Wood, 10);
 
 		B	// 아이템 엔티티 생성
 			.SpawnEntity(Entity_Item_Wood)
@@ -61,7 +63,7 @@ namespace HktStoryItemSpawnerTreeDrop
 			.Log(TEXT("TreeDrop: wood spawned"));
 
 		// 주기적 스포너 루프 종결 (30초 대기)
-		HktSnippetNPC::SpawnerLoopEnd(B, TEXT("loop"), TEXT("wait"), 30.0f);
+		HktSnippetNPC::SpawnerLoopEnd(B, LoopLabel, WaitLabel, 30.0f);
 
 		B.BuildAndRegister();
 	}

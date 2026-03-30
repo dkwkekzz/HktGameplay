@@ -22,7 +22,7 @@ namespace HktSnippetCombat
 	 */
 	HKTSTORY_API FHktStoryBuilder& CooldownCheck(
 		FHktStoryBuilder& B,
-		const FString& FailLabel);
+		int32 FailLabel);
 
 	/**
 	 * 쿨타임 갱신 (상수 RecoveryFrame) + 모션별 애니메이션 속도 산출

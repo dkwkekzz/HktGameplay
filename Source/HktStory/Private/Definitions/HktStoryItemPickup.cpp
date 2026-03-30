@@ -36,6 +36,9 @@ namespace HktStoryItemPickup
 		using namespace Reg;
 
 		auto B = Story(Event_Item_Pickup);
+
+		int32 FailLabel = B.AllocLabel();
+
 		FHktScopedReg r0(B);
 		FHktScopedReg r3(B);
 
@@ -72,15 +75,15 @@ namespace HktStoryItemPickup
 			});
 
 		// Ground 상태 확인
-		HktSnippetItem::ValidateItemState(B, Target, 0, TEXT("fail"));
+		HktSnippetItem::ValidateItemState(B, Target, 0, FailLabel);
 
 		B	// 거리 검증
 			.GetDistance(r0, Self, Target)
 			.CmpGtConst(Flag, r0, 300)                                  // 3m = 300cm
-			.JumpIf(Flag, TEXT("fail"));
+			.JumpIf(Flag, FailLabel);
 
 		// 빈 EquipIndex 탐색 (r3 = 빈 슬롯 인덱스, 없으면 fail)
-		HktSnippetItem::FindEmptyEquipSlot(B, r3, TEXT("fail"));
+		HktSnippetItem::FindEmptyEquipSlot(B, r3, FailLabel);
 
 			// 소유권 설정
 		HktSnippetItem::AssignOwnership(B, Target, Self);
@@ -91,7 +94,7 @@ namespace HktStoryItemPickup
 		B	.Log(TEXT("Item picked up and activated"))
 			.Halt()
 
-		.Label(TEXT("fail"))
+		.Label(FailLabel)
 			.Log(TEXT("Item pickup failed — precondition violation"))
 			.Fail()
 		.BuildAndRegister();

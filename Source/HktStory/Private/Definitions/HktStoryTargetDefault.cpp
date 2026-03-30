@@ -45,6 +45,8 @@ namespace HktStoryTargetDefault
 
 		auto B = Story(Story_TargetDefault);
 
+		int32 UseSelfRangeLabel = B.AllocLabel();
+
 		FHktScopedReg r0(B);       // 범용: 범위/속성값
 		FHktScopedReg r1(B);       // 범용: 거리
 		FHktScopedReg r2(B);       // 위치 / 월드타임
@@ -97,12 +99,12 @@ namespace HktStoryTargetDefault
 			// === NPC: 거리 검증 + 접근 + 쿨타임 ===
 
 			// 장착 아이템의 AttackRange 로드 시도 (Param1 = 슬롯 인덱스, 기본 0)
-			HktSnippetItem::LoadItemFromSlot(B, r4, TEXT("use_self_range"));
+			HktSnippetItem::LoadItemFromSlot(B, r4, UseSelfRangeLabel);
 		B	.LoadEntityProperty(r0, r4, PropertyId::AttackRange)
 			.CmpGtConst(Flag, r0, 0)
 			.JumpIf(Flag, TEXT("npc_range_ok"))
 
-		.Label(TEXT("use_self_range"))
+		.Label(UseSelfRangeLabel)
 			// Self의 AttackRange fallback
 			.ReadProperty(r0, PropertyId::AttackRange)
 			.CmpGtConst(Flag, r0, 0)

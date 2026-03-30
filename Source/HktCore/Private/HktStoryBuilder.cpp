@@ -175,30 +175,50 @@ FHktStoryBuilder& FHktStoryBuilder::EndPrecondition()
 }
 
 // ============================================================================
-// 정수 키 라벨 — 자동 생성 라벨 전용 (힙할당 없음)
+// 정수 키 라벨 — 동적 라벨 전용 (힙할당 없음, FName 파싱 이슈 없음)
 // ============================================================================
 
-void FHktStoryBuilder::IntLabel(int32 Key)
+int32 FHktStoryBuilder::AllocLabel()
 {
-    ActiveSection->IntLabels.Add(Key, ActiveSection->Code.Num());
+    return MakeLabelKey(LT_Internal, InternalLabelCounter++, 0);
 }
 
-void FHktStoryBuilder::IntJump(int32 Key)
+int32 FHktStoryBuilder::ResolveLabel(const FString& Name)
+{
+    if (int32* Found = NamedLabelMap.Find(Name))
+    {
+        return *Found;
+    }
+    int32 Key = AllocLabel();
+    NamedLabelMap.Add(Name, Key);
+    return Key;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::Label(int32 Key)
+{
+    ActiveSection->IntLabels.Add(Key, ActiveSection->Code.Num());
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::Jump(int32 Key)
 {
     ActiveSection->IntFixups.Add({ActiveSection->Code.Num(), Key});
     Emit(FInstruction::MakeImm(EOpCode::Jump, 0, 0));
+    return *this;
 }
 
-void FHktStoryBuilder::IntJumpIf(RegisterIndex Cond, int32 Key)
+FHktStoryBuilder& FHktStoryBuilder::JumpIf(RegisterIndex Cond, int32 Key)
 {
     ActiveSection->IntFixups.Add({ActiveSection->Code.Num(), Key});
     Emit(FInstruction::Make(EOpCode::JumpIf, 0, Cond, 0, 0));
+    return *this;
 }
 
-void FHktStoryBuilder::IntJumpIfNot(RegisterIndex Cond, int32 Key)
+FHktStoryBuilder& FHktStoryBuilder::JumpIfNot(RegisterIndex Cond, int32 Key)
 {
     ActiveSection->IntFixups.Add({ActiveSection->Code.Num(), Key});
     Emit(FInstruction::Make(EOpCode::JumpIfNot, 0, Cond, 0, 0));
+    return *this;
 }
 
 // ============================================================================
@@ -209,7 +229,7 @@ FHktStoryBuilder& FHktStoryBuilder::If(RegisterIndex Cond)
 {
     const int32 Id = IfCounter++;
     IfStack.Push({Id, false});
-    IntJumpIfNot(Cond, MakeLabelKey(LT_If, Id, 0));   // → false branch
+    JumpIfNot(Cond, MakeLabelKey(LT_If, Id, 0));   // → false branch
     return *this;
 }
 
@@ -217,7 +237,7 @@ FHktStoryBuilder& FHktStoryBuilder::IfNot(RegisterIndex Cond)
 {
     const int32 Id = IfCounter++;
     IfStack.Push({Id, false});
-    IntJumpIf(Cond, MakeLabelKey(LT_If, Id, 0));      // → false branch
+    JumpIf(Cond, MakeLabelKey(LT_If, Id, 0));      // → false branch
     return *this;
 }
 
@@ -226,8 +246,8 @@ FHktStoryBuilder& FHktStoryBuilder::Else()
     check(IfStack.Num() > 0);
     FIfContext& Ctx = IfStack.Last();
     check(!Ctx.bHasElse);
-    IntJump(MakeLabelKey(LT_If, Ctx.Id, 1));           // → end
-    IntLabel(MakeLabelKey(LT_If, Ctx.Id, 0));           // false branch starts here
+    Jump(MakeLabelKey(LT_If, Ctx.Id, 1));           // → end
+    Label(MakeLabelKey(LT_If, Ctx.Id, 0));           // false branch starts here
     Ctx.bHasElse = true;
     return *this;
 }
@@ -236,7 +256,7 @@ FHktStoryBuilder& FHktStoryBuilder::EndIf()
 {
     check(IfStack.Num() > 0);
     FIfContext Ctx = IfStack.Pop();
-    IntLabel(Ctx.bHasElse
+    Label(Ctx.bHasElse
         ? MakeLabelKey(LT_If, Ctx.Id, 1)               // end label
         : MakeLabelKey(LT_If, Ctx.Id, 0));              // false label (no else)
     return *this;
@@ -331,9 +351,9 @@ FHktStoryBuilder& FHktStoryBuilder::Repeat(int32 Count)
     const RegisterIndex CounterReg = RegAllocator.Alloc();
 
     LoadConst(CounterReg, 0);
-    IntLabel(MakeLabelKey(LT_Repeat, Id, 0));           // loop
+    Label(MakeLabelKey(LT_Repeat, Id, 0));           // loop
     CmpGeConst(Reg::Flag, CounterReg, Count);
-    IntJumpIf(Reg::Flag, MakeLabelKey(LT_Repeat, Id, 1)); // → end
+    JumpIf(Reg::Flag, MakeLabelKey(LT_Repeat, Id, 1)); // → end
 
     RepeatStack.Push({Id, CounterReg, Count});
     return *this;
@@ -345,8 +365,8 @@ FHktStoryBuilder& FHktStoryBuilder::EndRepeat()
     FRepeatContext Ctx = RepeatStack.Pop();
 
     AddImm(Ctx.CounterReg, Ctx.CounterReg, 1);
-    IntJump(MakeLabelKey(LT_Repeat, Ctx.Id, 0));       // → loop
-    IntLabel(MakeLabelKey(LT_Repeat, Ctx.Id, 1));       // end
+    Jump(MakeLabelKey(LT_Repeat, Ctx.Id, 0));       // → loop
+    Label(MakeLabelKey(LT_Repeat, Ctx.Id, 1));       // end
 
     RegAllocator.Free(Ctx.CounterReg);
     return *this;
@@ -363,13 +383,13 @@ FHktStoryBuilder& FHktStoryBuilder::WaitUntilCountZero(const FGameplayTag& Tag, 
     const int32 LoopKey = MakeLabelKey(LT_Internal, LoopId, 0);
     const int32 DoneKey = MakeLabelKey(LT_Internal, LoopId, 1);
 
-    IntLabel(LoopKey);
+    Label(LoopKey);
     CountByTag(Count, Tag);
     CmpLeConst(Reg::Flag, Count, 0);
-    IntJumpIf(Reg::Flag, DoneKey);
+    JumpIf(Reg::Flag, DoneKey);
     WaitSeconds(PollIntervalSeconds);
-    IntJump(LoopKey);
-    IntLabel(DoneKey);
+    Jump(LoopKey);
+    Label(DoneKey);
 
     return *this;
 }
@@ -706,9 +726,9 @@ FHktStoryBuilder& FHktStoryBuilder::ForEachInRadius(RegisterIndex CenterEntity, 
     ForEachStack.Push({Id});
 
     FindInRadius(CenterEntity, RadiusCm);
-    IntLabel(MakeLabelKey(LT_ForEach, Id, 0));          // loop
+    Label(MakeLabelKey(LT_ForEach, Id, 0));          // loop
     NextFound();
-    IntJumpIfNot(Reg::Flag, MakeLabelKey(LT_ForEach, Id, 1)); // → end
+    JumpIfNot(Reg::Flag, MakeLabelKey(LT_ForEach, Id, 1)); // → end
 
     return *this;
 }
@@ -719,9 +739,9 @@ FHktStoryBuilder& FHktStoryBuilder::ForEachInRadiusEx(RegisterIndex CenterEntity
     ForEachStack.Push({Id});
 
     FindInRadiusEx(CenterEntity, RadiusCm, FilterMask);
-    IntLabel(MakeLabelKey(LT_ForEach, Id, 0));          // loop
+    Label(MakeLabelKey(LT_ForEach, Id, 0));          // loop
     NextFound();
-    IntJumpIfNot(Reg::Flag, MakeLabelKey(LT_ForEach, Id, 1)); // → end
+    JumpIfNot(Reg::Flag, MakeLabelKey(LT_ForEach, Id, 1)); // → end
 
     return *this;
 }
@@ -731,8 +751,8 @@ FHktStoryBuilder& FHktStoryBuilder::EndForEach()
     check(ForEachStack.Num() > 0);
     FForEachContext Ctx = ForEachStack.Pop();
 
-    IntJump(MakeLabelKey(LT_ForEach, Ctx.Id, 0));      // → loop
-    IntLabel(MakeLabelKey(LT_ForEach, Ctx.Id, 1));      // end
+    Jump(MakeLabelKey(LT_ForEach, Ctx.Id, 0));      // → loop
+    Label(MakeLabelKey(LT_ForEach, Ctx.Id, 1));      // end
 
     return *this;
 }
@@ -758,9 +778,9 @@ FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(RegisterIndex Target, RegisterIn
     CmpLt(Reg::Flag, Dmg, Scratch);                          // Flag = (Dmg < 1)
     {
         const int32 Key = MakeLabelKey(LT_Internal, InternalLabelCounter++, 0);
-        IntJumpIfNot(Reg::Flag, Key);
+        JumpIfNot(Reg::Flag, Key);
         Move(Dmg, Scratch);                                   // Dmg = 1
-        IntLabel(Key);
+        Label(Key);
     }
 
     // NewHealth = Health - ActualDmg
@@ -773,9 +793,9 @@ FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(RegisterIndex Target, RegisterIn
         LoadConst(Zero, 0);
         CmpLt(Reg::Flag, Scratch, Zero);                     // Flag = (Scratch < 0)
         const int32 Key = MakeLabelKey(LT_Internal, InternalLabelCounter++, 0);
-        IntJumpIfNot(Reg::Flag, Key);
+        JumpIfNot(Reg::Flag, Key);
         Move(Scratch, Zero);                                  // Scratch = 0
-        IntLabel(Key);
+        Label(Key);
     }
 
     SaveStoreEntity(Target, PropertyId::Health, Scratch);     // Health = NewHealth

@@ -13,7 +13,7 @@
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHktRegAllocator_BasicAllocation,
     "HktCore.RegAllocator.BasicAllocation",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FHktRegAllocator_BasicAllocation::RunTest(const FString& Parameters)
 {
@@ -40,7 +40,7 @@ bool FHktRegAllocator_BasicAllocation::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHktRegAllocator_FreeReuse,
     "HktCore.RegAllocator.FreeReuse",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FHktRegAllocator_FreeReuse::RunTest(const FString& Parameters)
 {
@@ -70,7 +70,7 @@ bool FHktRegAllocator_FreeReuse::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHktRegAllocator_AllocBlock,
     "HktCore.RegAllocator.AllocBlock",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FHktRegAllocator_AllocBlock::RunTest(const FString& Parameters)
 {
@@ -98,7 +98,7 @@ bool FHktRegAllocator_AllocBlock::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHktRegAllocator_AllocBlockSkipFragmented,
     "HktCore.RegAllocator.AllocBlockSkipFragmented",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FHktRegAllocator_AllocBlockSkipFragmented::RunTest(const FString& Parameters)
 {
@@ -125,7 +125,7 @@ bool FHktRegAllocator_AllocBlockSkipFragmented::RunTest(const FString& Parameter
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHktRegAllocator_ScopedRegRAII,
     "HktCore.RegAllocator.ScopedRegRAII",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FHktRegAllocator_ScopedRegRAII::RunTest(const FString& Parameters)
 {
@@ -153,7 +153,7 @@ bool FHktRegAllocator_ScopedRegRAII::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHktRegAllocator_NestedCompositeNoConflict,
     "HktCore.RegAllocator.NestedCompositeNoConflict",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FHktRegAllocator_NestedCompositeNoConflict::RunTest(const FString& Parameters)
 {
@@ -198,7 +198,7 @@ bool FHktRegAllocator_NestedCompositeNoConflict::RunTest(const FString& Paramete
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHktRegAllocator_ScopedRegBlockRAII,
     "HktCore.RegAllocator.ScopedRegBlockRAII",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FHktRegAllocator_ScopedRegBlockRAII::RunTest(const FString& Parameters)
 {
@@ -225,7 +225,7 @@ bool FHktRegAllocator_ScopedRegBlockRAII::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHktRegAllocator_ReserveProtectsCallerRegisters,
     "HktCore.RegAllocator.ReserveProtectsCallerRegisters",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FHktRegAllocator_ReserveProtectsCallerRegisters::RunTest(const FString& Parameters)
 {
@@ -266,7 +266,7 @@ bool FHktRegAllocator_ReserveProtectsCallerRegisters::RunTest(const FString& Par
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHktRegAllocator_ReserveIgnoresSpecialRegisters,
     "HktCore.RegAllocator.ReserveIgnoresSpecialRegisters",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FHktRegAllocator_ReserveIgnoresSpecialRegisters::RunTest(const FString& Parameters)
 {
@@ -288,7 +288,7 @@ bool FHktRegAllocator_ReserveIgnoresSpecialRegisters::RunTest(const FString& Par
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHktRegAllocator_NestedReserveAndAlloc,
     "HktCore.RegAllocator.NestedReserveAndAlloc",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FHktRegAllocator_NestedReserveAndAlloc::RunTest(const FString& Parameters)
 {

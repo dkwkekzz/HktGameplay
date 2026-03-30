@@ -31,6 +31,9 @@ namespace HktStoryItemDrop
 		using namespace Reg;
 
 		auto B = Story(Event_Item_Drop);
+
+		int32 FailLabel = B.AllocLabel();
+
 		FHktScopedReg r0(B);
 		FHktScopedReg r2(B);
 
@@ -44,7 +47,7 @@ namespace HktStoryItemDrop
 			});
 
 		// 소유자 확인
-		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
+		HktSnippetItem::ValidateOwnership(B, Target, FailLabel);
 
 		// Active 상태였으면 캐릭터의 EquipSlot 클리어 + 스탯 차감
 		B.LoadEntityProperty(r0, Target, PropertyId::ItemState)
@@ -68,7 +71,7 @@ namespace HktStoryItemDrop
 			.Log(TEXT("Item dropped"))
 			.Halt()
 
-		.Label(TEXT("fail"))
+		.Label(FailLabel)
 			.Log(TEXT("Item drop failed — precondition violation"))
 			.Fail()
 		.BuildAndRegister();

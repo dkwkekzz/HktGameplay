@@ -182,6 +182,24 @@ public:
     FHktStoryBuilder& JumpIf(RegisterIndex Cond, FName LabelName);
     FHktStoryBuilder& JumpIfNot(RegisterIndex Cond, FName LabelName);
 
+    // ========== 정수 키 라벨 (동적 라벨용 — FName 파싱 이슈 없음) ==========
+
+    /** 고유 정수 라벨 키 할당 — Snippet에서 동적 라벨 충돌 방지에 사용 */
+    int32 AllocLabel();
+
+    /** 문자열 라벨 이름 → int32 키 변환 — 동일 이름은 동일 키 반환 (JSON 파서용) */
+    int32 ResolveLabel(const FString& Name);
+
+    /** 정수 키 라벨 정의 */
+    FHktStoryBuilder& Label(int32 Key);
+
+    /** 정수 키 무조건 점프 */
+    FHktStoryBuilder& Jump(int32 Key);
+
+    /** 정수 키 조건부 점프 */
+    FHktStoryBuilder& JumpIf(RegisterIndex Cond, int32 Key);
+    FHktStoryBuilder& JumpIfNot(RegisterIndex Cond, int32 Key);
+
     /** 다음 프레임까지 대기 */
     FHktStoryBuilder& Yield(int32 Frames = 1);
 
@@ -470,7 +488,7 @@ public:
 
     // ========== Internal Label (Snippet용 고유 라벨 생성) ==========
 
-    /** 고유 내부 라벨 생성 — Snippet 함수에서 라벨 충돌 방지에 사용 (FString→FName 암묵변환) */
+    /** @deprecated AllocLabel() + Label(int32) 사용 권장 */
     FString MakeInternalLabel(const TCHAR* Prefix);
 
     // ========== Build ==========
@@ -489,12 +507,6 @@ private:
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
     static void ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag);
-
-    // 정수 키 라벨 — 자동 생성 라벨 전용 (힙할당 없음)
-    void IntLabel(int32 Key);
-    void IntJump(int32 Key);
-    void IntJumpIf(RegisterIndex Cond, int32 Key);
-    void IntJumpIfNot(RegisterIndex Cond, int32 Key);
 
     // 비교 + If 헬퍼 (18개 public 메서드의 공통 구현)
     FHktStoryBuilder& IfCmp(EOpCode CmpOp, RegisterIndex A, RegisterIndex B);
@@ -535,6 +547,9 @@ private:
     struct FRepeatContext { int32 Id; RegisterIndex CounterReg; int32 Count; };
     TArray<FRepeatContext, TInlineAllocator<4>> RepeatStack;
     int32 RepeatCounter = 0;
+
+    // 문자열 → int32 키 매핑 (JSON 파서용 — 런타임 동적 라벨 해석)
+    TMap<FString, int32> NamedLabelMap;
 };
 
 // ============================================================================

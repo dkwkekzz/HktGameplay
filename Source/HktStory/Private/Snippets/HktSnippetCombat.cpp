@@ -5,7 +5,7 @@
 
 FHktStoryBuilder& HktSnippetCombat::CooldownCheck(
 	FHktStoryBuilder& B,
-	const FString& FailLabel)
+	int32 FailLabel)
 {
 	FHktScopedReg CurFrame(B);
 	FHktScopedReg NextAction(B);
@@ -88,7 +88,7 @@ FHktStoryBuilder& HktSnippetCombat::ResourceGainClamped(
 	FHktScopedReg Amt(B);
 	FHktScopedReg Cmp(B);
 
-	FString NoClampLabel = B.MakeInternalLabel(TEXT("noclamp"));
+	int32 NoClampLabel = B.AllocLabel();
 
 	B.LoadStore(Cur, CurrentProp)
 	 .LoadStore(Max, MaxProp)

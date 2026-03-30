@@ -16,14 +16,16 @@ static constexpr int32 NumEquipSlots = UE_ARRAY_COUNT(EquipSlotProperties);
 FHktStoryBuilder& HktSnippetItem::LoadItemFromSlot(
 	FHktStoryBuilder& B,
 	RegisterIndex DstReg,
-	const FString& FailLabel)
+	int32 FailLabel)
 {
 	FHktRegReserve Guard(B.GetRegAllocator(), {DstReg});
 	FHktScopedReg SlotIdx(B);
 	FHktScopedReg Cmp(B);
 
-	FString P = B.MakeInternalLabel(TEXT("slot"));
-	FString DoneLabel = P + TEXT("_done");
+	int32 DoneLabel = B.AllocLabel();
+	int32 BranchLabels[NumEquipSlots];
+	for (int32 i = 0; i < NumEquipSlots; ++i)
+		BranchLabels[i] = B.AllocLabel();
 
 	// 슬롯 인덱스 로드 (UseSkillParams::EquipSlotIndex = Param1)
 	B.LoadStore(SlotIdx, UseSkillParams::EquipSlotIndex);
@@ -31,16 +33,14 @@ FHktStoryBuilder& HktSnippetItem::LoadItemFromSlot(
 	// 디스패치: 각 슬롯 인덱스에 대해 비교 + 점프
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
-		FString BranchLabel = FString::Printf(TEXT("%s_ld%d"), *P, i);
-		B.LoadConst(Cmp, i).CmpEq(Reg::Flag, SlotIdx, Cmp).JumpIf(Reg::Flag, BranchLabel);
+		B.LoadConst(Cmp, i).CmpEq(Reg::Flag, SlotIdx, Cmp).JumpIf(Reg::Flag, BranchLabels[i]);
 	}
 	B.Jump(FailLabel);
 
 	// 로드 타겟
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
-		FString BranchLabel = FString::Printf(TEXT("%s_ld%d"), *P, i);
-		B.Label(BranchLabel).LoadStore(DstReg, EquipSlotProperties[i]).Jump(DoneLabel);
+		B.Label(BranchLabels[i]).LoadStore(DstReg, EquipSlotProperties[i]).Jump(DoneLabel);
 	}
 
 	B.Label(DoneLabel);
@@ -64,20 +64,20 @@ FHktStoryBuilder& HktSnippetItem::SaveItemToEquipSlot(
 	FHktRegReserve Guard(B.GetRegAllocator(), {SlotIndexReg, ValueReg});
 	FHktScopedReg Cmp(B);
 
-	FString P = B.MakeInternalLabel(TEXT("sslot"));
-	FString DoneLabel = P + TEXT("_done");
+	int32 DoneLabel = B.AllocLabel();
+	int32 BranchLabels[NumEquipSlots];
+	for (int32 i = 0; i < NumEquipSlots; ++i)
+		BranchLabels[i] = B.AllocLabel();
 
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
-		FString BranchLabel = FString::Printf(TEXT("%s_s%d"), *P, i);
-		B.LoadConst(Cmp, i).CmpEq(Reg::Flag, SlotIndexReg, Cmp).JumpIf(Reg::Flag, BranchLabel);
+		B.LoadConst(Cmp, i).CmpEq(Reg::Flag, SlotIndexReg, Cmp).JumpIf(Reg::Flag, BranchLabels[i]);
 	}
 	B.Jump(DoneLabel);
 
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
-		FString BranchLabel = FString::Printf(TEXT("%s_s%d"), *P, i);
-		B.Label(BranchLabel).SaveEntityProperty(Reg::Self, EquipSlotProperties[i], ValueReg).Jump(DoneLabel);
+		B.Label(BranchLabels[i]).SaveEntityProperty(Reg::Self, EquipSlotProperties[i], ValueReg).Jump(DoneLabel);
 	}
 
 	B.Label(DoneLabel);
@@ -92,20 +92,20 @@ FHktStoryBuilder& HktSnippetItem::ClearEquipSlot(
 	FHktRegReserve Guard(B.GetRegAllocator(), {SlotIndexReg});
 	FHktScopedReg Cmp(B);
 
-	FString P = B.MakeInternalLabel(TEXT("cslot"));
-	FString DoneLabel = P + TEXT("_done");
+	int32 DoneLabel = B.AllocLabel();
+	int32 BranchLabels[NumEquipSlots];
+	for (int32 i = 0; i < NumEquipSlots; ++i)
+		BranchLabels[i] = B.AllocLabel();
 
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
-		FString BranchLabel = FString::Printf(TEXT("%s_c%d"), *P, i);
-		B.LoadConst(Cmp, i).CmpEq(Reg::Flag, SlotIndexReg, Cmp).JumpIf(Reg::Flag, BranchLabel);
+		B.LoadConst(Cmp, i).CmpEq(Reg::Flag, SlotIndexReg, Cmp).JumpIf(Reg::Flag, BranchLabels[i]);
 	}
 	B.Jump(DoneLabel);
 
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
-		FString BranchLabel = FString::Printf(TEXT("%s_c%d"), *P, i);
-		B.Label(BranchLabel).SaveConstEntity(Reg::Self, EquipSlotProperties[i], 0).Jump(DoneLabel);
+		B.Label(BranchLabels[i]).SaveConstEntity(Reg::Self, EquipSlotProperties[i], 0).Jump(DoneLabel);
 	}
 
 	B.Label(DoneLabel);
@@ -161,7 +161,7 @@ FHktStoryBuilder& HktSnippetItem::RemoveItemStats(
 FHktStoryBuilder& HktSnippetItem::ValidateOwnership(
 	FHktStoryBuilder& B,
 	RegisterIndex Entity,
-	const FString& FailLabel)
+	int32 FailLabel)
 {
 	FHktRegReserve Guard(B.GetRegAllocator(), {Entity});
 	FHktScopedReg Owner(B);
@@ -177,7 +177,7 @@ FHktStoryBuilder& HktSnippetItem::ValidateItemState(
 	FHktStoryBuilder& B,
 	RegisterIndex Entity,
 	int32 ExpectedState,
-	const FString& FailLabel)
+	int32 FailLabel)
 {
 	FHktRegReserve Guard(B.GetRegAllocator(), {Entity});
 	FHktScopedReg State(B);
@@ -194,30 +194,30 @@ FHktStoryBuilder& HktSnippetItem::ValidateItemState(
 FHktStoryBuilder& HktSnippetItem::FindEmptyEquipSlot(
 	FHktStoryBuilder& B,
 	RegisterIndex DstReg,
-	const FString& FailLabel)
+	int32 FailLabel)
 {
 	FHktRegReserve Guard(B.GetRegAllocator(), {DstReg});
 	FHktScopedReg SlotVal(B);
 	FHktScopedReg Zero(B);
 
-	FString P = B.MakeInternalLabel(TEXT("fslot"));
-	FString FoundLabel = P + TEXT("_found");
+	int32 FoundLabel = B.AllocLabel();
+	int32 BranchLabels[NumEquipSlots];
+	for (int32 i = 0; i < NumEquipSlots; ++i)
+		BranchLabels[i] = B.AllocLabel();
 
 	// EquipSlot0~8 순차 검사: 값이 0이면 빈 슬롯
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
-		FString BranchLabel = FString::Printf(TEXT("%s_f%d"), *P, i);
 		B.LoadStore(SlotVal, EquipSlotProperties[i])
 		 .LoadConst(Zero, 0)
 		 .CmpEq(Reg::Flag, SlotVal, Zero)
-		 .JumpIf(Reg::Flag, BranchLabel);
+		 .JumpIf(Reg::Flag, BranchLabels[i]);
 	}
 	B.Jump(FailLabel);  // 모든 슬롯이 차 있음
 
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
-		FString BranchLabel = FString::Printf(TEXT("%s_f%d"), *P, i);
-		B.Label(BranchLabel)
+		B.Label(BranchLabels[i])
 		 .LoadConst(DstReg, i)
 		 .Jump(FoundLabel);
 	}

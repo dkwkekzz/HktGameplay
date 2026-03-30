@@ -84,6 +84,9 @@ namespace HktStoryCombatUseSkill
 
 		auto B = Story(Event_Combat_UseSkill);
 
+		int32 FailLabel = B.AllocLabel();
+		int32 InnateLabel = B.AllocLabel();
+
 		FHktScopedReg r0(B);       // 범용 임시
 		FHktScopedReg r1(B);       // 범용 임시
 		FHktScopedReg r2(B);       // 아이템 엔티티
@@ -107,7 +110,7 @@ namespace HktStoryCombatUseSkill
 			.Log(TEXT("UseSkill: 스킬 시작"));
 
 		// === 공속 기반 쿨타임 검증 (서버 이중 검증) ===
-		HktSnippetCombat::CooldownCheck(B, TEXT("fail"));
+		HktSnippetCombat::CooldownCheck(B, FailLabel);
 
 		// === NextActionFrame 즉시 잠금 — 동일 프레임 중복 실행 방지 ===
 		// 각 AttackStory가 CooldownUpdateConst로 실제 값을 덮어씀
@@ -120,13 +123,13 @@ namespace HktStoryCombatUseSkill
 			.EndIf();
 
 		// === Param1(슬롯)로 아이템 로드 시도 — 실패 시 innate 경로 ===
-		HktSnippetItem::LoadItemFromSlot(B, r2, TEXT("innate"));
+		HktSnippetItem::LoadItemFromSlot(B, r2, InnateLabel);
 
 		B	// === 아이템 스킬 경로: CP 검증 및 차감 ===
 			.LoadEntityProperty(r3, r2, PropertyId::SkillCPCost)        // r3 = CP 소모량
 			.ReadProperty(r4, PropertyId::CP)                           // r4 = 현재 CP
 			.CmpLt(Flag, r4, r3)                                        // CP < Cost?
-			.JumpIf(Flag, TEXT("innate"))                                // CP 부족 → 본연 스킬로 fallback
+			.JumpIf(Flag, InnateLabel)                                   // CP 부족 → 본연 스킬로 fallback
 
 			// CP 차감
 			.Sub(r4, r4, r3)
@@ -194,12 +197,12 @@ namespace HktStoryCombatUseSkill
 
 		// === 본연 스킬 경로 (아이템 없음 → BasicAttack) ===
 		// 쿨타임 갱신은 BasicAttack Story에서 자체 수행
-		.Label(TEXT("innate"))
+		.Label(InnateLabel)
 			.Log(TEXT("UseSkill: → 본연 스킬 (BasicAttack)"))
 			.DispatchEvent(Story_BasicAttack)
 			.Halt()
 
-		.Label(TEXT("fail"))
+		.Label(FailLabel)
 			.Log(TEXT("UseSkill: 사전조건 위반 — 실패"))
 			.Fail()
 		.BuildAndRegister();

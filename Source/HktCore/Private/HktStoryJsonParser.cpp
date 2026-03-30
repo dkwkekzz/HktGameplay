@@ -422,16 +422,16 @@ void FHktStoryJsonParser::InitializeCoreCommands()
 	// ======================== Control Flow ========================
 
 	RegisterCommand(TEXT("Label"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-		B.Label(A.GetString(TEXT("name")));
+		B.Label(B.ResolveLabel(A.GetString(TEXT("name"))));
 	});
 	RegisterCommand(TEXT("Jump"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-		B.Jump(A.GetString(TEXT("label")));
+		B.Jump(B.ResolveLabel(A.GetString(TEXT("label"))));
 	});
 	RegisterCommand(TEXT("JumpIf"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-		B.JumpIf(A.GetReg(TEXT("cond")), A.GetString(TEXT("label")));
+		B.JumpIf(A.GetReg(TEXT("cond")), B.ResolveLabel(A.GetString(TEXT("label"))));
 	});
 	RegisterCommand(TEXT("JumpIfNot"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-		B.JumpIfNot(A.GetReg(TEXT("cond")), A.GetString(TEXT("label")));
+		B.JumpIfNot(A.GetReg(TEXT("cond")), B.ResolveLabel(A.GetString(TEXT("label"))));
 	});
 	RegisterCommand(TEXT("Yield"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 		B.Yield(A.GetIntOpt(TEXT("frames"), 1));

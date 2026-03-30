@@ -13,7 +13,7 @@
 // PreFrame 스냅샷 — UndoDiff OldValue 조회 (3-Tier 대응)
 // ============================================================================
 
-struct FHktVMWorldStateProxy
+struct HKTCORE_API FHktVMWorldStateProxy
 {
     TArray<FHktVFXEvent> PendingVFXEvents;
     TArray<FHktAnimEvent> PendingAnimEvents;

@@ -38,6 +38,8 @@ namespace HktStoryItemActivate
 
 		auto B = Story(Event_Item_Activate);
 
+		int32 FailLabel = B.AllocLabel();
+
 		FHktScopedReg r2(B);       // EquipIndex
 		FHktScopedReg r4(B);       // ItemState 로드
 		FHktScopedReg r6(B);       // 비교 결과
@@ -54,10 +56,10 @@ namespace HktStoryItemActivate
 			});
 
 		// InBag 상태 확인
-		HktSnippetItem::ValidateItemState(B, Target, 1, TEXT("fail"));
+		HktSnippetItem::ValidateItemState(B, Target, 1, FailLabel);
 
 		// 소유자 확인
-		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
+		HktSnippetItem::ValidateOwnership(B, Target, FailLabel);
 
 		B	// 요청된 EquipIndex 로드
 			.ReadProperty(r2, ItemActivateParams::EquipIndex)               // r2 = EquipIndex from event
@@ -95,7 +97,7 @@ namespace HktStoryItemActivate
 		B	.Log(TEXT("Item activated"))
 			.Halt()
 
-		.Label(TEXT("fail"))
+		.Label(FailLabel)
 			.Log(TEXT("Item activate failed — precondition violation"))
 			.Fail()
 		.BuildAndRegister();

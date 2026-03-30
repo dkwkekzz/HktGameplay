@@ -40,8 +40,8 @@ FHktStoryBuilder& HktSnippetNPC::SetupNPCStats(
 
 FHktStoryBuilder& HktSnippetNPC::SpawnerLoopBegin(
 	FHktStoryBuilder& B,
-	const FString& LoopLabel,
-	const FString& WaitLabel,
+	int32 LoopLabel,
+	int32 WaitLabel,
 	const FGameplayTag& CountTag,
 	int32 Cap)
 {
@@ -61,8 +61,8 @@ FHktStoryBuilder& HktSnippetNPC::SpawnerLoopBegin(
 
 FHktStoryBuilder& HktSnippetNPC::SpawnerLoopEnd(
 	FHktStoryBuilder& B,
-	const FString& LoopLabel,
-	const FString& WaitLabel,
+	int32 LoopLabel,
+	int32 WaitLabel,
 	float IntervalSeconds)
 {
 	B.Label(WaitLabel)

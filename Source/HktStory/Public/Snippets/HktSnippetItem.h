@@ -20,7 +20,7 @@ namespace HktSnippetItem
 	HKTSTORY_API FHktStoryBuilder& LoadItemFromSlot(
 		FHktStoryBuilder& B,
 		RegisterIndex DstReg,
-		const FString& FailLabel);
+		int32 FailLabel);
 
 	/**
 	 * Self의 EquipSlot[SlotIndexReg]에 ValueReg 저장
@@ -62,7 +62,7 @@ namespace HktSnippetItem
 	HKTSTORY_API FHktStoryBuilder& ValidateOwnership(
 		FHktStoryBuilder& B,
 		RegisterIndex Entity,
-		const FString& FailLabel);
+		int32 FailLabel);
 
 	/**
 	 * 아이템 상태 검증: Entity의 ItemState == ExpectedState
@@ -74,7 +74,7 @@ namespace HktSnippetItem
 		FHktStoryBuilder& B,
 		RegisterIndex Entity,
 		int32 ExpectedState,
-		const FString& FailLabel);
+		int32 FailLabel);
 
 	/**
 	 * Self의 EquipSlot0~8에서 빈 슬롯(값==0)을 찾아 DstReg에 슬롯 인덱스를 저장.
@@ -83,7 +83,7 @@ namespace HktSnippetItem
 	HKTSTORY_API FHktStoryBuilder& FindEmptyEquipSlot(
 		FHktStoryBuilder& B,
 		RegisterIndex DstReg,
-		const FString& FailLabel);
+		int32 FailLabel);
 
 	// ================================================================
 	// 고수준 아이템 명령어
