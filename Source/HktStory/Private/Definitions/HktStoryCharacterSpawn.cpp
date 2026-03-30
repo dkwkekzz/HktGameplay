@@ -39,18 +39,18 @@ namespace HktStoryCharacterSpawn
 	{
 		using namespace Reg;
 
-		Story(Story_CharacterSpawn)
-			.Log(TEXT("CharacterSpawn: 캐릭터 생성"))
+		auto B = Story(Story_CharacterSpawn);
+		FHktScopedRegBlock pos(B, 3);
+
+		B.Log(TEXT("CharacterSpawn: 캐릭터 생성"))
 
 			// 캐릭터 스폰
 			.SpawnEntity(Entity_Character_Player)
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
 			// 스폰 위치 설정 (IntentEvent에서)
-			.LoadStore(R0, PropertyId::TargetPosX)
-			.LoadStore(R1, PropertyId::TargetPosY)
-			.LoadStore(R2, PropertyId::TargetPosZ)
-			.SetPosition(Self, R0)
+			.LoadStore(pos, PropertyId::TargetPosX)
+			.SetPosition(Self, pos)
 
 			// 스폰 이펙트
 			.PlayVFXAttached(Self, VFX_SpawnEffect)

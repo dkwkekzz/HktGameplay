@@ -32,6 +32,10 @@ namespace HktStoryNPCSpawnerProximity
 		using namespace Reg;
 
 		auto B = Story(Story_Spawner_DungeonEntrance);
+		FHktScopedReg r0(B);
+		FHktScopedReg r1(B);
+		FHktScopedRegBlock pos(B, 3);
+
 		B.Log(TEXT("DungeonEntrance proximity spawner: monitoring"))
 
 			.Label(TEXT("check"))
@@ -45,16 +49,16 @@ namespace HktStoryNPCSpawnerProximity
 				.JumpIfNot(Flag, TEXT("sleep"))
 
 				// 인구 체크
-				.CountByTag(R0, Entity_NPC_Skeleton)
-				.LoadConst(R1, 3)
-				.CmpGe(Flag, R0, R1)
+				.CountByTag(r0, Entity_NPC_Skeleton)
+				.LoadConst(r1, 3)
+				.CmpGe(Flag, r0, r1)
 				.JumpIf(Flag, TEXT("sleep"))
 
 				// 위치 로드
-				.GetPosition(R3, Self);
+				.GetPosition(pos, Self);
 
 		// NPC 생성 + 스탯 설정 + 위치 지정
-		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Skeleton, { 60, 20, 2, 100, 0 }, R3);
+		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Skeleton, { 60, 20, 2, 100, 0 }, pos);
 
 		B
 

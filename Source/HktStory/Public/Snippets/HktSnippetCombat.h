@@ -9,6 +9,7 @@
  * HktSnippetCombat — 전투 관련 Story 패턴 (쿨타임, 자원 회복)
  *
  * 모든 함수는 FHktStoryBuilder&를 받아 반환하여 fluent chaining을 지원한다.
+ * 내부 스크래치 레지스터는 FHktScopedReg로 자동 관리되므로 호출자 레지스터 충돌 없음.
  */
 namespace HktSnippetCombat
 {
@@ -18,8 +19,6 @@ namespace HktSnippetCombat
 	/**
 	 * 쿨타임 검증 (공속 기반)
 	 * GetWorldTime → NextActionFrame 비교 → FailLabel 점프
-	 *
-	 * Clobbers: R0, R1, Flag
 	 */
 	HKTSTORY_API FHktStoryBuilder& CooldownCheck(
 		FHktStoryBuilder& B,
@@ -29,8 +28,6 @@ namespace HktSnippetCombat
 	 * 쿨타임 갱신 (상수 RecoveryFrame) + 모션별 애니메이션 속도 산출
 	 * NextActionFrame = CurrentFrame + (RecoveryFrame * 100 / AttackSpeed)
 	 * MotionPlayRate  = ReferenceRecovery * AttackSpeed / RecoveryFrame
-	 *
-	 * Clobbers: R0, R1, R2
 	 */
 	HKTSTORY_API FHktStoryBuilder& CooldownUpdateConst(
 		FHktStoryBuilder& B,
@@ -41,7 +38,6 @@ namespace HktSnippetCombat
 	 * NextActionFrame = CurrentFrame + (ItemEntity.RecoveryFrame * 100 / AttackSpeed)
 	 * MotionPlayRate  = ReferenceRecovery * AttackSpeed / ItemEntity.RecoveryFrame
 	 *
-	 * Clobbers: R0, R1, R3
 	 * @param ItemEntity 레지스터 — RecoveryFrame을 읽을 아이템 엔티티
 	 */
 	HKTSTORY_API FHktStoryBuilder& CooldownUpdateFromEntity(
@@ -51,8 +47,6 @@ namespace HktSnippetCombat
 	/**
 	 * 자원 회복 + Max 클램프
 	 * CurrentProp += Amount, MaxProp 초과 시 클램프
-	 *
-	 * Clobbers: R0, R1, R2, R3
 	 */
 	HKTSTORY_API FHktStoryBuilder& ResourceGainClamped(
 		FHktStoryBuilder& B,

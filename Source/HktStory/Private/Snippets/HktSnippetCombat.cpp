@@ -7,12 +7,13 @@ FHktStoryBuilder& HktSnippetCombat::CooldownCheck(
 	FHktStoryBuilder& B,
 	const FString& FailLabel)
 {
-	using namespace Reg;
+	FHktScopedReg CurFrame(B);
+	FHktScopedReg NextAction(B);
 
-	B.GetWorldTime(R0)                                       // R0 = 현재 프레임
-	 .LoadStore(R1, PropertyId::NextActionFrame)             // R1 = NextActionFrame
-	 .CmpLt(Flag, R0, R1)                                    // 현재 < NextActionFrame?
-	 .JumpIf(Flag, FailLabel);                               // 아직 쿨타임 중이면 실패
+	B.GetWorldTime(CurFrame)
+	 .LoadStore(NextAction, PropertyId::NextActionFrame)
+	 .CmpLt(Reg::Flag, CurFrame, NextAction)
+	 .JumpIf(Reg::Flag, FailLabel);
 
 	return B;
 }
@@ -21,26 +22,27 @@ FHktStoryBuilder& HktSnippetCombat::CooldownUpdateConst(
 	FHktStoryBuilder& B,
 	int32 RecoveryFrame)
 {
-	using namespace Reg;
+	FHktScopedReg A(B);
+	FHktScopedReg C(B);
+	FHktScopedReg D(B);
 
 	// NextActionFrame = 현재프레임 + (RecoveryFrame * 100 / AttackSpeed)
-	B.GetWorldTime(R0)                                       // R0 = 현재 프레임
-	 .LoadConst(R1, RecoveryFrame)                           // R1 = 기본 후딜레이
-	 .LoadConst(R2, 100)                                     // R2 = 100 (스케일 상수)
-	 .Mul(R1, R1, R2)                                        // R1 = RecoveryFrame * 100
-	 .LoadStore(R2, PropertyId::AttackSpeed)                 // R2 = AttackSpeed
-	 .Div(R1, R1, R2)                                        // R1 = RecoveryFrame * 100 / AttackSpeed
-	 .Add(R0, R0, R1)                                        // R0 = 현재프레임 + 딜레이
-	 .SaveStore(PropertyId::NextActionFrame, R0);            // NextActionFrame 저장
+	B.GetWorldTime(A)
+	 .LoadConst(C, RecoveryFrame)
+	 .LoadConst(D, 100)
+	 .Mul(C, C, D)
+	 .LoadStore(D, PropertyId::AttackSpeed)
+	 .Div(C, C, D)
+	 .Add(A, A, C)
+	 .SaveStore(PropertyId::NextActionFrame, A);
 
 	// MotionPlayRate = ReferenceRecovery * AttackSpeed / RecoveryFrame
-	// 공격 모션마다 다른 애니메이션 재생 속도를 산출
-	B.LoadConst(R0, ReferenceRecovery)                       // R0 = 기준 후딜레이 (30)
-	 .LoadStore(R1, PropertyId::AttackSpeed)                 // R1 = AttackSpeed
-	 .Mul(R0, R0, R1)                                        // R0 = ReferenceRecovery * AttackSpeed
-	 .LoadConst(R1, RecoveryFrame)                           // R1 = 이 공격의 후딜레이
-	 .Div(R0, R0, R1)                                        // R0 = 모션별 재생 속도
-	 .SaveStore(PropertyId::MotionPlayRate, R0);             // 저장
+	B.LoadConst(A, ReferenceRecovery)
+	 .LoadStore(C, PropertyId::AttackSpeed)
+	 .Mul(A, A, C)
+	 .LoadConst(C, RecoveryFrame)
+	 .Div(A, A, C)
+	 .SaveStore(PropertyId::MotionPlayRate, A);
 
 	return B;
 }
@@ -49,25 +51,28 @@ FHktStoryBuilder& HktSnippetCombat::CooldownUpdateFromEntity(
 	FHktStoryBuilder& B,
 	RegisterIndex ItemEntity)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {ItemEntity});
+	FHktScopedReg A(B);
+	FHktScopedReg C(B);
+	FHktScopedReg D(B);
 
 	// NextActionFrame = 현재프레임 + (Item.RecoveryFrame * 100 / AttackSpeed)
-	B.GetWorldTime(R0)                                                   // R0 = 현재 프레임
-	 .LoadEntityProperty(R1, ItemEntity, PropertyId::RecoveryFrame)      // R1 = 아이템의 기본 후딜레이
-	 .LoadConst(R3, 100)
-	 .Mul(R1, R1, R3)                                                    // R1 = RecoveryFrame * 100
-	 .LoadStore(R3, PropertyId::AttackSpeed)                             // R3 = AttackSpeed
-	 .Div(R1, R1, R3)                                                    // R1 = delay (프레임 수)
-	 .Add(R0, R0, R1)                                                    // R0 = 현재프레임 + delay
-	 .SaveStore(PropertyId::NextActionFrame, R0);
+	B.GetWorldTime(A)
+	 .LoadEntityProperty(C, ItemEntity, PropertyId::RecoveryFrame)
+	 .LoadConst(D, 100)
+	 .Mul(C, C, D)
+	 .LoadStore(D, PropertyId::AttackSpeed)
+	 .Div(C, C, D)
+	 .Add(A, A, C)
+	 .SaveStore(PropertyId::NextActionFrame, A);
 
 	// MotionPlayRate = ReferenceRecovery * AttackSpeed / Item.RecoveryFrame
-	B.LoadConst(R0, ReferenceRecovery)                                   // R0 = 기준 후딜레이 (30)
-	 .LoadStore(R1, PropertyId::AttackSpeed)                             // R1 = AttackSpeed
-	 .Mul(R0, R0, R1)                                                    // R0 = ReferenceRecovery * AttackSpeed
-	 .LoadEntityProperty(R1, ItemEntity, PropertyId::RecoveryFrame)      // R1 = 아이템의 후딜레이
-	 .Div(R0, R0, R1)                                                    // R0 = 모션별 재생 속도
-	 .SaveStore(PropertyId::MotionPlayRate, R0);                         // 저장
+	B.LoadConst(A, ReferenceRecovery)
+	 .LoadStore(C, PropertyId::AttackSpeed)
+	 .Mul(A, A, C)
+	 .LoadEntityProperty(C, ItemEntity, PropertyId::RecoveryFrame)
+	 .Div(A, A, C)
+	 .SaveStore(PropertyId::MotionPlayRate, A);
 
 	return B;
 }
@@ -78,19 +83,22 @@ FHktStoryBuilder& HktSnippetCombat::ResourceGainClamped(
 	uint16 MaxProp,
 	int32 Amount)
 {
-	using namespace Reg;
+	FHktScopedReg Cur(B);
+	FHktScopedReg Max(B);
+	FHktScopedReg Amt(B);
+	FHktScopedReg Cmp(B);
 
 	FString NoClampLabel = B.MakeInternalLabel(TEXT("noclamp"));
 
-	B.LoadStore(R0, CurrentProp)                             // R0 = 현재 값
-	 .LoadStore(R1, MaxProp)                                 // R1 = 최대 값
-	 .LoadConst(R2, Amount)                                  // R2 = 회복량
-	 .Add(R0, R0, R2)                                        // R0 = 현재 + 회복량
-	 .CmpGt(R3, R0, R1)                                      // 초과?
-	 .JumpIfNot(R3, NoClampLabel)
-	 .Move(R0, R1)                                           // Max로 제한
+	B.LoadStore(Cur, CurrentProp)
+	 .LoadStore(Max, MaxProp)
+	 .LoadConst(Amt, Amount)
+	 .Add(Cur, Cur, Amt)
+	 .CmpGt(Cmp, Cur, Max)
+	 .JumpIfNot(Cmp, NoClampLabel)
+	 .Move(Cur, Max)
 	 .Label(NoClampLabel)
-	 .SaveStore(CurrentProp, R0);                            // 저장
+	 .SaveStore(CurrentProp, Cur);
 
 	return B;
 }

@@ -31,6 +31,10 @@ namespace HktStoryItemDrop
 		using namespace Reg;
 
 		auto B = Story(Event_Item_Drop);
+		FHktScopedReg r0(B);
+		FHktScopedReg r1(B);
+		FHktScopedReg r2(B);
+
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity) || !WS.IsValidEntity(E.TargetEntity))
@@ -44,14 +48,14 @@ namespace HktStoryItemDrop
 		HktSnippetItem::ValidateOwnership(B, Target, TEXT("fail"));
 
 		// Active 상태였으면 캐릭터의 EquipSlot 클리어 + 스탯 차감
-		B.LoadEntityProperty(R0, Target, PropertyId::ItemState)
-		 .LoadConst(R1, 2)                                                 // Active = 2
-		 .CmpNe(Flag, R0, R1)
+		B.LoadEntityProperty(r0, Target, PropertyId::ItemState)
+		 .LoadConst(r1, 2)                                                 // Active = 2
+		 .CmpNe(Flag, r0, r1)
 		 .JumpIf(Flag, TEXT("drop_exec"));
 
 		// EquipIndex 보존 → 캐릭터의 EquipSlot[N] 클리어
-		B.LoadEntityProperty(R2, Target, PropertyId::EquipIndex);
-		HktSnippetItem::ClearEquipSlot(B, R2);
+		B.LoadEntityProperty(r2, Target, PropertyId::EquipIndex);
+		HktSnippetItem::ClearEquipSlot(B, r2);
 
 		// Active 아이템 스탯 차감
 		HktSnippetItem::RemoveItemStats(B, Target, Self);

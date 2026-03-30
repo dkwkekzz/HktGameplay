@@ -10,6 +10,7 @@
  * HktSnippetNPC — NPC 스폰 관련 Story 패턴
  *
  * 모든 함수는 FHktStoryBuilder&를 받아 반환하여 fluent chaining을 지원한다.
+ * 내부 스크래치 레지스터는 FHktScopedReg로 자동 관리되므로 호출자 레지스터 충돌 없음.
  */
 namespace HktSnippetNPC
 {
@@ -28,7 +29,6 @@ namespace HktSnippetNPC
 	 * IsNPC, Health, MaxHealth, AttackPower, Defense, (MaxSpeed), Team 설정
 	 * Entity_NPC, SpecificTag, Tag_NPC_Hostile 태그 부여
 	 *
-	 * Clobbers: Temp (SaveConstEntity 내부)
 	 * @param SpecificTag 예: Entity_NPC_Goblin
 	 */
 	HKTSTORY_API FHktStoryBuilder& SetupNPCStats(
@@ -40,8 +40,6 @@ namespace HktSnippetNPC
 	 * 주기적 스포너 루프 시작부
 	 * Label(LoopLabel) → HasPlayerInGroup → CountByTag → cap 초과 시 WaitLabel 점프
 	 * 이 함수 이후에 스폰 로직을 배치한다.
-	 *
-	 * Clobbers: R0, R1, Flag
 	 */
 	HKTSTORY_API FHktStoryBuilder& SpawnerLoopBegin(
 		FHktStoryBuilder& B,
@@ -65,7 +63,6 @@ namespace HktSnippetNPC
 	 * SpawnEntity → SetupNPCStats → SetPosition.
 	 * Spawned 레지스터에 새 NPC 엔티티가 저장된다.
 	 *
-	 * Clobbers: Temp (SetupNPCStats 내부)
 	 * @param PosBaseReg 위치 레지스터 베이스 (3개 연속: X, X+1, X+2)
 	 */
 	HKTSTORY_API FHktStoryBuilder& SpawnNPCAtPosition(

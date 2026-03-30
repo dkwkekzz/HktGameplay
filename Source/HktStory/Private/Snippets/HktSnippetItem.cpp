@@ -18,21 +18,23 @@ FHktStoryBuilder& HktSnippetItem::LoadItemFromSlot(
 	RegisterIndex DstReg,
 	const FString& FailLabel)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {DstReg});
+	FHktScopedReg SlotIdx(B);
+	FHktScopedReg Cmp(B);
 
 	FString P = B.MakeInternalLabel(TEXT("slot"));
 	FString DoneLabel = P + TEXT("_done");
 
 	// 슬롯 인덱스 로드 (UseSkillParams::EquipSlotIndex = Param1)
-	B.LoadStore(R0, UseSkillParams::EquipSlotIndex);                        // R0 = 슬롯 인덱스
+	B.LoadStore(SlotIdx, UseSkillParams::EquipSlotIndex);
 
 	// 디스패치: 각 슬롯 인덱스에 대해 비교 + 점프
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_ld%d"), *P, i);
-		B.LoadConst(R1, i).CmpEq(Flag, R0, R1).JumpIf(Flag, BranchLabel);
+		B.LoadConst(Cmp, i).CmpEq(Reg::Flag, SlotIdx, Cmp).JumpIf(Reg::Flag, BranchLabel);
 	}
-	B.Jump(FailLabel);                                                      // 유효하지 않은 슬롯
+	B.Jump(FailLabel);
 
 	// 로드 타겟
 	for (int32 i = 0; i < NumEquipSlots; ++i)
@@ -44,9 +46,12 @@ FHktStoryBuilder& HktSnippetItem::LoadItemFromSlot(
 	B.Label(DoneLabel);
 
 	// 유효성 검증: 아이템 엔티티 != 0
-	B.LoadConst(R3, 0)
-	 .CmpEq(Flag, DstReg, R3)
-	 .JumpIf(Flag, FailLabel);
+	{
+		FHktScopedReg Zero(B);
+		B.LoadConst(Zero, 0)
+		 .CmpEq(Reg::Flag, DstReg, Zero)
+		 .JumpIf(Reg::Flag, FailLabel);
+	}
 
 	return B;
 }
@@ -56,7 +61,8 @@ FHktStoryBuilder& HktSnippetItem::SaveItemToEquipSlot(
 	RegisterIndex SlotIndexReg,
 	RegisterIndex ValueReg)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {SlotIndexReg, ValueReg});
+	FHktScopedReg Cmp(B);
 
 	FString P = B.MakeInternalLabel(TEXT("sslot"));
 	FString DoneLabel = P + TEXT("_done");
@@ -64,14 +70,14 @@ FHktStoryBuilder& HktSnippetItem::SaveItemToEquipSlot(
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_s%d"), *P, i);
-		B.LoadConst(R4, i).CmpEq(Flag, SlotIndexReg, R4).JumpIf(Flag, BranchLabel);
+		B.LoadConst(Cmp, i).CmpEq(Reg::Flag, SlotIndexReg, Cmp).JumpIf(Reg::Flag, BranchLabel);
 	}
 	B.Jump(DoneLabel);
 
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_s%d"), *P, i);
-		B.Label(BranchLabel).SaveEntityProperty(Self, EquipSlotProperties[i], ValueReg).Jump(DoneLabel);
+		B.Label(BranchLabel).SaveEntityProperty(Reg::Self, EquipSlotProperties[i], ValueReg).Jump(DoneLabel);
 	}
 
 	B.Label(DoneLabel);
@@ -83,7 +89,8 @@ FHktStoryBuilder& HktSnippetItem::ClearEquipSlot(
 	FHktStoryBuilder& B,
 	RegisterIndex SlotIndexReg)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {SlotIndexReg});
+	FHktScopedReg Cmp(B);
 
 	FString P = B.MakeInternalLabel(TEXT("cslot"));
 	FString DoneLabel = P + TEXT("_done");
@@ -91,14 +98,14 @@ FHktStoryBuilder& HktSnippetItem::ClearEquipSlot(
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_c%d"), *P, i);
-		B.LoadConst(R3, i).CmpEq(Flag, SlotIndexReg, R3).JumpIf(Flag, BranchLabel);
+		B.LoadConst(Cmp, i).CmpEq(Reg::Flag, SlotIndexReg, Cmp).JumpIf(Reg::Flag, BranchLabel);
 	}
 	B.Jump(DoneLabel);
 
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_c%d"), *P, i);
-		B.Label(BranchLabel).SaveConstEntity(Self, EquipSlotProperties[i], 0).Jump(DoneLabel);
+		B.Label(BranchLabel).SaveConstEntity(Reg::Self, EquipSlotProperties[i], 0).Jump(DoneLabel);
 	}
 
 	B.Label(DoneLabel);
@@ -111,19 +118,21 @@ FHktStoryBuilder& HktSnippetItem::ApplyItemStats(
 	RegisterIndex ItemEntity,
 	RegisterIndex CharEntity)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {ItemEntity, CharEntity});
+	FHktScopedReg ItemVal(B);
+	FHktScopedReg CharVal(B);
 
-	B.LoadEntityProperty(R3, ItemEntity, PropertyId::AttackPower)
-	 .LoadEntityProperty(R4, CharEntity, PropertyId::AttackPower)
-	 .Add(R4, R4, R3)
-	 .SaveEntityProperty(CharEntity, PropertyId::AttackPower, R4)
-	 .LoadEntityProperty(R3, ItemEntity, PropertyId::Defense)
-	 .LoadEntityProperty(R4, CharEntity, PropertyId::Defense)
-	 .Add(R4, R4, R3)
-	 .SaveEntityProperty(CharEntity, PropertyId::Defense, R4)
+	B.LoadEntityProperty(ItemVal, ItemEntity, PropertyId::AttackPower)
+	 .LoadEntityProperty(CharVal, CharEntity, PropertyId::AttackPower)
+	 .Add(CharVal, CharVal, ItemVal)
+	 .SaveEntityProperty(CharEntity, PropertyId::AttackPower, CharVal)
+	 .LoadEntityProperty(ItemVal, ItemEntity, PropertyId::Defense)
+	 .LoadEntityProperty(CharVal, CharEntity, PropertyId::Defense)
+	 .Add(CharVal, CharVal, ItemVal)
+	 .SaveEntityProperty(CharEntity, PropertyId::Defense, CharVal)
 	 // Stance: 아이템의 Stance를 캐릭터에 적용
-	 .LoadEntityProperty(R3, ItemEntity, PropertyId::Stance)
-	 .SaveEntityProperty(CharEntity, PropertyId::Stance, R3);
+	 .LoadEntityProperty(ItemVal, ItemEntity, PropertyId::Stance)
+	 .SaveEntityProperty(CharEntity, PropertyId::Stance, ItemVal);
 
 	return B;
 }
@@ -133,16 +142,18 @@ FHktStoryBuilder& HktSnippetItem::RemoveItemStats(
 	RegisterIndex ItemEntity,
 	RegisterIndex CharEntity)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {ItemEntity, CharEntity});
+	FHktScopedReg ItemVal(B);
+	FHktScopedReg CharVal(B);
 
-	B.LoadEntityProperty(R0, ItemEntity, PropertyId::AttackPower)
-	 .LoadEntityProperty(R1, CharEntity, PropertyId::AttackPower)
-	 .Sub(R1, R1, R0)
-	 .SaveEntityProperty(CharEntity, PropertyId::AttackPower, R1)
-	 .LoadEntityProperty(R0, ItemEntity, PropertyId::Defense)
-	 .LoadEntityProperty(R1, CharEntity, PropertyId::Defense)
-	 .Sub(R1, R1, R0)
-	 .SaveEntityProperty(CharEntity, PropertyId::Defense, R1);
+	B.LoadEntityProperty(ItemVal, ItemEntity, PropertyId::AttackPower)
+	 .LoadEntityProperty(CharVal, CharEntity, PropertyId::AttackPower)
+	 .Sub(CharVal, CharVal, ItemVal)
+	 .SaveEntityProperty(CharEntity, PropertyId::AttackPower, CharVal)
+	 .LoadEntityProperty(ItemVal, ItemEntity, PropertyId::Defense)
+	 .LoadEntityProperty(CharVal, CharEntity, PropertyId::Defense)
+	 .Sub(CharVal, CharVal, ItemVal)
+	 .SaveEntityProperty(CharEntity, PropertyId::Defense, CharVal);
 
 	return B;
 }
@@ -152,11 +163,12 @@ FHktStoryBuilder& HktSnippetItem::ValidateOwnership(
 	RegisterIndex Entity,
 	const FString& FailLabel)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {Entity});
+	FHktScopedReg Owner(B);
 
-	B.LoadEntityProperty(R0, Entity, PropertyId::OwnerEntity)
-	 .CmpNe(Flag, R0, Self)
-	 .JumpIf(Flag, FailLabel);
+	B.LoadEntityProperty(Owner, Entity, PropertyId::OwnerEntity)
+	 .CmpNe(Reg::Flag, Owner, Reg::Self)
+	 .JumpIf(Reg::Flag, FailLabel);
 
 	return B;
 }
@@ -167,12 +179,14 @@ FHktStoryBuilder& HktSnippetItem::ValidateItemState(
 	int32 ExpectedState,
 	const FString& FailLabel)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {Entity});
+	FHktScopedReg State(B);
+	FHktScopedReg Expected(B);
 
-	B.LoadEntityProperty(R0, Entity, PropertyId::ItemState)
-	 .LoadConst(R1, ExpectedState)
-	 .CmpNe(Flag, R0, R1)
-	 .JumpIf(Flag, FailLabel);
+	B.LoadEntityProperty(State, Entity, PropertyId::ItemState)
+	 .LoadConst(Expected, ExpectedState)
+	 .CmpNe(Reg::Flag, State, Expected)
+	 .JumpIf(Reg::Flag, FailLabel);
 
 	return B;
 }
@@ -182,7 +196,9 @@ FHktStoryBuilder& HktSnippetItem::FindEmptyEquipSlot(
 	RegisterIndex DstReg,
 	const FString& FailLabel)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {DstReg});
+	FHktScopedReg SlotVal(B);
+	FHktScopedReg Zero(B);
 
 	FString P = B.MakeInternalLabel(TEXT("fslot"));
 	FString FoundLabel = P + TEXT("_found");
@@ -191,10 +207,10 @@ FHktStoryBuilder& HktSnippetItem::FindEmptyEquipSlot(
 	for (int32 i = 0; i < NumEquipSlots; ++i)
 	{
 		FString BranchLabel = FString::Printf(TEXT("%s_f%d"), *P, i);
-		B.LoadStore(R4, EquipSlotProperties[i])
-		 .LoadConst(R5, 0)
-		 .CmpEq(Flag, R4, R5)
-		 .JumpIf(Flag, BranchLabel);
+		B.LoadStore(SlotVal, EquipSlotProperties[i])
+		 .LoadConst(Zero, 0)
+		 .CmpEq(Reg::Flag, SlotVal, Zero)
+		 .JumpIf(Reg::Flag, BranchLabel);
 	}
 	B.Jump(FailLabel);  // 모든 슬롯이 차 있음
 
@@ -244,7 +260,9 @@ FHktStoryBuilder& HktSnippetItem::ActivateInSlot(
 	RegisterIndex SlotIndexReg,
 	RegisterIndex CharEntity)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {ItemEntity, SlotIndexReg, CharEntity});
+	FHktScopedReg SlotCopy(B);
+	FHktScopedReg ItemCopy(B);
 
 	// Active 상태로 전환 + EquipIndex 설정
 	B.Log(TEXT("[Snippet] ActivateInSlot"))
@@ -252,10 +270,9 @@ FHktStoryBuilder& HktSnippetItem::ActivateInSlot(
 	 .SaveEntityProperty(ItemEntity, PropertyId::EquipIndex, SlotIndexReg);
 
 	// 캐릭터의 EquipSlot[N] = 아이템 EntityId
-	// SlotIndexReg을 R5에 백업 후 R3에 아이템 엔티티를 복사하여 충돌 방지
-	B.Move(R5, SlotIndexReg);
-	B.Move(R3, ItemEntity);
-	SaveItemToEquipSlot(B, R5, R3);
+	B.Move(SlotCopy, SlotIndexReg);
+	B.Move(ItemCopy, ItemEntity);
+	SaveItemToEquipSlot(B, SlotCopy, ItemCopy);
 
 	// 아이템 스탯 + Stance를 캐릭터에 적용
 	ApplyItemStats(B, ItemEntity, CharEntity);
@@ -284,7 +301,7 @@ FHktStoryBuilder& HktSnippetItem::DropToGround(
 	RegisterIndex ItemEntity,
 	RegisterIndex PositionSourceEntity)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {ItemEntity, PositionSourceEntity});
 
 	// Ground로 전환
 	B.Log(TEXT("[Snippet] DropToGround"))
@@ -295,8 +312,11 @@ FHktStoryBuilder& HktSnippetItem::DropToGround(
 	ReleaseOwnership(B, ItemEntity);
 
 	// 위치 설정
-	B.GetPosition(R3, PositionSourceEntity)
-	 .SetPosition(ItemEntity, R3);
+	{
+		FHktScopedRegBlock Pos(B, 3);
+		B.GetPosition(Pos, PositionSourceEntity)
+		 .SetPosition(ItemEntity, Pos);
+	}
 
 	return B;
 }
@@ -307,15 +327,19 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItem(
 	const FHktGroundItemTemplate& Template,
 	RegisterIndex PosSourceEntity)
 {
-	using namespace Reg;
+	FHktRegReserve Guard(B.GetRegAllocator(), {PosSourceEntity});
 
 	B.Log(TEXT("[Snippet] SpawnGroundItem"))
 	 .SpawnEntity(ItemClassTag)
-	 .SaveConstEntity(Spawned, PropertyId::ItemState, 0)                 // Ground
-	 .SaveConstEntity(Spawned, PropertyId::ItemId, Template.ItemId)
-	 .SaveConstEntity(Spawned, PropertyId::EquipIndex, -1)               // 미등록
-	 .GetPosition(R3, PosSourceEntity)
-	 .SetPosition(Spawned, R3);
+	 .SaveConstEntity(Reg::Spawned, PropertyId::ItemState, 0)                 // Ground
+	 .SaveConstEntity(Reg::Spawned, PropertyId::ItemId, Template.ItemId)
+	 .SaveConstEntity(Reg::Spawned, PropertyId::EquipIndex, -1);              // 미등록
+
+	{
+		FHktScopedRegBlock Pos(B, 3);
+		B.GetPosition(Pos, PosSourceEntity)
+		 .SetPosition(Reg::Spawned, Pos);
+	}
 
 	return B;
 }
