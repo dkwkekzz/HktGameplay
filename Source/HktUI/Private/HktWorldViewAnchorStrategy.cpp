@@ -3,6 +3,7 @@
 #include "HktWorldViewAnchorStrategy.h"
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/GameViewportClient.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
@@ -75,7 +76,20 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 		return false;
 	}
 
-	// 스크린 공간 오프셋 적용
+	// ProjectWorldLocationToScreen은 뷰포트 픽셀 좌표를 반환하지만,
+	// SConstraintCanvas 슬롯 오프셋은 Slate(DPI 스케일 적용) 좌표를 사용한다.
+	// 전체화면 전환 시 DPI 스케일이 변경되어 좌표가 어긋나는 것을 방지하기 위해
+	// 뷰포트 픽셀 → Slate 좌표로 변환한다.
+	float DPIScale = 1.f;
+	if (UGameViewportClient* ViewportClient = World->GetGameViewport())
+	{
+		DPIScale = ViewportClient->GetDPIScale();
+	}
+	if (DPIScale <= 0.f) DPIScale = 1.f;
+
+	OutScreenPos /= DPIScale;
+
+	// 스크린 공간 오프셋 적용 (Slate 좌표 기준)
 	OutScreenPos += ScreenOffset;
 
 	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한
@@ -83,8 +97,9 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 	PC->GetViewportSize(ViewportX, ViewportY);
 	if (ViewportX <= 0 || ViewportY <= 0) return false;
 
-	const float VX = static_cast<float>(ViewportX);
-	const float VY = static_cast<float>(ViewportY);
+	// 뷰포트 크기도 Slate 좌표로 변환
+	const float VX = static_cast<float>(ViewportX) / DPIScale;
+	const float VY = static_cast<float>(ViewportY) / DPIScale;
 	OutScreenPos.X = FMath::Clamp(OutScreenPos.X, 0.f, VX);
 	OutScreenPos.Y = FMath::Clamp(OutScreenPos.Y, 0.f, VY);
 
