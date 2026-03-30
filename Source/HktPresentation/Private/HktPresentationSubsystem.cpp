@@ -4,6 +4,7 @@
 #include "IHktPlayerInteractionInterface.h"
 #include "HktRuntimeTypes.h"
 #include "Renderers/HktActorRenderer.h"
+#include "Renderers/HktAnimRenderer.h"
 #include "Renderers/HktMassEntityRenderer.h"
 #include "Renderers/HktVFXRenderer.h"
 #if ENABLE_HKT_INSIGHTS
@@ -45,11 +46,13 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	ActorRenderer = MakeShared<FHktActorRenderer>(GetLocalPlayer());
+	AnimRenderer = MakeShared<FHktAnimRenderer>(ActorRenderer.Get());
 	MassEntityRenderer = MakeShared<FHktMassEntityRenderer>(GetLocalPlayer());
 	VFXRenderer = MakeShared<FHktVFXRenderer>(GetLocalPlayer());
 
-	// 내부 렌더러를 Sync 루프에 등록
+	// 내부 렌더러를 Sync 루프에 등록 (순서 중요: ActorRenderer → AnimRenderer)
 	Renderers.Add(ActorRenderer.Get());
+	Renderers.Add(AnimRenderer.Get());
 	Renderers.Add(MassEntityRenderer.Get());
 	Renderers.Add(VFXRenderer.Get());
 
@@ -74,6 +77,7 @@ void UHktPresentationSubsystem::Deinitialize()
 #endif
 	VFXRenderer.Reset();
 	MassEntityRenderer.Reset();
+	AnimRenderer.Reset();
 	ActorRenderer.Reset();
 	State.Clear();
 

@@ -7,6 +7,7 @@
 
 struct FHktEntityPresentation;
 class AActor;
+class IHktAnimHandler;
 
 UINTERFACE()
 class UHktPresentableActor : public UInterface { GENERATED_BODY() };
@@ -20,4 +21,7 @@ public:
 	virtual void ApplyTransform(const FHktEntityPresentation& Entity) = 0;
 	virtual void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
 		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) = 0;
+
+	/** 애니메이션 백엔드 핸들러 반환. AnimRenderer가 tag diff 후 play/stop 위임에 사용. */
+	virtual IHktAnimHandler* GetAnimHandler() { return nullptr; }
 };

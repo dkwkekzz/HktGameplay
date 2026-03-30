@@ -36,6 +36,7 @@ public:
 	virtual void ApplyTransform(const FHktEntityPresentation& Entity) override {}
 	virtual void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
 		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) override;
+	virtual IHktAnimHandler* GetAnimHandler() override;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Unit")

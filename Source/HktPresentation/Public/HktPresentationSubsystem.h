@@ -12,6 +12,7 @@
 
 class IHktPlayerInteractionInterface;
 class FHktActorRenderer;
+class FHktAnimRenderer;
 class FHktMassEntityRenderer;
 class FHktVFXRenderer;
 #if ENABLE_HKT_INSIGHTS
@@ -83,6 +84,7 @@ private:
 
 	/** 렌더러별 전용 API 접근용 (PlayVFX 등). TSharedPtr — 전방선언 호환. */
 	TSharedPtr<FHktActorRenderer> ActorRenderer;
+	TSharedPtr<FHktAnimRenderer> AnimRenderer;
 	TSharedPtr<FHktMassEntityRenderer> MassEntityRenderer;
 	TSharedPtr<FHktVFXRenderer> VFXRenderer;
 #if ENABLE_HKT_INSIGHTS

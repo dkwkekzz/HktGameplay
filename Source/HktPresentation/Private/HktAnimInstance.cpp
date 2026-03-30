@@ -36,33 +36,7 @@ FGameplayTag UHktAnimInstance::ExtractLayerParent(const FGameplayTag& AnimTag)
 	return AnimTag;
 }
 
-void UHktAnimInstance::SyncFromTagContainer(const FGameplayTagContainer& EntityTags)
-{
-	// Entity 태그 중 Anim.* 계열만 필터링
-	FGameplayTagContainer CurrentAnimTags = EntityTags.Filter(FGameplayTagContainer(HktGameplayTags::Anim));
-
-	// 새로 추가된 태그 → 애니메이션 재생
-	for (const FGameplayTag& Tag : CurrentAnimTags)
-	{
-		if (!PrevAnimTags.HasTagExact(Tag))
-		{
-			ApplyAnimTag(Tag);
-		}
-	}
-
-	// 제거된 태그 → 애니메이션 중지
-	for (const FGameplayTag& Tag : PrevAnimTags)
-	{
-		if (!CurrentAnimTags.HasTagExact(Tag))
-		{
-			RemoveAnimTag(Tag);
-		}
-	}
-
-	PrevAnimTags = CurrentAnimTags;
-}
-
-void UHktAnimInstance::ApplyAnimTag(const FGameplayTag& AnimTag)
+void UHktAnimInstance::PlayAnimByTag(const FGameplayTag& AnimTag)
 {
 	if (!AnimTag.IsValid())
 	{
@@ -128,7 +102,7 @@ void UHktAnimInstance::ApplyAnimTag(const FGameplayTag& AnimTag)
 		*LayerParent.ToString(), *AnimTag.ToString(), *GetOwningActor()->GetName()));
 }
 
-void UHktAnimInstance::RemoveAnimTag(const FGameplayTag& AnimTag)
+void UHktAnimInstance::StopAnimByTag(const FGameplayTag& AnimTag)
 {
 	if (!AnimTag.IsValid())
 	{

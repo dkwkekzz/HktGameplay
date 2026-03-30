@@ -34,6 +34,11 @@ UHktAnimInstance* AHktUnitActor::GetAnimInstance()
 	return CachedAnimInstance.Get();
 }
 
+IHktAnimHandler* AHktUnitActor::GetAnimHandler()
+{
+	return GetAnimInstance();
+}
+
 void AHktUnitActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -90,16 +95,5 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	if (bForceAll || Entity.CPRatio.IsDirty(Frame))
 		HktAnim->CPRatio = Entity.CPRatio.Get();
 
-	if (bForceAll || Entity.TagsDirtyFrame == Frame)
-		HktAnim->SyncFromTagContainer(Entity.Tags);
-
-	// 일회성 애니메이션 이벤트 소비 (PlayAnim 경유, 태그 비의존)
-	if (Entity.PendingAnimTriggers.Num() > 0)
-	{
-		for (const FGameplayTag& AnimTag : Entity.PendingAnimTriggers)
-		{
-			HktAnim->ApplyAnimTag(AnimTag);
-		}
-		const_cast<FHktEntityPresentation&>(Entity).PendingAnimTriggers.Reset();
-	}
+	// Anim tag diff + play/stop은 FHktAnimRenderer가 처리
 }

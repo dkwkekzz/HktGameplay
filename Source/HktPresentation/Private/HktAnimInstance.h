@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
 #include "GameplayTagContainer.h"
+#include "IHktAnimHandler.h"
 #include "HktAnimInstance.generated.h"
 
 class UAnimMontage;
@@ -52,7 +53,7 @@ struct FHktAnimMappingEntry
  * 매핑 테이블은 AnimBP 클래스 기본값에서 직접 설정합니다.
  */
 UCLASS()
-class HKTPRESENTATION_API UHktAnimInstance : public UAnimInstance
+class HKTPRESENTATION_API UHktAnimInstance : public UAnimInstance, public IHktAnimHandler
 {
 	GENERATED_BODY()
 
@@ -116,13 +117,6 @@ public:
 	// ========== 제어 API ==========
 
 	/**
-	 * Entity의 TagContainer를 받아 Anim.* 태그 변화를 감지하고 애니메이션을 갱신.
-	 * 새로 추가된 Anim 태그 → 해당 애니메이션 재생
-	 * 제거된 Anim 태그 → 해당 애니메이션 중지
-	 */
-	void SyncFromTagContainer(const FGameplayTagContainer& EntityTags);
-
-	/**
 	 * Stance 변경 시 AnimBP 레이어를 교체.
 	 * StanceAnimClassMap에서 해당 Stance Tag의 AnimClass를 찾아 LinkAnimClassLayers 호출.
 	 */
@@ -154,11 +148,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "HKT|Animation")
 	bool HasAnimMapping(FGameplayTag AnimTag) const;
 
-	/** 일회성 애니메이션 트리거 재생 (PlayAnim 이벤트에서 호출) */
-	void ApplyAnimTag(const FGameplayTag& AnimTag);
+	// ========== IHktAnimHandler ==========
+
+	virtual void PlayAnimByTag(const FGameplayTag& AnimTag) override;
+	virtual void StopAnimByTag(const FGameplayTag& AnimTag) override;
 
 private:
-	void RemoveAnimTag(const FGameplayTag& AnimTag);
 
 	/** 몽타주 종료 콜백 — AnimEnd 이벤트를 PresentationSubsystem에 전달 */
 	UFUNCTION()
@@ -166,9 +161,6 @@ private:
 
 	static FGameplayTag ExtractLayerParent(const FGameplayTag& AnimTag);
 	const FHktAnimMappingEntry* FindMapping(const FGameplayTag& Tag) const;
-
-	/** 이전 프레임의 Anim 태그 (변화 감지용) */
-	FGameplayTagContainer PrevAnimTags;
 
 	/** 재생 중인 몽타주 → AnimTag 역매핑 (종료 콜백에서 태그 조회용) */
 	TMap<TObjectPtr<UAnimMontage>, FGameplayTag> ActiveMontageTagMap;
