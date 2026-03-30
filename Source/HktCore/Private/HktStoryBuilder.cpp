@@ -378,27 +378,27 @@ FHktStoryBuilder& FHktStoryBuilder::WaitUntilCountZero(const FGameplayTag& Tag, 
 // Control Flow
 // ============================================================================
 
-FHktStoryBuilder& FHktStoryBuilder::Label(const FString& Name)
+FHktStoryBuilder& FHktStoryBuilder::Label(FName Name)
 {
     ActiveSection->Labels.Add(Name, ActiveSection->Code.Num());
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::Jump(const FString& LabelName)
+FHktStoryBuilder& FHktStoryBuilder::Jump(FName LabelName)
 {
     ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
     Emit(FInstruction::MakeImm(EOpCode::Jump, 0, 0));
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::JumpIf(RegisterIndex Cond, const FString& LabelName)
+FHktStoryBuilder& FHktStoryBuilder::JumpIf(RegisterIndex Cond, FName LabelName)
 {
     ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
     Emit(FInstruction::Make(EOpCode::JumpIf, 0, Cond, 0, 0));
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::JumpIfNot(RegisterIndex Cond, const FString& LabelName)
+FHktStoryBuilder& FHktStoryBuilder::JumpIfNot(RegisterIndex Cond, FName LabelName)
 {
     ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
     Emit(FInstruction::Make(EOpCode::JumpIfNot, 0, Cond, 0, 0));
@@ -1008,7 +1008,7 @@ static void ResolveFixup(FInstruction& Inst, int32 Target)
 
 void FHktStoryBuilder::ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag)
 {
-    // 문자열 라벨 (사용자 정의)
+    // FName 라벨 (사용자 정의 + Snippet)
     for (const auto& Fixup : Section.Fixups)
     {
         if (const int32* Target = Section.Labels.Find(Fixup.Value))
@@ -1017,7 +1017,7 @@ void FHktStoryBuilder::ResolveLabels(FCodeSection& Section, const FGameplayTag& 
         }
         else
         {
-            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("Unresolved label: %s in Flow %s"), *Fixup.Value, *Tag.ToString()));
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("Unresolved label: %s in Flow %s"), *Fixup.Value.ToString(), *Tag.ToString()));
         }
     }
 

@@ -125,8 +125,8 @@ struct FCodeSection
     TArray<FInstruction> Code;
     TArray<int32> Constants;
     TArray<FString> Strings;
-    TMap<FString, int32> Labels;
-    TArray<TPair<int32, FString>> Fixups;
+    TMap<FName, int32> Labels;
+    TArray<TPair<int32, FName>> Fixups;
 
     // 정수 키 라벨 — 자동 생성 라벨용 (힙할당 없음)
     TMap<int32, int32> IntLabels;
@@ -172,15 +172,15 @@ public:
 
     // ========== Control Flow ==========
 
-    /** 라벨 정의 (점프 대상) */
-    FHktStoryBuilder& Label(const FString& Name);
+    /** 라벨 정의 (점프 대상) — FName으로 저장, 힙할당 없음 */
+    FHktStoryBuilder& Label(FName Name);
 
     /** 무조건 점프 */
-    FHktStoryBuilder& Jump(const FString& LabelName);
+    FHktStoryBuilder& Jump(FName LabelName);
 
     /** 조건부 점프 */
-    FHktStoryBuilder& JumpIf(RegisterIndex Cond, const FString& LabelName);
-    FHktStoryBuilder& JumpIfNot(RegisterIndex Cond, const FString& LabelName);
+    FHktStoryBuilder& JumpIf(RegisterIndex Cond, FName LabelName);
+    FHktStoryBuilder& JumpIfNot(RegisterIndex Cond, FName LabelName);
 
     /** 다음 프레임까지 대기 */
     FHktStoryBuilder& Yield(int32 Frames = 1);
@@ -470,7 +470,7 @@ public:
 
     // ========== Internal Label (Snippet용 고유 라벨 생성) ==========
 
-    /** 고유 내부 라벨 생성 — Snippet 함수에서 라벨 충돌 방지에 사용 */
+    /** 고유 내부 라벨 생성 — Snippet 함수에서 라벨 충돌 방지에 사용 (FString→FName 암묵변환) */
     FString MakeInternalLabel(const TCHAR* Prefix);
 
     // ========== Build ==========

@@ -7,7 +7,7 @@
 FHktStoryValidator::FHktStoryValidator(
 	const TArray<FInstruction>& InCode,
 	const FGameplayTag& InTag,
-	const TMap<FString, int32>& InLabels,
+	const TMap<FName, int32>& InLabels,
 	const TMap<int32, int32>& InIntLabels)
 	: Code(InCode)
 	, Tag(InTag)
