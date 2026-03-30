@@ -7,6 +7,7 @@
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
+#include "Widgets/SViewport.h"
 #include "DrawDebugHelpers.h"
 
 static TAutoConsoleVariable<int32> CVarShowEntityHud(
@@ -76,32 +77,41 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 		return false;
 	}
 
-	// ProjectWorldLocationToScreen은 뷰포트 픽셀 좌표를 반환하지만,
-	// SConstraintCanvas 슬롯 오프셋은 Slate(DPI 스케일 적용) 좌표를 사용한다.
-	// 전체화면 전환 시 DPI 스케일이 변경되어 좌표가 어긋나는 것을 방지하기 위해
-	// 뷰포트 픽셀 → Slate 좌표로 변환한다.
-	float DPIScale = 1.f;
-	if (UGameViewportClient* ViewportClient = World->GetGameViewport())
-	{
-		DPIScale = ViewportClient->GetDPIScale();
-	}
-	if (DPIScale <= 0.f) DPIScale = 1.f;
-
-	OutScreenPos /= DPIScale;
-
-	// 스크린 공간 오프셋 적용 (Slate 좌표 기준)
-	OutScreenPos += ScreenOffset;
-
-	// 화면 경계 클램핑: 뷰포트 밖으로 나간 좌표를 뷰포트 내로 제한
+	// 뷰포트 픽셀 크기 획득
 	int32 ViewportX, ViewportY;
 	PC->GetViewportSize(ViewportX, ViewportY);
 	if (ViewportX <= 0 || ViewportY <= 0) return false;
 
-	// 뷰포트 크기도 Slate 좌표로 변환
-	const float VX = static_cast<float>(ViewportX) / DPIScale;
-	const float VY = static_cast<float>(ViewportY) / DPIScale;
-	OutScreenPos.X = FMath::Clamp(OutScreenPos.X, 0.f, VX);
-	OutScreenPos.Y = FMath::Clamp(OutScreenPos.Y, 0.f, VY);
+	// ProjectWorldLocationToScreen은 뷰포트 픽셀 좌표를 반환하지만,
+	// SConstraintCanvas 슬롯 오프셋은 Slate 로컬 좌표를 사용한다.
+	// 뷰포트 위젯의 실제 Slate 지오메트리에서 크기를 얻어 직접 비율을 계산한다.
+	// 이 방식은 DPI 스케일, 해상도 변경, 전체화면 전환 등 모든 경우에 정확하다.
+	float SlateVX = static_cast<float>(ViewportX);
+	float SlateVY = static_cast<float>(ViewportY);
+	if (UGameViewportClient* ViewportClient = World->GetGameViewport())
+	{
+		TSharedPtr<SViewport> ViewportWidget = ViewportClient->GetGameViewportWidget();
+		if (ViewportWidget.IsValid())
+		{
+			const FVector2D LocalSize = ViewportWidget->GetCachedGeometry().GetLocalSize();
+			if (LocalSize.X > 0.f && LocalSize.Y > 0.f)
+			{
+				SlateVX = LocalSize.X;
+				SlateVY = LocalSize.Y;
+			}
+		}
+	}
+
+	// 뷰포트 픽셀 → Slate 로컬 좌표 변환
+	OutScreenPos.X *= SlateVX / static_cast<float>(ViewportX);
+	OutScreenPos.Y *= SlateVY / static_cast<float>(ViewportY);
+
+	// 스크린 공간 오프셋 적용 (Slate 좌표 기준)
+	OutScreenPos += ScreenOffset;
+
+	// 화면 경계 클램핑 (Slate 좌표 기준)
+	OutScreenPos.X = FMath::Clamp(OutScreenPos.X, 0.f, SlateVX);
+	OutScreenPos.Y = FMath::Clamp(OutScreenPos.Y, 0.f, SlateVY);
 
 	return true;
 }
