@@ -7,11 +7,16 @@
 FHktStoryValidator::FHktStoryValidator(
 	const TArray<FInstruction>& InCode,
 	const FGameplayTag& InTag,
-	const TMap<FString, int32>& InLabels)
+	const TMap<FString, int32>& InLabels,
+	const TMap<int32, int32>& InIntLabels)
 	: Code(InCode)
 	, Tag(InTag)
 {
 	for (const auto& Pair : InLabels)
+	{
+		LabelPCs.Add(Pair.Value);
+	}
+	for (const auto& Pair : InIntLabels)
 	{
 		LabelPCs.Add(Pair.Value);
 	}

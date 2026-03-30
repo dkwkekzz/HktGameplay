@@ -26,12 +26,14 @@ public:
 	/**
 	 * @param InCode      컴파일된 명령어 배열
 	 * @param InTag       Story 태그 (로그 출력용)
-	 * @param InLabelPCs  Label → PC 매핑 (합류점 판정용)
+	 * @param InLabels    문자열 Label → PC 매핑 (합류점 판정용)
+	 * @param InIntLabels 정수 Label → PC 매핑 (자동 생성 라벨)
 	 */
 	FHktStoryValidator(
 		const TArray<FInstruction>& InCode,
 		const FGameplayTag& InTag,
-		const TMap<FString, int32>& InLabels);
+		const TMap<FString, int32>& InLabels,
+		const TMap<int32, int32>& InIntLabels = {});
 
 	/**
 	 * 엔티티 레지스터(R10~R14) 초기화 순서 검증

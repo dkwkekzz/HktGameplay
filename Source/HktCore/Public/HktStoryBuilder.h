@@ -127,6 +127,10 @@ struct FCodeSection
     TArray<FString> Strings;
     TMap<FString, int32> Labels;
     TArray<TPair<int32, FString>> Fixups;
+
+    // 정수 키 라벨 — 자동 생성 라벨용 (힙할당 없음)
+    TMap<int32, int32> IntLabels;
+    TArray<TPair<int32, int32>> IntFixups;
 };
 
 class HKTCORE_API FHktStoryBuilder
@@ -486,6 +490,12 @@ private:
     int32 TagToInt(const FGameplayTag& Tag);
     static void ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag);
 
+    // 정수 키 라벨 — 자동 생성 라벨 전용 (힙할당 없음)
+    void IntLabel(int32 Key);
+    void IntJump(int32 Key);
+    void IntJumpIf(RegisterIndex Cond, int32 Key);
+    void IntJumpIfNot(RegisterIndex Cond, int32 Key);
+
     // 비교 + If 헬퍼 (18개 public 메서드의 공통 구현)
     FHktStoryBuilder& IfCmp(EOpCode CmpOp, RegisterIndex A, RegisterIndex B);
     FHktStoryBuilder& IfCmpConst(EOpCode CmpOp, RegisterIndex Src, int32 Value);
@@ -500,35 +510,30 @@ private:
     FCodeSection PreconditionSection;
     FCodeSection* ActiveSection = &MainSection;
 
-    // ForEach 스택 (중첩 지원)
-    struct FForEachContext
-    {
-        FString LoopLabel;
-        FString EndLabel;
-    };
-    TArray<FForEachContext> ForEachStack;
+    /**
+     * 자동 생성 라벨 키 인코딩 (FString 없이 정수만 사용):
+     *   Key = (Type << 16) | (Counter << 1) | Variant
+     *   Type: 0=If, 1=Repeat, 2=ForEach, 3=Internal
+     *   Variant: 0=false/loop, 1=end
+     */
+    enum ELabelType : int32 { LT_If = 0, LT_Repeat = 1, LT_ForEach = 2, LT_Internal = 3 };
+    static int32 MakeLabelKey(ELabelType Type, int32 Counter, int32 Variant)
+    { return (static_cast<int32>(Type) << 16) | (Counter << 1) | Variant; }
+
+    // ForEach 스택 — POD, 힙할당 없음
+    struct FForEachContext { int32 Id; };
+    TArray<FForEachContext, TInlineAllocator<4>> ForEachStack;
     int32 ForEachCounter = 0;
     int32 InternalLabelCounter = 0;
 
-    // If 스택 (중첩 지원)
-    struct FIfContext
-    {
-        FString FalseBranchLabel;
-        FString EndLabel;
-        bool bHasElse = false;
-    };
-    TArray<FIfContext> IfStack;
+    // If 스택 — POD, 힙할당 없음
+    struct FIfContext { int32 Id; bool bHasElse = false; };
+    TArray<FIfContext, TInlineAllocator<4>> IfStack;
     int32 IfCounter = 0;
 
-    // Repeat 스택 (중첩 지원)
-    struct FRepeatContext
-    {
-        FString LoopLabel;
-        FString EndLabel;
-        RegisterIndex CounterReg;
-        int32 Count;
-    };
-    TArray<FRepeatContext> RepeatStack;
+    // Repeat 스택 — POD, 힙할당 없음
+    struct FRepeatContext { int32 Id; RegisterIndex CounterReg; int32 Count; };
+    TArray<FRepeatContext, TInlineAllocator<4>> RepeatStack;
     int32 RepeatCounter = 0;
 };
 

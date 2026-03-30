@@ -138,7 +138,9 @@ int32 FHktStoryBuilder::TagToInt(const FGameplayTag& Tag)
 
 FString FHktStoryBuilder::MakeInternalLabel(const TCHAR* Prefix)
 {
-    return FString::Printf(TEXT("__%s_%d"), Prefix, InternalLabelCounter++);
+    TCHAR Buf[48];
+    FCString::Sprintf(Buf, TEXT("__%s_%d"), Prefix, InternalLabelCounter++);
+    return FString(Buf);
 }
 
 // ============================================================================
@@ -173,30 +175,49 @@ FHktStoryBuilder& FHktStoryBuilder::EndPrecondition()
 }
 
 // ============================================================================
+// 정수 키 라벨 — 자동 생성 라벨 전용 (힙할당 없음)
+// ============================================================================
+
+void FHktStoryBuilder::IntLabel(int32 Key)
+{
+    ActiveSection->IntLabels.Add(Key, ActiveSection->Code.Num());
+}
+
+void FHktStoryBuilder::IntJump(int32 Key)
+{
+    ActiveSection->IntFixups.Add({ActiveSection->Code.Num(), Key});
+    Emit(FInstruction::MakeImm(EOpCode::Jump, 0, 0));
+}
+
+void FHktStoryBuilder::IntJumpIf(RegisterIndex Cond, int32 Key)
+{
+    ActiveSection->IntFixups.Add({ActiveSection->Code.Num(), Key});
+    Emit(FInstruction::Make(EOpCode::JumpIf, 0, Cond, 0, 0));
+}
+
+void FHktStoryBuilder::IntJumpIfNot(RegisterIndex Cond, int32 Key)
+{
+    ActiveSection->IntFixups.Add({ActiveSection->Code.Num(), Key});
+    Emit(FInstruction::Make(EOpCode::JumpIfNot, 0, Cond, 0, 0));
+}
+
+// ============================================================================
 // Structured Control Flow (If / Else / EndIf)
 // ============================================================================
 
 FHktStoryBuilder& FHktStoryBuilder::If(RegisterIndex Cond)
 {
-    FIfContext Ctx;
-    Ctx.FalseBranchLabel = FString::Printf(TEXT("__if_%d_false"), IfCounter);
-    Ctx.EndLabel = FString::Printf(TEXT("__if_%d_end"), IfCounter);
-    IfCounter++;
-    IfStack.Push(Ctx);
-
-    JumpIfNot(Cond, Ctx.FalseBranchLabel);
+    const int32 Id = IfCounter++;
+    IfStack.Push({Id, false});
+    IntJumpIfNot(Cond, MakeLabelKey(LT_If, Id, 0));   // → false branch
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::IfNot(RegisterIndex Cond)
 {
-    FIfContext Ctx;
-    Ctx.FalseBranchLabel = FString::Printf(TEXT("__if_%d_false"), IfCounter);
-    Ctx.EndLabel = FString::Printf(TEXT("__if_%d_end"), IfCounter);
-    IfCounter++;
-    IfStack.Push(Ctx);
-
-    JumpIf(Cond, Ctx.FalseBranchLabel);
+    const int32 Id = IfCounter++;
+    IfStack.Push({Id, false});
+    IntJumpIf(Cond, MakeLabelKey(LT_If, Id, 0));      // → false branch
     return *this;
 }
 
@@ -205,9 +226,8 @@ FHktStoryBuilder& FHktStoryBuilder::Else()
     check(IfStack.Num() > 0);
     FIfContext& Ctx = IfStack.Last();
     check(!Ctx.bHasElse);
-
-    Jump(Ctx.EndLabel);
-    Label(Ctx.FalseBranchLabel);
+    IntJump(MakeLabelKey(LT_If, Ctx.Id, 1));           // → end
+    IntLabel(MakeLabelKey(LT_If, Ctx.Id, 0));           // false branch starts here
     Ctx.bHasElse = true;
     return *this;
 }
@@ -216,15 +236,9 @@ FHktStoryBuilder& FHktStoryBuilder::EndIf()
 {
     check(IfStack.Num() > 0);
     FIfContext Ctx = IfStack.Pop();
-
-    if (Ctx.bHasElse)
-    {
-        Label(Ctx.EndLabel);
-    }
-    else
-    {
-        Label(Ctx.FalseBranchLabel);
-    }
+    IntLabel(Ctx.bHasElse
+        ? MakeLabelKey(LT_If, Ctx.Id, 1)               // end label
+        : MakeLabelKey(LT_If, Ctx.Id, 0));              // false label (no else)
     return *this;
 }
 
@@ -313,19 +327,15 @@ FHktStoryBuilder& FHktStoryBuilder::CmpGeConst(RegisterIndex Dst, RegisterIndex 
 
 FHktStoryBuilder& FHktStoryBuilder::Repeat(int32 Count)
 {
-    FRepeatContext Ctx;
-    Ctx.LoopLabel = FString::Printf(TEXT("__repeat_%d_loop"), RepeatCounter);
-    Ctx.EndLabel = FString::Printf(TEXT("__repeat_%d_end"), RepeatCounter);
-    Ctx.CounterReg = RegAllocator.Alloc();
-    Ctx.Count = Count;
-    RepeatCounter++;
+    const int32 Id = RepeatCounter++;
+    const RegisterIndex CounterReg = RegAllocator.Alloc();
 
-    LoadConst(Ctx.CounterReg, 0);
-    Label(Ctx.LoopLabel);
-    CmpGeConst(Reg::Flag, Ctx.CounterReg, Count);
-    JumpIf(Reg::Flag, Ctx.EndLabel);
+    LoadConst(CounterReg, 0);
+    IntLabel(MakeLabelKey(LT_Repeat, Id, 0));           // loop
+    CmpGeConst(Reg::Flag, CounterReg, Count);
+    IntJumpIf(Reg::Flag, MakeLabelKey(LT_Repeat, Id, 1)); // → end
 
-    RepeatStack.Push(Ctx);
+    RepeatStack.Push({Id, CounterReg, Count});
     return *this;
 }
 
@@ -335,8 +345,8 @@ FHktStoryBuilder& FHktStoryBuilder::EndRepeat()
     FRepeatContext Ctx = RepeatStack.Pop();
 
     AddImm(Ctx.CounterReg, Ctx.CounterReg, 1);
-    Jump(Ctx.LoopLabel);
-    Label(Ctx.EndLabel);
+    IntJump(MakeLabelKey(LT_Repeat, Ctx.Id, 0));       // → loop
+    IntLabel(MakeLabelKey(LT_Repeat, Ctx.Id, 1));       // end
 
     RegAllocator.Free(Ctx.CounterReg);
     return *this;
@@ -349,16 +359,17 @@ FHktStoryBuilder& FHktStoryBuilder::EndRepeat()
 FHktStoryBuilder& FHktStoryBuilder::WaitUntilCountZero(const FGameplayTag& Tag, float PollIntervalSeconds)
 {
     FHktScopedReg Count(*this);
-    FString LoopLabel = MakeInternalLabel(TEXT("waitcount"));
-    FString DoneLabel = MakeInternalLabel(TEXT("waitcount_done"));
+    const int32 LoopId = InternalLabelCounter++;
+    const int32 LoopKey = MakeLabelKey(LT_Internal, LoopId, 0);
+    const int32 DoneKey = MakeLabelKey(LT_Internal, LoopId, 1);
 
-    Label(LoopLabel);
+    IntLabel(LoopKey);
     CountByTag(Count, Tag);
     CmpLeConst(Reg::Flag, Count, 0);
-    JumpIf(Reg::Flag, DoneLabel);
+    IntJumpIf(Reg::Flag, DoneKey);
     WaitSeconds(PollIntervalSeconds);
-    Jump(LoopLabel);
-    Label(DoneLabel);
+    IntJump(LoopKey);
+    IntLabel(DoneKey);
 
     return *this;
 }
@@ -691,32 +702,26 @@ FHktStoryBuilder& FHktStoryBuilder::NextFound()
 
 FHktStoryBuilder& FHktStoryBuilder::ForEachInRadius(RegisterIndex CenterEntity, int32 RadiusCm)
 {
-    FForEachContext Ctx;
-    Ctx.LoopLabel = FString::Printf(TEXT("__foreach_%d_loop"), ForEachCounter);
-    Ctx.EndLabel = FString::Printf(TEXT("__foreach_%d_end"), ForEachCounter);
-    ForEachCounter++;
-    ForEachStack.Push(Ctx);
+    const int32 Id = ForEachCounter++;
+    ForEachStack.Push({Id});
 
     FindInRadius(CenterEntity, RadiusCm);
-    Label(Ctx.LoopLabel);
+    IntLabel(MakeLabelKey(LT_ForEach, Id, 0));          // loop
     NextFound();
-    JumpIfNot(Reg::Flag, Ctx.EndLabel);
+    IntJumpIfNot(Reg::Flag, MakeLabelKey(LT_ForEach, Id, 1)); // → end
 
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::ForEachInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask)
 {
-    FForEachContext Ctx;
-    Ctx.LoopLabel = FString::Printf(TEXT("__foreach_%d_loop"), ForEachCounter);
-    Ctx.EndLabel = FString::Printf(TEXT("__foreach_%d_end"), ForEachCounter);
-    ForEachCounter++;
-    ForEachStack.Push(Ctx);
+    const int32 Id = ForEachCounter++;
+    ForEachStack.Push({Id});
 
     FindInRadiusEx(CenterEntity, RadiusCm, FilterMask);
-    Label(Ctx.LoopLabel);
+    IntLabel(MakeLabelKey(LT_ForEach, Id, 0));          // loop
     NextFound();
-    JumpIfNot(Reg::Flag, Ctx.EndLabel);
+    IntJumpIfNot(Reg::Flag, MakeLabelKey(LT_ForEach, Id, 1)); // → end
 
     return *this;
 }
@@ -726,8 +731,8 @@ FHktStoryBuilder& FHktStoryBuilder::EndForEach()
     check(ForEachStack.Num() > 0);
     FForEachContext Ctx = ForEachStack.Pop();
 
-    Jump(Ctx.LoopLabel);
-    Label(Ctx.EndLabel);
+    IntJump(MakeLabelKey(LT_ForEach, Ctx.Id, 0));      // → loop
+    IntLabel(MakeLabelKey(LT_ForEach, Ctx.Id, 1));      // end
 
     return *this;
 }
@@ -751,10 +756,12 @@ FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(RegisterIndex Target, RegisterIn
     // Clamp to min 1
     LoadConst(Scratch, 1);
     CmpLt(Reg::Flag, Dmg, Scratch);                          // Flag = (Dmg < 1)
-    FString skipClamp1 = MakeInternalLabel(TEXT("dmg"));
-    JumpIfNot(Reg::Flag, skipClamp1);
-    Move(Dmg, Scratch);                                       // Dmg = 1
-    Label(skipClamp1);
+    {
+        const int32 Key = MakeLabelKey(LT_Internal, InternalLabelCounter++, 0);
+        IntJumpIfNot(Reg::Flag, Key);
+        Move(Dmg, Scratch);                                   // Dmg = 1
+        IntLabel(Key);
+    }
 
     // NewHealth = Health - ActualDmg
     LoadStoreEntity(Scratch, Target, PropertyId::Health);     // Scratch = Health
@@ -765,10 +772,10 @@ FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(RegisterIndex Target, RegisterIn
         FHktScopedReg Zero(*this);
         LoadConst(Zero, 0);
         CmpLt(Reg::Flag, Scratch, Zero);                     // Flag = (Scratch < 0)
-        FString skipClamp2 = MakeInternalLabel(TEXT("dmg"));
-        JumpIfNot(Reg::Flag, skipClamp2);
+        const int32 Key = MakeLabelKey(LT_Internal, InternalLabelCounter++, 0);
+        IntJumpIfNot(Reg::Flag, Key);
         Move(Scratch, Zero);                                  // Scratch = 0
-        Label(skipClamp2);
+        IntLabel(Key);
     }
 
     SaveStoreEntity(Target, PropertyId::Health, Scratch);     // Health = NewHealth
@@ -983,33 +990,47 @@ FHktStoryBuilder& FHktStoryBuilder::Log(const FString& Message)
 // Build
 // ============================================================================
 
+static void ResolveFixup(FInstruction& Inst, int32 Target)
+{
+    switch (Inst.GetOpCode())
+    {
+    case EOpCode::Jump:
+        Inst.Imm20 = Target;
+        break;
+    case EOpCode::JumpIf:
+    case EOpCode::JumpIfNot:
+        Inst.Imm12 = static_cast<uint16>(Target);
+        break;
+    default:
+        break;
+    }
+}
+
 void FHktStoryBuilder::ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag)
 {
+    // 문자열 라벨 (사용자 정의)
     for (const auto& Fixup : Section.Fixups)
     {
-        int32 CodeIndex = Fixup.Key;
-        const FString& LabelName = Fixup.Value;
-
-        if (const int32* Target = Section.Labels.Find(LabelName))
+        if (const int32* Target = Section.Labels.Find(Fixup.Value))
         {
-            FInstruction& Inst = Section.Code[CodeIndex];
-
-            switch (Inst.GetOpCode())
-            {
-            case EOpCode::Jump:
-                Inst.Imm20 = *Target;
-                break;
-            case EOpCode::JumpIf:
-            case EOpCode::JumpIfNot:
-                Inst.Imm12 = static_cast<uint16>(*Target);
-                break;
-            default:
-                break;
-            }
+            ResolveFixup(Section.Code[Fixup.Key], *Target);
         }
         else
         {
-            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("Unresolved label: %s in Flow %s"), *LabelName, *Tag.ToString()));
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("Unresolved label: %s in Flow %s"), *Fixup.Value, *Tag.ToString()));
+        }
+    }
+
+    // 정수 라벨 (자동 생성 — 힙할당 없음)
+    for (const auto& Fixup : Section.IntFixups)
+    {
+        if (const int32* Target = Section.IntLabels.Find(Fixup.Value))
+        {
+            ResolveFixup(Section.Code[Fixup.Key], *Target);
+        }
+        else
+        {
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("Unresolved int label: 0x%08X in Flow %s"), Fixup.Value, *Tag.ToString()));
         }
     }
 }
@@ -1029,7 +1050,7 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
     Program->Strings = MoveTemp(MainSection.Strings);
 
     // === Story 바이트코드 검증 ===
-    FHktStoryValidator Validator(Program->Code, Program->Tag, MainSection.Labels);
+    FHktStoryValidator Validator(Program->Code, Program->Tag, MainSection.Labels, MainSection.IntLabels);
 
     if (!Validator.ValidateEntityFlow())
     {
