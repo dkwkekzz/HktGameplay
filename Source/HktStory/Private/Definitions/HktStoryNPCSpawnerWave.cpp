@@ -32,37 +32,47 @@ namespace HktStoryNPCSpawnerWave
 		using namespace Reg;
 
 		auto B = Story(Story_Spawner_Wave_Arena);
+
+		FHktScopedReg r0(B);       // zero constant
+		FHktScopedReg r1(B);       // spawn count
+		FHktScopedReg r2(B);       // counter
+		FHktScopedReg r3(B);       // count by tag (wave1)
+		FHktScopedReg r4(B);       // count by tag (wave2)
+		FHktScopedReg r5(B);       // SpawnPosX
+		FHktScopedReg r6(B);       // SpawnPosY
+		FHktScopedReg r7(B);       // SpawnPosZ
+
 		B.Log(TEXT("Wave spawner: starting"))
-			.LoadConst(R0, 0)                               // R0 = zero constant
+			.LoadConst(r0, 0)                               // r0 = zero constant
 			// 이벤트 파라미터에서 스폰 위치 로드 (Self 엔티티 없음)
-			.LoadStore(R5, SpawnerParams::SpawnPosX)         // R5 = SpawnPosX
-			.LoadStore(R6, SpawnerParams::SpawnPosY)         // R6 = SpawnPosY
-			.LoadConst(R7, 0)                                // R7 = SpawnPosZ (ground)
+			.LoadStore(r5, SpawnerParams::SpawnPosX)         // r5 = SpawnPosX
+			.LoadStore(r6, SpawnerParams::SpawnPosY)         // r6 = SpawnPosY
+			.LoadConst(r7, 0)                                // r7 = SpawnPosZ (ground)
 
 			// === Wave 1: 고블린 3마리 ===
 			.Label(TEXT("wave1"))
 				.Log(TEXT("Wave 1: spawning goblins"))
-				.LoadConst(R1, 3)                           // R1 = spawn count
-				.LoadConst(R2, 0)                           // R2 = counter
+				.LoadConst(r1, 3)                           // r1 = spawn count
+				.LoadConst(r2, 0)                           // r2 = counter
 
 			.Label(TEXT("wave1_loop"))
-				.CmpGe(Flag, R2, R1)
+				.CmpGe(Flag, r2, r1)
 				.JumpIf(Flag, TEXT("wave1_wait"))
 
 				;
 
 		// 고블린 생성 + 스탯 설정 + 위치 지정
-		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Goblin, { 80, 15, 0, 0, 0 }, R5);
+		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Goblin, { 80, 15, 0, 0, 0 }, r5);
 
 		B
 
-				.AddImm(R2, R2, 1)
+				.AddImm(r2, r2, 1)
 				.Jump(TEXT("wave1_loop"))
 
 			// Wave 1 전멸 대기
 			.Label(TEXT("wave1_wait"))
-				.CountByTag(R3, Entity_NPC_Goblin)
-				.CmpEq(Flag, R3, R0)                       // count == 0?
+				.CountByTag(r3, Entity_NPC_Goblin)
+				.CmpEq(Flag, r3, r0)                       // count == 0?
 				.JumpIf(Flag, TEXT("wave2"))
 				.WaitSeconds(2.0f)
 				.Jump(TEXT("wave1_wait"))
@@ -70,27 +80,27 @@ namespace HktStoryNPCSpawnerWave
 			// === Wave 2: 스켈레톤 2마리 ===
 			.Label(TEXT("wave2"))
 				.Log(TEXT("Wave 2: spawning skeletons"))
-				.LoadConst(R1, 2)
-				.LoadConst(R2, 0)
+				.LoadConst(r1, 2)
+				.LoadConst(r2, 0)
 
 			.Label(TEXT("wave2_loop"))
-				.CmpGe(Flag, R2, R1)
+				.CmpGe(Flag, r2, r1)
 				.JumpIf(Flag, TEXT("wave2_wait"))
 
 				;
 
 		// 스켈레톤 생성 + 스탯 설정 + 위치 지정
-		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Skeleton, { 60, 20, 0, 0, 0 }, R5);
+		HktSnippetNPC::SpawnNPCAtPosition(B, Entity_NPC_Skeleton, { 60, 20, 0, 0, 0 }, r5);
 
 		B
 
-				.AddImm(R2, R2, 1)
+				.AddImm(r2, r2, 1)
 				.Jump(TEXT("wave2_loop"))
 
 			// Wave 2 전멸 대기
 			.Label(TEXT("wave2_wait"))
-				.CountByTag(R4, Entity_NPC_Skeleton)
-				.CmpEq(Flag, R4, R0)
+				.CountByTag(r4, Entity_NPC_Skeleton)
+				.CmpEq(Flag, r4, r0)
 				.JumpIf(Flag, TEXT("complete"))
 				.WaitSeconds(2.0f)
 				.Jump(TEXT("wave2_wait"))

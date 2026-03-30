@@ -83,6 +83,15 @@ namespace HktStoryCombatUseSkill
 		using namespace Reg;
 
 		auto B = Story(Event_Combat_UseSkill);
+
+		FHktScopedReg r0(B);       // 범용 임시
+		FHktScopedReg r1(B);       // 범용 임시
+		FHktScopedReg r2(B);       // 아이템 엔티티
+		FHktScopedReg r3(B);       // CP 소모량
+		FHktScopedReg r4(B);       // 현재 CP
+		FHktScopedReg r5(B);       // 타겟 오버라이드 / 태그 체크
+		FHktScopedReg r6(B);       // 비교용
+
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
 				if (!WS.IsValidEntity(E.SourceEntity))
@@ -103,64 +112,64 @@ namespace HktStoryCombatUseSkill
 
 		// === NextActionFrame 즉시 잠금 — 동일 프레임 중복 실행 방지 ===
 		// 각 AttackStory가 CooldownUpdateConst로 실제 값을 덮어씀
-		B.LoadConst(R0, 0x7FFFFFFF)
-		 .SaveStore(PropertyId::NextActionFrame, R0);
+		B.LoadConst(r0, 0x7FFFFFFF)
+		 .SaveStore(PropertyId::NextActionFrame, r0);
 
 		// === 타겟 해석: TargetOverride가 유효하면 사용, 아니면 기존 Target 레지스터 유지 ===
-		B	.LoadStore(R5, UseSkillParams::TargetOverride)
-			.LoadConst(R6, 0)
-			.CmpNe(Flag, R5, R6)
+		B	.LoadStore(r5, UseSkillParams::TargetOverride)
+			.LoadConst(r6, 0)
+			.CmpNe(Flag, r5, r6)
 			.JumpIfNot(Flag, TEXT("target_resolved"))
-			.Move(Target, R5)
+			.Move(Target, r5)
 		.Label(TEXT("target_resolved"));
 
 		// === Param1(슬롯)로 아이템 로드 시도 — 실패 시 innate 경로 ===
-		HktSnippetItem::LoadItemFromSlot(B, R2, TEXT("innate"));
+		HktSnippetItem::LoadItemFromSlot(B, r2, TEXT("innate"));
 
 		B	// === 아이템 스킬 경로: CP 검증 및 차감 ===
-			.LoadEntityProperty(R3, R2, PropertyId::SkillCPCost)        // R3 = CP 소모량
-			.LoadStore(R4, PropertyId::CP)                              // R4 = 현재 CP
-			.CmpLt(Flag, R4, R3)                                        // CP < Cost?
+			.LoadEntityProperty(r3, r2, PropertyId::SkillCPCost)        // r3 = CP 소모량
+			.LoadStore(r4, PropertyId::CP)                              // r4 = 현재 CP
+			.CmpLt(Flag, r4, r3)                                        // CP < Cost?
 			.JumpIf(Flag, TEXT("innate"))                                // CP 부족 → 본연 스킬로 fallback
 
 			// CP 차감
-			.Sub(R4, R4, R3)
-			.SaveStore(PropertyId::CP, R4);
+			.Sub(r4, r4, r3)
+			.SaveStore(PropertyId::CP, r4);
 
 		// === 아이템 스킬 태그 확인 → 고유 스킬 dispatch ===
 		// 쿨타임 갱신은 각 스킬 Story가 자체 RecoveryFrame으로 수행
-		B	.HasTag(R5, R2, Tag_Skill_Fireball)
-			.JumpIf(R5, TEXT("dispatch_fireball"))
+		B	.HasTag(r5, r2, Tag_Skill_Fireball)
+			.JumpIf(r5, TEXT("dispatch_fireball"))
 
-			.HasTag(R5, R2, Tag_Skill_Heal)
-			.JumpIf(R5, TEXT("dispatch_heal"))
+			.HasTag(r5, r2, Tag_Skill_Heal)
+			.JumpIf(r5, TEXT("dispatch_heal"))
 
-			.HasTag(R5, R2, Tag_Skill_Lightning)
-			.JumpIf(R5, TEXT("dispatch_lightning"))
+			.HasTag(r5, r2, Tag_Skill_Lightning)
+			.JumpIf(r5, TEXT("dispatch_lightning"))
 
-			.HasTag(R5, R2, Tag_Skill_Buff)
-			.JumpIf(R5, TEXT("dispatch_buff"))
+			.HasTag(r5, r2, Tag_Skill_Buff)
+			.JumpIf(r5, TEXT("dispatch_buff"))
 
 			// === 기본 일괄 데미지 (고유 스킬 태그 없는 아이템 — 목검 등) ===
 			;
 		// 인라인 스킬은 아이템 RecoveryFrame으로 쿨타임 갱신
-		HktSnippetCombat::CooldownUpdateFromEntity(B, R2);
+		HktSnippetCombat::CooldownUpdateFromEntity(B, r2);
 
 		B	.AddTag(Self, Tag_Anim_UpperBody_Combat_Skill)
 			.AddTag(Self, Tag_Anim_Montage_Skill)
 			.WaitAnimEnd(Self)
 
-			.LoadStore(R0, PropertyId::AttackPower)
-			.LoadConst(R1, 2)
-			.Mul(R0, R0, R1)
-			.ApplyDamage(Target, R0)
+			.LoadStore(r0, PropertyId::AttackPower)
+			.LoadConst(r1, 2)
+			.Mul(r0, r0, r1)
+			.ApplyDamage(Target, r0)
 			.PlayVFXAttached(Target, VFX_SkillHit)
 			.PlaySound(Sound_SkillHit)
 
 			// 사망 판정
-			.LoadEntityProperty(R0, Target, PropertyId::Health)
-			.LoadConst(R1, 0)
-			.CmpLe(Flag, R0, R1)
+			.LoadEntityProperty(r0, Target, PropertyId::Health)
+			.LoadConst(r1, 0)
+			.CmpLe(Flag, r0, r1)
 			.JumpIfNot(Flag, TEXT("skill_alive"))
 			.AddTag(Target, Tag_State_Dead)
 		.Label(TEXT("skill_alive"))

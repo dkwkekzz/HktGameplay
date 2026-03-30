@@ -36,6 +36,9 @@ namespace HktStoryItemSpawnerTreeDrop
 		using namespace Reg;
 
 		auto B = Story(Story_Spawner_Item_TreeDrop);
+
+		FHktScopedRegBlock pos(B, 3); // 위치 (X, Y, Z)
+
 		B.Log(TEXT("TreeDrop spawner: activated"));
 
 		// 주기적 스포너 루프 시작 (플레이어 체크 + 아이템 10개 상한)
@@ -50,10 +53,10 @@ namespace HktStoryItemSpawnerTreeDrop
 			.AddTag(Spawned, Tag_Item_Wood)
 
 			// 위치 설정
-			.LoadStore(R3, SpawnerParams::SpawnPosX)
-			.LoadStore(R4, SpawnerParams::SpawnPosY)
-			.LoadConst(R5, 0)
-			.SetPosition(Spawned, R3)
+			.LoadStore(pos, SpawnerParams::SpawnPosX)
+			.LoadStore(pos + 1, SpawnerParams::SpawnPosY)
+			.LoadConst(pos + 2, 0)
+			.SetPosition(Spawned, pos)
 
 			.Log(TEXT("TreeDrop: wood spawned"));
 
