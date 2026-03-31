@@ -57,7 +57,6 @@ namespace HktStoryBasicAttack
 		auto B = Story(Story_BasicAttack);
 
 		FHktScopedReg atkPow(B);     // 공격력 (루프 내 보존)
-		FHktScopedRegBlock pos(B, 3); // 위치 (X, Y, Z)
 
 		// === 공격별 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
@@ -82,8 +81,7 @@ namespace HktStoryBasicAttack
 					// === Hit! 데미지 + 피격 처리 ===
 					.Move(Target, Iter)
 					.ApplyDamage(Target, atkPow)
-					.GetPosition(pos, Target)
-					.PlayVFX(pos, VFX_HitSpark)
+					.PlayVFXAtEntity(Target, VFX_HitSpark)
 					.PlaySound(Sound_Hit);
 				HktSnippetCombat::AnimTrigger(B, Target, Tag_Anim_Montage_HitReaction);
 
