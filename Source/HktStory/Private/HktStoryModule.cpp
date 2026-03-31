@@ -2,6 +2,7 @@
 
 #include "HktStoryModule.h"
 #include "HktStoryRegistry.h"
+#include "HktStoryJsonLoader.h"
 #include "HktCoreEventLog.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHktStory, Log, All); // Story 모듈은 단일 파일이므로 static 유지
@@ -10,11 +11,14 @@ IMPLEMENT_MODULE(FHktStoryModule, HktStory)
 
 void FHktStoryModule::StartupModule()
 {
-	// 모듈 진입 시 모든 Story 정의를 자동으로 등록
-	// 각 Story의 .cpp 파일에서 정적 초기화를 통해 자동으로 레지스트리에 등록되었으므로,
-	// 여기서는 등록된 모든 Story를 초기화만 하면 됩니다.
+	// 1) C++ 정의 Story 등록 (정적 초기화로 레지스트리에 추가된 것들)
 	FHktStoryRegistry::InitializeAllStories();
-	HKT_EVENT_LOG(HktLogTags::Story, EHktLogLevel::Info, EHktLogSource::Server, TEXT("HktStory module started"));
+
+	// 2) JSON 파일 기반 Story 로드 (Content/Stories/*.json)
+	const int32 JsonCount = FHktStoryJsonLoader::LoadAllFromContentDirectory();
+	UE_LOG(LogHktStory, Log, TEXT("Loaded %d JSON stories from Content/Stories"), JsonCount);
+
+	HKT_EVENT_LOG(HktLogTags::Story, EHktLogLevel::Info, EHktLogSource::Server, TEXT("HktStory module started (JSON: %d)"), JsonCount);
 }
 
 void FHktStoryModule::ShutdownModule()
