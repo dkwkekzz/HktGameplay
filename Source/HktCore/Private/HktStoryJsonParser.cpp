@@ -772,14 +772,6 @@ void FHktStoryJsonParser::InitializeCoreCommands()
 		B.CmpGeConst(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
 	});
 
-	// ======================== Arithmetic (missing) ========================
-
-	RegisterCommand(TEXT("Mod"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-		// Mod uses same opcode as raw — emit via LoadConst trick
-		// For now, Mod is direct emit — but Builder doesn't expose Mod yet
-		// Use Add/Sub/Mul/Div pattern to register when Builder supports it
-	});
-
 	// ======================== Composite Movement ========================
 
 	RegisterCommand(TEXT("CopyPosition"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
