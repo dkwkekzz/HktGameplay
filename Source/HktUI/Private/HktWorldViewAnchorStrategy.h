@@ -36,6 +36,7 @@ public:
 	void SetScreenOffset(const FVector2D& InOffset) { ScreenOffset = InOffset; }
 
 	FHktEntityId GetTargetEntityId() const { return TargetEntityId; }
+	FVector2D GetScreenOffset() const { return ScreenOffset; }
 
 	virtual bool CalculateScreenPosition(const UObject* WorldContext, FVector2D& OutScreenPos) override;
 

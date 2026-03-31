@@ -56,7 +56,7 @@ int32 FHktStoryJsonLoader::LoadAllFromDirectory(const FString& DirectoryPath)
 
 	UE_LOG(LogHktStoryJsonLoader, Log, TEXT("JSON story loading complete: %d/%d succeeded"), SuccessCount, TotalCount);
 	HKT_EVENT_LOG(HktLogTags::Story, EHktLogLevel::Info, EHktLogSource::Server,
-		TEXT("JSON stories loaded: %d/%d"), SuccessCount, TotalCount);
+		FString::Printf(TEXT("JSON stories loaded: %d/%d"), SuccessCount, TotalCount));
 
 	return SuccessCount;
 }

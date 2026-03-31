@@ -6,6 +6,7 @@
 #include "HktUIElement.h"
 #include "IHktUIViewFactory.h"
 #include "HktUIAnchorStrategy.h"
+#include "HktWorldViewAnchorStrategy.h"
 #include "IHktUIView.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "HktAssetSubsystem.h"
@@ -142,19 +143,16 @@ void AHktHUD::AddElementToCanvas(UHktUIElement* Element)
 	}
 	else
 	{
-		// 엔티티 HUD: 투영 좌표 기준 위젯의 하단 중앙을 맞추기 위해 수동 오프셋.
-		// SConstraintCanvas AutoSize + 점 앵커에서는 Alignment이 무효화되므로
-		// GetDesiredSize()로 직접 보정. 첫 프레임에 Slate prepass 전 DesiredSize가 0이므로
-		// SlatePrepass를 강제 호출하여 올바른 크기를 즉시 확보.
-		SlateWidget->SlatePrepass(1.f);
-		const FVector2D DesiredSize = SlateWidget->GetDesiredSize();
-		const float X = Element->CachedScreenPosition.X - DesiredSize.X * 0.5f;
-		const float Y = Element->CachedScreenPosition.Y - DesiredSize.Y;
+		// 엔티티 HUD: 정규화 좌표(0~1)를 SConstraintCanvas 앵커로 사용.
+		// Alignment(0.5, 1.0)으로 위젯 하단 중앙이 앵커 지점에 정렬됨.
+		const float NX = Element->CachedScreenPosition.X;
+		const float NY = Element->CachedScreenPosition.Y;
 		MainCanvasWidget->AddSlot()
 			.Expose(Element->CanvasSlot)
-			.Offset(FMargin(X, Y, 0.f, 0.f))
-			.Anchors(FAnchors(0.f, 0.f, 0.f, 0.f))
+			.Anchors(FAnchors(NX, NY, NX, NY))
 			.AutoSize(true)
+			.Alignment(FVector2D(0.5f, 1.0f))
+			.Offset(FMargin(0.f, 0.f, 0.f, 0.f))
 			[
 				SlateWidget
 			];
@@ -186,15 +184,17 @@ void AHktHUD::UpdateAllElements()
 		{
 			if (Child->OwnerEntityID != -1)
 			{
-				// 엔티티 HUD: 위젯의 하단 중앙이 투영 좌표에 오도록 수동 보정
-				const FVector2D DesiredSize = Child->View->GetSlateWidget()->GetDesiredSize();
-				if (DesiredSize.X > 0.f)
+				// 엔티티 HUD: 정규화 좌표를 앵커로, Alignment(0.5,1.0)이 하단 중앙 정렬 처리
+				const float NX = Child->CachedScreenPosition.X;
+				const float NY = Child->CachedScreenPosition.Y;
+				Child->CanvasSlot->SetAnchors(FAnchors(NX, NY, NX, NY));
+
+				FVector2D PixelOffset(0.f, 0.f);
+				if (const UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Child->AnchorStrategy))
 				{
-					Child->CanvasSlot->SetOffset(FMargin(
-						Child->CachedScreenPosition.X - DesiredSize.X * 0.5f,
-						Child->CachedScreenPosition.Y - DesiredSize.Y,
-						0.f, 0.f));
+					PixelOffset = Strategy->GetScreenOffset();
 				}
+				Child->CanvasSlot->SetOffset(FMargin(PixelOffset.X, PixelOffset.Y, 0.f, 0.f));
 
 				// Hidden(Collapsed 아님): 비가시 상태에서도 DesiredSize가 유지되어
 				// 다시 화면에 진입할 때 1프레임 위치 튀기가 발생하지 않음

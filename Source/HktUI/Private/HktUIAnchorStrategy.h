@@ -19,7 +19,7 @@ public:
 	/**
 	 * 현재 프레임의 화면 좌표를 계산합니다.
 	 * @param WorldContext 월드/컨텍스트 (예: UWorld 서브시스템, UObject* 등)
-	 * @param OutScreenPos 계산된 화면 좌표 (픽셀)
+	 * @param OutScreenPos 정규화된 화면 좌표 (0~1, 좌상단 기준)
 	 * @return true면 화면 안, false면 화면 밖 또는 실패
 	 */
 	virtual bool CalculateScreenPosition(const UObject* WorldContext, FVector2D& OutScreenPos) { return false; }

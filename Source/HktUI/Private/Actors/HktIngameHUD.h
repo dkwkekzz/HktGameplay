@@ -49,6 +49,7 @@ protected:
 private:
 	void SyncEntityElements(const FHktPresentationState& State);
 	void CreateEntityElement(FHktEntityId EntityId, const FHktPresentationState& State);
+	void UpdateEntityPositions(const FHktPresentationState& State);
 	void UpdateEntityProperties(const FHktPresentationState& State);
 
 	UPROPERTY()

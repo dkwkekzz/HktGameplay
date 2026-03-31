@@ -77,14 +77,15 @@ void AHktIngameHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AHktIngameHUD::Sync(const FHktPresentationState& State)
 {
 	SyncEntityElements(State);
+	UpdateEntityPositions(State);
 	UpdateEntityProperties(State);
 	UpdateAllElements();
 }
 
 void AHktIngameHUD::OnCameraViewChanged(const FHktPresentationState& State)
 {
-	// 카메라만 변경된 경우: 엔티티 생성/제거/프로퍼티 갱신 없이
-	// 스크린 좌표 재투영만 수행 (1프레임 튀기 방지)
+	// 카메라만 변경된 경우에도 액터의 보간된 위치를 반영하여 HUD 떨림 방지
+	UpdateEntityPositions(State);
 	UpdateAllElements();
 }
 
@@ -231,6 +232,33 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId, const FHktPresent
 	}
 }
 
+void AHktIngameHUD::UpdateEntityPositions(const FHktPresentationState& State)
+{
+	for (FHktEntityId EntityId : TrackedEntities)
+	{
+		const FHktEntityPresentation* Entity = State.Get(EntityId);
+		if (!Entity) continue;
+
+		UHktUIElement* Element = FindEntityElement(EntityId);
+		if (!Element) continue;
+
+		UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Element->AnchorStrategy);
+		if (!Strategy) continue;
+
+		// Actor의 보간된 위치를 우선 사용 (움직임 떨림 방지), 없으면 RenderLocation 폴백
+		FVector WorldPos = Entity->RenderLocation.Get();
+		if (CachedPresentationSubsystem)
+		{
+			const FVector ActorLoc = CachedPresentationSubsystem->GetEntityActorLocation(EntityId);
+			if (!ActorLoc.IsZero())
+			{
+				WorldPos = ActorLoc;
+			}
+		}
+		Strategy->SetWorldPosition(WorldPos, Entity->CapsuleHalfHeight);
+	}
+}
+
 void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 {
 	const int64 Frame = State.GetCurrentFrame();
@@ -244,7 +272,6 @@ void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 		const FGameplayTag& VisTag = ItemEntity.VisualElement.Get();
 		if (!VisTag.IsValid()) return;
 
-		// 태그의 마지막 노드를 표시명으로 사용 (예: "Item.Weapon.Sword" → "Sword")
 		const FString TagStr = VisTag.ToString();
 		FString DisplayName;
 		TagStr.Split(TEXT("."), nullptr, &DisplayName, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
@@ -260,29 +287,8 @@ void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 		const FHktEntityPresentation* Entity = State.Get(EntityId);
 		if (!Entity) continue;
 
-		// 앵커 전략에 최신 위치 반영
 		UHktUIElement* Element = FindEntityElement(EntityId);
-		if (!Element) continue;
-
-		// Actor의 보간된 위치(InterpLocation)를 사용하여 움직임 튀기 방지.
-		// Actor가 아직 스폰되지 않은 경우 RenderLocation 폴백.
-		UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Element->AnchorStrategy);
-		if (Strategy)
-		{
-			FVector WorldPos = Entity->RenderLocation.Get();
-			if (CachedPresentationSubsystem)
-			{
-				const FVector ActorLoc = CachedPresentationSubsystem->GetEntityActorLocation(EntityId);
-				if (!ActorLoc.IsZero())
-				{
-					WorldPos = ActorLoc;
-				}
-			}
-			Strategy->SetWorldPosition(WorldPos, Entity->CapsuleHalfHeight);
-		}
-
-		// 위젯 프로퍼티 갱신 (dirty check)
-		if (!Element->View.IsValid()) continue;
+		if (!Element || !Element->View.IsValid()) continue;
 
 		TSharedRef<SWidget> SlateWidget = Element->View->GetSlateWidget();
 		TSharedPtr<SHktEntityHudWidget> EntityWidget = StaticCastSharedRef<SHktEntityHudWidget>(SlateWidget);
@@ -295,7 +301,6 @@ void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 		if (Entity->TeamColor.IsDirty(Frame))
 			EntityWidget->SetTeamColor(Entity->TeamColor.Get());
 
-		// 장착 아이템 네임플레이트 갱신
 		const FString* ItemLabel = ItemLabelMap.Find(EntityId);
 		EntityWidget->SetItemLabel(ItemLabel ? *ItemLabel : FString());
 	}

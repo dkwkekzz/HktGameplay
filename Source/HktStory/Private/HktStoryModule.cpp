@@ -18,7 +18,7 @@ void FHktStoryModule::StartupModule()
 	const int32 JsonCount = FHktStoryJsonLoader::LoadAllFromContentDirectory();
 	UE_LOG(LogHktStory, Log, TEXT("Loaded %d JSON stories from Content/Stories"), JsonCount);
 
-	HKT_EVENT_LOG(HktLogTags::Story, EHktLogLevel::Info, EHktLogSource::Server, TEXT("HktStory module started (JSON: %d)"), JsonCount);
+	HKT_EVENT_LOG(HktLogTags::Story, EHktLogLevel::Info, EHktLogSource::Server, FString::Printf(TEXT("HktStory module started (JSON: %d)"), JsonCount));
 }
 
 void FHktStoryModule::ShutdownModule()
