@@ -52,7 +52,6 @@ namespace HktStoryFireball
 		using namespace Reg;
 
 		auto B = Story(Story_Fireball);
-		FHktScopedRegBlock spawnPos(B, 3);
 		FHktScopedRegBlock explosionPos(B, 3);
 
 		// === 공격별 쿨타임 갱신 ===
@@ -68,8 +67,7 @@ namespace HktStoryFireball
 			.SpawnEntity(Entity_Projectile_Fireball)
 
 			// 파이어볼 위치를 시전자 위치로 설정
-			.GetPosition(spawnPos, Self)                 // spawnPos = 시전자 위치
-			.SetPosition(Spawned, spawnPos)              // 파이어볼 위치 = 시전자 위치
+			.CopyPosition(Spawned, Self)
 
 			// 파이어볼을 전방으로 이동 (속도 500 cm/s)
 			.MoveForward(Spawned, 500)

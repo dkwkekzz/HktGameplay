@@ -28,16 +28,12 @@ namespace HktStoryMoveTo
 		using namespace Reg;
 
 		auto B = Story(Story_MoveTo);
-		FHktScopedRegBlock pos(B, 3);
 
 		B.CancelOnDuplicate()
 			.Log(TEXT("MoveTo: 이동 시작"))
 
-			// 목표 위치 로드 (IntentEvent에서 설정됨)
-			.ReadProperty(pos, PropertyId::TargetPosX)
-
 			// 목표 위치로 이동 시작 (힘 1500, Mass=100일 때 가속도 15cm/s²)
-			.MoveToward(Self, pos, 150)
+			.MoveTowardProperty(Self, PropertyId::TargetPosX, 150)
 
 			// 이동 완료 대기
 			.WaitMoveEnd(Self)

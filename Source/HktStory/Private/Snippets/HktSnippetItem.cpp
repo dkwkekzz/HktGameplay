@@ -312,11 +312,7 @@ FHktStoryBuilder& HktSnippetItem::DropToGround(
 	ReleaseOwnership(B, ItemEntity);
 
 	// 위치 설정
-	{
-		FHktScopedRegBlock Pos(B, 3);
-		B.GetPosition(Pos, PositionSourceEntity)
-		 .SetPosition(ItemEntity, Pos);
-	}
+	B.CopyPosition(ItemEntity, PositionSourceEntity);
 
 	return B;
 }
@@ -335,11 +331,7 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItem(
 	 .SaveConstEntity(Reg::Spawned, PropertyId::ItemId, Template.ItemId)
 	 .SaveConstEntity(Reg::Spawned, PropertyId::EquipIndex, -1);              // 미등록
 
-	{
-		FHktScopedRegBlock Pos(B, 3);
-		B.GetPosition(Pos, PosSourceEntity)
-		 .SetPosition(Reg::Spawned, Pos);
-	}
+	B.CopyPosition(Reg::Spawned, PosSourceEntity);
 
 	return B;
 }

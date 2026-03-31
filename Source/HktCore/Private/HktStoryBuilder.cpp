@@ -648,6 +648,44 @@ FHktStoryBuilder& FHktStoryBuilder::SetPosition(RegisterIndex Entity, RegisterIn
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::CopyPosition(RegisterIndex DstEntity, RegisterIndex SrcEntity)
+{
+    FHktRegReserve Guard(RegAllocator, {DstEntity, SrcEntity});
+    FHktScopedRegBlock Pos(*this, 3);
+    GetPosition(Pos, SrcEntity);
+    SetPosition(DstEntity, Pos);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::MoveTowardProperty(RegisterIndex Entity, uint16 BasePropId, int32 Force)
+{
+    FHktRegReserve Guard(RegAllocator, {Entity});
+    FHktScopedRegBlock Pos(*this, 3);
+    LoadStore(Pos,     BasePropId);
+    LoadStore(Pos + 1, BasePropId + 1);
+    LoadStore(Pos + 2, BasePropId + 2);
+    MoveToward(Entity, Pos, Force);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::PlayVFXAtEntity(RegisterIndex Entity, const FGameplayTag& VFXTag)
+{
+    FHktRegReserve Guard(RegAllocator, {Entity});
+    FHktScopedRegBlock Pos(*this, 3);
+    GetPosition(Pos, Entity);
+    PlayVFX(Pos, VFXTag);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::PlaySoundAtEntity(RegisterIndex Entity, const FGameplayTag& SoundTag)
+{
+    FHktRegReserve Guard(RegAllocator, {Entity});
+    FHktScopedRegBlock Pos(*this, 3);
+    GetPosition(Pos, Entity);
+    PlaySoundAtLocation(Pos, SoundTag);
+    return *this;
+}
+
 FHktStoryBuilder& FHktStoryBuilder::MoveToward(RegisterIndex Entity, RegisterIndex TargetPosBase, int32 Force)
 {
     SaveStoreEntity(Entity, PropertyId::MoveTargetX, TargetPosBase);

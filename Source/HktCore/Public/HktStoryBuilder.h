@@ -367,6 +367,18 @@ public:
     /** 위치 설정: Position = (SrcBase, SrcBase+1, SrcBase+2) */
     FHktStoryBuilder& SetPosition(RegisterIndex Entity, RegisterIndex SrcBase);
 
+    /** 엔티티 간 위치 복사: DstEntity.Position = SrcEntity.Position (내부 임시 레지스터 자동 관리) */
+    FHktStoryBuilder& CopyPosition(RegisterIndex DstEntity, RegisterIndex SrcEntity);
+
+    /** Self의 연속 3개 프로퍼티를 목표 위치로 읽어 이동 시작 (내부 임시 레지스터 자동 관리) */
+    FHktStoryBuilder& MoveTowardProperty(RegisterIndex Entity, uint16 BasePropId, int32 Force);
+
+    /** 엔티티 위치에서 VFX 재생 (내부 임시 레지스터 자동 관리) */
+    FHktStoryBuilder& PlayVFXAtEntity(RegisterIndex Entity, const FGameplayTag& VFXTag);
+
+    /** 엔티티 위치에서 사운드 재생 (내부 임시 레지스터 자동 관리) */
+    FHktStoryBuilder& PlaySoundAtEntity(RegisterIndex Entity, const FGameplayTag& SoundTag);
+
     /** 목표 위치로 이동 시작 (Force 단위, F=ma) */
     FHktStoryBuilder& MoveToward(RegisterIndex Entity, RegisterIndex TargetPosBase, int32 Force);
 
