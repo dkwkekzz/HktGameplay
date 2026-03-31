@@ -339,12 +339,18 @@ bool FHktStoryJsonParser::IsReadOnlyOp(const FString& OpName)
 	static const TSet<FString> ReadOnlyOps = {
 		// Control Flow
 		TEXT("Label"), TEXT("Jump"), TEXT("JumpIf"), TEXT("JumpIfNot"), TEXT("Halt"), TEXT("Fail"),
+		// Structured Control Flow (읽기 전용 — 비교만 수행)
+		TEXT("If"), TEXT("IfNot"), TEXT("Else"), TEXT("EndIf"),
+		TEXT("IfEq"), TEXT("IfNe"), TEXT("IfLt"), TEXT("IfLe"), TEXT("IfGt"), TEXT("IfGe"),
+		TEXT("IfEqConst"), TEXT("IfNeConst"), TEXT("IfLtConst"), TEXT("IfLeConst"), TEXT("IfGtConst"), TEXT("IfGeConst"),
+		TEXT("IfPropertyEq"), TEXT("IfPropertyNe"), TEXT("IfPropertyLt"), TEXT("IfPropertyLe"), TEXT("IfPropertyGt"), TEXT("IfPropertyGe"),
 		// Data (읽기 전용)
-		TEXT("LoadConst"), TEXT("LoadStore"), TEXT("LoadStoreEntity"), TEXT("LoadEntityProperty"), TEXT("Move"),
+		TEXT("LoadConst"), TEXT("LoadStore"), TEXT("LoadStoreEntity"), TEXT("LoadEntityProperty"), TEXT("ReadProperty"), TEXT("Move"),
 		// Arithmetic
 		TEXT("Add"), TEXT("Sub"), TEXT("Mul"), TEXT("Div"), TEXT("AddImm"),
 		// Comparison
 		TEXT("CmpEq"), TEXT("CmpNe"), TEXT("CmpLt"), TEXT("CmpLe"), TEXT("CmpGt"), TEXT("CmpGe"),
+		TEXT("CmpEqConst"), TEXT("CmpNeConst"), TEXT("CmpLtConst"), TEXT("CmpLeConst"), TEXT("CmpGtConst"), TEXT("CmpGeConst"),
 		// Spatial Query (읽기)
 		TEXT("GetDistance"),
 		// Tags (읽기)
@@ -660,6 +666,167 @@ void FHktStoryJsonParser::InitializeCoreCommands()
 	});
 	RegisterCommand(TEXT("SetItemSkillTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 		B.SetItemSkillTag(A.GetReg(TEXT("entity")), A.GetTag(TEXT("skillTag")));
+	});
+
+	// ======================== Structured Control Flow ========================
+
+	RegisterCommand(TEXT("If"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.If(A.GetReg(TEXT("cond")));
+	});
+	RegisterCommand(TEXT("IfNot"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfNot(A.GetReg(TEXT("cond")));
+	});
+	RegisterCommand(TEXT("Else"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Else();
+	});
+	RegisterCommand(TEXT("EndIf"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.EndIf();
+	});
+
+	// Register comparison + If variants
+	RegisterCommand(TEXT("IfEq"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfEq(A.GetReg(TEXT("a")), A.GetReg(TEXT("b")));
+	});
+	RegisterCommand(TEXT("IfNe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfNe(A.GetReg(TEXT("a")), A.GetReg(TEXT("b")));
+	});
+	RegisterCommand(TEXT("IfLt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfLt(A.GetReg(TEXT("a")), A.GetReg(TEXT("b")));
+	});
+	RegisterCommand(TEXT("IfLe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfLe(A.GetReg(TEXT("a")), A.GetReg(TEXT("b")));
+	});
+	RegisterCommand(TEXT("IfGt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfGt(A.GetReg(TEXT("a")), A.GetReg(TEXT("b")));
+	});
+	RegisterCommand(TEXT("IfGe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfGe(A.GetReg(TEXT("a")), A.GetReg(TEXT("b")));
+	});
+
+	// Register vs Constant + If
+	RegisterCommand(TEXT("IfEqConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfEqConst(A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("IfNeConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfNeConst(A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("IfLtConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfLtConst(A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("IfLeConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfLeConst(A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("IfGtConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfGtConst(A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("IfGeConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfGeConst(A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+
+	// Entity Property vs Constant + If
+	RegisterCommand(TEXT("IfPropertyEq"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfPropertyEq(A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("IfPropertyNe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfPropertyNe(A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("IfPropertyLt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfPropertyLt(A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("IfPropertyLe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfPropertyLe(A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("IfPropertyGt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfPropertyGt(A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("IfPropertyGe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.IfPropertyGe(A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetInt(TEXT("value")));
+	});
+
+	// Repeat loop
+	RegisterCommand(TEXT("Repeat"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.Repeat(A.GetInt(TEXT("count")));
+	});
+	RegisterCommand(TEXT("EndRepeat"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.EndRepeat();
+	});
+
+	// ======================== Comparison vs Constant ========================
+
+	RegisterCommand(TEXT("CmpEqConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpEqConst(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("CmpNeConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpNeConst(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("CmpLtConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpLtConst(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("CmpLeConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpLeConst(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("CmpGtConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpGtConst(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+	RegisterCommand(TEXT("CmpGeConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CmpGeConst(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src")), A.GetInt(TEXT("value")));
+	});
+
+	// ======================== Composite Movement ========================
+
+	RegisterCommand(TEXT("CopyPosition"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.CopyPosition(A.GetReg(TEXT("dst")), A.GetReg(TEXT("src")));
+	});
+	RegisterCommand(TEXT("MoveTowardProperty"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.MoveTowardProperty(A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("baseProp")), A.GetInt(TEXT("force")));
+	});
+
+	// ======================== Composite Presentation ========================
+
+	RegisterCommand(TEXT("PlayVFXAtEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.PlayVFXAtEntity(A.GetReg(TEXT("entity")), A.GetTag(TEXT("tag")));
+	});
+	RegisterCommand(TEXT("PlaySoundAtEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.PlaySoundAtEntity(A.GetReg(TEXT("entity")), A.GetTag(TEXT("tag")));
+	});
+	RegisterCommand(TEXT("PlayAnim"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.PlayAnim(A.GetReg(TEXT("entity")), A.GetTag(TEXT("tag")));
+	});
+
+	// ======================== Wait Patterns ========================
+
+	RegisterCommand(TEXT("WaitUntilCountZero"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.WaitUntilCountZero(A.GetTag(TEXT("tag")), A.GetFloatOpt(TEXT("interval"), 2.0f));
+	});
+
+	// ======================== Event Dispatch ========================
+
+	RegisterCommand(TEXT("DispatchEvent"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.DispatchEvent(A.GetTag(TEXT("eventTag")));
+	});
+	RegisterCommand(TEXT("DispatchEventTo"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.DispatchEventTo(A.GetTag(TEXT("eventTag")), A.GetReg(TEXT("target")));
+	});
+	RegisterCommand(TEXT("DispatchEventFrom"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.DispatchEventFrom(A.GetTag(TEXT("eventTag")), A.GetReg(TEXT("source")));
+	});
+
+	// ======================== Property Aliases ========================
+
+	RegisterCommand(TEXT("ReadProperty"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.ReadProperty(A.GetReg(TEXT("dst")), A.GetPropertyId(TEXT("property")));
+	});
+	RegisterCommand(TEXT("WriteProperty"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.WriteProperty(A.GetPropertyId(TEXT("property")), A.GetReg(TEXT("src")));
+	});
+	RegisterCommand(TEXT("WriteConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.WriteConst(A.GetPropertyId(TEXT("property")), A.GetInt(TEXT("value")));
+	});
+
+	// ======================== Entity Property (additional) ========================
+
+	RegisterCommand(TEXT("LoadStoreEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.LoadStoreEntity(A.GetReg(TEXT("dst")), A.GetReg(TEXT("entity")), A.GetPropertyId(TEXT("property")));
 	});
 
 	// ======================== Utility ========================

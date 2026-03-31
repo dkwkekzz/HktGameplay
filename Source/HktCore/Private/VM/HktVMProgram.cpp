@@ -29,6 +29,11 @@ void FHktVMProgramRegistry::RegisterProgram(TSharedRef<FHktVMProgram> Program)
 {
     FRWScopeLock WriteLock(Lock, SLT_Write);
     FGameplayTag Tag = Program->Tag;
+    if (Programs.Contains(Tag))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("FHktVMProgramRegistry: overwriting existing program for tag '%s' (JSON override?)"),
+            *Tag.ToString());
+    }
     Programs.Add(Tag, Program);
 }
 
