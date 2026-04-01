@@ -1,0 +1,64 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+// HktVoxelVertexFactory.ush — 복셀 버텍스 언팩 로직
+
+#pragma once
+
+#include "HktVoxelCommon.ush"
+
+// 팔레트 텍스처 (256 x 8, RGBA8)
+Texture2D HktPaletteTexture;
+SamplerState HktPaletteSampler;
+
+/**
+ * 압축 복셀 버텍스 언팩
+ *
+ * PackedPosSize (uint32):
+ *   [5:0] x, [11:6] y, [17:12] z, [23:18] width, [29:24] height, [31:30] face_low
+ *
+ * PackedMaterial (uint32):
+ *   [15:0] voxel_type, [18:16] palette_index, [20:19] ao_value,
+ *   [23:21] flags, [24] face_high
+ */
+void HktUnpackVoxelVertex(
+    uint PackedPosSize, uint PackedMaterial,
+    uint VertexID,
+    out float3 Position, out float3 Normal,
+    out float4 Color, out float Emission)
+{
+    // 위치 언팩
+    float3 BasePos;
+    BasePos.x = float(PackedPosSize & 0x3F);
+    BasePos.y = float((PackedPosSize >> 6) & 0x3F);
+    BasePos.z = float((PackedPosSize >> 12) & 0x3F);
+
+    float Width  = float((PackedPosSize >> 18) & 0x3F);
+    float Height = float((PackedPosSize >> 24) & 0x3F);
+
+    // 면 방향 (3bit: 2bit from PosSize + 1bit from Material)
+    uint FaceDir = ((PackedPosSize >> 30) & 0x3) | (((PackedMaterial >> 24) & 0x1) << 2);
+
+    // 법선
+    Normal = HktGetFaceNormal(FaceDir);
+
+    // 쿼드 확장 (코너별 오프셋)
+    uint CornerIndex = VertexID % 4;
+    Position = BasePos + HktExpandQuad(FaceDir, Width, Height, CornerIndex);
+
+    // 복셀 단위를 월드 스케일로 (1복셀 = 100 유닛)
+    Position *= 100.0;
+
+    // 재질 언팩
+    uint VoxelType    = PackedMaterial & 0xFFFF;
+    uint PaletteIdx   = (PackedMaterial >> 16) & 0x7;
+    uint AO           = (PackedMaterial >> 19) & 0x3;
+    uint Flags        = (PackedMaterial >> 21) & 0x7;
+
+    // 팔레트 룩업 — (PaletteIndex, VoxelType % 256) 좌표
+    Color = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
+
+    // Baked AO 적용
+    Color.rgb *= HktAOToLight(AO);
+
+    // 발광 플래그
+    Emission = (Flags & 0x1) ? HktEmissionStrength : 0.0;
+}
