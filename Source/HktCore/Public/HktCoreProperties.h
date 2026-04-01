@@ -85,6 +85,8 @@
     X(SkillTargetRequired)    \
     /* 공격 사거리 (cm) */    \
     X(AttackRange)            \
+    /* 장착 가능 여부 (0=불가, 1=장착 가능) */ \
+    X(Equippable)             \
     /* 캐릭터 장착 슬롯 (EntityId 참조) */ \
     X(EquipSlot0)             \
     X(EquipSlot1)             \
