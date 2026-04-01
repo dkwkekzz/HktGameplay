@@ -86,7 +86,12 @@ namespace HktStoryItemDeactivate
 			.CmpEqConst(r5, r5, 2)
 			.JumpIfNot(r5, TEXT("check_loop"))
 
-			// 활성 아이템 발견 — Stance를 그 아이템의 것으로 유지
+			// 장착 가능한 아이템인지 확인
+			.LoadEntityProperty(r5, Iter, PropertyId::Equippable)
+			.CmpEqConst(r5, r5, 0)
+			.JumpIf(r5, TEXT("check_loop"))
+
+			// 장착 가능한 활성 아이템 발견 — Stance를 그 아이템의 것으로 유지
 			.LoadEntityProperty(r3, Iter, PropertyId::Stance)
 			.SaveEntityProperty(Self, PropertyId::Stance, r3)
 			.LoadConst(r4, 1)                                               // 활성 아이템 있음 표시

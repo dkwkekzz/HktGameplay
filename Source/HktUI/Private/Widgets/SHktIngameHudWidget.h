@@ -598,6 +598,10 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 				static_cast<FGameplayTagNetIndex>(Item.EntitySpawnTag));
 			if (!TagName.IsNone()) ItemName = TagName.ToString();
 		}
+		if (Item.Equippable != 0)
+		{
+			ItemName += TEXT(" [E]");
+		}
 
 		InventoryListBox->AddSlot()
 		.AutoHeight().Padding(0.f, 2.f)
@@ -663,7 +667,7 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 	if (CachedSubjectEntityId == InvalidEntityId || !WS->IsValidEntity(CachedSubjectEntityId)) return;
 
 	// Subject 엔티티의 EquipSlot0~8을 직접 읽어 장착 아이템 표시
-	struct FEquipItem { FHktEntityId EntityId; int32 EquipIndex; FString Name; int32 AttackPower; };
+	struct FEquipItem { FHktEntityId EntityId; int32 EquipIndex; FString Name; int32 AttackPower; bool bEquippable; };
 	TArray<FEquipItem> Items;
 
 	for (int32 i = 0; i < UIMaxEquipSlots; ++i)
@@ -676,7 +680,8 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 			ItemId,
 			i,
 			GetEntityDisplayName(WS, ItemId),
-			WS->GetProperty(ItemId, PropertyId::AttackPower)
+			WS->GetProperty(ItemId, PropertyId::AttackPower),
+			WS->GetProperty(ItemId, PropertyId::Equippable) != 0
 		});
 	}
 
@@ -694,7 +699,7 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 
 	for (const FEquipItem& Item : Items)
 	{
-		FString SlotLabel = FString::Printf(TEXT("Slot %d"), Item.EquipIndex);
+		FString SlotLabel = FString::Printf(TEXT("Slot %d%s"), Item.EquipIndex, Item.bEquippable ? TEXT(" [E]") : TEXT(""));
 		const int32 ItemEquipIndex = Item.EquipIndex;
 
 		EquipmentListBox->AddSlot()
@@ -717,11 +722,11 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
 				[
-					SNew(SBox).WidthOverride(60.f)
+					SNew(SBox).WidthOverride(80.f)
 					[
 						SNew(STextBlock)
 						.Text(FText::FromString(SlotLabel))
-						.ColorAndOpacity(FLinearColor(0.5f, 0.8f, 1.f))
+						.ColorAndOpacity(Item.bEquippable ? FLinearColor(0.3f, 1.f, 0.5f) : FLinearColor(0.5f, 0.8f, 1.f))
 					]
 				]
 				+ SHorizontalBox::Slot().FillWidth(1.f)
