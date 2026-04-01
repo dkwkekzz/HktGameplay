@@ -95,6 +95,7 @@ namespace HktStoryNPCLifecycle
 
 		HktSnippetItem::SpawnGroundItem(B, Entity_Item_AncientStaff, { 200 }, Self);
 		B	.SaveConstEntity(Spawned, PropertyId::AttackPower, 8)
+			.SaveConstEntity(Spawned, PropertyId::Equippable, 1)
 			.SetItemSkillTag(Spawned, Skill_UseSkill_Ref)
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 50)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 90)
@@ -122,6 +123,7 @@ namespace HktStoryNPCLifecycle
 
 		HktSnippetItem::SpawnGroundItem(B, Entity_Item_ThunderHammer, { 203 }, Self);
 		B	.SaveConstEntity(Spawned, PropertyId::AttackPower, 12)
+			.SaveConstEntity(Spawned, PropertyId::Equippable, 1)
 			.SetItemSkillTag(Spawned, Skill_UseSkill_Ref)
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 60)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 100)

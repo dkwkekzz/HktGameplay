@@ -28,6 +28,7 @@ public class HktVoxelCore : ModuleRules
 				"RHI",
 				"Renderer",
 				"Projects",
+				"HktCore",
 			}
 		);
 

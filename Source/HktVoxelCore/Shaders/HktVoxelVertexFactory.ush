@@ -1,64 +1,212 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
-// HktVoxelVertexFactory.ush — 복셀 버텍스 언팩 로직
+// HktVoxelVertexFactory.ush — UE5 Vertex Factory interface for voxel rendering
+//
+// 8-byte packed voxel vertex → translated-world position, normal, color, AO
+// UE 5.7 LWC: Primitive.LocalToRelativeWorld (translated world space)
 
 #pragma once
 
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/VertexFactoryCommon.ush"
 #include "HktVoxelCommon.ush"
 
-// 팔레트 텍스처 (256 x 8, RGBA8)
+// Palette texture (256 x 8, RGBA8)
 Texture2D HktPaletteTexture;
 SamplerState HktPaletteSampler;
 
-/**
- * 압축 복셀 버텍스 언팩
- *
- * PackedPosSize (uint32):
- *   [5:0] x, [11:6] y, [17:12] z, [23:18] width, [29:24] height, [31:30] face_low
- *
- * PackedMaterial (uint32):
- *   [15:0] voxel_type, [18:16] palette_index, [20:19] ao_value,
- *   [23:21] flags, [24] face_high
- */
-void HktUnpackVoxelVertex(
-    uint PackedPosSize, uint PackedMaterial,
-    uint VertexID,
-    out float3 Position, out float3 Normal,
-    out float4 Color, out float Emission)
+// ============================================================================
+// FVertexFactoryInput
+// ============================================================================
+struct FVertexFactoryInput
 {
-    // 위치 언팩
-    float3 BasePos;
-    BasePos.x = float(PackedPosSize & 0x3F);
-    BasePos.y = float((PackedPosSize >> 6) & 0x3F);
-    BasePos.z = float((PackedPosSize >> 12) & 0x3F);
+	uint PackedPositionAndSize : ATTRIBUTE0;
+	uint PackedMaterialAndAO  : ATTRIBUTE1;
+	uint VertexId             : SV_VertexID;
+};
 
-    float Width  = float((PackedPosSize >> 18) & 0x3F);
-    float Height = float((PackedPosSize >> 24) & 0x3F);
+// ============================================================================
+// FVertexFactoryIntermediates
+// ============================================================================
+struct FVertexFactoryIntermediates
+{
+	float3 LocalPosition;
+	float3 WorldNormal;
+	float3 WorldTangent;
+	float4 Color;
+};
 
-    // 면 방향 (3bit: 2bit from PosSize + 1bit from Material)
-    uint FaceDir = ((PackedPosSize >> 30) & 0x3) | (((PackedMaterial >> 24) & 0x1) << 2);
+// ============================================================================
+// FVertexFactoryInterpolantsVSToPS
+// ============================================================================
+struct FVertexFactoryInterpolantsVSToPS
+{
+	float4 Color        : COLOR0;
+	float3 WorldNormal  : TEXCOORD0;
+	float3 WorldTangent : TEXCOORD1;
+};
 
-    // 법선
-    Normal = HktGetFaceNormal(FaceDir);
+// ============================================================================
+// Stereo / Instancing stubs
+// ============================================================================
 
-    // 쿼드 확장 (코너별 오프셋)
-    uint CornerIndex = VertexID % 4;
-    Position = BasePos + HktExpandQuad(FaceDir, Width, Height, CornerIndex);
+uint GetEyeIndexFromVF(FVertexFactoryInput Input)
+{
+	return 0;
+}
 
-    // 복셀 단위를 월드 스케일로 (1복셀 = 100 유닛)
-    Position *= 100.0;
+uint VertexFactoryGetViewIndex(FVertexFactoryIntermediates Intermediates)
+{
+	return 0;
+}
 
-    // 재질 언팩
-    uint VoxelType    = PackedMaterial & 0xFFFF;
-    uint PaletteIdx   = (PackedMaterial >> 16) & 0x7;
-    uint AO           = (PackedMaterial >> 19) & 0x3;
-    uint Flags        = (PackedMaterial >> 21) & 0x7;
+uint VertexFactoryGetInstanceIdLoadIndex(FVertexFactoryIntermediates Intermediates)
+{
+	return 0;
+}
 
-    // 팔레트 룩업 — (PaletteIndex, VoxelType % 256) 좌표
-    Color = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
+float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return float4(0, 0, 0, 0);
+}
 
-    // Baked AO 적용
-    Color.rgb *= HktAOToLight(AO);
+uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return 0;
+}
 
-    // 발광 플래그
-    Emission = (Flags & 0x1) ? HktEmissionStrength : 0.0;
+// ============================================================================
+// Vertex unpack
+// ============================================================================
+
+FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
+{
+	FVertexFactoryIntermediates Result;
+
+	uint PP = Input.PackedPositionAndSize;
+	uint PM = Input.PackedMaterialAndAO;
+	uint Corner = Input.VertexId % 4;
+
+	// Position unpack
+	float3 BasePos;
+	BasePos.x = float(PP & 0x3F);
+	BasePos.y = float((PP >> 6) & 0x3F);
+	BasePos.z = float((PP >> 12) & 0x3F);
+
+	float Width  = float((PP >> 18) & 0x3F);
+	float Height = float((PP >> 24) & 0x3F);
+
+	// Face direction (3bit)
+	uint FaceDir = ((PP >> 30) & 0x3) | (((PM >> 24) & 0x1) << 2);
+
+	Result.WorldNormal = HktGetFaceNormal(FaceDir);
+
+	float3 Tangent, Bitangent;
+	HktGetFaceTangents(FaceDir, Tangent, Bitangent);
+	Result.WorldTangent = Tangent;
+
+	// Quad corner expansion + scale (1 voxel = 100 units)
+	Result.LocalPosition = (BasePos + HktExpandQuad(FaceDir, Width, Height, Corner)) * 100.0;
+
+	// Material unpack
+	uint VoxelType  = PM & 0xFFFF;
+	uint PaletteIdx = (PM >> 16) & 0x7;
+	uint AO         = (PM >> 19) & 0x3;
+
+	Result.Color = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
+	Result.Color.rgb *= HktAOToLight(AO);
+
+	return Result;
+}
+
+// ============================================================================
+// Position — LWC: LocalToRelativeWorld → translated world space
+// ============================================================================
+
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return mul(float4(Intermediates.LocalPosition, 1.0), Primitive.LocalToRelativeWorld);
+}
+
+float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
+{
+	return InWorldPosition;
+}
+
+float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition)
+{
+	return TranslatedWorldPosition;
+}
+
+float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return mul(float4(Intermediates.LocalPosition, 1.0), Primitive.PreviousLocalToRelativeWorld);
+}
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.WorldNormal;
+}
+
+// ============================================================================
+// Tangent
+// ============================================================================
+
+half3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	half3 Normal    = Intermediates.WorldNormal;
+	half3 Tangent   = Intermediates.WorldTangent;
+	half3 Bitangent = cross(Normal, Tangent);
+	return half3x3(Tangent, Bitangent, Normal);
+}
+
+// ============================================================================
+// Interpolants
+// ============================================================================
+
+FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(
+	FVertexFactoryInput Input,
+	FVertexFactoryIntermediates Intermediates,
+	FMaterialVertexParameters VertexParameters)
+{
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+	Interpolants.Color = Intermediates.Color;
+	Interpolants.WorldNormal = Intermediates.WorldNormal;
+	Interpolants.WorldTangent = Intermediates.WorldTangent;
+	return Interpolants;
+}
+
+// ============================================================================
+// Material parameters — 5th param: bIsPreviousFrame (velocity pass용)
+// ============================================================================
+
+FMaterialVertexParameters GetMaterialVertexParameters(
+	FVertexFactoryInput Input,
+	FVertexFactoryIntermediates Intermediates,
+	float3 WorldPosition,
+	half3x3 TangentToLocal,
+	bool bIsPreviousFrame = false)
+{
+	FMaterialVertexParameters Result = MakeInitializedMaterialVertexParameters();
+	Result.WorldPosition = WorldPosition;
+	Result.VertexColor = Intermediates.Color;
+	Result.TangentToWorld = TangentToLocal;
+	return Result;
+}
+
+FMaterialPixelParameters GetMaterialPixelParameters(
+	FVertexFactoryInterpolantsVSToPS Interpolants,
+	float4 SvPosition)
+{
+	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
+	Result.VertexColor = Interpolants.Color;
+
+	half3 Normal    = normalize(Interpolants.WorldNormal);
+	half3 Tangent   = normalize(Interpolants.WorldTangent);
+	half3 Bitangent = cross(Normal, Tangent);
+
+	Result.WorldNormal = Normal;
+	Result.TangentToWorld = half3x3(Tangent, Bitangent, Normal);
+	Result.TwoSidedSign = 1.0;
+
+	return Result;
 }

@@ -30,7 +30,7 @@ struct FHktVoxel
 // FHktVoxelChunk — 32x32x32 복셀 청크 (렌더링 전용 사본)
 // ============================================================================
 
-struct FHktVoxelVertex;  // Forward declaration — Meshing/HktVoxelVertex.h 참조
+#include "Meshing/HktVoxelVertex.h"
 
 struct HKTVOXELCORE_API FHktVoxelChunk
 {
@@ -69,21 +69,4 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 	}
 };
 
-// ============================================================================
-// FHktVoxelDelta — VM → 렌더 캐시 복셀 변경 이벤트
-// ============================================================================
-
-struct HKTVOXELCORE_API FHktVoxelDelta
-{
-	FIntVector ChunkCoord;      // 대상 청크
-	uint16 LocalIndex = 0;      // 청크 내 복셀 인덱스 (0~32767)
-	uint16 NewTypeID = 0;
-	uint8  NewPaletteIndex = 0;
-	uint8  NewFlags = 0;
-
-	friend FArchive& operator<<(FArchive& Ar, FHktVoxelDelta& D)
-	{
-		Ar << D.ChunkCoord << D.LocalIndex << D.NewTypeID << D.NewPaletteIndex << D.NewFlags;
-		return Ar;
-	}
-};
+// FHktVoxelDelta는 HktCoreEvents.h에서 정의됨 (HktCore 모듈)

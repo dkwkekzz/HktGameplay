@@ -58,7 +58,7 @@
 		{
 			"Name": "HktVoxelCore",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PostConfigInit"
 		},
 		{
 			"Name": "HktVoxelVFX",

@@ -103,6 +103,8 @@ struct FHktEntityPresentation
 	HKTPRESENTATION_API bool IsSpawnedAt(int64 Frame) const;
 	HKTPRESENTATION_API bool IsRemovedAt(int64 Frame) const;
 	HKTPRESENTATION_API bool IsItemAttached() const { return OwnerEntity.Get() != InvalidEntityId && ItemState.Get() == 2 && Equippable.Get() != 0; }
+	/** 소유된 아이템 (InBag 또는 Active) — Ground 상태가 아닌 소유 아이템은 월드에서 숨김 */
+	HKTPRESENTATION_API bool IsItemOwned() const { return OwnerEntity.Get() != InvalidEntityId && ItemState.Get() != 0; }
 
 	HKTPRESENTATION_API static EHktRenderCategory DetermineRenderCategory(const FGameplayTagContainer& Tags);
 

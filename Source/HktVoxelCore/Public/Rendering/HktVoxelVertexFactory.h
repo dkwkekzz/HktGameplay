@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RenderResource.h"
 #include "VertexFactory.h"
+#include "ShaderParameters.h"
 
 /**
  * FHktVoxelVertexFactory — 복셀 전용 Vertex Factory
@@ -29,6 +30,9 @@ public:
 
 	void SetData(const FDataType& InData);
 
+	/** 팔레트 텍스처 설정 — 셰이더의 HktPaletteTexture 바인딩용 */
+	void SetPaletteTexture(FRHITexture* InTexture, FRHISamplerState* InSampler);
+
 	/** 셰이더 퍼뮤테이션 — 복셀 전용이므로 제한적 컴파일 */
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
@@ -39,6 +43,9 @@ public:
 
 	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
+
+	FRHITexture* PaletteTextureRHI = nullptr;
+	FRHISamplerState* PaletteSamplerRHI = nullptr;
 
 private:
 	FDataType Data;

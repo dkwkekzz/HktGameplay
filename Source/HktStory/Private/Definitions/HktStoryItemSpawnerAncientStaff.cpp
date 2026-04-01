@@ -53,6 +53,7 @@ namespace HktStoryItemSpawnerAncientStaff
 
 		B	// 아이템 속성 설정
 			.SaveConstEntity(Spawned, PropertyId::AttackPower, 8)
+			.SaveConstEntity(Spawned, PropertyId::Equippable, 1)
 			.SetItemSkillTag(Spawned, Skill_UseSkill_Ref)
 			.SaveConstEntity(Spawned, PropertyId::SkillCPCost, 50)
 			.SaveConstEntity(Spawned, PropertyId::RecoveryFrame, 90)

@@ -102,11 +102,11 @@ void AHktIngameHUD::SyncEntityElements(const FHktPresentationState& State)
 	if (!bInitialSyncDone)
 	{
 		// 초기 동기화: PresentationState의 모든 유효 엔티티에 대해 위젯 생성
-		// 아이템이 장착된 상태(IsItemAttached)인 엔티티는 월드에 배치된 것이 아니므로 제외
+		// 소유된 아이템(InBag/Active)은 월드에 배치된 것이 아니므로 제외
 		State.ForEachEntity([this, &State](const FHktEntityPresentation& Entity)
 		{
 			if (Entity.EntityId == InvalidEntityId) return;
-			if (Entity.IsItemAttached()) return;
+			if (Entity.IsItemOwned()) return;
 			TrackedEntities.Add(Entity.EntityId);
 			CreateEntityElement(Entity.EntityId, State);
 		});
@@ -117,12 +117,12 @@ void AHktIngameHUD::SyncEntityElements(const FHktPresentationState& State)
 		return;
 	}
 
-	// 신규 엔티티 추가 (장착 아이템은 제외)
+	// 신규 엔티티 추가 (소유된 아이템은 제외)
 	for (FHktEntityId Id : State.SpawnedThisFrame)
 	{
 		if (Id == InvalidEntityId) continue;
 		const FHktEntityPresentation* Entity = State.Get(Id);
-		if (Entity && Entity->IsItemAttached()) continue;
+		if (Entity && Entity->IsItemOwned()) continue;
 		if (!TrackedEntities.Contains(Id))
 		{
 			TrackedEntities.Add(Id);
@@ -140,14 +140,14 @@ void AHktIngameHUD::SyncEntityElements(const FHktPresentationState& State)
 		}
 	}
 
-	// 아이템 상태 변화: 월드에 있다가 장착되면 HUD 제거, 장착 해제되면 HUD 생성
+	// 아이템 상태 변화: 소유되면 HUD 제거, 드랍되면 HUD 생성
 	for (FHktEntityId Id : State.DirtyThisFrame)
 	{
 		const FHktEntityPresentation* Entity = State.Get(Id);
 		if (!Entity) continue;
 
 		const bool bTracked = TrackedEntities.Contains(Id);
-		const bool bShouldShow = !Entity->IsItemAttached();
+		const bool bShouldShow = !Entity->IsItemOwned();
 
 		if (bTracked && !bShouldShow)
 		{

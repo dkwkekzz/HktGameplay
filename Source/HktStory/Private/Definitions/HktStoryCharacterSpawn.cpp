@@ -68,6 +68,7 @@ namespace HktStoryCharacterSpawn
 			// 메인 무기 (슬롯 0)
 			.SpawnEntity(Entity_Item_Sword)
 			.SaveConstEntity(Spawned, PropertyId::EquipIndex, 0)
+			.SaveConstEntity(Spawned, PropertyId::Equippable, 1)
 			.SetStance(Spawned, HktStance::Sword1H)
 			.PlayVFXAttached(Spawned, VFX_ActivateGlow)
 

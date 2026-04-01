@@ -11,6 +11,12 @@
 
 const FIntVector AHktVoxelUnitActor::EntityChunkCoord = FIntVector::ZeroValue;
 
+AHktVoxelUnitActor::~AHktVoxelUnitActor()
+{
+	// TUniquePtr<FHktVoxelMeshScheduler> 소멸을 위해 명시적 정의 (complete type 필요)
+	MeshScheduler.Reset();
+}
+
 AHktVoxelUnitActor::AHktVoxelUnitActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -40,6 +46,9 @@ void AHktVoxelUnitActor::BeginPlay()
 
 	// 초기 복셀 메시 로드
 	InitializeVoxelMesh();
+
+	OnSkinSetChanged(0);   // SkinSetID=0, GenerateDefaultShape() 실행됨
+	OnPaletteChanged(0);   // 팔레트 0번 행 (기본 흰색)
 }
 
 void AHktVoxelUnitActor::Tick(float DeltaTime)

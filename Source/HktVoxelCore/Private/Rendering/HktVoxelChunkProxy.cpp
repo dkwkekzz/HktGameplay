@@ -6,6 +6,8 @@
 #include "HktVoxelCoreLog.h"
 #include "Materials/Material.h"
 #include "SceneManagement.h"
+#include "RHIStaticStates.h"
+#include "TextureResource.h"
 
 FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent)
@@ -34,7 +36,7 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 	uint32 VisibilityMap,
 	FMeshElementCollector& Collector) const
 {
-	if (NumIndices == 0 || !VertexBuffer.IsValid() || !IndexBuffer.IsValid())
+	if (NumIndices == 0 || !VertexBufferWrapper.VertexBufferRHI.IsValid() || !IndexBufferWrapper.IndexBufferRHI.IsValid())
 	{
 		return;
 	}
@@ -56,7 +58,7 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		Mesh.CastShadow = true;
 
 		FMeshBatchElement& BatchElement = Mesh.Elements[0];
-		BatchElement.IndexBuffer = IndexBuffer.GetReference();
+		BatchElement.IndexBuffer = &IndexBufferWrapper;
 		BatchElement.NumPrimitives = NumIndices / 3;
 		BatchElement.FirstIndex = 0;
 		BatchElement.MinVertexIndex = 0;
@@ -86,8 +88,8 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	if (Vertices.Num() == 0 || Indices.Num() == 0)
 	{
 		NumIndices = 0;
-		VertexBuffer = nullptr;
-		IndexBuffer = nullptr;
+		VertexBufferWrapper.VertexBufferRHI = nullptr;
+		IndexBufferWrapper.IndexBufferRHI = nullptr;
 		return;
 	}
 
@@ -95,24 +97,24 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("HktVoxelChunkVB"));
 		const uint32 Size = Vertices.Num() * sizeof(FHktVoxelVertex);
-		VertexBuffer = FRHICommandListImmediate::Get().CreateVertexBuffer(
+		VertexBufferWrapper.VertexBufferRHI = FRHICommandListImmediate::Get().CreateVertexBuffer(
 			Size, BUF_Static, CreateInfo);
 
-		void* Data = FRHICommandListImmediate::Get().LockBuffer(VertexBuffer, 0, Size, RLM_WriteOnly);
+		void* Data = FRHICommandListImmediate::Get().LockBuffer(VertexBufferWrapper.VertexBufferRHI, 0, Size, RLM_WriteOnly);
 		FMemory::Memcpy(Data, Vertices.GetData(), Size);
-		FRHICommandListImmediate::Get().UnlockBuffer(VertexBuffer);
+		FRHICommandListImmediate::Get().UnlockBuffer(VertexBufferWrapper.VertexBufferRHI);
 	}
 
 	// Index Buffer 생성
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("HktVoxelChunkIB"));
 		const uint32 Size = Indices.Num() * sizeof(uint32);
-		IndexBuffer = FRHICommandListImmediate::Get().CreateIndexBuffer(
+		IndexBufferWrapper.IndexBufferRHI = FRHICommandListImmediate::Get().CreateIndexBuffer(
 			sizeof(uint32), Size, BUF_Static, CreateInfo);
 
-		void* Data = FRHICommandListImmediate::Get().LockBuffer(IndexBuffer, 0, Size, RLM_WriteOnly);
+		void* Data = FRHICommandListImmediate::Get().LockBuffer(IndexBufferWrapper.IndexBufferRHI, 0, Size, RLM_WriteOnly);
 		FMemory::Memcpy(Data, Indices.GetData(), Size);
-		FRHICommandListImmediate::Get().UnlockBuffer(IndexBuffer);
+		FRHICommandListImmediate::Get().UnlockBuffer(IndexBufferWrapper.IndexBufferRHI);
 	}
 
 	NumIndices = Indices.Num();
@@ -125,11 +127,19 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 		VertexFactory->InitResource(FRHICommandListImmediate::Get());
 	}
 
+	// 팔레트 텍스처 — 커스텀 텍스처 미설정 시 GWhiteTexture 폴백 (흰색)
+	if (!VertexFactory->PaletteTextureRHI)
+	{
+		VertexFactory->SetPaletteTexture(
+			GWhiteTexture->TextureRHI,
+			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI());
+	}
+
 	FHktVoxelVertexFactory::FDataType VFData;
 	VFData.PositionComponent = FVertexStreamComponent(
-		VertexBuffer.GetReference(), 0, sizeof(FHktVoxelVertex), VET_UInt);
+		&VertexBufferWrapper, 0, sizeof(FHktVoxelVertex), VET_UInt);
 	VFData.MaterialComponent = FVertexStreamComponent(
-		VertexBuffer.GetReference(), 4, sizeof(FHktVoxelVertex), VET_UInt);
+		&VertexBufferWrapper, 4, sizeof(FHktVoxelVertex), VET_UInt);
 
 	VertexFactory->SetData(VFData);
 }

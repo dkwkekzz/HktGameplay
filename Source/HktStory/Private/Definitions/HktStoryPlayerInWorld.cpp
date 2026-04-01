@@ -59,7 +59,7 @@ namespace HktStoryPlayerInWorld
 			.PlaySound(Sound_Spawn)
 
 			// 플레이어 속성 설정
-			.SetStance(Self, HktStance::Spear)
+			.SetStance(Self, HktStance::Unarmed)
 			.SaveConstEntity(Self, PropertyId::BagCapacity, 8)          // 가방 용량 8
 			.SaveConstEntity(Self, PropertyId::MaxCP, 100)              // CP 최대 100
 			.SaveConstEntity(Self, PropertyId::CP, 0)                   // CP 초기 0
@@ -84,6 +84,7 @@ namespace HktStoryPlayerInWorld
 			.SaveConstEntity(Spawned, PropertyId::EquipIndex, 0)               // 액션 슬롯 0 (주무기)
 			.SaveEntityProperty(Self, PropertyId::EquipSlot0, Spawned)          // 캐릭터.EquipSlot0 = 아이템 EntityId
 			.SaveConstEntity(Spawned, PropertyId::AttackPower, 5)              // 공격력 5
+			.SaveConstEntity(Spawned, PropertyId::Equippable, 1)               // 장착 가능
 			.SetStance(Spawned, HktStance::Sword1H)                            // Stance
 			.AddTag(Spawned, Tag_Weapon_Sword)
 			// 아이템 스킬 데이터

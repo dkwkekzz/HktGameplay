@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+struct FHktVoxel;
 struct FHktVoxelChunk;
 
 /**

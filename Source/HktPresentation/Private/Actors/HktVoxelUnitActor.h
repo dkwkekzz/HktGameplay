@@ -8,11 +8,11 @@
 #include "IHktPresentableActor.h"
 #include "HktVoxelSkinTypes.h"
 #include "HktVoxelSkinAssembler.h"
+#include "Meshing/HktVoxelMeshScheduler.h"
 #include "HktVoxelUnitActor.generated.h"
 
 class UHktVoxelChunkComponent;
 class FHktVoxelRenderCache;
-class FHktVoxelMeshScheduler;
 struct FHktEntityPresentation;
 
 /**
@@ -36,6 +36,7 @@ class AHktVoxelUnitActor : public AActor, public IHktSelectable, public IHktPres
 
 public:
 	AHktVoxelUnitActor();
+	virtual ~AHktVoxelUnitActor();
 
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;

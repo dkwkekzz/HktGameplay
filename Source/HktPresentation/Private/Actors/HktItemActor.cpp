@@ -35,7 +35,7 @@ void AHktItemActor::SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator Attac
 void AHktItemActor::ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
 	TFunctionRef<AActor*(FHktEntityId)> GetActorFunc)
 {
-	// --- 부착 상태 판단 ---
+	// --- 부착/소유 상태 판단 ---
 	if (bForceAll || Entity.OwnerEntity.IsDirty(Frame) || Entity.ItemState.IsDirty(Frame))
 	{
 		if (Entity.IsItemAttached())
@@ -46,6 +46,12 @@ void AHktItemActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 		else
 		{
 			DetachFromOwnerIfNeeded();
+
+			// 비장착 소유 아이템(InBag 등)은 월드에서 숨김, Ground면 표시
+			// 장착 가능 아이템은 소켓 부착으로 처리되므로 여기서 숨기지 않음
+			const bool bShouldHide = Entity.IsItemOwned();
+			SetActorHiddenInGame(bShouldHide);
+			SetActorEnableCollision(!bShouldHide);
 		}
 	}
 

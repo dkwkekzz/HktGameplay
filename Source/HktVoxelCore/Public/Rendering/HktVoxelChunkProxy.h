@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "PrimitiveSceneProxy.h"
+#include "RenderResource.h"
 #include "Meshing/HktVoxelVertex.h"
 
 class UHktVoxelChunkComponent;
@@ -40,14 +41,31 @@ public:
 
 	SIZE_T GetAllocatedSize() const { return 0; }
 
+	virtual SIZE_T GetTypeHash() const override
+	{
+		static SIZE_T UniquePointer;
+		return reinterpret_cast<SIZE_T>(&UniquePointer);
+	}
+
 	/** Render Thread에서 호출 — 메싱 완료 데이터로 GPU 버퍼 갱신 */
 	void UpdateMeshData_RenderThread(
 		const TArray<FHktVoxelVertex>& Vertices,
 		const TArray<uint32>& Indices);
 
 private:
-	FBufferRHIRef VertexBuffer;
-	FBufferRHIRef IndexBuffer;
+	/** RHI 버퍼를 감싸는 FVertexBuffer/FIndexBuffer 래퍼 (FVertexStreamComponent, FMeshBatchElement 호환용) */
+	struct FVoxelVertexBuffer : public FVertexBuffer
+	{
+		virtual void InitRHI(FRHICommandListBase&) override {}
+	};
+
+	struct FVoxelIndexBuffer : public FIndexBuffer
+	{
+		virtual void InitRHI(FRHICommandListBase&) override {}
+	};
+
+	FVoxelVertexBuffer VertexBufferWrapper;
+	FVoxelIndexBuffer IndexBufferWrapper;
 	FHktVoxelVertexFactory* VertexFactory = nullptr;
 	UMaterialInterface* VoxelMaterial = nullptr;
 	int32 NumIndices = 0;
