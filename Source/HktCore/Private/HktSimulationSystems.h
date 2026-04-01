@@ -88,6 +88,7 @@ struct HKTCORE_API FHktPhysicsSystem
     };
 
     TMap<FCellCoord, TArray<FHktEntityId>> GridMap;
+    TSet<uint64> TestedPairs;  // 인접 셀 중복 검사 방지용 (프레임 간 재사용)
 
     static FCellCoord WorldToCell(const FVector& Pos);
     void RebuildGrid(const FHktWorldState& WorldState);

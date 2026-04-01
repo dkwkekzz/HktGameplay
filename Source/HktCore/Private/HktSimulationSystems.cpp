@@ -608,8 +608,11 @@ void FHktPhysicsSystem::Process(
 
     static constexpr float DefaultCollisionRadius = 50.0f;
 
-    // 이미 검사한 엔티티 쌍 중복 방지용 (인접 셀 순회 시 동일 쌍 재검사 방지)
-    TSet<uint64> TestedPairs;
+    // CVar를 루프 진입 전 1회만 캐싱 (매 충돌 쌍마다 읽지 않도록)
+    const float SoftPushRatio = CVarPhysicsSoftPushRatio.GetValueOnAnyThread();
+
+    // 인접 셀 중복 검사 방지용 — 멤버 변수 재사용으로 매 프레임 할당 회피
+    TestedPairs.Reset();
 
     // 인접 셀 오프셋 (자기 셀 포함 3x3 = 9칸)
     static constexpr int32 AdjacentOffsets[9][2] = {
@@ -684,20 +687,22 @@ void FHktPhysicsSystem::Process(
                         if (Dist > SMALL_NUMBER)
                         {
                             const float Overlap = CombinedRadius - Dist;
-                            const float SoftRatio = CVarPhysicsSoftPushRatio.GetValueOnAnyThread();
                             const float MassA = static_cast<float>(FMath::Max(WorldState.GetProperty(A, PropertyId::Mass), 1));
                             const float MassB = static_cast<float>(FMath::Max(WorldState.GetProperty(B, PropertyId::Mass), 1));
                             const float InvTotalMass = 1.0f / (MassA + MassB);
                             const FVector Dir = (PosB - PosA) / Dist;
 
                             // 무거운 쪽은 적게, 가벼운 쪽은 많이 밀림
-                            const FVector NewA = PosA - Dir * (Overlap * SoftRatio * MassB * InvTotalMass);
-                            const FVector NewB = PosB + Dir * (Overlap * SoftRatio * MassA * InvTotalMass);
+                            const FVector NewA = PosA - Dir * (Overlap * SoftPushRatio * MassB * InvTotalMass);
+                            const FVector NewB = PosB + Dir * (Overlap * SoftPushRatio * MassA * InvTotalMass);
 
                             VMProxy.SetPosition(WorldState, A,
                                 FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
                             VMProxy.SetPosition(WorldState, B,
                                 FMath::RoundToInt(NewB.X), FMath::RoundToInt(NewB.Y), FMath::RoundToInt(NewB.Z));
+
+                            // Push-out 후 PosA 갱신 — 이후 충돌 검사에 보정된 위치 사용
+                            PosA = NewA;
                         }
                     }
                 }
@@ -761,19 +766,21 @@ void FHktPhysicsSystem::Process(
                             if (Dist > SMALL_NUMBER)
                             {
                                 const float Overlap = CombinedRadius - Dist;
-                                const float SoftRatio = CVarPhysicsSoftPushRatio.GetValueOnAnyThread();
                                 const float MassA = static_cast<float>(FMath::Max(WorldState.GetProperty(A, PropertyId::Mass), 1));
                                 const float MassB = static_cast<float>(FMath::Max(WorldState.GetProperty(B, PropertyId::Mass), 1));
                                 const float InvTotalMass = 1.0f / (MassA + MassB);
                                 const FVector Dir = (PosB - PosA) / Dist;
 
-                                const FVector NewA = PosA - Dir * (Overlap * SoftRatio * MassB * InvTotalMass);
-                                const FVector NewB = PosB + Dir * (Overlap * SoftRatio * MassA * InvTotalMass);
+                                const FVector NewA = PosA - Dir * (Overlap * SoftPushRatio * MassB * InvTotalMass);
+                                const FVector NewB = PosB + Dir * (Overlap * SoftPushRatio * MassA * InvTotalMass);
 
                                 VMProxy.SetPosition(WorldState, A,
                                     FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
                                 VMProxy.SetPosition(WorldState, B,
                                     FMath::RoundToInt(NewB.X), FMath::RoundToInt(NewB.Y), FMath::RoundToInt(NewB.Z));
+
+                                // Push-out 후 PosA 갱신 — 이후 인접 셀 충돌 검사에 보정된 위치 사용
+                                PosA = NewA;
                             }
                         }
                     }

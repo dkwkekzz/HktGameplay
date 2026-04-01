@@ -47,7 +47,10 @@
     X(NextActionFrame)            \
     /* 충돌 레이어 */             \
     X(CollisionLayer)             \
-    X(CollisionMask)
+    X(CollisionMask)              \
+    /* 충돌 반경/질량 (매 프레임 물리 루프에서 사용) */ \
+    X(CollisionRadius)            \
+    X(Mass)
 
 #define HKT_COLD_PROPERTY_LIST(X) \
     /* 이벤트 파라미터 */     \
@@ -66,8 +69,6 @@
     X(VelX)                   \
     X(VelY)                   \
     X(VelZ)                   \
-    X(Mass)                   \
-    X(CollisionRadius)        \
     /* 아이템 */              \
     X(ItemState)              \
     X(ItemId)                 \

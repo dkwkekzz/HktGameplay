@@ -116,6 +116,13 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
         PendingExternalEvents.Add(PB);
     }
 
+    // 물리/이동 이벤트를 같은 프레임 내에서 즉시 소비 — 1프레임 지연 제거
+    if (PendingExternalEvents.Num() > 0)
+    {
+        VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool,
+                                Event.DeltaSeconds, PendingExternalEvents);
+    }
+
     VMCleanupSystem.Process(CompletedVMs, *VMPool, WorldState, VMProxy);
 }
 
