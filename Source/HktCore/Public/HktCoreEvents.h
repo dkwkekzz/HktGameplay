@@ -257,6 +257,25 @@ struct HKTCORE_API FHktAnimEvent
 };
 
 // ============================================================================
+// FHktVoxelDelta — 단일 복셀 변경 (VM → 렌더 캐시)
+// ============================================================================
+
+struct HKTCORE_API FHktVoxelDelta
+{
+    FIntVector ChunkCoord;
+    uint16 LocalIndex = 0;       // 청크 내 복셀 인덱스 (0~32767)
+    uint16 NewTypeID = 0;
+    uint8  NewPaletteIndex = 0;
+    uint8  NewFlags = 0;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktVoxelDelta& D)
+    {
+        Ar << D.ChunkCoord << D.LocalIndex << D.NewTypeID << D.NewPaletteIndex << D.NewFlags;
+        return Ar;
+    }
+};
+
+// ============================================================================
 // FHktSimulationDiff — 프레임별 변경점 (서버 → 클라이언트)
 // ============================================================================
 
@@ -272,6 +291,7 @@ struct HKTCORE_API FHktSimulationDiff
     TArray<FHktOwnerDelta> OwnerDeltas;
     TArray<FHktVFXEvent> VFXEvents;
     TArray<FHktAnimEvent> AnimEvents;
+    TArray<FHktVoxelDelta> VoxelDeltas;  // 복셀 변경 이벤트 (VM → 렌더 캐시)
 
     bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
@@ -279,7 +299,7 @@ struct HKTCORE_API FHktSimulationDiff
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, SpawnedEntities, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, RemovedEntityStates, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, TagDeltas, Map);
-        Ar << OwnerDeltas << VFXEvents << AnimEvents;
+        Ar << OwnerDeltas << VFXEvents << AnimEvents << VoxelDeltas;
         return true;
     }
 };

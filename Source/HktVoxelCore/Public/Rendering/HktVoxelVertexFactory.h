@@ -1,0 +1,45 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "RenderResource.h"
+#include "VertexFactory.h"
+
+/**
+ * FHktVoxelVertexFactory — 복셀 전용 Vertex Factory
+ *
+ * FHktVoxelVertex (8바이트)의 두 uint32 스트림을 읽어
+ * 셰이더에서 위치, 크기, 법선, 재질, AO를 언팩한다.
+ *
+ * Phase 3 (프로덕션) 에서 사용. Phase 1은 PMC로 대체.
+ */
+class HKTVOXELCORE_API FHktVoxelVertexFactory : public FVertexFactory
+{
+	DECLARE_VERTEX_FACTORY_TYPE(FHktVoxelVertexFactory);
+
+public:
+	struct FDataType
+	{
+		FVertexStreamComponent PositionComponent;   // PackedPositionAndSize (uint32)
+		FVertexStreamComponent MaterialComponent;   // PackedMaterialAndAO  (uint32)
+	};
+
+	FHktVoxelVertexFactory(ERHIFeatureLevel::Type InFeatureLevel);
+
+	void SetData(const FDataType& InData);
+
+	/** 셰이더 퍼뮤테이션 — 복셀 전용이므로 제한적 컴파일 */
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+
+	/** 셰이더 컴파일 환경 설정 — HKT_VOXEL_VERTEX_FACTORY 매크로 주입 */
+	static void ModifyCompilationEnvironment(
+		const FVertexFactoryShaderPermutationParameters& Parameters,
+		FShaderCompilerEnvironment& OutEnvironment);
+
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
+	virtual void ReleaseRHI() override;
+
+private:
+	FDataType Data;
+};

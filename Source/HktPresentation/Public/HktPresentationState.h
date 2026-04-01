@@ -84,6 +84,10 @@ struct FHktEntityPresentation
 	THktVisualField<int32> ItemState;
 	THktVisualField<int32> Equippable;    // 장착 가능 여부 (0=불가, 1=가능)
 
+	// --- Voxel Skin ---
+	THktVisualField<int32> VoxelSkinSet;  // 스킨 세트 ID (외형 메시 결정, 변경 시 재메싱)
+	THktVisualField<int32> VoxelPalette;  // 팔레트 행 번호 (색상 결정, 재메싱 불필요)
+
 	/** Entity의 GameplayTag 컨테이너 (AnimInstance 태그 동기화용) */
 	FGameplayTagContainer Tags;
 	int64 TagsDirtyFrame = -1;

@@ -96,7 +96,10 @@
     X(EquipSlot5)             \
     X(EquipSlot6)             \
     X(EquipSlot7)             \
-    X(EquipSlot8)
+    X(EquipSlot8)             \
+    /* 복셀 스킨 */           \
+    X(VoxelSkinSet)           \
+    X(VoxelPalette)
 
 #define HKT_PROPERTY_LIST(X) \
     HKT_HOT_PROPERTY_LIST(X) \

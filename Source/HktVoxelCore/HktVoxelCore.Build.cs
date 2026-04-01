@@ -2,16 +2,14 @@
 
 using UnrealBuildTool;
 
-public class HktPresentation : ModuleRules
+public class HktVoxelCore : ModuleRules
 {
-	public HktPresentation(ReadOnlyTargetRules Target) : base(Target)
+	public HktVoxelCore(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(
 			new string[] {
-				System.IO.Path.Combine(ModuleDirectory, "..", "HktCore", "Public"),
-				System.IO.Path.Combine(ModuleDirectory, "..", "HktRuntime", "Public"),
 			}
 		);
 
@@ -26,28 +24,19 @@ public class HktPresentation : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"InputCore",
-				"GameplayTags",
-				"UMG",
-				"Slate",
-				"SlateCore",
-				"Niagara",
-				"HktCore",
-				"HktRuntime",
-				"HktAsset",
-				"HktVFX",
-				"HktVoxelCore",
-				"HktVoxelSkin"
+				"RenderCore",
+				"RHI",
+				"Renderer",
+				"Projects",
 			}
 		);
-			
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"DeveloperSettings"
 			}
 		);
-		
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
