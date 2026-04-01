@@ -51,4 +51,5 @@ private:
 	FHktVoxelVertexFactory* VertexFactory = nullptr;
 	UMaterialInterface* VoxelMaterial = nullptr;
 	int32 NumIndices = 0;
+	int32 NumVertices = 0;
 };

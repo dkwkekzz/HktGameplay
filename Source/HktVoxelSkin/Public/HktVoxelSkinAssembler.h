@@ -49,6 +49,9 @@ public:
 	void Clear();
 
 private:
+	/** 기본 프로시저럴 캐릭터 형태 생성 (파이프라인 검증용) */
+	void GenerateDefaultShape(FHktVoxelChunk& OutChunk, const FHktVoxelSkinLayerData& LayerData) const;
+
 	FHktVoxelSkinLayerData Layers[EHktVoxelSkinLayer::Count];
 	bool bLayerActive[EHktVoxelSkinLayer::Count] = {};
 };

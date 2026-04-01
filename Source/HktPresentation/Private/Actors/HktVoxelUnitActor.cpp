@@ -178,9 +178,11 @@ void AHktVoxelUnitActor::PollMeshReady()
 		return;
 	}
 
-	const FHktVoxelChunk* Chunk = EntityRenderCache->GetChunk(EntityChunkCoord);
-	if (Chunk && Chunk->bMeshReady)
+	FHktVoxelChunk* Chunk = EntityRenderCache->GetChunk(EntityChunkCoord);
+	if (Chunk && Chunk->bMeshReady.load(std::memory_order_acquire))
 	{
+		// 소비 — 다음 프레임에 중복 업로드 방지
+		Chunk->bMeshReady.store(false, std::memory_order_relaxed);
 		BodyChunk->OnMeshReady();
 	}
 }

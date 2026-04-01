@@ -20,8 +20,12 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 
 FHktVoxelChunkProxy::~FHktVoxelChunkProxy()
 {
-	delete VertexFactory;
-	VertexFactory = nullptr;
+	if (VertexFactory)
+	{
+		VertexFactory->ReleaseResource();
+		delete VertexFactory;
+		VertexFactory = nullptr;
+	}
 }
 
 void FHktVoxelChunkProxy::GetDynamicMeshElements(
@@ -56,7 +60,7 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		BatchElement.NumPrimitives = NumIndices / 3;
 		BatchElement.FirstIndex = 0;
 		BatchElement.MinVertexIndex = 0;
-		BatchElement.MaxVertexIndex = NumIndices;  // 보수적 값
+		BatchElement.MaxVertexIndex = NumVertices > 0 ? NumVertices - 1 : 0;
 
 		Collector.AddMesh(ViewIndex, Mesh);
 	}
@@ -112,11 +116,13 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	}
 
 	NumIndices = Indices.Num();
+	NumVertices = Vertices.Num();
 
 	// Vertex Factory 셋업
 	if (!VertexFactory)
 	{
 		VertexFactory = new FHktVoxelVertexFactory(GetScene().GetFeatureLevel());
+		VertexFactory->InitResource(FRHICommandListImmediate::Get());
 	}
 
 	FHktVoxelVertexFactory::FDataType VFData;

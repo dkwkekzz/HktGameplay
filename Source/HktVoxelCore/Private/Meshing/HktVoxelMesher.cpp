@@ -21,8 +21,7 @@ void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk)
 		}
 	}
 
-	Chunk.bMeshDirty = false;
-	Chunk.bMeshReady = true;
+	// bMeshDirty/bMeshReady는 스케줄러 람다에서 세대 확인 후 관리
 }
 
 void FHktVoxelMesher::BuildFaceMask(
@@ -252,14 +251,22 @@ void FHktVoxelMesher::EmitQuad(
 		}
 	};
 
-	FIntVector BasePos = ToWorld(StartU, StartV);
+	// 4개 코너의 실제 위치에서 AO 계산
+	// 코너 순서: 0=(minU,minV), 1=(maxU,minV), 2=(minU,maxV), 3=(maxU,maxV)
+	FIntVector CornerPos[4] = {
+		ToWorld(StartU,             StartV),              // 0: min,min
+		ToWorld(StartU + Width - 1, StartV),              // 1: max,min
+		ToWorld(StartU,             StartV + Height - 1), // 2: min,max
+		ToWorld(StartU + Width - 1, StartV + Height - 1), // 3: max,max
+	};
 
-	// 4개 코너의 AO 계산
 	uint8 AO[4];
 	for (int32 i = 0; i < 4; i++)
 	{
-		AO[i] = CalcVertexAO(Chunk, BasePos, Face, i);
+		AO[i] = CalcVertexAO(Chunk, CornerPos[i], Face, i);
 	}
+
+	FIntVector BasePos = CornerPos[0];
 
 	// 버텍스 생성
 	FHktVoxelVertex V0 = FHktVoxelVertex::Pack(

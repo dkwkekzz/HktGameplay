@@ -18,8 +18,9 @@ void FHktVoxelRenderCache::ApplyVoxelDelta(const FIntVector& ChunkCoord, uint16 
 	FHktVoxelChunk* Chunk = Found->Get();
 	FIntVector Local = FHktVoxelChunk::IndexToLocal(LocalIndex);
 	Chunk->At(Local.X, Local.Y, Local.Z) = NewValue;
-	Chunk->bMeshDirty = true;
-	Chunk->bMeshReady = false;
+	Chunk->MeshGeneration.fetch_add(1, std::memory_order_release);
+	Chunk->bMeshReady.store(false, std::memory_order_relaxed);
+	Chunk->bMeshDirty.store(true, std::memory_order_release);
 }
 
 void FHktVoxelRenderCache::LoadChunk(const FIntVector& ChunkCoord, const FHktVoxel* VoxelData, int32 VoxelCount)
@@ -28,8 +29,9 @@ void FHktVoxelRenderCache::LoadChunk(const FIntVector& ChunkCoord, const FHktVox
 
 	TUniquePtr<FHktVoxelChunk> NewChunk = MakeUnique<FHktVoxelChunk>();
 	NewChunk->ChunkCoord = ChunkCoord;
-	NewChunk->bMeshDirty = true;
-	NewChunk->bMeshReady = false;
+	NewChunk->bMeshDirty.store(true, std::memory_order_relaxed);
+	NewChunk->bMeshReady.store(false, std::memory_order_relaxed);
+	NewChunk->MeshGeneration.store(0, std::memory_order_relaxed);
 
 	const int32 MaxVoxels = FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE;
 	const int32 CopyCount = FMath::Min(VoxelCount, MaxVoxels);
@@ -58,7 +60,7 @@ void FHktVoxelRenderCache::GetDirtyChunks(TArray<FIntVector>& OutDirtyChunks) co
 
 	for (const auto& Pair : Chunks)
 	{
-		if (Pair.Value->bMeshDirty)
+		if (Pair.Value->bMeshDirty.load(std::memory_order_acquire))
 		{
 			OutDirtyChunks.Add(Pair.Key);
 		}

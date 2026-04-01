@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include <atomic>
 
 // ============================================================================
 // FHktVoxel — 단일 복셀 데이터 (렌더링 전용)
@@ -38,8 +39,9 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 	FHktVoxel Data[SIZE][SIZE][SIZE];  // ~128KB
 
 	FIntVector ChunkCoord;             // 청크 좌표 (VM 기준)
-	bool bMeshDirty = true;            // 재메싱 필요
-	bool bMeshReady = false;           // 메싱 완료, GPU 업로드 대기
+	std::atomic<bool> bMeshDirty{true};   // 재메싱 필요 (Game↔Worker 원자적)
+	std::atomic<bool> bMeshReady{false};  // 메싱 완료, GPU 업로드 대기
+	std::atomic<uint32> MeshGeneration{0}; // 메싱 세대 — dirty 시 증가, 메싱 시작 시 캡처하여 완료 시 비교
 
 	// Greedy Meshing 결과 — MeshChunk()가 채움
 	TArray<FHktVoxelVertex> OpaqueVertices;

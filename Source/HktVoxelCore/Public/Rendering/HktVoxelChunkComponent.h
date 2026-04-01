@@ -34,6 +34,9 @@ public:
 	/** 청크 좌표 반환 */
 	FIntVector GetChunkCoord() const { return ChunkCoord; }
 
+	/** 복셀 렌더링용 머티리얼 설정 (팔레트 기반 단일 머티리얼) */
+	void SetVoxelMaterial(UMaterialInterface* InMaterial);
+
 	// UPrimitiveComponent
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;

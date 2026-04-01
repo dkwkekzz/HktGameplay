@@ -43,12 +43,21 @@ void FHktVoxelMeshScheduler::Tick(const FVector& CameraPos)
 			continue;
 		}
 
-		// dirty 플래그를 먼저 해제하여 중복 스케줄링 방지
-		Chunk->bMeshDirty = false;
+		// dirty 해제 + 세대 캡처하여 메싱 중 새 delta가 들어오면 결과를 버릴 수 있도록
+		Chunk->bMeshDirty.store(false, std::memory_order_relaxed);
+		const uint32 Gen = Chunk->MeshGeneration.load(std::memory_order_acquire);
 
 		UE::Tasks::Launch(
 			TEXT("HktVoxelMeshing"),
-			[Chunk]() { FHktVoxelMesher::MeshChunk(*Chunk); },
+			[Chunk, Gen]()
+			{
+				FHktVoxelMesher::MeshChunk(*Chunk);
+				// 세대가 변경되지 않았을 때만 결과를 유효로 마킹
+				if (Chunk->MeshGeneration.load(std::memory_order_acquire) == Gen)
+				{
+					Chunk->bMeshReady.store(true, std::memory_order_release);
+				}
+			},
 			UE::Tasks::ETaskPriority::BackgroundNormal
 		);
 	}
