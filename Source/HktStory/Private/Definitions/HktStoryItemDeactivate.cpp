@@ -43,7 +43,6 @@ namespace HktStoryItemDeactivate
 		FHktScopedReg r3(B);       // Stance
 		FHktScopedReg r4(B);       // 활성 아이템 존재 플래그
 		FHktScopedReg r5(B);       // 비교용
-		FHktScopedReg r6(B);       // Equippable 확인용
 
 		B.SetPrecondition([](const FHktWorldState& WS, const FHktEvent& E) -> bool
 			{
@@ -88,9 +87,9 @@ namespace HktStoryItemDeactivate
 			.JumpIfNot(r5, TEXT("check_loop"))
 
 			// 장착 가능한 아이템인지 확인
-			.LoadEntityProperty(r6, Iter, PropertyId::Equippable)
-			.CmpEqConst(r6, r6, 0)
-			.JumpIf(r6, TEXT("check_loop"))
+			.LoadEntityProperty(r5, Iter, PropertyId::Equippable)
+			.CmpEqConst(r5, r5, 0)
+			.JumpIf(r5, TEXT("check_loop"))
 
 			// 장착 가능한 활성 아이템 발견 — Stance를 그 아이템의 것으로 유지
 			.LoadEntityProperty(r3, Iter, PropertyId::Stance)

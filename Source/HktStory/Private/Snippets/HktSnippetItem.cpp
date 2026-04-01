@@ -123,7 +123,6 @@ FHktStoryBuilder& HktSnippetItem::ApplyItemStats(
 	FHktScopedReg CharVal(B);
 
 	int32 SkipStanceLabel = B.AllocLabel();
-	int32 StanceDoneLabel = B.AllocLabel();
 
 	B.LoadEntityProperty(ItemVal, ItemEntity, PropertyId::AttackPower)
 	 .LoadEntityProperty(CharVal, CharEntity, PropertyId::AttackPower)
@@ -139,9 +138,7 @@ FHktStoryBuilder& HktSnippetItem::ApplyItemStats(
 	 .JumpIf(Reg::Flag, SkipStanceLabel)
 	 .LoadEntityProperty(ItemVal, ItemEntity, PropertyId::Stance)
 	 .SaveEntityProperty(CharEntity, PropertyId::Stance, ItemVal)
-	 .Jump(StanceDoneLabel)
-	.Label(SkipStanceLabel)
-	.Label(StanceDoneLabel);
+	.Label(SkipStanceLabel);
 
 	return B;
 }
