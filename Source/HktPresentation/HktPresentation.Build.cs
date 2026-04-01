@@ -35,7 +35,9 @@ public class HktPresentation : ModuleRules
 				"HktCore",
 				"HktRuntime",
 				"HktAsset",
-				"HktVFX"
+				"HktVFX",
+				"HktVoxelCore",
+				"HktVoxelSkin"
 			}
 		);
 			

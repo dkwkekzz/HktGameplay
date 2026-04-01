@@ -181,6 +181,10 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	case PropertyId::OwnerEntity: OwnerEntity.Set(NewValue, Frame); break;
 	case PropertyId::EquipIndex:  EquipIndex.Set(NewValue, Frame); break;
 	case PropertyId::ItemState:  ItemState.Set(NewValue, Frame); break;
+
+	// Voxel Skin
+	case PropertyId::VoxelSkinSet:  VoxelSkinSet.Set(NewValue, Frame); break;
+	case PropertyId::VoxelPalette:  VoxelPalette.Set(NewValue, Frame); break;
 	}
 }
 
