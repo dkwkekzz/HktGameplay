@@ -23,6 +23,7 @@ struct HKTRULE_API FHktBagItem
 	int32 SkillCPCost = 0;
 	int32 SkillTargetRequired = 0;
 	int32 RecoveryFrame = 0;
+	int32 Equippable = 0;              // 장착 가능 여부 (0=불가, 1=가능)
 	int32 EntitySpawnTag = 0;          // Entity.Item.* ClassTag NetIndex (엔티티 복원용)
 
 	bool IsValid() const { return ItemId > 0; }
@@ -37,7 +38,7 @@ struct HKTRULE_API FHktBagItem
 	{
 		Ar << I.BagSlot << I.ItemId << I.AttackPower << I.Defense << I.Stance;
 		Ar << I.ItemSkillTag << I.SkillCPCost << I.SkillTargetRequired;
-		Ar << I.RecoveryFrame << I.EntitySpawnTag;
+		Ar << I.RecoveryFrame << I.Equippable << I.EntitySpawnTag;
 		return Ar;
 	}
 

@@ -122,6 +122,8 @@ FHktStoryBuilder& HktSnippetItem::ApplyItemStats(
 	FHktScopedReg ItemVal(B);
 	FHktScopedReg CharVal(B);
 
+	int32 SkipStanceLabel = B.AllocLabel();
+
 	B.LoadEntityProperty(ItemVal, ItemEntity, PropertyId::AttackPower)
 	 .LoadEntityProperty(CharVal, CharEntity, PropertyId::AttackPower)
 	 .Add(CharVal, CharVal, ItemVal)
@@ -130,9 +132,13 @@ FHktStoryBuilder& HktSnippetItem::ApplyItemStats(
 	 .LoadEntityProperty(CharVal, CharEntity, PropertyId::Defense)
 	 .Add(CharVal, CharVal, ItemVal)
 	 .SaveEntityProperty(CharEntity, PropertyId::Defense, CharVal)
-	 // Stance: 아이템의 Stance를 캐릭터에 적용
+	 // Stance: 장착 가능한 아이템만 Stance를 캐릭터에 적용
+	 .LoadEntityProperty(ItemVal, ItemEntity, PropertyId::Equippable)
+	 .CmpEqConst(Reg::Flag, ItemVal, 0)
+	 .JumpIf(Reg::Flag, SkipStanceLabel)
 	 .LoadEntityProperty(ItemVal, ItemEntity, PropertyId::Stance)
-	 .SaveEntityProperty(CharEntity, PropertyId::Stance, ItemVal);
+	 .SaveEntityProperty(CharEntity, PropertyId::Stance, ItemVal)
+	.Label(SkipStanceLabel);
 
 	return B;
 }

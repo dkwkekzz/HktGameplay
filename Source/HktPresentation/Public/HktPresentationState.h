@@ -82,6 +82,7 @@ struct FHktEntityPresentation
 	THktVisualField<int32> OwnerEntity;   // 소유 캐릭터 EntityId (0 = 없음)
 	THktVisualField<int32> EquipIndex;    // -1 = 미등록, 0+ = 장착 슬롯
 	THktVisualField<int32> ItemState;
+	THktVisualField<int32> Equippable;    // 장착 가능 여부 (0=불가, 1=가능)
 
 	// --- Voxel Skin ---
 	THktVisualField<int32> VoxelSkinSet;  // 스킨 세트 ID (외형 메시 결정, 변경 시 재메싱)
@@ -101,7 +102,7 @@ struct FHktEntityPresentation
 	HKTPRESENTATION_API bool IsAlive() const;
 	HKTPRESENTATION_API bool IsSpawnedAt(int64 Frame) const;
 	HKTPRESENTATION_API bool IsRemovedAt(int64 Frame) const;
-	HKTPRESENTATION_API bool IsItemAttached() const { return OwnerEntity.Get() != InvalidEntityId && ItemState.Get() == 2; }
+	HKTPRESENTATION_API bool IsItemAttached() const { return OwnerEntity.Get() != InvalidEntityId && ItemState.Get() == 2 && Equippable.Get() != 0; }
 
 	HKTPRESENTATION_API static EHktRenderCategory DetermineRenderCategory(const FGameplayTagContainer& Tags);
 

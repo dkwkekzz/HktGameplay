@@ -40,6 +40,7 @@ bool UHktBagComponent::Server_StoreFromEntity(
 	BagItem.SkillCPCost         = WS.GetProperty(ItemEntity, PropertyId::SkillCPCost);
 	BagItem.SkillTargetRequired = WS.GetProperty(ItemEntity, PropertyId::SkillTargetRequired);
 	BagItem.RecoveryFrame       = WS.GetProperty(ItemEntity, PropertyId::RecoveryFrame);
+	BagItem.Equippable          = WS.GetProperty(ItemEntity, PropertyId::Equippable);
 	BagItem.EntitySpawnTag      = WS.GetProperty(ItemEntity, PropertyId::EntitySpawnTag);
 
 	if (!BagItem.IsValid())

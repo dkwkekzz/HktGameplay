@@ -103,6 +103,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	OwnerEntity.Set(WS.GetProperty(Id, PropertyId::OwnerEntity), Frame);
 	EquipIndex.Set(WS.GetProperty(Id, PropertyId::EquipIndex), Frame);
 	ItemState.Set(WS.GetProperty(Id, PropertyId::ItemState), Frame);
+	Equippable.Set(WS.GetProperty(Id, PropertyId::Equippable), Frame);
 }
 
 void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
@@ -185,6 +186,7 @@ void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Fra
 	// Voxel Skin
 	case PropertyId::VoxelSkinSet:  VoxelSkinSet.Set(NewValue, Frame); break;
 	case PropertyId::VoxelPalette:  VoxelPalette.Set(NewValue, Frame); break;
+	case PropertyId::Equippable: Equippable.Set(NewValue, Frame); break;
 	}
 }
 
