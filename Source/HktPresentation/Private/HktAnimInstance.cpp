@@ -12,7 +12,10 @@ void UHktAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
 
-	OnMontageEnded.AddDynamic(this, &UHktAnimInstance::OnMontageEnd);
+	if (!OnMontageEnded.IsAlreadyBound(this, &UHktAnimInstance::OnMontageEnd))
+	{
+		OnMontageEnded.AddDynamic(this, &UHktAnimInstance::OnMontageEnd);
+	}
 }
 
 FGameplayTag UHktAnimInstance::ExtractLayerParent(const FGameplayTag& AnimTag)
