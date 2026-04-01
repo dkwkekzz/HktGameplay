@@ -12,6 +12,7 @@ void UHktAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
 
+	OnMontageEnded.RemoveDynamic(this, &UHktAnimInstance::OnMontageEnd);
 	OnMontageEnded.AddDynamic(this, &UHktAnimInstance::OnMontageEnd);
 }
 
