@@ -1039,8 +1039,10 @@ FHktStoryBuilder& FHktStoryBuilder::DispatchEventFrom(const FGameplayTag& EventT
 
 FHktStoryBuilder& FHktStoryBuilder::Log(const FString& Message)
 {
+#if ENABLE_HKT_INSIGHTS
     int32 StrIdx = AddString(Message);
     Emit(FInstruction::MakeImm(EOpCode::Log, 0, StrIdx));
+#endif
     return *this;
 }
 
@@ -1100,7 +1102,8 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
         Halt();
     }
 
-    // === 자동 Story 시작/종료 로그 삽입 ===
+    // === 자동 Story 시작/종료 로그 삽입 (Insights 비활성 빌드에서는 바이트코드 자체를 생략) ===
+#if ENABLE_HKT_INSIGHTS
     {
         const FString& TagStr = Program->Tag.ToString();
 
@@ -1161,6 +1164,7 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
             }
         }
     }
+#endif // ENABLE_HKT_INSIGHTS
 
     ResolveLabels(MainSection, Program->Tag);
 
