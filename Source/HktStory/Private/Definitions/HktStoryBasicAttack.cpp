@@ -61,9 +61,7 @@ namespace HktStoryBasicAttack
 		// === 공격별 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
 
-		B.Log(TEXT("BasicAttack: 공격 시작"))
-
-			// === 1. 타겟을 바라본다 ===
+		B	// === 1. 타겟을 바라본다 ===
 			.LookAt(Self, Target)
 
 			// === 2. 공격 애니메이션 트리거 + 스윙 사운드 ===
@@ -96,7 +94,6 @@ namespace HktStoryBasicAttack
 		 .RemoveTag(Self, Tag_Anim_Montage_Attack)
 		 .RemoveTag(Target, Tag_Anim_Montage_HitReaction)
 
-		 .Log(TEXT("BasicAttack: 완료"))
 		 .Halt()
 		.BuildAndRegister();
 	}

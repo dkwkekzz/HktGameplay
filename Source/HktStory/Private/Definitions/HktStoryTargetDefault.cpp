@@ -54,7 +54,6 @@ namespace HktStoryTargetDefault
 		FHktScopedReg r4(B);       // 아이템 엔티티
 
 		B	.CancelOnDuplicate()
-			.Log(TEXT("TargetDefault: 타겟 유형 판별 시작"))
 
 			// Target이 Invalid이면 이동
 			.CmpEqConst(Flag, Target, InvalidEntityId)

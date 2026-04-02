@@ -106,8 +106,7 @@ namespace HktStoryCombatUseSkill
 
 				// 쿨타임만 통과하면 허용 — CP 부족 시에도 본연 스킬(innate)로 fallback
 				return true;
-			})
-			.Log(TEXT("UseSkill: 스킬 시작"));
+			});
 
 		// === 공속 기반 쿨타임 검증 (서버 이중 검증) ===
 		HktSnippetCombat::CooldownCheck(B, FailLabel);
@@ -203,7 +202,6 @@ namespace HktStoryCombatUseSkill
 			.Halt()
 
 		.Label(FailLabel)
-			.Log(TEXT("UseSkill: 사전조건 위반 — 실패"))
 			.Fail()
 		.BuildAndRegister();
 	}

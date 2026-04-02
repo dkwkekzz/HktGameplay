@@ -43,8 +43,6 @@ namespace HktStoryItemSpawnerThunderHammer
 		int32 LoopLabel = B.AllocLabel();
 		int32 WaitLabel = B.AllocLabel();
 
-		B.Log(TEXT("ThunderHammer spawner: activated"));
-
 		// 주기적 스포너 루프 시작 (플레이어 체크 + 아이템 1개 상한)
 		HktSnippetNPC::SpawnerLoopBegin(B, LoopLabel, WaitLabel, Tag_Item_ThunderHammer, 1);
 

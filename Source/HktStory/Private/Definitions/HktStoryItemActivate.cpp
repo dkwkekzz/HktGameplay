@@ -94,11 +94,9 @@ namespace HktStoryItemActivate
 		// Active 상태로 전환 + EquipIndex 등록 + 스탯 적용
 		HktSnippetItem::ActivateInSlot(B, Target, r2, Self);
 
-		B	.Log(TEXT("Item activated"))
-			.Halt()
+		B	.Halt()
 
 		.Label(FailLabel)
-			.Log(TEXT("Item activate failed — precondition violation"))
 			.Fail()
 		.BuildAndRegister();
 	}

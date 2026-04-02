@@ -30,7 +30,6 @@ namespace HktStoryMoveTo
 		auto B = Story(Story_MoveTo);
 
 		B.CancelOnDuplicate()
-			.Log(TEXT("MoveTo: 이동 시작"))
 
 			// 목표 위치로 이동 시작 (힘 1500, Mass=100일 때 가속도 15cm/s²)
 			.MoveTowardProperty(Self, PropertyId::TargetPosX, 150)
@@ -41,7 +40,6 @@ namespace HktStoryMoveTo
 			// 정지 — 상태 태그 전환
 			.StopMovement(Self)
 
-			.Log(TEXT("MoveTo: 도착"))
 			.Halt()
 			.BuildAndRegister();
 	}

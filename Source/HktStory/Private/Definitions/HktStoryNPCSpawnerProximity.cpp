@@ -35,9 +35,7 @@ namespace HktStoryNPCSpawnerProximity
 		FHktScopedReg r0(B);
 		FHktScopedRegBlock pos(B, 3);
 
-		B.Log(TEXT("DungeonEntrance proximity spawner: monitoring"))
-
-			.Label(TEXT("check"))
+		B.Label(TEXT("check"))
 				// 플레이어 존재 확인
 				.HasPlayerInGroup(Flag)
 				.JumpIfNot(Flag, TEXT("sleep"))

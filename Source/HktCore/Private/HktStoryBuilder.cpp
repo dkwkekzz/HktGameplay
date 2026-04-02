@@ -30,6 +30,9 @@ FHktStoryBuilder::FHktStoryBuilder(const FGameplayTag& Tag)
     : Program(MakeShared<FHktVMProgram>())
 {
     Program->Tag = Tag;
+#if ENABLE_HKT_INSIGHTS
+    Log(FString::Printf(TEXT("[Story Start] %s"), *Tag.ToString()));
+#endif
 }
 
 FHktStoryBuilder::FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept
@@ -440,12 +443,18 @@ FHktStoryBuilder& FHktStoryBuilder::WaitSeconds(float Seconds)
 
 FHktStoryBuilder& FHktStoryBuilder::Halt()
 {
+#if ENABLE_HKT_INSIGHTS
+    Log(FString::Printf(TEXT("[Story End] %s"), *Program->Tag.ToString()));
+#endif
     Emit(FInstruction::Make(EOpCode::Halt));
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::Fail()
 {
+#if ENABLE_HKT_INSIGHTS
+    Log(FString::Printf(TEXT("[Story End] %s"), *Program->Tag.ToString()));
+#endif
     Emit(FInstruction::Make(EOpCode::Fail));
     return *this;
 }
@@ -1039,8 +1048,10 @@ FHktStoryBuilder& FHktStoryBuilder::DispatchEventFrom(const FGameplayTag& EventT
 
 FHktStoryBuilder& FHktStoryBuilder::Log(const FString& Message)
 {
+#if ENABLE_HKT_INSIGHTS
     int32 StrIdx = AddString(Message);
     Emit(FInstruction::MakeImm(EOpCode::Log, 0, StrIdx));
+#endif
     return *this;
 }
 

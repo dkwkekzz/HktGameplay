@@ -67,12 +67,9 @@ namespace HktStoryItemDrop
 		HktSnippetItem::DropToGround(B, Target, Self);
 
 		B
-
-			.Log(TEXT("Item dropped"))
 			.Halt()
 
 		.Label(FailLabel)
-			.Log(TEXT("Item drop failed — precondition violation"))
 			.Fail()
 		.BuildAndRegister();
 	}

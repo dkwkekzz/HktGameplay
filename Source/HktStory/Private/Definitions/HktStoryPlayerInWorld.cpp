@@ -42,9 +42,7 @@ namespace HktStoryPlayerInWorld
 		FHktScopedRegBlock pos(B, 3);
 		FHktScopedReg r0(B);
 
-		B.Log(TEXT("PlayerInWorld: 플레이어 캐릭터 생성"))
-
-			// 캐릭터 엔티티 생성
+		B	// 캐릭터 엔티티 생성
 			.SpawnEntity(Entity_Character_Player)
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
