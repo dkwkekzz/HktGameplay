@@ -1100,6 +1100,68 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
         Halt();
     }
 
+    // === 자동 Story 시작/종료 로그 삽입 ===
+    {
+        const FString& TagStr = Program->Tag.ToString();
+
+        // 1) 시작 로그를 코드 맨 앞에 삽입
+        {
+            int32 StartStrIdx = MainSection.Strings.Num();
+            MainSection.Strings.Add(FString::Printf(TEXT("[Story Start] %s"), *TagStr));
+            FInstruction StartLog = FInstruction::MakeImm(EOpCode::Log, 0, StartStrIdx);
+
+            MainSection.Code.Insert(StartLog, 0);
+
+            // 삽입으로 인해 모든 라벨/Fixup 오프셋을 +1 보정
+            for (auto& Pair : MainSection.Labels)
+                Pair.Value += 1;
+            for (auto& Pair : MainSection.IntLabels)
+                Pair.Value += 1;
+            for (auto& Fixup : MainSection.Fixups)
+                Fixup.Key += 1;
+            for (auto& Fixup : MainSection.IntFixups)
+                Fixup.Key += 1;
+        }
+
+        // 2) 각 Halt/Fail 앞에 종료 로그 삽입 (뒤에서부터 순회하여 인덱스 안정성 유지)
+        {
+            int32 EndStrIdx = MainSection.Strings.Num();
+            MainSection.Strings.Add(FString::Printf(TEXT("[Story End] %s"), *TagStr));
+
+            for (int32 i = MainSection.Code.Num() - 1; i >= 0; --i)
+            {
+                const EOpCode Op = MainSection.Code[i].GetOpCode();
+                if (Op == EOpCode::Halt || Op == EOpCode::Fail)
+                {
+                    FInstruction EndLog = FInstruction::MakeImm(EOpCode::Log, 0, EndStrIdx);
+                    MainSection.Code.Insert(EndLog, i);
+
+                    // 삽입 지점 이후의 라벨/Fixup 오프셋을 +1 보정
+                    for (auto& Pair : MainSection.Labels)
+                    {
+                        if (Pair.Value >= i)
+                            Pair.Value += 1;
+                    }
+                    for (auto& Pair : MainSection.IntLabels)
+                    {
+                        if (Pair.Value >= i)
+                            Pair.Value += 1;
+                    }
+                    for (auto& Fixup : MainSection.Fixups)
+                    {
+                        if (Fixup.Key >= i)
+                            Fixup.Key += 1;
+                    }
+                    for (auto& Fixup : MainSection.IntFixups)
+                    {
+                        if (Fixup.Key >= i)
+                            Fixup.Key += 1;
+                    }
+                }
+            }
+        }
+    }
+
     ResolveLabels(MainSection, Program->Tag);
 
     // MainSection → Program

@@ -41,8 +41,6 @@ namespace HktStoryItemSpawnerTreeDrop
 
 		FHktScopedRegBlock pos(B, 3); // 위치 (X, Y, Z)
 
-		B.Log(TEXT("TreeDrop spawner: activated"));
-
 		// 주기적 스포너 루프 시작 (플레이어 체크 + 아이템 10개 상한)
 		HktSnippetNPC::SpawnerLoopBegin(B, LoopLabel, WaitLabel, Tag_Item_Wood, 10);
 

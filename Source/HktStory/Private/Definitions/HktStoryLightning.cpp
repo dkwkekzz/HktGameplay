@@ -56,7 +56,6 @@ namespace HktStoryLightning
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
 
 		B	// === 시전 시작 ===
-			.Log(TEXT("Lightning: 시전 시작"))
 			.AddTag(Self, Tag_Anim_UpperBody_Cast_Lightning)
 			.WaitSeconds(0.6f)                          // 0.6초 대기
 
@@ -90,7 +89,6 @@ namespace HktStoryLightning
 			// 시전 상태 태그 제거
 			.RemoveTag(Self, Tag_Anim_UpperBody_Cast_Lightning)
 
-			.Log(TEXT("Lightning: 완료"))
 			.Halt()
 			.BuildAndRegister();
 	}

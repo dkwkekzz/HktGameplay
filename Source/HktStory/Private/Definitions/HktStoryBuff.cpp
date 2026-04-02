@@ -49,9 +49,7 @@ namespace HktStoryBuff
 		// === 공격별 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
 
-		B	.Log(TEXT("Buff: 시전 시작"))
-
-			// 시전 상태 태그 추가 → AnimInstance가 태그를 감지하여 시전 애니메이션 자동 재생
+		B	// 시전 상태 태그 추가 → AnimInstance가 태그를 감지하여 시전 애니메이션 자동 재생
 			.AddTag(Self, Tag_Anim_UpperBody_Cast_Buff)
 			.PlayVFXAttached(Self, VFX_BuffCast)
 			.WaitSeconds(0.5f)
@@ -71,7 +69,6 @@ namespace HktStoryBuff
 			// 시전 상태 태그 제거
 			.RemoveTag(Self, Tag_Anim_UpperBody_Cast_Buff)
 
-			.Log(TEXT("Buff: 완료"))
 			.Halt()
 			.BuildAndRegister();
 	}

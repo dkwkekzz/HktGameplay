@@ -42,9 +42,7 @@ namespace HktStoryCharacterSpawn
 		auto B = Story(Story_CharacterSpawn);
 		FHktScopedRegBlock pos(B, 3);
 
-		B.Log(TEXT("CharacterSpawn: 캐릭터 생성"))
-
-			// 캐릭터 스폰
+		B	// 캐릭터 스폰
 			.SpawnEntity(Entity_Character_Player)
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
@@ -84,7 +82,6 @@ namespace HktStoryCharacterSpawn
 			.RemoveTag(Self, Tag_Anim_FullBody_Action_Spawn)
 			.RemoveTag(Self, Tag_Anim_Montage_Intro)
 
-			.Log(TEXT("CharacterSpawn: 준비 완료"))
 			.Halt()
 			.BuildAndRegister();
 	}

@@ -109,11 +109,9 @@ namespace HktStoryItemTrade
 			.ClearOwnerUid(r0)
 			.ClearOwnerUid(r1)
 
-			.Log(TEXT("Item trade completed"))
 			.Halt()
 
 		.Label(TEXT("fail"))
-			.Log(TEXT("Item trade failed — precondition violation"))
 			.Fail()
 		.BuildAndRegister();
 	}

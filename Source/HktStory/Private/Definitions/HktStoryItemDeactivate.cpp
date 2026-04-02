@@ -104,11 +104,9 @@ namespace HktStoryItemDeactivate
 			.SetStance(Self, HktStance::Unarmed)
 
 		.Label(TEXT("done"))
-			.Log(TEXT("Item deactivated"))
 			.Halt()
 
 		.Label(FailLabel)
-			.Log(TEXT("Item deactivate failed — precondition violation"))
 			.Fail()
 		.BuildAndRegister();
 	}

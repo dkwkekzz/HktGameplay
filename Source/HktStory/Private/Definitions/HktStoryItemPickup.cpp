@@ -91,11 +91,9 @@ namespace HktStoryItemPickup
 		// Active 상태로 전환 + EquipIndex 등록 + 스탯 적용
 		HktSnippetItem::ActivateInSlot(B, Target, r3, Self);
 
-		B	.Log(TEXT("Item picked up and activated"))
-			.Halt()
+		B	.Halt()
 
 		.Label(FailLabel)
-			.Log(TEXT("Item pickup failed — precondition violation"))
 			.Fail()
 		.BuildAndRegister();
 	}

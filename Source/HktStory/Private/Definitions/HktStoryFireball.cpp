@@ -58,7 +58,6 @@ namespace HktStoryFireball
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
 
 		B	// === 시전 시작 ===
-			.Log(TEXT("Fireball: 시전 시작"))
 			.AddTag(Self, Tag_Anim_UpperBody_Cast_Fireball)
 			.WaitSeconds(1.0f)                          // 1초 대기
 
@@ -113,7 +112,6 @@ namespace HktStoryFireball
 			// 시전 상태 태그 제거
 			.RemoveTag(Self, Tag_Anim_UpperBody_Cast_Fireball)
 
-			.Log(TEXT("Fireball: 완료"))
 			.Halt()
 			.BuildAndRegister();
 	}

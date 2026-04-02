@@ -48,9 +48,7 @@ namespace HktStoryHeal
 		// === 공격별 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
 
-		B	.Log(TEXT("Heal: 시전 시작"))
-
-			// 시전 상태 태그 추가 → AnimInstance가 태그를 감지하여 시전 애니메이션 자동 재생
+		B	// 시전 상태 태그 추가 → AnimInstance가 태그를 감지하여 시전 애니메이션 자동 재생
 			.AddTag(Self, Tag_Anim_UpperBody_Cast_Heal)
 			.PlayVFXAttached(Self, VFX_HealCast)
 			.WaitSeconds(0.8f)
@@ -83,7 +81,6 @@ namespace HktStoryHeal
 			// 시전 상태 태그 제거
 			.RemoveTag(Self, Tag_Anim_UpperBody_Cast_Heal)
 
-			.Log(TEXT("Heal: 완료"))
 			.Halt()
 			.BuildAndRegister();
 	}

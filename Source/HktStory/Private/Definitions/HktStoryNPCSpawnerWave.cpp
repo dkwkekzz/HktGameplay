@@ -37,8 +37,7 @@ namespace HktStoryNPCSpawnerWave
 		FHktScopedReg r6(B);       // SpawnPosY
 		FHktScopedReg r7(B);       // SpawnPosZ
 
-		B.Log(TEXT("Wave spawner: starting"))
-			// 이벤트 파라미터에서 스폰 위치 로드 (Self 엔티티 없음)
+		B	// 이벤트 파라미터에서 스폰 위치 로드 (Self 엔티티 없음)
 			.ReadProperty(r5, SpawnerParams::SpawnPosX)         // r5 = SpawnPosX
 			.ReadProperty(r6, SpawnerParams::SpawnPosY)         // r6 = SpawnPosY
 			.LoadConst(r7, 0)                                   // r7 = SpawnPosZ (ground)
@@ -67,7 +66,6 @@ namespace HktStoryNPCSpawnerWave
 			// Wave 2 전멸 대기
 			.WaitUntilCountZero(Entity_NPC_Skeleton, 2.0f)
 
-			.Log(TEXT("All waves complete"))
 			.Halt()
 		.BuildAndRegister();
 	}
