@@ -63,7 +63,6 @@ void AHktItemActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 			// 소유 but 비장착: 둘 다 숨김
 			DetachFromOwnerIfNeeded();
 			SetDroppedState(false);
-			MeshComponent->SetVisibility(false);
 			SetActorHiddenInGame(true);
 			SetActorEnableCollision(false);
 		}
@@ -95,10 +94,7 @@ void AHktItemActor::SetDroppedState(bool bDropped)
 		DroppedMeshComponent->SetVisibility(bDropped);
 		DroppedMeshComponent->SetCollisionEnabled(bDropped ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
 	}
-	if (MeshComponent)
-	{
-		MeshComponent->SetVisibility(!bDropped);
-	}
+	// MeshComponent의 Visibility는 TryAttachToOwner/DetachFromOwnerIfNeeded에서만 제어
 }
 
 void AHktItemActor::TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc)
