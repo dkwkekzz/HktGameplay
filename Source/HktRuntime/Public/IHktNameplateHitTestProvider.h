@@ -3,7 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Interface.h"
 #include "HktCoreDefs.h"
+#include "IHktNameplateHitTestProvider.generated.h"
+
+UINTERFACE(MinimalAPI)
+class UHktNameplateHitTestProvider : public UInterface
+{
+	GENERATED_BODY()
+};
 
 /**
  * 네임플레이트(HUD 위젯) 위의 커서 히트 테스트를 제공하는 인터페이스.
@@ -11,9 +19,9 @@
  */
 class HKTRUNTIME_API IHktNameplateHitTestProvider
 {
-public:
-	virtual ~IHktNameplateHitTestProvider() = default;
+	GENERATED_BODY()
 
+public:
 	/**
 	 * 주어진 스크린 좌표가 엔티티 네임플레이트 위에 있는지 검사합니다.
 	 * @param ScreenPos  뷰포트 픽셀 좌표

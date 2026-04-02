@@ -10,10 +10,10 @@
 
 AHktItemActor::AHktItemActor()
 {
-	// 메시보다 큰 투명 구체 콜리전 → 커서 클릭 판정 확대
+	// 메시보다 큰 투명 구체 콜리전 → 커서 클릭 판정 확대 (Ground 상태에서만 활성화)
 	PickupCollision = CreateDefaultSubobject<USphereComponent>(TEXT("PickupCollision"));
 	PickupCollision->InitSphereRadius(80.f);
-	PickupCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	PickupCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	PickupCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
 	PickupCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	PickupCollision->SetGenerateOverlapEvents(false);
@@ -63,6 +63,10 @@ void AHktItemActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 			SetActorHiddenInGame(bShouldHide);
 			SetActorEnableCollision(!bShouldHide);
 		}
+
+		// 픽업 콜리전: Ground 상태(미소유)에서만 활성화
+		const bool bOnGround = !Entity.IsItemOwned();
+		PickupCollision->SetCollisionEnabled(bOnGround ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
 	}
 
 	// Transform은 ApplyTransform()에서 매 프레임 처리

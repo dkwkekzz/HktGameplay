@@ -126,7 +126,7 @@ bool UHktDesktopDefaultSelectionPolicy::GetEntityFromNameplate(FHktEntityId& Out
 
     // HUD에서 IHktNameplateHitTestProvider 인터페이스 조회
     AHUD* HUD = Controller->GetHUD();
-    IHktNameplateHitTestProvider* Provider = dynamic_cast<IHktNameplateHitTestProvider*>(HUD);
+    IHktNameplateHitTestProvider* Provider = Cast<IHktNameplateHitTestProvider>(HUD);
     if (!Provider) return false;
 
     float MouseX, MouseY;
