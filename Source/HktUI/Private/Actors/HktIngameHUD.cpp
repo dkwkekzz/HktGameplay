@@ -274,24 +274,29 @@ bool AHktIngameHUD::GetEntityUnderScreenPosition(const FVector2D& ScreenPos, FHk
 	const float NormalizedX = ScreenPos.X / static_cast<float>(ViewportX);
 	const float NormalizedY = ScreenPos.Y / static_cast<float>(ViewportY);
 
-	// 위젯 크기(SHktEntityHudWidget: 100px 폭, ~60px 높이)를 정규화 단위로 변환
-	// Alignment(0.5, 1.0) → 앵커 기준 좌우 절반, 위로 전체 높이
-	const float WidgetWidthPx = 100.f;
-	const float WidgetHeightPx = 60.f;
-	const float HalfW = (WidgetWidthPx * 0.5f) / static_cast<float>(ViewportX);
-	const float FullH = WidgetHeightPx / static_cast<float>(ViewportY);
-
 	for (FHktEntityId EntityId : TrackedEntities)
 	{
 		const UHktUIElement* Element = FindEntityElement(EntityId);
-		if (!Element || !Element->bIsOnScreen) continue;
+		if (!Element || !Element->bIsOnScreen || !Element->View.IsValid()) continue;
 
-		const FVector2D& Pos = Element->CachedScreenPosition;
+		// ScreenOffset(픽셀) 반영: 앵커 위치에 오프셋 추가
+		FVector2D PixelOffset(0.f, 0.f);
+		if (const UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Element->AnchorStrategy))
+		{
+			PixelOffset = Strategy->GetScreenOffset();
+		}
+		const float AnchorX = Element->CachedScreenPosition.X + PixelOffset.X / static_cast<float>(ViewportX);
+		const float AnchorY = Element->CachedScreenPosition.Y + PixelOffset.Y / static_cast<float>(ViewportY);
+
+		// 위젯 실제 DesiredSize 사용
+		const FVector2D WidgetSize = Element->View->GetSlateWidget()->GetDesiredSize();
+		const float HalfW = (WidgetSize.X * 0.5f) / static_cast<float>(ViewportX);
+		const float FullH = WidgetSize.Y / static_cast<float>(ViewportY);
 
 		// Alignment(0.5, 1.0): 앵커가 위젯 하단 중앙
-		// 위젯 영역: X=[Pos.X - HalfW, Pos.X + HalfW], Y=[Pos.Y - FullH, Pos.Y]
-		if (NormalizedX >= Pos.X - HalfW && NormalizedX <= Pos.X + HalfW &&
-			NormalizedY >= Pos.Y - FullH && NormalizedY <= Pos.Y)
+		// 위젯 영역: X=[AnchorX - HalfW, AnchorX + HalfW], Y=[AnchorY - FullH, AnchorY]
+		if (NormalizedX >= AnchorX - HalfW && NormalizedX <= AnchorX + HalfW &&
+			NormalizedY >= AnchorY - FullH && NormalizedY <= AnchorY)
 		{
 			OutEntityId = EntityId;
 			return true;
