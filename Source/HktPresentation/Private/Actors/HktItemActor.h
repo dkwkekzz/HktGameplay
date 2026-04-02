@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Components/SphereComponent.h"
 #include "HktSelectable.h"
 #include "IHktPresentableActor.h"
 #include "HktItemActor.generated.h"
@@ -42,10 +41,6 @@ public:
 private:
 	void TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc);
 	void DetachFromOwnerIfNeeded();
-
-	/** 메시보다 큰 투명 콜리전. 커서 트레이스 판정을 넓혀 픽업 클릭을 쉽게 함. */
-	UPROPERTY(VisibleAnywhere, Category = "HKT|Item")
-	TObjectPtr<USphereComponent> PickupCollision;
 
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Item")
 	TObjectPtr<UStaticMeshComponent> MeshComponent;

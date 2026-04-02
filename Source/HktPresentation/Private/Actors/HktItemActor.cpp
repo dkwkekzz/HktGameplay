@@ -4,28 +4,18 @@
 #include "HktPresentationState.h"
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
-#include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 
 AHktItemActor::AHktItemActor()
 {
-	// 메시보다 큰 투명 구체 콜리전 → 커서 클릭 판정 확대 (Ground 상태에서만 활성화)
-	PickupCollision = CreateDefaultSubobject<USphereComponent>(TEXT("PickupCollision"));
-	PickupCollision->InitSphereRadius(80.f);
-	PickupCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	PickupCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
-	PickupCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-	PickupCollision->SetGenerateOverlapEvents(false);
-	PickupCollision->ShapeColor = FColor(0, 255, 0, 64);
-	PickupCollision->SetHiddenInGame(true);
-	RootComponent = PickupCollision;
-
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
-	MeshComponent->SetupAttachment(PickupCollision);
+	RootComponent = MeshComponent;
 
-	// 메시 자체는 충돌 불필요 (PickupCollision이 담당)
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// QueryOnly: 커서 트레이스(Visibility 채널)에 응답, 물리 충돌은 없음
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 }
 
 void AHktItemActor::SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName)
@@ -63,10 +53,6 @@ void AHktItemActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 			SetActorHiddenInGame(bShouldHide);
 			SetActorEnableCollision(!bShouldHide);
 		}
-
-		// 픽업 콜리전: Ground 상태(미소유)에서만 활성화
-		const bool bOnGround = !Entity.IsItemOwned();
-		PickupCollision->SetCollisionEnabled(bOnGround ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
 	}
 
 	// Transform은 ApplyTransform()에서 매 프레임 처리

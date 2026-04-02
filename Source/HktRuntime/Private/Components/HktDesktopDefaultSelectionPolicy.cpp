@@ -29,6 +29,19 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
     OutEntity = InvalidEntityId;
     OutLocation = FVector::ZeroVector;
 
+    // 2D 엔티티 HUD 히트를 먼저 시도
+    if (GetEntityFromEntityHud(OutEntity))
+    {
+        // 위치는 3D 트레이스로 보충
+        FHitResult Hit;
+        if (GetHitUnderCursor(Hit))
+        {
+            OutLocation = Hit.Location;
+        }
+        return;
+    }
+
+    // 3D 트레이스 폴백
     FHitResult Hit;
     if (!GetHitUnderCursor(Hit))
     {
@@ -37,7 +50,6 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
         return;
     }
 
-    // 엔티티 타겟 시도: 3D 트레이스
     if (IHktSelectable* Selectable = Cast<IHktSelectable>(Hit.GetActor()))
     {
         if (Selectable->IsSelectable())
@@ -52,13 +64,6 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
         }
     }
 
-    // 3D 트레이스로 엔티티를 못 찾았으면 네임플레이트 히트 테스트 시도
-    if (OutEntity == InvalidEntityId)
-    {
-        GetEntityFromEntityHud(OutEntity);
-    }
-
-    // 위치는 항상 설정
     OutLocation = Hit.Location;
 }
 
@@ -79,15 +84,16 @@ bool UHktDesktopDefaultSelectionPolicy::GetHitUnderCursor(FHitResult& OutHit) co
 
 bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntityId& OutEntityId) const
 {
+    // 2D 엔티티 HUD 히트를 먼저 시도
+    if (GetEntityFromEntityHud(OutEntityId))
+    {
+        return true;
+    }
+
+    // 3D 트레이스 폴백
     FHitResult Hit;
     if (!GetHitUnderCursor(Hit))
     {
-        // 3D 히트 없음 → 네임플레이트 히트 테스트 시도
-        if (GetEntityFromEntityHud(OutEntityId))
-        {
-            return true;
-        }
-
         HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Verbose, EHktLogSource::Client,
             TEXT("ResolveSubject: no hit under cursor"));
         return false;
@@ -96,12 +102,6 @@ bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntit
     IHktSelectable* Selectable = Cast<IHktSelectable>(Hit.GetActor());
     if (!Selectable)
     {
-        // Selectable이 아닌 Actor → 네임플레이트 히트 테스트 시도
-        if (GetEntityFromEntityHud(OutEntityId))
-        {
-            return true;
-        }
-
         HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Verbose, EHktLogSource::Client,
             FString::Printf(TEXT("ResolveSubject: Actor '%s' does not implement IHktSelectable"),
                 Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("null")));
@@ -124,7 +124,6 @@ bool UHktDesktopDefaultSelectionPolicy::GetEntityFromEntityHud(FHktEntityId& Out
     APlayerController* Controller = Cast<APlayerController>(GetOwner());
     if (!Controller) return false;
 
-    // HUD에서 IHktEntityHudHitTestProvider 인터페이스 조회
     AHUD* HUD = Controller->GetHUD();
     IHktEntityHudHitTestProvider* Provider = Cast<IHktEntityHudHitTestProvider>(HUD);
     if (!Provider) return false;

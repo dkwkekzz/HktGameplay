@@ -11,12 +11,9 @@
 #include "GameFramework/Actor.h"
 #include "HktCoreEventLog.h"
 
-/** 모든 PrimitiveComponent를 QueryOnly + Visibility만 Block으로 설정.
- *  AHktItemActor는 자체 콜리전을 관리(PickupCollision 구체)하므로 스킵. */
+/** 모든 PrimitiveComponent를 QueryOnly + Visibility만 Block으로 설정 */
 static void ConfigureCollisionForSelection(AActor* Actor)
 {
-	if (Actor->IsA<AHktItemActor>()) return;
-
 	TInlineComponentArray<UPrimitiveComponent*> Primitives;
 	Actor->GetComponents(Primitives);
 	for (UPrimitiveComponent* Prim : Primitives)
