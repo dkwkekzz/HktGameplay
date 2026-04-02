@@ -9,26 +9,39 @@
 
 AHktItemActor::AHktItemActor()
 {
-	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
-	RootComponent = MeshComponent;
+	// DroppedMesh — 바닥에 놓일 때 보이는 메시 (Root)
+	DroppedMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DroppedMesh"));
+	RootComponent = DroppedMeshComponent;
 
-	// QueryOnly: 커서 트레이스(Visibility 채널)에 응답, 물리 충돌은 없음
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	DroppedMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	DroppedMeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	DroppedMeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+
+	// MeshComponent — 장착 시 소켓에 부착되는 메시
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
+	MeshComponent->SetupAttachment(RootComponent);
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MeshComponent->SetVisibility(false);
 }
 
-void AHktItemActor::SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName)
+void AHktItemActor::SetupMesh(UStaticMesh* InMesh, UStaticMesh* InDroppedMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName)
 {
-	if (!MeshComponent) return;
-
-	if (InMesh)
+	if (MeshComponent && InMesh)
 	{
 		MeshComponent->SetStaticMesh(InMesh);
+		MeshComponent->SetRelativeScale3D(Scale);
+		MeshComponent->SetRelativeRotation(AttachRotOffset);
 	}
 
-	MeshComponent->SetRelativeScale3D(Scale);
-	MeshComponent->SetRelativeRotation(AttachRotOffset);
+	if (DroppedMeshComponent)
+	{
+		UStaticMesh* DropMesh = InDroppedMesh ? InDroppedMesh : InMesh;
+		if (DropMesh)
+		{
+			DroppedMeshComponent->SetStaticMesh(DropMesh);
+		}
+	}
+
 	AttachSocketName = InAttachSocketName;
 }
 
@@ -40,18 +53,26 @@ void AHktItemActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	{
 		if (Entity.IsItemAttached())
 		{
+			// 장착: MeshComponent를 소켓에 부착, DroppedMesh 숨김
+			SetDroppedState(false);
 			if (!bIsAttachedToSocket)
 				TryAttachToOwner(static_cast<FHktEntityId>(Entity.OwnerEntity.Get()), GetActorFunc);
 		}
+		else if (Entity.IsItemOwned())
+		{
+			// 소유 but 비장착: 둘 다 숨김
+			DetachFromOwnerIfNeeded();
+			SetDroppedState(false);
+			SetActorHiddenInGame(true);
+			SetActorEnableCollision(false);
+		}
 		else
 		{
+			// Ground: DroppedMesh 표시, 픽업 가능
 			DetachFromOwnerIfNeeded();
-
-			// 비장착 소유 아이템(InBag 등)은 월드에서 숨김, Ground면 표시
-			// 장착 가능 아이템은 소켓 부착으로 처리되므로 여기서 숨기지 않음
-			const bool bShouldHide = Entity.IsItemOwned();
-			SetActorHiddenInGame(bShouldHide);
-			SetActorEnableCollision(!bShouldHide);
+			SetDroppedState(true);
+			SetActorHiddenInGame(false);
+			SetActorEnableCollision(true);
 		}
 	}
 
@@ -64,6 +85,16 @@ void AHktItemActor::ApplyTransform(const FHktEntityPresentation& Entity)
 	SetActorLocationAndRotation(
 		Entity.RenderLocation.Get(), Entity.Rotation.Get(),
 		false, nullptr, ETeleportType::TeleportPhysics);
+}
+
+void AHktItemActor::SetDroppedState(bool bDropped)
+{
+	if (DroppedMeshComponent)
+	{
+		DroppedMeshComponent->SetVisibility(bDropped);
+		DroppedMeshComponent->SetCollisionEnabled(bDropped ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+	}
+	// MeshComponent의 Visibility는 TryAttachToOwner/DetachFromOwnerIfNeeded에서만 제어
 }
 
 void AHktItemActor::TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc)
@@ -84,8 +115,12 @@ void AHktItemActor::TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(
 		return;
 	}
 
+	SetActorHiddenInGame(false);
 	SetActorEnableCollision(false);
-	AttachToComponent(SkelMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, AttachSocketName);
+	MeshComponent->SetVisibility(true);
+
+	// MeshComponent를 소켓에 부착
+	MeshComponent->AttachToComponent(SkelMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, AttachSocketName);
 	bIsAttachedToSocket = true;
 
 	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
@@ -97,8 +132,8 @@ void AHktItemActor::DetachFromOwnerIfNeeded()
 {
 	if (!bIsAttachedToSocket) return;
 
-	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	SetActorEnableCollision(true);
+	MeshComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	MeshComponent->SetVisibility(false);
 	bIsAttachedToSocket = false;
 
 	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
