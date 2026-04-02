@@ -2,7 +2,9 @@
 
 #include "HktDesktopDefaultSelectionPolicy.h"
 #include "HktSelectable.h"
+#include "IHktNameplateHitTestProvider.h"
 #include "HktCoreEventLog.h"
+#include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 
@@ -35,7 +37,7 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
         return;
     }
 
-    // 엔티티 타겟 시도
+    // 엔티티 타겟 시도: 3D 트레이스
     if (IHktSelectable* Selectable = Cast<IHktSelectable>(Hit.GetActor()))
     {
         if (Selectable->IsSelectable())
@@ -48,6 +50,12 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
                 FString::Printf(TEXT("ResolveTarget: Actor '%s' implements IHktSelectable but IsSelectable() returned false"),
                     *Hit.GetActor()->GetName()));
         }
+    }
+
+    // 3D 트레이스로 엔티티를 못 찾았으면 네임플레이트 히트 테스트 시도
+    if (OutEntity == InvalidEntityId)
+    {
+        GetEntityFromNameplate(OutEntity);
     }
 
     // 위치는 항상 설정
@@ -74,6 +82,12 @@ bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntit
     FHitResult Hit;
     if (!GetHitUnderCursor(Hit))
     {
+        // 3D 히트 없음 → 네임플레이트 히트 테스트 시도
+        if (GetEntityFromNameplate(OutEntityId))
+        {
+            return true;
+        }
+
         HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Verbose, EHktLogSource::Client,
             TEXT("ResolveSubject: no hit under cursor"));
         return false;
@@ -82,6 +96,12 @@ bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntit
     IHktSelectable* Selectable = Cast<IHktSelectable>(Hit.GetActor());
     if (!Selectable)
     {
+        // Selectable이 아닌 Actor → 네임플레이트 히트 테스트 시도
+        if (GetEntityFromNameplate(OutEntityId))
+        {
+            return true;
+        }
+
         HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Verbose, EHktLogSource::Client,
             FString::Printf(TEXT("ResolveSubject: Actor '%s' does not implement IHktSelectable"),
                 Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("null")));
@@ -97,4 +117,20 @@ bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntit
 
     OutEntityId = Selectable->GetEntityId();
     return true;
+}
+
+bool UHktDesktopDefaultSelectionPolicy::GetEntityFromNameplate(FHktEntityId& OutEntityId) const
+{
+    APlayerController* Controller = Cast<APlayerController>(GetOwner());
+    if (!Controller) return false;
+
+    // HUD에서 IHktNameplateHitTestProvider 인터페이스 조회
+    AHUD* HUD = Controller->GetHUD();
+    IHktNameplateHitTestProvider* Provider = dynamic_cast<IHktNameplateHitTestProvider*>(HUD);
+    if (!Provider) return false;
+
+    float MouseX, MouseY;
+    if (!Controller->GetMousePosition(MouseX, MouseY)) return false;
+
+    return Provider->GetEntityUnderScreenPosition(FVector2D(MouseX, MouseY), OutEntityId);
 }

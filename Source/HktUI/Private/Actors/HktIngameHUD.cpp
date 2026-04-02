@@ -259,6 +259,48 @@ void AHktIngameHUD::UpdateEntityPositions(const FHktPresentationState& State)
 	}
 }
 
+// --- IHktNameplateHitTestProvider ---
+
+bool AHktIngameHUD::GetEntityUnderScreenPosition(const FVector2D& ScreenPos, FHktEntityId& OutEntityId) const
+{
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC) return false;
+
+	int32 ViewportX, ViewportY;
+	PC->GetViewportSize(ViewportX, ViewportY);
+	if (ViewportX <= 0 || ViewportY <= 0) return false;
+
+	// 스크린 픽셀 좌표 → 정규화 좌표
+	const float NormalizedX = ScreenPos.X / static_cast<float>(ViewportX);
+	const float NormalizedY = ScreenPos.Y / static_cast<float>(ViewportY);
+
+	// 위젯 크기(SHktEntityHudWidget: 100px 폭, ~60px 높이)를 정규화 단위로 변환
+	// Alignment(0.5, 1.0) → 앵커 기준 좌우 절반, 위로 전체 높이
+	const float WidgetWidthPx = 100.f;
+	const float WidgetHeightPx = 60.f;
+	const float HalfW = (WidgetWidthPx * 0.5f) / static_cast<float>(ViewportX);
+	const float FullH = WidgetHeightPx / static_cast<float>(ViewportY);
+
+	for (FHktEntityId EntityId : TrackedEntities)
+	{
+		const UHktUIElement* Element = FindEntityElement(EntityId);
+		if (!Element || !Element->bIsOnScreen) continue;
+
+		const FVector2D& Pos = Element->CachedScreenPosition;
+
+		// Alignment(0.5, 1.0): 앵커가 위젯 하단 중앙
+		// 위젯 영역: X=[Pos.X - HalfW, Pos.X + HalfW], Y=[Pos.Y - FullH, Pos.Y]
+		if (NormalizedX >= Pos.X - HalfW && NormalizedX <= Pos.X + HalfW &&
+			NormalizedY >= Pos.Y - FullH && NormalizedY <= Pos.Y)
+		{
+			OutEntityId = EntityId;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 {
 	const int64 Frame = State.GetCurrentFrame();

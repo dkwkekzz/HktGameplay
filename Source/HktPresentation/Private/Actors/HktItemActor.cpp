@@ -4,18 +4,28 @@
 #include "HktPresentationState.h"
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
+#include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 
 AHktItemActor::AHktItemActor()
 {
-	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
-	RootComponent = MeshComponent;
+	// 메시보다 큰 투명 구체 콜리전 → 커서 클릭 판정 확대
+	PickupCollision = CreateDefaultSubobject<USphereComponent>(TEXT("PickupCollision"));
+	PickupCollision->InitSphereRadius(80.f);
+	PickupCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	PickupCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	PickupCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	PickupCollision->SetGenerateOverlapEvents(false);
+	PickupCollision->ShapeColor = FColor(0, 255, 0, 64);
+	PickupCollision->SetHiddenInGame(true);
+	RootComponent = PickupCollision;
 
-	// QueryOnly: 커서 트레이스(Visibility 채널)에 응답, 물리 충돌은 없음
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
+	MeshComponent->SetupAttachment(PickupCollision);
+
+	// 메시 자체는 충돌 불필요 (PickupCollision이 담당)
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AHktItemActor::SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName)
