@@ -259,7 +259,7 @@ void AHktIngameHUD::UpdateEntityPositions(const FHktPresentationState& State)
 	}
 }
 
-// --- IHktNameplateHitTestProvider ---
+// --- IHktEntityHudHitTestProvider ---
 
 bool AHktIngameHUD::GetEntityUnderScreenPosition(const FVector2D& ScreenPos, FHktEntityId& OutEntityId) const
 {

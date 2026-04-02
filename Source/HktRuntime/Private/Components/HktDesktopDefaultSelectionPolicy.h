@@ -45,5 +45,5 @@ public:
 private:
     bool GetHitUnderCursor(FHitResult& OutHit) const;
     bool GetSelectableEntityUnderCursor(FHktEntityId& OutEntityId) const;
-    bool GetEntityFromNameplate(FHktEntityId& OutEntityId) const;
+    bool GetEntityFromEntityHud(FHktEntityId& OutEntityId) const;
 };

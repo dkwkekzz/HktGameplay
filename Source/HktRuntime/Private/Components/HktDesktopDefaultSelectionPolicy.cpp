@@ -2,7 +2,7 @@
 
 #include "HktDesktopDefaultSelectionPolicy.h"
 #include "HktSelectable.h"
-#include "IHktNameplateHitTestProvider.h"
+#include "IHktEntityHudHitTestProvider.h"
 #include "HktCoreEventLog.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
@@ -55,7 +55,7 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
     // 3D 트레이스로 엔티티를 못 찾았으면 네임플레이트 히트 테스트 시도
     if (OutEntity == InvalidEntityId)
     {
-        GetEntityFromNameplate(OutEntity);
+        GetEntityFromEntityHud(OutEntity);
     }
 
     // 위치는 항상 설정
@@ -83,7 +83,7 @@ bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntit
     if (!GetHitUnderCursor(Hit))
     {
         // 3D 히트 없음 → 네임플레이트 히트 테스트 시도
-        if (GetEntityFromNameplate(OutEntityId))
+        if (GetEntityFromEntityHud(OutEntityId))
         {
             return true;
         }
@@ -97,7 +97,7 @@ bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntit
     if (!Selectable)
     {
         // Selectable이 아닌 Actor → 네임플레이트 히트 테스트 시도
-        if (GetEntityFromNameplate(OutEntityId))
+        if (GetEntityFromEntityHud(OutEntityId))
         {
             return true;
         }
@@ -119,14 +119,14 @@ bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntit
     return true;
 }
 
-bool UHktDesktopDefaultSelectionPolicy::GetEntityFromNameplate(FHktEntityId& OutEntityId) const
+bool UHktDesktopDefaultSelectionPolicy::GetEntityFromEntityHud(FHktEntityId& OutEntityId) const
 {
     APlayerController* Controller = Cast<APlayerController>(GetOwner());
     if (!Controller) return false;
 
-    // HUD에서 IHktNameplateHitTestProvider 인터페이스 조회
+    // HUD에서 IHktEntityHudHitTestProvider 인터페이스 조회
     AHUD* HUD = Controller->GetHUD();
-    IHktNameplateHitTestProvider* Provider = Cast<IHktNameplateHitTestProvider>(HUD);
+    IHktEntityHudHitTestProvider* Provider = Cast<IHktEntityHudHitTestProvider>(HUD);
     if (!Provider) return false;
 
     float MouseX, MouseY;

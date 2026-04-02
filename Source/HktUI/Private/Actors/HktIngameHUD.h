@@ -7,7 +7,7 @@
 #include "HktCoreDefs.h"
 #include "HktPresentationRenderer.h"
 #include "HktPresentationState.h"
-#include "IHktNameplateHitTestProvider.h"
+#include "IHktEntityHudHitTestProvider.h"
 #include "HktIngameHUD.generated.h"
 
 class UHktWidgetEntityHudDataAsset;
@@ -20,7 +20,7 @@ class UHktPresentationSubsystem;
  * 카메라 이동 등 클라이언트 변경 시에도 엔티티 위젯 위치가 실시간 반영됩니다.
  */
 UCLASS()
-class HKTUI_API AHktIngameHUD : public AHktHUD, public IHktPresentationRenderer, public IHktNameplateHitTestProvider
+class HKTUI_API AHktIngameHUD : public AHktHUD, public IHktPresentationRenderer, public IHktEntityHudHitTestProvider
 {
 	GENERATED_BODY()
 
@@ -34,7 +34,7 @@ public:
 	virtual bool NeedsCameraSync() const override { return true; }
 	virtual void OnCameraViewChanged(const FHktPresentationState& State) override;
 
-	// --- IHktNameplateHitTestProvider ---
+	// --- IHktEntityHudHitTestProvider ---
 	virtual bool GetEntityUnderScreenPosition(const FVector2D& ScreenPos, FHktEntityId& OutEntityId) const override;
 
 protected:
