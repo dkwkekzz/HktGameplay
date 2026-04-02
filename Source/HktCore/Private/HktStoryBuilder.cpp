@@ -1140,14 +1140,16 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
                     MainSection.Code.Insert(EndLog, i);
 
                     // 삽입 지점 이후의 라벨/Fixup 오프셋을 +1 보정
+                    // 라벨: > i (Halt/Fail을 가리키던 라벨은 Log에 착지해야 함)
+                    // Fixup: >= i (점프 명령어 자체의 위치가 밀림)
                     for (auto& Pair : MainSection.Labels)
                     {
-                        if (Pair.Value >= i)
+                        if (Pair.Value > i)
                             Pair.Value += 1;
                     }
                     for (auto& Pair : MainSection.IntLabels)
                     {
-                        if (Pair.Value >= i)
+                        if (Pair.Value > i)
                             Pair.Value += 1;
                     }
                     for (auto& Fixup : MainSection.Fixups)
