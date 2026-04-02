@@ -89,7 +89,7 @@ inline void SHktEntityHudWidget::Construct(const FArguments& InArgs)
 					]
 				]
 
-				// Equipped Item Nameplate
+				// Equipped Item Label
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(0.f, 2.f, 0.f, 0.f)

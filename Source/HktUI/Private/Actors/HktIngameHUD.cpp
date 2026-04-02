@@ -259,6 +259,53 @@ void AHktIngameHUD::UpdateEntityPositions(const FHktPresentationState& State)
 	}
 }
 
+// --- IHktEntityHudHitTestProvider ---
+
+bool AHktIngameHUD::GetEntityUnderScreenPosition(const FVector2D& ScreenPos, FHktEntityId& OutEntityId) const
+{
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC) return false;
+
+	int32 ViewportX, ViewportY;
+	PC->GetViewportSize(ViewportX, ViewportY);
+	if (ViewportX <= 0 || ViewportY <= 0) return false;
+
+	// 스크린 픽셀 좌표 → 정규화 좌표
+	const float NormalizedX = ScreenPos.X / static_cast<float>(ViewportX);
+	const float NormalizedY = ScreenPos.Y / static_cast<float>(ViewportY);
+
+	for (FHktEntityId EntityId : TrackedEntities)
+	{
+		const UHktUIElement* Element = FindEntityElement(EntityId);
+		if (!Element || !Element->bIsOnScreen || !Element->View.IsValid()) continue;
+
+		// ScreenOffset(픽셀) 반영: 앵커 위치에 오프셋 추가
+		FVector2D PixelOffset(0.f, 0.f);
+		if (const UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Element->AnchorStrategy))
+		{
+			PixelOffset = Strategy->GetScreenOffset();
+		}
+		const float AnchorX = Element->CachedScreenPosition.X + PixelOffset.X / static_cast<float>(ViewportX);
+		const float AnchorY = Element->CachedScreenPosition.Y + PixelOffset.Y / static_cast<float>(ViewportY);
+
+		// 위젯 실제 DesiredSize 사용
+		const FVector2D WidgetSize = Element->View->GetSlateWidget()->GetDesiredSize();
+		const float HalfW = (WidgetSize.X * 0.5f) / static_cast<float>(ViewportX);
+		const float FullH = WidgetSize.Y / static_cast<float>(ViewportY);
+
+		// Alignment(0.5, 1.0): 앵커가 위젯 하단 중앙
+		// 위젯 영역: X=[AnchorX - HalfW, AnchorX + HalfW], Y=[AnchorY - FullH, AnchorY]
+		if (NormalizedX >= AnchorX - HalfW && NormalizedX <= AnchorX + HalfW &&
+			NormalizedY >= AnchorY - FullH && NormalizedY <= AnchorY)
+		{
+			OutEntityId = EntityId;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void AHktIngameHUD::UpdateEntityProperties(const FHktPresentationState& State)
 {
 	const int64 Frame = State.GetCurrentFrame();

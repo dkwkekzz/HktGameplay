@@ -2,7 +2,9 @@
 
 #include "HktDesktopDefaultSelectionPolicy.h"
 #include "HktSelectable.h"
+#include "IHktEntityHudHitTestProvider.h"
 #include "HktCoreEventLog.h"
+#include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 
@@ -27,6 +29,19 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
     OutEntity = InvalidEntityId;
     OutLocation = FVector::ZeroVector;
 
+    // 2D 엔티티 HUD 히트를 먼저 시도
+    if (GetEntityFromEntityHud(OutEntity))
+    {
+        // 위치는 3D 트레이스로 보충
+        FHitResult Hit;
+        if (GetHitUnderCursor(Hit))
+        {
+            OutLocation = Hit.Location;
+        }
+        return;
+    }
+
+    // 3D 트레이스 폴백
     FHitResult Hit;
     if (!GetHitUnderCursor(Hit))
     {
@@ -35,7 +50,6 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
         return;
     }
 
-    // 엔티티 타겟 시도
     if (IHktSelectable* Selectable = Cast<IHktSelectable>(Hit.GetActor()))
     {
         if (Selectable->IsSelectable())
@@ -50,7 +64,6 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
         }
     }
 
-    // 위치는 항상 설정
     OutLocation = Hit.Location;
 }
 
@@ -71,6 +84,13 @@ bool UHktDesktopDefaultSelectionPolicy::GetHitUnderCursor(FHitResult& OutHit) co
 
 bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntityId& OutEntityId) const
 {
+    // 2D 엔티티 HUD 히트를 먼저 시도
+    if (GetEntityFromEntityHud(OutEntityId))
+    {
+        return true;
+    }
+
+    // 3D 트레이스 폴백
     FHitResult Hit;
     if (!GetHitUnderCursor(Hit))
     {
@@ -97,4 +117,19 @@ bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntit
 
     OutEntityId = Selectable->GetEntityId();
     return true;
+}
+
+bool UHktDesktopDefaultSelectionPolicy::GetEntityFromEntityHud(FHktEntityId& OutEntityId) const
+{
+    APlayerController* Controller = Cast<APlayerController>(GetOwner());
+    if (!Controller) return false;
+
+    AHUD* HUD = Controller->GetHUD();
+    IHktEntityHudHitTestProvider* Provider = Cast<IHktEntityHudHitTestProvider>(HUD);
+    if (!Provider) return false;
+
+    float MouseX, MouseY;
+    if (!Controller->GetMousePosition(MouseX, MouseY)) return false;
+
+    return Provider->GetEntityUnderScreenPosition(FVector2D(MouseX, MouseY), OutEntityId);
 }
