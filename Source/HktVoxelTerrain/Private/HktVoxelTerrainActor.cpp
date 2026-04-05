@@ -126,13 +126,14 @@ FVector AHktVoxelTerrainActor::GetCameraWorldPos() const
 
 void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 {
-	// 절차적 생성
+	// 절차적 생성 (힙 할당 — 128KB는 워커 스레드 스택에 위험)
 	constexpr int32 ChunkVoxelCount = 32 * 32 * 32;
-	FHktTerrainVoxel GeneratedVoxels[ChunkVoxelCount];
-	Generator->GenerateChunk(ChunkCoord.X, ChunkCoord.Y, ChunkCoord.Z, GeneratedVoxels);
+	TArray<FHktTerrainVoxel> GeneratedVoxels;
+	GeneratedVoxels.SetNumUninitialized(ChunkVoxelCount);
+	Generator->GenerateChunk(ChunkCoord.X, ChunkCoord.Y, ChunkCoord.Z, GeneratedVoxels.GetData());
 
-	// FHktTerrainVoxel → FHktVoxel 변환 (동일 레이아웃이므로 reinterpret_cast)
-	const FHktVoxel* VoxelData = reinterpret_cast<const FHktVoxel*>(GeneratedVoxels);
+	// FHktTerrainVoxel → FHktVoxel (동일 4바이트 레이아웃)
+	const FHktVoxel* VoxelData = reinterpret_cast<const FHktVoxel*>(GeneratedVoxels.GetData());
 	TerrainCache->LoadChunk(ChunkCoord, VoxelData, ChunkVoxelCount);
 
 	// 컴포넌트 할당

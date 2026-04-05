@@ -87,7 +87,7 @@ void FHktTerrainBiomeMap::InitDefaultRules()
 		Stone,
 		Bedrock,
 		Water,
-		32       // 산악은 기본 팔레트
+		35       // Volcanic 팔레트 (HktTerrainPalette::Volcanic)
 	};
 }
 
@@ -98,10 +98,11 @@ EHktBiomeType FHktTerrainBiomeMap::GetBiome(double WorldX, double WorldY) const
 		return EHktBiomeType::Grassland;
 	}
 
-	// 온도: FBM 2D, 범위 [-1, 1] → [0, 1]
+	// 온도/습도: FBM 2D [-1, 1] → [0, 1], 클램프 적용
 	double Temp = (TempNoise->FBM2D(WorldX * NoiseScale, WorldY * NoiseScale, 4) + 1.0) * 0.5;
-	// 습도: FBM 2D, 범위 [-1, 1] → [0, 1]
 	double Hum  = (HumNoise->FBM2D(WorldX * NoiseScale, WorldY * NoiseScale, 4) + 1.0) * 0.5;
+	if (Temp < 0.0) Temp = 0.0; else if (Temp > 1.0) Temp = 1.0;
+	if (Hum  < 0.0) Hum  = 0.0; else if (Hum  > 1.0) Hum  = 1.0;
 
 	// 3×3 매트릭스 룩업
 	// Temperature: Low [0, 0.33), Mid [0.33, 0.66), High [0.66, 1.0]

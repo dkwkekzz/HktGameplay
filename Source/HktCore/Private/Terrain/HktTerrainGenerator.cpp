@@ -136,30 +136,44 @@ void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 Chunk
 	const double BaseY = static_cast<double>(ChunkY) * S;
 	const double BaseZ = static_cast<double>(ChunkZ) * S;
 
-	for (int32 Z = 0; Z < S; ++Z)
+	// XY 컬럼별 높이/바이옴 캐시 (Z 루프에서 재사용 — 32배 절약)
+	double HeightCache[S][S];
+	EHktBiomeType BiomeCache[S][S];
+	const FHktBiomeMaterialRule* RuleCache[S][S];
+
+	for (int32 X = 0; X < S; ++X)
 	{
-		const double WorldZ = BaseZ + Z;
+		const double WorldX = BaseX + X;
+		for (int32 Y = 0; Y < S; ++Y)
+		{
+			const double WorldY = BaseY + Y;
+			double H = GetSurfaceHeight(WorldX, WorldY);
+			HeightCache[X][Y] = H;
+			BiomeCache[X][Y] = BiomeMap.GetBiomeWithHeight(WorldX, WorldY, H);
+			RuleCache[X][Y] = &BiomeMap.GetMaterialRule(BiomeCache[X][Y]);
+		}
+	}
+
+	// 복셀 생성: 인덱스 = X*S*S + Y*S + Z (Data[X][Y][Z] C 메모리 레이아웃 일치)
+	for (int32 X = 0; X < S; ++X)
+	{
+		const double WorldX = BaseX + X;
 
 		for (int32 Y = 0; Y < S; ++Y)
 		{
 			const double WorldY = BaseY + Y;
+			const double SurfaceH = HeightCache[X][Y];
+			const FHktBiomeMaterialRule& Rule = *RuleCache[X][Y];
+			const EHktBiomeType Biome = BiomeCache[X][Y];
 
-			for (int32 X = 0; X < S; ++X)
+			for (int32 Z = 0; Z < S; ++Z)
 			{
-				const double WorldX = BaseX + X;
-				const int32 Index = X + Y * S + Z * S * S;
+				const double WorldZ = BaseZ + Z;
+				const int32 Index = X * S * S + Y * S + Z;
 
-				// 1. 표면 높이
-				double SurfaceH = GetSurfaceHeight(WorldX, WorldY);
-
-				// 2. 바이옴
-				EHktBiomeType Biome = BiomeMap.GetBiomeWithHeight(WorldX, WorldY, SurfaceH);
-				const FHktBiomeMaterialRule& Rule = BiomeMap.GetMaterialRule(Biome);
-
-				// 3. 재질
 				FHktTerrainVoxel Voxel = DetermineVoxel(WorldX, WorldY, WorldZ, SurfaceH, Biome, Rule);
 
-				// 4. 동굴 카빙
+				// 동굴 카빙
 				if (Voxel.TypeID != TYPE_AIR && IsCave(WorldX, WorldY, WorldZ, SurfaceH))
 				{
 					if (WorldZ <= Config.WaterLevel && Rule.WaterType != TYPE_AIR)

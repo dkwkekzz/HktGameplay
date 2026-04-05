@@ -8,9 +8,11 @@
 // 2D/3D Simplex Gradient Vectors
 // ============================================================================
 
+// 정규화된 2D 기울기 벡터 — 모든 벡터가 동일 크기 (방향 편향 방지)
+static constexpr double SQRT2_INV = 0.7071067811865476;  // 1/sqrt(2)
 const double FHktTerrainNoise::Grad2[12][2] = {
 	{ 1, 0}, {-1, 0}, { 0, 1}, { 0,-1},
-	{ 1, 1}, {-1, 1}, { 1,-1}, {-1,-1},
+	{ SQRT2_INV, SQRT2_INV}, {-SQRT2_INV, SQRT2_INV}, { SQRT2_INV,-SQRT2_INV}, {-SQRT2_INV,-SQRT2_INV},
 	{ 1, 0}, {-1, 0}, { 0, 1}, { 0,-1}
 };
 
@@ -226,6 +228,9 @@ double FHktTerrainNoise::Noise3D(double X, double Y, double Z) const
 
 double FHktTerrainNoise::FBM2D(double X, double Y, int32 Octaves, double Lacunarity, double Persistence) const
 {
+	if (Octaves < 1) Octaves = 1;
+	if (Octaves > 8) Octaves = 8;
+
 	double Sum = 0.0;
 	double Amplitude = 1.0;
 	double Frequency = 1.0;
@@ -244,6 +249,9 @@ double FHktTerrainNoise::FBM2D(double X, double Y, int32 Octaves, double Lacunar
 
 double FHktTerrainNoise::FBM3D(double X, double Y, double Z, int32 Octaves, double Lacunarity, double Persistence) const
 {
+	if (Octaves < 1) Octaves = 1;
+	if (Octaves > 8) Octaves = 8;
+
 	double Sum = 0.0;
 	double Amplitude = 1.0;
 	double Frequency = 1.0;
@@ -262,10 +270,14 @@ double FHktTerrainNoise::FBM3D(double X, double Y, double Z, int32 Octaves, doub
 
 double FHktTerrainNoise::RidgedMulti2D(double X, double Y, int32 Octaves, double Lacunarity, double Persistence) const
 {
+	if (Octaves < 1) Octaves = 1;
+	if (Octaves > 8) Octaves = 8;
+
 	double Sum = 0.0;
 	double Amplitude = 1.0;
 	double Frequency = 1.0;
 	double Weight = 1.0;
+	double MaxAmplitude = 0.0;
 
 	for (int32 i = 0; i < Octaves; ++i)
 	{
@@ -278,9 +290,10 @@ double FHktTerrainNoise::RidgedMulti2D(double X, double Y, int32 Octaves, double
 		if (Weight < 0.0) Weight = 0.0;
 
 		Sum += Signal * Amplitude;
+		MaxAmplitude += Amplitude;
 		Amplitude *= Persistence;
 		Frequency *= Lacunarity;
 	}
 
-	return Sum;
+	return Sum / MaxAmplitude;
 }
