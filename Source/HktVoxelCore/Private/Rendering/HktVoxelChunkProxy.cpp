@@ -65,7 +65,7 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		FMeshBatch& Mesh = Collector.AllocateMesh();
 		Mesh.VertexFactory = VertexFactory;
 		Mesh.Type = PT_TriangleList;
-		Mesh.bWireframe = true;  // [DEBUG] 와이어프레임으로 삼각형 구조 확인 — 완료 후 false로
+		Mesh.bWireframe = false;
 		Mesh.bUseWireframeSelectionColoring = false;
 		Mesh.MaterialRenderProxy = VoxelMaterial->GetRenderProxy();
 		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();

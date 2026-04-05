@@ -7,6 +7,38 @@
 #include "Meshing/HktVoxelVertex.h"
 #include "HktVoxelCoreLog.h"
 #include "Materials/Material.h"
+#if WITH_EDITOR
+#include "Materials/MaterialExpressionVertexColor.h"
+#endif
+
+// [DEBUG] 면 방향 디버그용 — VertexColor를 Unlit Emissive로 출력하는 런타임 머티리얼
+#if WITH_EDITOR
+static UMaterial* GetOrCreateDebugVertexColorMaterial()
+{
+	static TWeakObjectPtr<UMaterial> Cached;
+	if (Cached.IsValid())
+	{
+		return Cached.Get();
+	}
+
+	UMaterial* Mat = NewObject<UMaterial>(GetTransientPackage(), TEXT("M_HktVoxelDebugVC"), RF_Transient);
+	Mat->MaterialDomain = MD_Surface;
+	Mat->BlendMode = BLEND_Opaque;
+	Mat->SetShadingModel(MSM_Unlit);
+	Mat->bTwoSided = true;
+
+	auto* VCExpr = NewObject<UMaterialExpressionVertexColor>(Mat);
+	Mat->GetExpressionCollection().AddExpression(VCExpr);
+	Mat->GetEditorOnlyData()->EmissiveColor.Connect(0, VCExpr);
+
+	Mat->PreEditChange(nullptr);
+	Mat->PostEditChange();
+
+	Mat->AddToRoot();
+	Cached = Mat;
+	return Mat;
+}
+#endif
 
 UHktVoxelChunkComponent::UHktVoxelChunkComponent()
 {
@@ -46,6 +78,11 @@ void UHktVoxelChunkComponent::Initialize(FHktVoxelRenderCache* Cache, const FInt
 		ChunkCoord.X * ChunkWorldSize,
 		ChunkCoord.Y * ChunkWorldSize,
 		ChunkCoord.Z * ChunkWorldSize));
+
+	// [DEBUG] 면 방향 디버그 머티리얼 적용 — VertexColor를 Unlit Emissive로 출력
+#if WITH_EDITOR
+	SetVoxelMaterial(GetOrCreateDebugVertexColorMaterial());
+#endif
 }
 
 void UHktVoxelChunkComponent::OnMeshReady()

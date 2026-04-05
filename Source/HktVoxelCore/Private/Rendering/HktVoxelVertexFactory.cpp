@@ -77,20 +77,8 @@ void FHktVoxelVertexFactory::SetPaletteTexture(FRHITexture* InTexture, FRHISampl
 
 bool FHktVoxelVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	// 복셀 전용 — Surface 도메인 + default material만 허용
-	if (Parameters.MaterialParameters.MaterialDomain != MD_Surface)
-	{
-		return false;
-	}
-
-	// 기본 머티리얼(엔진 폴백)은 항상 컴파일해야 함
-	if (Parameters.MaterialParameters.bIsDefaultMaterial)
-	{
-		return true;
-	}
-
-	// 사용자 머티리얼은 Special Engine Material이 아닌 것만
-	return !Parameters.MaterialParameters.bIsSpecialEngineMaterial;
+	// Surface 도메인만 허용 (wireframe/debug 포함 — SpecialEngineMaterial 차단하면 와이어프레임 불가)
+	return Parameters.MaterialParameters.MaterialDomain == MD_Surface;
 }
 
 void FHktVoxelVertexFactory::ModifyCompilationEnvironment(
