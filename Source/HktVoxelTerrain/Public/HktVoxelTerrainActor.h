@@ -9,6 +9,8 @@
 class FHktVoxelRenderCache;
 class FHktVoxelMeshScheduler;
 class FHktVoxelTerrainStreamer;
+class FHktTerrainGenerator;
+struct FHktTerrainGeneratorConfig;
 class UHktVoxelChunkComponent;
 
 /**
@@ -19,7 +21,7 @@ class UHktVoxelChunkComponent;
  * 카메라 기반 스트리밍으로 ChunkComponent를 동적 생성/풀링한다.
  *
  * 데이터 흐름:
- *   VM → LoadTerrainChunk() → RenderCache → MeshScheduler → ChunkComponent → GPU
+ *   Streamer → Generator.GenerateChunk() → RenderCache → MeshScheduler → ChunkComponent → GPU
  */
 UCLASS(ClassGroup = (HktVoxel))
 class HKTVOXELTERRAIN_API AHktVoxelTerrainActor : public AActor
@@ -69,6 +71,32 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 16))
 	int32 InitialPoolSize = 256;
 
+	// === 지형 생성 설정 ===
+
+	/** 지형 시드 (동일 시드 = 동일 지형) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Generation")
+	int64 TerrainSeed = 42;
+
+	/** 지형 최대 높이 (복셀 단위) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Generation", meta = (ClampMin = 8, ClampMax = 256))
+	double HeightScale = 64.0;
+
+	/** 기본 해수면 높이 오프셋 (복셀 단위) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Generation")
+	double HeightOffset = 32.0;
+
+	/** 해수면 높이 (이 높이 아래 빈 공간은 물로 채워짐) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Generation")
+	double WaterLevel = 30.0;
+
+	/** 산악 지형 혼합 비율 (0=완만한 FBM만, 1=뾰족한 리지만) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Generation", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	double MountainBlend = 0.4;
+
+	/** 동굴 생성 활성화 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Generation")
+	bool bEnableCaves = true;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -77,6 +105,9 @@ protected:
 private:
 	/** 카메라 위치 가져오기 */
 	FVector GetCameraWorldPos() const;
+
+	/** 절차적 생성 + RenderCache 로드 + 컴포넌트 할당 */
+	void GenerateAndLoadChunk(const FIntVector& ChunkCoord);
 
 	/** 스트리밍 결과 반영 — 청크 로드/언로드 + 컴포넌트 할당 */
 	void ProcessStreamingResults();
@@ -94,6 +125,7 @@ private:
 	TUniquePtr<FHktVoxelRenderCache> TerrainCache;
 	TUniquePtr<FHktVoxelMeshScheduler> TerrainMeshScheduler;
 	TUniquePtr<FHktVoxelTerrainStreamer> Streamer;
+	TUniquePtr<FHktTerrainGenerator> Generator;
 
 	/** 활성 청크 → 컴포넌트 매핑 */
 	TMap<FIntVector, UHktVoxelChunkComponent*> ActiveChunks;

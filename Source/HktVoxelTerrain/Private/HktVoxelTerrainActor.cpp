@@ -7,8 +7,14 @@
 #include "Data/HktVoxelTypes.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
 #include "Rendering/HktVoxelChunkComponent.h"
+#include "Terrain/HktTerrainGenerator.h"
+#include "Terrain/HktTerrainVoxel.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+
+// FHktTerrainVoxel과 FHktVoxel은 동일 4바이트 레이아웃
+static_assert(sizeof(FHktTerrainVoxel) == sizeof(FHktVoxel),
+	"FHktTerrainVoxel and FHktVoxel must have identical size for safe reinterpret_cast");
 
 AHktVoxelTerrainActor::AHktVoxelTerrainActor()
 {
@@ -31,16 +37,25 @@ void AHktVoxelTerrainActor::BeginPlay()
 	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
 
+	// 지형 생성기 초기화
+	FHktTerrainGeneratorConfig GenConfig;
+	GenConfig.Seed = TerrainSeed;
+	GenConfig.HeightScale = HeightScale;
+	GenConfig.HeightOffset = HeightOffset;
+	GenConfig.WaterLevel = WaterLevel;
+	GenConfig.MountainBlend = MountainBlend;
+	GenConfig.bEnableCaves = bEnableCaves;
+	Generator = MakeUnique<FHktTerrainGenerator>(GenConfig);
+
 	PrewarmPool(InitialPoolSize);
 
 	UE_LOG(LogHktVoxelTerrain, Log,
-		TEXT("Terrain Actor initialized — ViewDistance=%.0f, Pool=%d, MaxLoad=%d/frame, MaxMesh=%d/frame"),
-		ViewDistance, InitialPoolSize, MaxLoadsPerFrame, MaxMeshPerFrame);
+		TEXT("Terrain Actor initialized — Seed=%lld, ViewDist=%.0f, Pool=%d, MaxLoad=%d, MaxMesh=%d"),
+		TerrainSeed, ViewDistance, InitialPoolSize, MaxLoadsPerFrame, MaxMeshPerFrame);
 }
 
 void AHktVoxelTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// 모든 활성 컴포넌트 해제
 	for (auto& Pair : ActiveChunks)
 	{
 		if (Pair.Value)
@@ -59,6 +74,7 @@ void AHktVoxelTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	ComponentPool.Empty();
 
+	Generator.Reset();
 	TerrainMeshScheduler.Reset();
 	TerrainCache.Reset();
 	Streamer.Reset();
@@ -70,22 +86,22 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!TerrainCache || !TerrainMeshScheduler || !Streamer)
+	if (!TerrainCache || !TerrainMeshScheduler || !Streamer || !Generator)
 	{
 		return;
 	}
 
 	const FVector CameraPos = GetCameraWorldPos();
 
-	// 1. 스트리밍 업데이트 — 로드/언로드 대상 계산
+	// 1. 스트리밍 업데이트
 	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
 	Streamer->UpdateStreaming(CameraPos, ViewDistance, ChunkWorldSize);
 
-	// 2. 스트리밍 결과 반영
+	// 2. 스트리밍 결과 반영 (생성 + 로드 + 컴포넌트 할당)
 	ProcessStreamingResults();
 
-	// 3. 메싱 스케줄링 (dirty 청크를 비동기 메싱)
+	// 3. 메싱 스케줄링
 	TerrainMeshScheduler->SetMaxMeshPerFrame(MaxMeshPerFrame);
 	TerrainMeshScheduler->Tick(CameraPos);
 
@@ -108,6 +124,30 @@ FVector AHktVoxelTerrainActor::GetCameraWorldPos() const
 	return FVector::ZeroVector;
 }
 
+void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
+{
+	// 절차적 생성
+	constexpr int32 ChunkVoxelCount = 32 * 32 * 32;
+	FHktTerrainVoxel GeneratedVoxels[ChunkVoxelCount];
+	Generator->GenerateChunk(ChunkCoord.X, ChunkCoord.Y, ChunkCoord.Z, GeneratedVoxels);
+
+	// FHktTerrainVoxel → FHktVoxel 변환 (동일 레이아웃이므로 reinterpret_cast)
+	const FHktVoxel* VoxelData = reinterpret_cast<const FHktVoxel*>(GeneratedVoxels);
+	TerrainCache->LoadChunk(ChunkCoord, VoxelData, ChunkVoxelCount);
+
+	// 컴포넌트 할당
+	UHktVoxelChunkComponent* Comp = AcquireComponent();
+	if (Comp)
+	{
+		Comp->Initialize(TerrainCache.Get(), ChunkCoord);
+		if (TerrainMaterial)
+		{
+			Comp->SetVoxelMaterial(TerrainMaterial);
+		}
+		ActiveChunks.Add(ChunkCoord, Comp);
+	}
+}
+
 void AHktVoxelTerrainActor::ProcessStreamingResults()
 {
 	// 언로드
@@ -122,12 +162,7 @@ void AHktVoxelTerrainActor::ProcessStreamingResults()
 		}
 	}
 
-	// 로드 — VM에서 데이터를 받아야 하지만, 아직 VM 연동 전이므로
-	// 여기서는 LoadTerrainChunk()가 외부에서 호출된 후에만 컴포넌트를 할당한다.
-	// 스트리머가 "로드할 청크" 목록을 제공하면, 외부(VM Bridge 등)에서
-	// LoadTerrainChunk()를 호출해야 한다.
-	//
-	// 이미 RenderCache에 로드된 청크에 대해서만 컴포넌트 할당
+	// 로드: 스트리머가 요청한 청크를 절차적 생성 → RenderCache 로드 → 컴포넌트 할당
 	for (const FIntVector& Coord : Streamer->GetChunksToLoad())
 	{
 		if (ActiveChunks.Contains(Coord))
@@ -135,19 +170,7 @@ void AHktVoxelTerrainActor::ProcessStreamingResults()
 			continue;
 		}
 
-		if (TerrainCache->GetChunk(Coord) != nullptr)
-		{
-			UHktVoxelChunkComponent* Comp = AcquireComponent();
-			if (Comp)
-			{
-				Comp->Initialize(TerrainCache.Get(), Coord);
-				if (TerrainMaterial)
-				{
-					Comp->SetVoxelMaterial(TerrainMaterial);
-				}
-				ActiveChunks.Add(Coord, Comp);
-			}
-		}
+		GenerateAndLoadChunk(Coord);
 	}
 }
 
@@ -163,7 +186,7 @@ void AHktVoxelTerrainActor::ProcessMeshReadyChunks()
 	}
 }
 
-// === 외부 API ===
+// === 외부 API (VM 직접 연동용 — 절차적 생성 없이 데이터 주입) ===
 
 void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const FHktVoxel* VoxelData, int32 VoxelCount)
 {
@@ -174,7 +197,6 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 
 	TerrainCache->LoadChunk(ChunkCoord, VoxelData, VoxelCount);
 
-	// 이미 스트리밍 영역 내이면 컴포넌트 즉시 할당
 	if (Streamer && Streamer->GetLoadedChunks().Contains(ChunkCoord) && !ActiveChunks.Contains(ChunkCoord))
 	{
 		UHktVoxelChunkComponent* Comp = AcquireComponent();
