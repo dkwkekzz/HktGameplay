@@ -22,6 +22,14 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 
 FHktVoxelChunkProxy::~FHktVoxelChunkProxy()
 {
+	if (VertexBufferWrapper.IsInitialized())
+	{
+		VertexBufferWrapper.ReleaseResource();
+	}
+	if (IndexBufferWrapper.IsInitialized())
+	{
+		IndexBufferWrapper.ReleaseResource();
+	}
 	if (VertexFactory)
 	{
 		VertexFactory->ReleaseResource();
@@ -41,6 +49,12 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		return;
 	}
 
+	// [DEBUG] 릴리스 전 제거
+	{
+		static bool bLogged = false;
+		if (!bLogged) { bLogged = true; UE_LOG(LogTemp, Warning, TEXT("[VoxelProxy] GetDynamicMeshElements called — VF=%p Indices=%d"), VertexFactory, NumIndices); }
+	}
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		if (!(VisibilityMap & (1 << ViewIndex)))
@@ -51,7 +65,7 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		FMeshBatch& Mesh = Collector.AllocateMesh();
 		Mesh.VertexFactory = VertexFactory;
 		Mesh.Type = PT_TriangleList;
-		Mesh.bWireframe = false;
+		Mesh.bWireframe = true;  // [DEBUG] 와이어프레임으로 삼각형 구조 확인 — 완료 후 false로
 		Mesh.bUseWireframeSelectionColoring = false;
 		Mesh.MaterialRenderProxy = VoxelMaterial->GetRenderProxy();
 		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
@@ -63,6 +77,7 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		BatchElement.FirstIndex = 0;
 		BatchElement.MinVertexIndex = 0;
 		BatchElement.MaxVertexIndex = NumVertices > 0 ? NumVertices - 1 : 0;
+		BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 
 		Collector.AddMesh(ViewIndex, Mesh);
 	}
@@ -119,6 +134,17 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 
 	NumIndices = Indices.Num();
 	NumVertices = Vertices.Num();
+	UE_LOG(LogTemp, Warning, TEXT("[VoxelProxy] UpdateMeshData_RT: %d verts, %d indices"), NumVertices, NumIndices);
+
+	// RenderResource 초기화 마킹 (InitRHI는 비어있고 RHI 핸들은 위에서 직접 설정)
+	if (!VertexBufferWrapper.IsInitialized())
+	{
+		VertexBufferWrapper.InitResource(FRHICommandListImmediate::Get());
+	}
+	if (!IndexBufferWrapper.IsInitialized())
+	{
+		IndexBufferWrapper.InitResource(FRHICommandListImmediate::Get());
+	}
 
 	// Vertex Factory 셋업
 	if (!VertexFactory)

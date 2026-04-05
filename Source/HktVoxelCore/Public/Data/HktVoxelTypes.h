@@ -34,7 +34,8 @@ struct FHktVoxel
 
 struct HKTVOXELCORE_API FHktVoxelChunk
 {
-	static constexpr int32 SIZE = 32;
+	static constexpr int32   SIZE       = 32;
+	static constexpr float   VOXEL_SIZE = 15.0f;   // UE units per voxel (15 UU = 15cm)
 
 	FHktVoxel Data[SIZE][SIZE][SIZE];  // ~128KB
 

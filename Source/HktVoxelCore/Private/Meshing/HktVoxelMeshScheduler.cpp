@@ -66,8 +66,8 @@ void FHktVoxelMeshScheduler::Tick(const FVector& CameraPos)
 FVector FHktVoxelMeshScheduler::ChunkToWorld(const FIntVector& ChunkCoord)
 {
 	// 청크 중심 위치 = 청크좌표 * 청크크기 * 복셀크기 + 오프셋
-	// 복셀 크기 100 유닛 (UE5 기본 단위 = cm)
-	static constexpr float VoxelSize = 100.0f;
+	// 복셀 크기 15 유닛 = 15cm (UE5 기본 단위 = cm)
+	static constexpr float VoxelSize = FHktVoxelChunk::VOXEL_SIZE;
 	static constexpr float ChunkWorldSize = FHktVoxelChunk::SIZE * VoxelSize;
 	static constexpr float HalfChunk = ChunkWorldSize * 0.5f;
 

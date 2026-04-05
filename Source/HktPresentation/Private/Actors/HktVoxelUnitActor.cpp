@@ -26,8 +26,7 @@ AHktVoxelUnitActor::AHktVoxelUnitActor()
 
 	BodyChunk = CreateDefaultSubobject<UHktVoxelChunkComponent>(TEXT("BodyChunk"));
 	BodyChunk->SetupAttachment(RootScene);
-	// 복셀 캐릭터의 원점은 발 위치 — 청크를 아래로 오프셋하여 중심 맞춤
-	BodyChunk->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
+	// 오프셋은 BeginPlay에서 Initialize() 이후에 설정 (Initialize가 덮어쓰기 때문)
 }
 
 void AHktVoxelUnitActor::BeginPlay()
@@ -43,6 +42,11 @@ void AHktVoxelUnitActor::BeginPlay()
 
 	// 청크 컴포넌트를 렌더 캐시에 바인딩
 	BodyChunk->Initialize(EntityRenderCache.Get(), EntityChunkCoord);
+
+	// Initialize()가 오프셋을 (0,0,0)으로 리셋하므로 이후에 다시 설정
+	// 캐릭터 중심(15.5 voxel) * 15 UU = -232.5 → 액터 원점(발 중앙)에 맞춤
+	static constexpr float Offset = -15.5f * FHktVoxelChunk::VOXEL_SIZE;
+	BodyChunk->SetRelativeLocation(FVector(Offset, Offset, 0.f));
 
 	// 초기 복셀 메시 로드
 	InitializeVoxelMesh();
@@ -72,6 +76,28 @@ void AHktVoxelUnitActor::Tick(float DeltaTime)
 
 	// 메싱 완료 시 GPU 업로드
 	PollMeshReady();
+
+	// [DEBUG] 파이프라인 추적 — 릴리스 전 제거
+	if (EntityRenderCache)
+	{
+		FHktVoxelChunk* DbgChunk = EntityRenderCache->GetChunk(EntityChunkCoord);
+		if (DbgChunk)
+		{
+			static int32 DbgFrame = 0;
+			if (++DbgFrame <= 300 && DbgFrame % 30 == 0)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[VoxelUnit] Frame=%d bMeshDirty=%d bMeshReady=%d OpaqueVerts=%d"),
+					DbgFrame,
+					(int32)DbgChunk->bMeshDirty.load(),
+					(int32)DbgChunk->bMeshReady.load(),
+					DbgChunk->OpaqueVertices.Num());
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[VoxelUnit] Chunk not found in cache!"));
+		}
+	}
 }
 
 void AHktVoxelUnitActor::EndPlay(const EEndPlayReason::Type EndPlayReason)

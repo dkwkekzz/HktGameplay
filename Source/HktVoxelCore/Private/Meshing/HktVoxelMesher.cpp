@@ -11,15 +11,27 @@ void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk)
 	Chunk.TranslucentVertices.Reset();
 	Chunk.TranslucentIndices.Reset();
 
+	// [DEBUG] 면 방향별 버텍스 수 추적 — 릴리스 전 제거
+	static const TCHAR* FaceNames[] = { TEXT("+X"), TEXT("-X"), TEXT("+Y"), TEXT("-Y"), TEXT("+Z"), TEXT("-Z") };
+
 	for (int32 Face = 0; Face < EHktVoxelFace::Count; Face++)
 	{
+		const int32 VertsBefore = Chunk.OpaqueVertices.Num();
+
 		for (int32 Slice = 0; Slice < FHktVoxelChunk::SIZE; Slice++)
 		{
 			uint32 FaceMask[FHktVoxelChunk::SIZE] = {};
 			BuildFaceMask(Chunk, Face, Slice, FaceMask);
 			MergeQuads(Chunk, Face, Slice, FaceMask);
 		}
+
+		const int32 VertsAdded = Chunk.OpaqueVertices.Num() - VertsBefore;
+		UE_LOG(LogTemp, Warning, TEXT("[VoxelMesher] Face %s: %d verts (%d quads)"),
+			FaceNames[Face], VertsAdded, VertsAdded / 4);
 	}
+	UE_LOG(LogTemp, Warning, TEXT("[VoxelMesher] Total: %d verts, %d indices"),
+		Chunk.OpaqueVertices.Num(), Chunk.OpaqueIndices.Num());
+	// [/DEBUG]
 
 	// bMeshDirty/bMeshReady는 스케줄러 람다에서 세대 확인 후 관리
 }
@@ -237,7 +249,16 @@ void FHktVoxelMesher::EmitQuad(
 	const FHktVoxel& Voxel)
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
-	const bool bPositive = EHktVoxelFace::IsPositive(Face);
+
+	// T×B 외적이 Face 법선과 같은 방향인지 (오른손 좌표계 여부)
+	// PosX(0): T=(0,1,0) B=(0,0,1) → T×B=(+1,0,0) = N  → true
+	// NegX(1): T=(0,1,0) B=(0,0,1) → T×B=(+1,0,0) ≠ -N → false
+	// PosY(2): T=(1,0,0) B=(0,0,1) → T×B=(0,-1,0) ≠ +N → false
+	// NegY(3): T=(1,0,0) B=(0,0,1) → T×B=(0,-1,0) = -N → true
+	// PosZ(4): T=(1,0,0) B=(0,1,0) → T×B=(0,0,+1) = N  → true
+	// NegZ(5): T=(1,0,0) B=(0,1,0) → T×B=(0,0,+1) ≠ -N → false
+	static constexpr bool bRightHanded[EHktVoxelFace::Count] = { true, false, false, true, true, false };
+	const bool bForwardWinding = bRightHanded[Face];
 
 	// UV → XYZ 변환
 	auto ToWorld = [&](int32 U, int32 V) -> FIntVector
@@ -296,17 +317,27 @@ void FHktVoxelMesher::EmitQuad(
 		Vertices.Add(Vert);
 	}
 
-	// 인덱스 (AO flip 고려)
+	// 인덱스 (face 방향별 winding + AO flip 고려)
+	// 양면(+X/+Y/+Z) : CCW = front → 0→1→3, 0→3→2 (0-3 대각) / 0→1→2, 1→3→2 (1-2 대각)
+	// 음면(-X/-Y/-Z) : 반대 winding → 0→3→1, 0→2→3 (0-3 대각) / 2→1→0, 2→3→1 (1-2 대각)
 	if (AO[0] + AO[3] > AO[1] + AO[2])
 	{
-		// 표준 삼각형 분할
-		Indices.Append({BaseIndex, BaseIndex + 1, BaseIndex + 2,
-						BaseIndex + 2, BaseIndex + 3, BaseIndex});
+		// 0-3 대각선 분할
+		if (bForwardWinding)
+			Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+3,
+							BaseIndex,   BaseIndex+3, BaseIndex+2});
+		else
+			Indices.Append({BaseIndex,   BaseIndex+3, BaseIndex+1,
+							BaseIndex,   BaseIndex+2, BaseIndex+3});
 	}
 	else
 	{
-		// AO 아티팩트 방지를 위한 대각선 뒤집기
-		Indices.Append({BaseIndex + 1, BaseIndex + 2, BaseIndex + 3,
-						BaseIndex + 3, BaseIndex, BaseIndex + 1});
+		// 1-2 대각선 분할 (AO flip)
+		if (bForwardWinding)
+			Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+2,
+							BaseIndex+1, BaseIndex+3, BaseIndex+2});
+		else
+			Indices.Append({BaseIndex+2, BaseIndex+1, BaseIndex,
+							BaseIndex+2, BaseIndex+3, BaseIndex+1});
 	}
 }

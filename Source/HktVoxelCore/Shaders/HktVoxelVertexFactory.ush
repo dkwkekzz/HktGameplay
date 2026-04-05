@@ -104,16 +104,25 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	HktGetFaceTangents(FaceDir, Tangent, Bitangent);
 	Result.WorldTangent = Tangent;
 
-	// Quad corner expansion + scale (1 voxel = 100 units)
-	Result.LocalPosition = (BasePos + HktExpandQuad(FaceDir, Width, Height, Corner)) * 100.0;
+	// Quad corner expansion + scale (1 voxel = 15 UU = 15cm)
+	Result.LocalPosition = (BasePos + HktExpandQuad(FaceDir, Width, Height, Corner)) * 15.0;
 
 	// Material unpack
 	uint VoxelType  = PM & 0xFFFF;
 	uint PaletteIdx = (PM >> 16) & 0x7;
 	uint AO         = (PM >> 19) & 0x3;
 
-	Result.Color = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
-	Result.Color.rgb *= HktAOToLight(AO);
+	// [DEBUG] 면 방향별 색상 — 6방향 렌더링 검증용. 릴리스 전 제거
+	// +X=빨강, -X=진빨강, +Y=초록, -Y=진초록, +Z=파랑, -Z=진파랑
+	static const float3 FaceDebugColors[6] = {
+		float3(1.0, 0.2, 0.2), float3(0.5, 0.0, 0.0),
+		float3(0.2, 1.0, 0.2), float3(0.0, 0.5, 0.0),
+		float3(0.2, 0.2, 1.0), float3(0.0, 0.0, 0.5)
+	};
+	Result.Color = float4(FaceDebugColors[min(FaceDir, 5u)] * HktAOToLight(AO), 1.0);
+	// [/DEBUG]
+	// Result.Color = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
+	// Result.Color.rgb *= HktAOToLight(AO);
 
 	return Result;
 }
@@ -124,7 +133,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return mul(float4(Intermediates.LocalPosition, 1.0), Primitive.LocalToRelativeWorld);
+	return TransformLocalToTranslatedWorld(Intermediates.LocalPosition);
 }
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
@@ -139,7 +148,8 @@ float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVer
 
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return mul(float4(Intermediates.LocalPosition, 1.0), Primitive.PreviousLocalToRelativeWorld);
+	// 복셀은 모션 블러 미지원 — 이전 프레임 위치를 현재와 동일하게 사용
+	return TransformLocalToTranslatedWorld(Intermediates.LocalPosition);
 }
 
 float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
