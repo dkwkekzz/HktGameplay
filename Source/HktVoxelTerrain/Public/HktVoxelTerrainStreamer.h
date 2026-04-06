@@ -43,6 +43,9 @@ public:
 	void SetMaxLoadsPerFrame(int32 NewMax) { MaxLoadsPerFrame = NewMax; }
 	int32 GetMaxLoadsPerFrame() const { return MaxLoadsPerFrame; }
 
+	/** 동시 로드 최대 청크 수 (메모리 예산). 0이면 제한 없음 */
+	void SetMaxLoadedChunks(int32 NewMax) { MaxLoadedChunks = NewMax; }
+
 	/** 테레인 높이 범위 (Z축 청크 좌표) */
 	void SetHeightRange(int32 MinZ, int32 MaxZ) { HeightMinZ = MinZ; HeightMaxZ = MaxZ; }
 
@@ -54,7 +57,8 @@ private:
 	TArray<FIntVector> ChunksToUnload;
 	TArray<FIntVector> PendingLoads;  // 아직 로드 예산이 부족하여 대기 중인 청크
 
-	int32 MaxLoadsPerFrame = 8;
+	int32 MaxLoadsPerFrame = 4;
+	int32 MaxLoadedChunks = 2048;
 	int32 HeightMinZ = 0;
 	int32 HeightMaxZ = 3;   // Z 0~3 (128m 높이)
 

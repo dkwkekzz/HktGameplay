@@ -36,6 +36,7 @@ void AHktVoxelTerrainActor::BeginPlay()
 	Streamer = MakeUnique<FHktVoxelTerrainStreamer>();
 	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
+	Streamer->SetMaxLoadedChunks(MaxLoadedChunks);
 
 	// 지형 생성기 초기화
 	FHktTerrainGeneratorConfig GenConfig;
@@ -95,6 +96,7 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 
 	// 1. 스트리밍 업데이트
 	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
+	Streamer->SetMaxLoadedChunks(MaxLoadedChunks);
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
 	Streamer->UpdateStreaming(CameraPos, ViewDistance, ChunkWorldSize);
 
