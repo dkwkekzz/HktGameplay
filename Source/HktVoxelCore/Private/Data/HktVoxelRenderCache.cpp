@@ -41,7 +41,7 @@ void FHktVoxelRenderCache::LoadChunk(const FIntVector& ChunkCoord, const FHktVox
 		FMemory::Memcpy(NewChunk->Data, VoxelData, CopyCount * sizeof(FHktVoxel));
 	}
 
-	Chunks.Add(ChunkCoord, MoveTemp(NewChunk));
+	Chunks.Emplace(ChunkCoord, MoveTemp(NewChunk));
 
 	UE_LOG(LogHktVoxelCore, Verbose, TEXT("LoadChunk: (%d,%d,%d) loaded with %d voxels"),
 		ChunkCoord.X, ChunkCoord.Y, ChunkCoord.Z, CopyCount);

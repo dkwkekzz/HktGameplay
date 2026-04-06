@@ -50,6 +50,38 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 	TArray<FHktVoxelVertex> TranslucentVertices;
 	TArray<uint32> TranslucentIndices;
 
+	FHktVoxelChunk() = default;
+	FHktVoxelChunk(FHktVoxelChunk&& Other) noexcept
+		: ChunkCoord(Other.ChunkCoord)
+		, bMeshDirty(Other.bMeshDirty.load(std::memory_order_relaxed))
+		, bMeshReady(Other.bMeshReady.load(std::memory_order_relaxed))
+		, MeshGeneration(Other.MeshGeneration.load(std::memory_order_relaxed))
+		, OpaqueVertices(MoveTemp(Other.OpaqueVertices))
+		, OpaqueIndices(MoveTemp(Other.OpaqueIndices))
+		, TranslucentVertices(MoveTemp(Other.TranslucentVertices))
+		, TranslucentIndices(MoveTemp(Other.TranslucentIndices))
+	{
+		FMemory::Memcpy(Data, Other.Data, sizeof(Data));
+	}
+	FHktVoxelChunk& operator=(FHktVoxelChunk&& Other) noexcept
+	{
+		if (this != &Other)
+		{
+			FMemory::Memcpy(Data, Other.Data, sizeof(Data));
+			ChunkCoord = Other.ChunkCoord;
+			bMeshDirty.store(Other.bMeshDirty.load(std::memory_order_relaxed), std::memory_order_relaxed);
+			bMeshReady.store(Other.bMeshReady.load(std::memory_order_relaxed), std::memory_order_relaxed);
+			MeshGeneration.store(Other.MeshGeneration.load(std::memory_order_relaxed), std::memory_order_relaxed);
+			OpaqueVertices = MoveTemp(Other.OpaqueVertices);
+			OpaqueIndices = MoveTemp(Other.OpaqueIndices);
+			TranslucentVertices = MoveTemp(Other.TranslucentVertices);
+			TranslucentIndices = MoveTemp(Other.TranslucentIndices);
+		}
+		return *this;
+	}
+	FHktVoxelChunk(const FHktVoxelChunk&) = delete;
+	FHktVoxelChunk& operator=(const FHktVoxelChunk&) = delete;
+
 	// 복셀 접근 (로컬 좌표)
 	FHktVoxel& At(int32 X, int32 Y, int32 Z) { return Data[X][Y][Z]; }
 	const FHktVoxel& At(int32 X, int32 Y, int32 Z) const { return Data[X][Y][Z]; }

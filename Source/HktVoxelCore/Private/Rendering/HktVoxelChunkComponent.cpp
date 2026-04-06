@@ -25,7 +25,7 @@ static UMaterial* GetOrCreateDebugVertexColorMaterial()
 	Mat->MaterialDomain = MD_Surface;
 	Mat->BlendMode = BLEND_Opaque;
 	Mat->SetShadingModel(MSM_Unlit);
-	Mat->bTwoSided = true;
+	Mat->TwoSided = true;
 
 	auto* VCExpr = NewObject<UMaterialExpressionVertexColor>(Mat);
 	Mat->GetExpressionCollection().AddExpression(VCExpr);

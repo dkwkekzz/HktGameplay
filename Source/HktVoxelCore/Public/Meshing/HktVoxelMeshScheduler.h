@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Tasks/Task.h"
 
 class FHktVoxelRenderCache;
 
@@ -16,9 +17,13 @@ class HKTVOXELCORE_API FHktVoxelMeshScheduler
 {
 public:
 	explicit FHktVoxelMeshScheduler(FHktVoxelRenderCache* InRenderCache);
+	~FHktVoxelMeshScheduler();
 
 	/** 매 프레임 호출 — 카메라 위치 기준으로 dirty 청크 메싱 스케줄링 */
 	void Tick(const FVector& CameraPos);
+
+	/** 진행 중인 모든 메싱 태스크 완료 대기 */
+	void Flush();
 
 	/** 프레임당 최대 메싱 청크 수 조절 */
 	void SetMaxMeshPerFrame(int32 NewMax) { MaxMeshPerFrame = NewMax; }
@@ -27,6 +32,7 @@ public:
 private:
 	FHktVoxelRenderCache* RenderCache = nullptr;
 	int32 MaxMeshPerFrame = 4;
+	TArray<UE::Tasks::FTask> PendingTasks;
 
 	/** 청크 좌표 → 월드 위치 변환 (청크 중심) */
 	static FVector ChunkToWorld(const FIntVector& ChunkCoord);

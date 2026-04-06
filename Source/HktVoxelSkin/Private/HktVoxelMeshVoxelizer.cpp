@@ -125,7 +125,7 @@ void FHktVoxelMeshVoxelizer::ExtractTriangles(
 		FMemory::Memzero(OutV.BoneIndices, sizeof(OutV.BoneIndices));
 		FMemory::Memzero(OutV.BoneWeights, sizeof(OutV.BoneWeights));
 
-		const int32 NumInfluences = FMath::Min(SkinWeightBuffer.GetMaxBoneInfluences(), 4);
+		const int32 NumInfluences = FMath::Min<int32>(SkinWeightBuffer.GetMaxBoneInfluences(), 4);
 		for (int32 Inf = 0; Inf < NumInfluences; Inf++)
 		{
 			const int32 SectionVertIdx = i;
@@ -143,7 +143,7 @@ void FHktVoxelMeshVoxelizer::ExtractTriangles(
 			OutIndices.SetNum(NumIndices);
 			for (int32 i = 0; i < NumIndices; i++)
 			{
-				OutIndices[i] = static_cast<uint32>((*IB)[i]);
+				OutIndices[i] = IB->Get(i);
 			}
 		}
 	}

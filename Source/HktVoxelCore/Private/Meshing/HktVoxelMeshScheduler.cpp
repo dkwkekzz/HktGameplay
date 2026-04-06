@@ -12,12 +12,29 @@ FHktVoxelMeshScheduler::FHktVoxelMeshScheduler(FHktVoxelRenderCache* InRenderCac
 {
 }
 
+FHktVoxelMeshScheduler::~FHktVoxelMeshScheduler()
+{
+	Flush();
+}
+
+void FHktVoxelMeshScheduler::Flush()
+{
+	for (UE::Tasks::FTask& Task : PendingTasks)
+	{
+		Task.Wait();
+	}
+	PendingTasks.Empty();
+}
+
 void FHktVoxelMeshScheduler::Tick(const FVector& CameraPos)
 {
 	if (!RenderCache)
 	{
 		return;
 	}
+
+	// 완료된 태스크 제거
+	PendingTasks.RemoveAllSwap([](const UE::Tasks::FTask& Task) { return Task.IsCompleted(); });
 
 	TArray<FIntVector> DirtyChunks;
 	RenderCache->GetDirtyChunks(DirtyChunks);
@@ -47,7 +64,7 @@ void FHktVoxelMeshScheduler::Tick(const FVector& CameraPos)
 		Chunk->bMeshDirty.store(false, std::memory_order_relaxed);
 		const uint32 Gen = Chunk->MeshGeneration.load(std::memory_order_acquire);
 
-		UE::Tasks::Launch(
+		PendingTasks.Add(UE::Tasks::Launch(
 			TEXT("HktVoxelMeshing"),
 			[Chunk, Gen]()
 			{
@@ -59,7 +76,7 @@ void FHktVoxelMeshScheduler::Tick(const FVector& CameraPos)
 				}
 			},
 			UE::Tasks::ETaskPriority::BackgroundNormal
-		);
+		));
 	}
 }
 

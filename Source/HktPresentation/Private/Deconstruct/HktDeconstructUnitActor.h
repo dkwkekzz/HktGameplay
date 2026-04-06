@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktUnitActor.h"
+#include "Actors/HktUnitActor.h"
 #include "Deconstruct/HktDeconstructTypes.h"
 #include "HktDeconstructUnitActor.generated.h"
 

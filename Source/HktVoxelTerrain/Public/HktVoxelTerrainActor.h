@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Data/HktVoxelRenderCache.h"
+#include "Meshing/HktVoxelMeshScheduler.h"
+#include "HktVoxelTerrainStreamer.h"
+#include "Terrain/HktTerrainGenerator.h"
 #include "HktVoxelTerrainActor.generated.h"
 
-class FHktVoxelRenderCache;
-class FHktVoxelMeshScheduler;
-class FHktVoxelTerrainStreamer;
-class FHktTerrainGenerator;
 struct FHktTerrainGeneratorConfig;
 class UHktVoxelChunkComponent;
 
@@ -30,6 +30,7 @@ class HKTVOXELTERRAIN_API AHktVoxelTerrainActor : public AActor
 
 public:
 	AHktVoxelTerrainActor();
+	~AHktVoxelTerrainActor();
 
 	// === 외부 API (VM 연동) ===
 

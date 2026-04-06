@@ -16,6 +16,8 @@
 static_assert(sizeof(FHktTerrainVoxel) == sizeof(FHktVoxel),
 	"FHktTerrainVoxel and FHktVoxel must have identical size for safe reinterpret_cast");
 
+AHktVoxelTerrainActor::~AHktVoxelTerrainActor() = default;
+
 AHktVoxelTerrainActor::AHktVoxelTerrainActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
