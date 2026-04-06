@@ -250,11 +250,8 @@ void FHktVoxelMesher::EmitQuad(
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
 
-	// UE5 left-handed 좌표계에서 screen-space CW = front face.
-	// 양면(Pos)은 forward winding, 음면(Neg)은 reverse winding으로 통일.
-	// 참고: 기존 코드는 right-handed 기준으로 PosY/NegY의 winding이 뒤집혀 있어
-	// ±Y 면이 backface culling되는 버그가 있었음.
-	static constexpr bool bRightHanded[EHktVoxelFace::Count] = { true, false, true, false, true, false };
+	// T×B 외적이 Face 법선과 같은 방향인지 (오른손 좌표계 여부)
+	static constexpr bool bRightHanded[EHktVoxelFace::Count] = { true, false, false, true, true, false };
 	const bool bForwardWinding = bRightHanded[Face];
 
 	// UV → XYZ 변환
@@ -315,26 +312,47 @@ void FHktVoxelMesher::EmitQuad(
 	}
 
 	// 인덱스 (face 방향별 winding + AO flip 고려)
-	// 양면(+X/+Y/+Z) : CCW = front → 0→1→3, 0→3→2 (0-3 대각) / 0→1→2, 1→3→2 (1-2 대각)
-	// 음면(-X/-Y/-Z) : 반대 winding → 0→3→1, 0→2→3 (0-3 대각) / 2→1→0, 2→3→1 (1-2 대각)
+	// Front face + reverse winding(back face)을 모두 방출하여 양면 렌더링.
+	// 복셀 캐릭터의 body part junction에서 internal face가 culling되어
+	// 특정 각도에서 내부가 보이는 문제를 방지한다.
 	if (AO[0] + AO[3] > AO[1] + AO[2])
 	{
 		// 0-3 대각선 분할
 		if (bForwardWinding)
+		{
 			Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+3,
 							BaseIndex,   BaseIndex+3, BaseIndex+2});
-		else
+			// Back face (reverse winding)
 			Indices.Append({BaseIndex,   BaseIndex+3, BaseIndex+1,
 							BaseIndex,   BaseIndex+2, BaseIndex+3});
+		}
+		else
+		{
+			Indices.Append({BaseIndex,   BaseIndex+3, BaseIndex+1,
+							BaseIndex,   BaseIndex+2, BaseIndex+3});
+			// Back face (reverse winding)
+			Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+3,
+							BaseIndex,   BaseIndex+3, BaseIndex+2});
+		}
 	}
 	else
 	{
 		// 1-2 대각선 분할 (AO flip)
 		if (bForwardWinding)
+		{
 			Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+2,
 							BaseIndex+1, BaseIndex+3, BaseIndex+2});
-		else
+			// Back face (reverse winding)
 			Indices.Append({BaseIndex+2, BaseIndex+1, BaseIndex,
 							BaseIndex+2, BaseIndex+3, BaseIndex+1});
+		}
+		else
+		{
+			Indices.Append({BaseIndex+2, BaseIndex+1, BaseIndex,
+							BaseIndex+2, BaseIndex+3, BaseIndex+1});
+			// Back face (reverse winding)
+			Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+2,
+							BaseIndex+1, BaseIndex+3, BaseIndex+2});
+		}
 	}
 }
