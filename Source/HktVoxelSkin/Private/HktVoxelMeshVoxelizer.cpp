@@ -101,14 +101,20 @@ void FHktVoxelMeshVoxelizer::ExtractTriangles(
 		const int32 ParentIdx = RefSkeleton.GetParentIndex(i);
 		if (ParentIdx != INDEX_NONE)
 		{
-			ComponentSpaceTransforms[i] *= ComponentSpaceTransforms[ParentIdx];
+			// Local * Parent 순서로 컴포넌트 스페이스 변환
+			ComponentSpaceTransforms[i] = RefSkeleton.GetRefBonePose()[i] * ComponentSpaceTransforms[ParentIdx];
 		}
 		OutRefPoseTransforms[i] = ComponentSpaceTransforms[i];
 	}
 
 	// 버텍스 추출
 	OutVertices.SetNum(NumVerts);
-	const FSkinWeightVertexBuffer& SkinWeightBuffer = *LODData.GetSkinWeightVertexBuffer();
+	const FSkinWeightVertexBuffer* SkinWeightPtr = LODData.GetSkinWeightVertexBuffer();
+	if (!SkinWeightPtr)
+	{
+		return;
+	}
+	const FSkinWeightVertexBuffer& SkinWeightBuffer = *SkinWeightPtr;
 
 	for (uint32 i = 0; i < NumVerts; i++)
 	{
@@ -129,7 +135,18 @@ void FHktVoxelMeshVoxelizer::ExtractTriangles(
 	}
 
 	// 인덱스 추출
-	LODData.MultiSizeIndexContainer.GetIndexBuffer(OutIndices);
+	{
+		const FRawStaticIndexBuffer16or32Interface* IB = LODData.MultiSizeIndexContainer.GetIndexBuffer();
+		if (IB)
+		{
+			const int32 NumIndices = IB->Num();
+			OutIndices.SetNum(NumIndices);
+			for (int32 i = 0; i < NumIndices; i++)
+			{
+				OutIndices[i] = static_cast<uint32>((*IB)[i]);
+			}
+		}
+	}
 }
 
 void FHktVoxelMeshVoxelizer::RasterizeTriangles(

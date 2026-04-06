@@ -179,9 +179,9 @@ void FHktVoxelSkinAssembler::AssembleBoned(TMap<FName, FHktVoxelChunk>& OutBoneC
 					continue;
 				}
 
+				const bool bNewEntry = !OutBoneChunks.Contains(BoneGroup.BoneName);
 				FHktVoxelChunk& BoneChunk = OutBoneChunks.FindOrAdd(BoneGroup.BoneName);
-				// 첫 접근 시 초기화
-				if (BoneChunk.ChunkCoord == FIntVector::ZeroValue)
+				if (bNewEntry)
 				{
 					FMemory::Memzero(BoneChunk.Data, sizeof(BoneChunk.Data));
 					BoneChunk.bMeshDirty = true;
@@ -195,8 +195,9 @@ void FHktVoxelSkinAssembler::AssembleBoned(TMap<FName, FHktVoxelChunk>& OutBoneC
 		{
 			// 정적 에셋 — "root" 본 그룹으로 폴백
 			const FName RootBone(TEXT("root"));
+			const bool bNewRoot = !OutBoneChunks.Contains(RootBone);
 			FHktVoxelChunk& RootChunk = OutBoneChunks.FindOrAdd(RootBone);
-			if (RootChunk.ChunkCoord == FIntVector::ZeroValue)
+			if (bNewRoot)
 			{
 				FMemory::Memzero(RootChunk.Data, sizeof(RootChunk.Data));
 				RootChunk.bMeshDirty = true;

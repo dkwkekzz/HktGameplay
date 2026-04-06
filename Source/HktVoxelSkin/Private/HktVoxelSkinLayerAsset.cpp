@@ -48,8 +48,10 @@ void UHktVoxelSkinLayerAsset::Serialize(FArchive& Ar)
 	}
 }
 
-void UHktVoxelSkinLayerAsset::WriteToChunk(FHktVoxelChunk& OutChunk, const FIntVector& Offset, uint8 PaletteRow) const
+void UHktVoxelSkinLayerAsset::WriteToChunk(FHktVoxelChunk& OutChunk, const FIntVector& Offset, [[maybe_unused]] uint8 PaletteRow) const
 {
+	// PaletteRow는 현재 미사용 — 팔레트는 GPU에서 CustomPrimitiveData로 처리
+	// 향후 복셀별 팔레트 오버라이드가 필요하면 여기서 적용
 	constexpr int32 S = FHktVoxelChunk::SIZE;
 
 	for (const FHktVoxelSparse& V : SparseVoxels)
@@ -68,7 +70,7 @@ void UHktVoxelSkinLayerAsset::WriteToChunk(FHktVoxelChunk& OutChunk, const FIntV
 	}
 }
 
-void UHktVoxelSkinLayerAsset::WriteBoneGroupToChunk(FHktVoxelChunk& OutChunk, const FHktVoxelBoneGroup& BoneGroup, uint8 PaletteRow)
+void UHktVoxelSkinLayerAsset::WriteBoneGroupToChunk(FHktVoxelChunk& OutChunk, const FHktVoxelBoneGroup& BoneGroup, [[maybe_unused]] uint8 PaletteRow)
 {
 	constexpr int32 S = FHktVoxelChunk::SIZE;
 

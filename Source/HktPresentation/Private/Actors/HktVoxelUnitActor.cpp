@@ -251,20 +251,15 @@ void AHktVoxelUnitActor::OnSkinSetChanged(uint16 NewSkinSetID)
 	// 에셋에 본 데이터가 있으면 본-리지드 모드로 전환
 	if (SkinAssembler.HasAnyBoneData())
 	{
-		TMap<FName, FHktVoxelChunk> BoneChunkMap;
-		SkinAssembler.AssembleBoned(BoneChunkMap);
-
-		// BoneGroup 배열 재구성 (기존 에셋에서 가져옴)
+		// 첫 번째 본 에셋에서 BoneGroup 정보 추출
 		TArray<FHktVoxelBoneGroup> AllBoneGroups;
 		for (int32 i = 0; i < EHktVoxelSkinLayer::Count; i++)
 		{
-			if (!SkinAssembler.GetLayer(static_cast<EHktVoxelSkinLayer::Type>(i)))
-				continue;
 			const FHktVoxelSkinLayerData* LayerData = SkinAssembler.GetLayer(static_cast<EHktVoxelSkinLayer::Type>(i));
 			if (LayerData && LayerData->VoxelLayerAsset.IsValid() && LayerData->VoxelLayerAsset->HasBoneData())
 			{
 				AllBoneGroups = LayerData->VoxelLayerAsset->BoneGroups;
-				break;  // 첫 번째 본 에셋의 그룹 정보 사용
+				break;
 			}
 		}
 
