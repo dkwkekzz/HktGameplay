@@ -37,12 +37,16 @@ public:
 	virtual void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
 		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) override;
 
-private:
+protected:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Unit")
 	TObjectPtr<UCapsuleComponent> CapsuleComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Unit")
 	TObjectPtr<USkeletalMeshComponent> MeshComponent;
+
+	USkeletalMeshComponent* GetMeshComponent() const { return MeshComponent; }
+
+private:
 
 	FHktEntityId CachedEntityId = InvalidEntityId;
 
