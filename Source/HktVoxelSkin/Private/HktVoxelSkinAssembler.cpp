@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktVoxelSkinAssembler.h"
+#include "HktVoxelSkinLayerAsset.h"
 #include "Data/HktVoxelTypes.h"
 #include "HktVoxelSkinLog.h"
 
@@ -60,9 +61,15 @@ void FHktVoxelSkinAssembler::Assemble(FHktVoxelChunk& OutChunk) const
 			LayerData.SkinID.SkinSetID,
 			LayerData.SkinID.PaletteRow);
 
-		// 프로덕션에서는 레이어별 복셀 데이터를 에셋에서 로드하여 합성한다.
-		// 현재는 기본 프로시저럴 캐릭터 형태를 생성하여 파이프라인 검증이 가능하도록 한다.
-		GenerateDefaultShape(OutChunk, LayerData);
+		// 에셋이 있으면 에셋에서 로드, 없으면 프로시저럴 폴백
+		if (LayerData.VoxelLayerAsset.IsValid())
+		{
+			LayerData.VoxelLayerAsset->WriteToChunk(OutChunk, LayerData.Offset, LayerData.SkinID.PaletteRow);
+		}
+		else
+		{
+			GenerateDefaultShape(OutChunk, LayerData);
+		}
 	}
 }
 
@@ -146,6 +153,75 @@ void FHktVoxelSkinAssembler::GenerateDefaultShape(FHktVoxelChunk& OutChunk, cons
 		// 나머지 레이어는 프로덕션에서 에셋 로드로 처리
 		break;
 	}
+}
+
+void FHktVoxelSkinAssembler::AssembleBoned(TMap<FName, FHktVoxelChunk>& OutBoneChunks) const
+{
+	OutBoneChunks.Empty();
+
+	// 레이어를 낮은 우선순위부터 순회 — 높은 레이어가 덮어쓴다
+	for (int32 i = 0; i < EHktVoxelSkinLayer::Count; i++)
+	{
+		if (!bLayerActive[i] || !Layers[i].bVisible)
+		{
+			continue;
+		}
+
+		const FHktVoxelSkinLayerData& LayerData = Layers[i];
+
+		if (LayerData.VoxelLayerAsset.IsValid() && LayerData.VoxelLayerAsset->HasBoneData())
+		{
+			// 본-리지드 모드: 본별 청크에 복셀 기록
+			for (const FHktVoxelBoneGroup& BoneGroup : LayerData.VoxelLayerAsset->BoneGroups)
+			{
+				if (BoneGroup.Voxels.Num() == 0)
+				{
+					continue;
+				}
+
+				const bool bNewEntry = !OutBoneChunks.Contains(BoneGroup.BoneName);
+				FHktVoxelChunk& BoneChunk = OutBoneChunks.FindOrAdd(BoneGroup.BoneName);
+				if (bNewEntry)
+				{
+					FMemory::Memzero(BoneChunk.Data, sizeof(BoneChunk.Data));
+					BoneChunk.bMeshDirty = true;
+					BoneChunk.bMeshReady = false;
+				}
+
+				UHktVoxelSkinLayerAsset::WriteBoneGroupToChunk(BoneChunk, BoneGroup, LayerData.SkinID.PaletteRow);
+			}
+		}
+		else if (LayerData.VoxelLayerAsset.IsValid())
+		{
+			// 정적 에셋 — "root" 본 그룹으로 폴백
+			const FName RootBone(TEXT("root"));
+			const bool bNewRoot = !OutBoneChunks.Contains(RootBone);
+			FHktVoxelChunk& RootChunk = OutBoneChunks.FindOrAdd(RootBone);
+			if (bNewRoot)
+			{
+				FMemory::Memzero(RootChunk.Data, sizeof(RootChunk.Data));
+				RootChunk.bMeshDirty = true;
+				RootChunk.bMeshReady = false;
+			}
+			LayerData.VoxelLayerAsset->WriteToChunk(RootChunk, LayerData.Offset, LayerData.SkinID.PaletteRow);
+		}
+		// 에셋 없는 레이어는 본 모드에서 스킵 (GenerateDefaultShape는 정적 전용)
+	}
+}
+
+bool FHktVoxelSkinAssembler::HasAnyBoneData() const
+{
+	for (int32 i = 0; i < EHktVoxelSkinLayer::Count; i++)
+	{
+		if (bLayerActive[i] && Layers[i].bVisible && Layers[i].VoxelLayerAsset.IsValid())
+		{
+			if (Layers[i].VoxelLayerAsset->HasBoneData())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void FHktVoxelSkinAssembler::ChangeSkinPalette(EHktVoxelSkinLayer::Type Layer, uint8 NewPaletteRow)

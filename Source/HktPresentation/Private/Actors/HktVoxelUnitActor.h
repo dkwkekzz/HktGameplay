@@ -12,8 +12,11 @@
 #include "HktVoxelUnitActor.generated.h"
 
 class UHktVoxelChunkComponent;
+class USkeletalMeshComponent;
+class UHktAnimInstance;
 class FHktVoxelRenderCache;
 struct FHktEntityPresentation;
+struct FHktVoxelBoneGroup;
 
 /**
  * 복셀 캐릭터/유닛용 Actor.
@@ -64,12 +67,35 @@ private:
 	/** 메싱 완료 콜백 → GPU 업로드 */
 	void PollMeshReady();
 
+	/** 본별 청크 초기화 (본-리지드 애니메이션 모드 진입) */
+	void InitializeBoneChunks(const TArray<FHktVoxelBoneGroup>& BoneGroups);
+
+	/** 본별 청크 해제 (정적 모드로 복귀) */
+	void TeardownBoneChunks();
+
+	/** HiddenSkeleton의 AnimInstance 캐시 반환 */
+	UHktAnimInstance* GetAnimInstance();
+
 	// --- Components ---
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Voxel")
 	TObjectPtr<USceneComponent> RootScene;
 
+	/** 단일 청크 (정적 모드 / 폴백) */
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Voxel")
 	TObjectPtr<UHktVoxelChunkComponent> BodyChunk;
+
+	/** 숨긴 스켈레톤 — 본 트랜스폼 구동용 (렌더링 안 함) */
+	UPROPERTY(VisibleAnywhere, Category = "HKT|Voxel")
+	TObjectPtr<USkeletalMeshComponent> HiddenSkeleton;
+
+	/** 본별 청크 컴포넌트 (본-리지드 모드) */
+	TMap<FName, TObjectPtr<UHktVoxelChunkComponent>> BoneChunks;
+
+	/** 본별 청크 좌표 — 공유 RenderCache에서 본 구분용 */
+	TMap<FName, FIntVector> BoneChunkCoords;
+
+	/** 본-리지드 모드 활성 여부 */
+	bool bBoneAnimatedMode = false;
 
 	// --- Voxel Data ---
 	TSharedPtr<FHktVoxelRenderCache> EntityRenderCache;
@@ -86,6 +112,9 @@ private:
 	uint16 CachedSkinSetID = 0;
 	uint8  CachedPaletteRow = 0;
 
-	/** 청크 좌표 — 엔티티 복셀은 항상 원점(0,0,0)에 1청크 */
+	/** 캐시된 AnimInstance */
+	TWeakObjectPtr<UHktAnimInstance> CachedAnimInstance;
+
+	/** 정적 모드 청크 좌표 — 원점(0,0,0) */
 	static const FIntVector EntityChunkCoord;
 };

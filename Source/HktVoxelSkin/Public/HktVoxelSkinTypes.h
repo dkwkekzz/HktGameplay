@@ -56,10 +56,41 @@ struct FHktVoxelSkinID
 // FHktVoxelSkinLayerData — 개별 레이어의 복셀 데이터 참조
 // ============================================================================
 
+class UHktVoxelSkinLayerAsset;
+
 struct FHktVoxelSkinLayerData
 {
 	EHktVoxelSkinLayer::Type Layer = EHktVoxelSkinLayer::Body;
 	FHktVoxelSkinID SkinID;
 	FIntVector Offset = FIntVector::ZeroValue;  // 레이어 오프셋 (장착 위치)
 	bool bVisible = true;
+
+	/** 복셀 에셋 참조 — nullptr이면 GenerateDefaultShape() 폴백 */
+	TWeakObjectPtr<UHktVoxelSkinLayerAsset> VoxelLayerAsset;
+};
+
+// ============================================================================
+// FHktVoxelSparse — 단일 희소 복셀 엔트리
+// ============================================================================
+
+struct FHktVoxelSparse
+{
+	uint8 X = 0;         // 32^3 청크 내 로컬 위치
+	uint8 Y = 0;
+	uint8 Z = 0;
+	uint16 TypeID = 0;
+	uint8 PaletteIndex = 0;
+	uint8 Flags = 0;
+};
+
+// ============================================================================
+// FHktVoxelBoneGroup — 하나의 본에 귀속된 복셀 그룹
+// ============================================================================
+
+struct FHktVoxelBoneGroup
+{
+	FName BoneName;                                       // 스켈레톤 본 이름
+	FIntVector LocalOrigin = FIntVector::ZeroValue;       // 본 그룹 AABB 최소점 (원본 32^3 공간)
+	FVector RefPoseBonePos = FVector::ZeroVector;         // 레퍼런스 포즈에서 본 월드 위치
+	TArray<FHktVoxelSparse> Voxels;                       // 본에 귀속된 복셀들
 };

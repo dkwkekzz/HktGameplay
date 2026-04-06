@@ -37,10 +37,20 @@ public:
 	const FHktVoxelSkinLayerData* GetLayer(EHktVoxelSkinLayer::Type Layer) const;
 
 	/**
-	 * 모든 레이어를 하나의 청크로 조합
+	 * 모든 레이어를 하나의 청크로 조합 (정적 모드)
 	 * @param OutChunk - 결과 복셀 청크 (메싱 대기 상태로 출력)
 	 */
 	void Assemble(FHktVoxelChunk& OutChunk) const;
+
+	/**
+	 * 본 그룹별로 분리 조합 (본-리지드 모드)
+	 * 에셋의 BoneGroups 데이터를 사용하여 본별 청크를 생성한다.
+	 * @param OutBoneChunks - 본 이름 → 해당 본의 복셀 청크
+	 */
+	void AssembleBoned(TMap<FName, FHktVoxelChunk>& OutBoneChunks) const;
+
+	/** 활성 레이어 중 본 데이터가 있는 에셋이 하나라도 있는지 */
+	bool HasAnyBoneData() const;
 
 	/** 스킨 ID 변경 (팔레트만 교체 — 재메싱 불필요) */
 	void ChangeSkinPalette(EHktVoxelSkinLayer::Type Layer, uint8 NewPaletteRow);
