@@ -36,10 +36,20 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 
+	virtual void BeginPlay() override;
+
 	/** Deconstruction DataAsset 설정. 스폰 후 초기화 시 호출. */
 	void InitializeDeconstruct(const UHktDeconstructVisualDataAsset* InDataAsset);
 
 protected:
+	/**
+	 * Deconstruction 비주얼 설정 DataAsset.
+	 * Blueprint 서브클래스의 Class Defaults에서 지정한다.
+	 * 런타임에 SpawnActor → BeginPlay 시 자동으로 InitializeDeconstruct() 호출.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Deconstruct")
+	TObjectPtr<UHktDeconstructVisualDataAsset> DeconstructDataAsset;
+
 	/** Deconstruction Niagara Component */
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Deconstruct")
 	TObjectPtr<UNiagaraComponent> DeconstructNiagaraComponent;

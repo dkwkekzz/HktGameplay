@@ -27,6 +27,17 @@ AHktDeconstructUnitActor::AHktDeconstructUnitActor()
 	ParamController = CreateDefaultSubobject<UHktDeconstructParamController>(TEXT("DeconstructParamController"));
 }
 
+void AHktDeconstructUnitActor::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Blueprint Class Defaults에서 설정된 DataAsset으로 자동 초기화
+	if (DeconstructDataAsset && !bDeconstructInitialized)
+	{
+		InitializeDeconstruct(DeconstructDataAsset);
+	}
+}
+
 void AHktDeconstructUnitActor::InitializeDeconstruct(const UHktDeconstructVisualDataAsset* InDataAsset)
 {
 	if (!InDataAsset || bDeconstructInitialized) return;
