@@ -8,14 +8,11 @@
 #include "HktDeconstructParamController.generated.h"
 
 class UNiagaraComponent;
+class USkeletalMeshComponent;
 class UStaticMesh;
 
 /**
- * FHktDeconstructParams → Niagara User Parameter 일괄 전송을 담당하는 컴포넌트.
- *
- * AHktDeconstructUnitActor가 소유하며, 매 Tick에서 PushParams()를 호출하여
- * 보간된 파라미터 값을 Niagara System에 전달한다.
- *
+ * FHktDeconstructParams → Niagara User Parameter 전송을 캡슐화하는 컴포넌트.
  * Niagara User Parameter 이름은 NS_HktDeconstruct 에셋과의 계약이다.
  */
 UCLASS()
@@ -26,21 +23,18 @@ class UHktDeconstructParamController : public UActorComponent
 public:
 	UHktDeconstructParamController();
 
-	/** NiagaraComponent 바인딩 */
-	void Initialize(UNiagaraComponent* InNiagaraComp);
+	/** NiagaraComponent + SkeletalMeshComponent 바인딩 */
+	void Initialize(UNiagaraComponent* InNiagaraComp, USkeletalMeshComponent* InSkelMeshComp);
 
-	/** 현재 파라미터를 Niagara에 Push. 매 Tick 호출. */
+	/** 현재 파라미터를 Niagara에 Push */
 	void PushParams(const FHktDeconstructParams& Params);
 
-	/** Element 전환 시 팔레트 + Fragment 메시 변경 */
-	void SetElement(EHktDeconstructElement Element,
-	                const FHktDeconstructPalette& Palette,
-	                UStaticMesh* FragmentMesh);
+	/** Fragment 메시 교체 */
+	void SetFragmentMesh(UStaticMesh* FragmentMesh);
 
 private:
 	TWeakObjectPtr<UNiagaraComponent> NiagaraComp;
 
-	// Niagara User Parameter 이름 캐시 (매 프레임 FName 생성 방지)
 	static const FName PN_Coherence;
 	static const FName PN_PointScatter;
 	static const FName PN_PointDensity;
@@ -56,4 +50,5 @@ private:
 	static const FName PN_AuraSpawnRateMult;
 	static const FName PN_FragmentScaleMult;
 	static const FName PN_FragmentMesh;
+	static const FName PN_SkeletalMeshComponent;
 };
