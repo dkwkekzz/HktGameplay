@@ -12,7 +12,6 @@
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Anim_Skill, "Anim.Skill");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Anim_Attack, "Anim.Attack");
 
-// VisualElement 태그에서 Element 파싱용 (contains 방지)
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Element_Fire, "Element.Fire");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Element_Ice, "Element.Ice");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Element_Lightning, "Element.Lightning");
@@ -58,7 +57,6 @@ void AHktDeconstructUnitActor::InitializeDeconstruct(const UHktDeconstructVisual
 	if (!InDataAsset || bDeconstructInitialized) return;
 	bDeconstructInitialized = true;
 
-	// DeconstructDataAsset이 Blueprint에서 설정되지 않은 경우(외부 호출) 강제 설정
 	if (!DeconstructDataAsset)
 	{
 		DeconstructDataAsset = const_cast<UHktDeconstructVisualDataAsset*>(InDataAsset);
@@ -69,10 +67,8 @@ void AHktDeconstructUnitActor::InitializeDeconstruct(const UHktDeconstructVisual
 		DeconstructNiagaraComponent->SetAsset(InDataAsset->DeconstructSystem);
 	}
 
-	// ParamController에 NiagaraComp + SkeletalMesh 바인딩 위임
 	ParamController->Initialize(DeconstructNiagaraComponent, GetMeshComponent());
 
-	// CoreGlow Material 적용 (E5)
 	USkeletalMeshComponent* SkelMesh = GetMeshComponent();
 	if (InDataAsset->CoreGlowMaterial && SkelMesh)
 	{
@@ -84,7 +80,16 @@ void AHktDeconstructUnitActor::InitializeDeconstruct(const UHktDeconstructVisual
 	}
 
 	UpdateElement(EHktDeconstructElement::Fire);
-	HandleSpawn();
+
+	// 스폰: 분해 상태에서 시작, Target은 조립 상태 → FInterpTo가 자연스럽게 조립
+	CurrentParams.Coherence = 0.0f;
+	CurrentParams.PointScatter = MaxPointScatter;
+	CurrentParams.PointDensity = 0.0f;
+	TargetParams.Coherence = 1.0f;
+	TargetParams.PointScatter = 0.0f;
+	TargetParams.PointDensity = 1.0f;
+	bParamsDirty = true;
+
 	DeconstructNiagaraComponent->Activate(true);
 }
 
@@ -100,7 +105,6 @@ void AHktDeconstructUnitActor::UpdateElement(EHktDeconstructElement NewElement)
 
 	UStaticMesh* FragMesh = DA ? DA->GetFragmentMesh(NewElement) : nullptr;
 
-	// 색상은 즉시 전환 (보간 불필요)
 	CurrentParams.BaseColor = Palette.Primary;
 	CurrentParams.SecondaryColor = Palette.Secondary;
 	CurrentParams.AccentColor = Palette.Accent;
@@ -112,63 +116,6 @@ void AHktDeconstructUnitActor::UpdateElement(EHktDeconstructElement NewElement)
 	bParamsDirty = true;
 }
 
-void AHktDeconstructUnitActor::HandleDamage(float NewHealthRatio, float OldHealthRatio)
-{
-	const float Delta = OldHealthRatio - NewHealthRatio;
-	if (Delta <= 0.0f) return;
-
-	const float Spike = FMath::Clamp(Delta * DamageToAgitationScale, 0.0f, 1.0f);
-	TargetParams.Agitation = FMath::Max(TargetParams.Agitation, Spike);
-	TargetParams.Coherence = NewHealthRatio;
-	TargetParams.PointDensity = FMath::Lerp(MinPointDensity, 1.0f, NewHealthRatio);
-}
-
-void AHktDeconstructUnitActor::HandleDeath()
-{
-	bDeathAnimating = true;
-	DeathAnimElapsed = 0.0f;
-
-	TargetParams.Coherence = 0.0f;
-	TargetParams.PointScatter = MaxPointScatter;
-	TargetParams.PointDensity = 0.0f;
-	TargetParams.AuraSpawnRateMult = DeathAuraSpawnMult;
-	TargetParams.AuraVelocityMult = DeathAuraVelMult;
-	TargetParams.RibbonWidthMult = 0.0f;
-}
-
-void AHktDeconstructUnitActor::HandleSpawn()
-{
-	bSpawnAnimating = true;
-	SpawnAnimElapsed = 0.0f;
-
-	CurrentParams.Coherence = 0.0f;
-	CurrentParams.PointScatter = MaxPointScatter;
-	CurrentParams.PointDensity = 0.0f;
-
-	TargetParams.Coherence = 1.0f;
-	TargetParams.PointScatter = 0.0f;
-	TargetParams.PointDensity = 1.0f;
-	TargetParams.Agitation = 0.0f;
-	TargetParams.RibbonWidthMult = 1.0f;
-	TargetParams.RibbonEmissiveMult = 1.0f;
-	TargetParams.AuraSpawnRateMult = 1.0f;
-	TargetParams.AuraVelocityMult = 1.0f;
-	TargetParams.FragmentScaleMult = 1.0f;
-	bParamsDirty = true;
-}
-
-void AHktDeconstructUnitActor::HandleSkillActivate()
-{
-	bSkillSpiking = true;
-	SkillSpikeElapsed = 0.0f;
-
-	CurrentParams.RibbonWidthMult = SkillRibbonWidthMult;
-	CurrentParams.RibbonEmissiveMult = SkillRibbonEmissiveMult;
-	CurrentParams.FragmentScaleMult = SkillFragmentScaleMult;
-	CurrentParams.AuraVelocityMult = SkillAuraVelMult;
-	bParamsDirty = true;
-}
-
 void AHktDeconstructUnitActor::ApplyPresentation(
 	const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
 	TFunctionRef<AActor*(FHktEntityId)> GetActorFunc)
@@ -177,20 +124,32 @@ void AHktDeconstructUnitActor::ApplyPresentation(
 
 	if (!bDeconstructInitialized) return;
 
+	// --- HealthRatio → Coherence, PointDensity, 사망 ---
 	if (bForceAll || Entity.HealthRatio.IsDirty(Frame))
 	{
 		const float NewHealthRatio = Entity.HealthRatio.Get();
 
-		if (NewHealthRatio <= 0.0f && PrevHealthRatio > 0.0f)
+		if (NewHealthRatio <= 0.0f && !bDead)
 		{
-			HandleDeath();
+			// 사망: Target을 분해 상태로. FInterpTo가 2초 정도에 걸쳐 수렴.
+			bDead = true;
+			TargetParams.Coherence = 0.0f;
+			TargetParams.PointScatter = MaxPointScatter;
+			TargetParams.PointDensity = 0.0f;
+			TargetParams.AuraSpawnRateMult = DeathAuraSpawnMult;
+			TargetParams.AuraVelocityMult = DeathAuraVelMult;
+			TargetParams.RibbonWidthMult = 0.0f;
 		}
-		else if (NewHealthRatio < PrevHealthRatio)
+		else if (!bDead)
 		{
-			HandleDamage(NewHealthRatio, PrevHealthRatio);
-		}
-		else if (bForceAll)
-		{
+			// 피격에 의한 Agitation 스파이크
+			const float Delta = PrevHealthRatio - NewHealthRatio;
+			if (Delta > 0.0f)
+			{
+				const float Spike = FMath::Clamp(Delta * DamageToAgitationScale, 0.0f, 1.0f);
+				TargetParams.Agitation = FMath::Max(TargetParams.Agitation, Spike);
+			}
+
 			TargetParams.Coherence = NewHealthRatio;
 			TargetParams.PointDensity = FMath::Lerp(MinPointDensity, 1.0f, NewHealthRatio);
 		}
@@ -198,6 +157,7 @@ void AHktDeconstructUnitActor::ApplyPresentation(
 		PrevHealthRatio = NewHealthRatio;
 	}
 
+	// --- VisualElement → Element 전환 ---
 	if (bForceAll || Entity.VisualElement.IsDirty(Frame))
 	{
 		const FGameplayTag VisualTag = Entity.VisualElement.Get();
@@ -207,26 +167,27 @@ void AHktDeconstructUnitActor::ApplyPresentation(
 		}
 	}
 
-	if (bForceAll || Entity.Velocity.IsDirty(Frame))
+	// --- Velocity → Agitation 기본값 ---
+	if (!bDead && (bForceAll || Entity.Velocity.IsDirty(Frame)))
 	{
-		if (!bDeathAnimating)
+		const float Speed = FMath::Sqrt(Entity.Velocity.Get().SizeSquared());
+		const float BaseAgitation = FMath::Clamp(Speed / MovementSpeedRef, 0.0f, MaxAgitationFromMovement);
+		if (TargetParams.Agitation <= MaxAgitationFromMovement)
 		{
-			const float SpeedSq = Entity.Velocity.Get().SizeSquared();
-			const float BaseAgitation = FMath::Clamp(
-				FMath::Sqrt(SpeedSq) / MovementSpeedRef, 0.0f, MaxAgitationFromMovement);
-			if (TargetParams.Agitation <= MaxAgitationFromMovement)
-			{
-				TargetParams.Agitation = BaseAgitation;
-			}
+			TargetParams.Agitation = BaseAgitation;
 		}
 	}
 
-	// 스킬/공격 감지: GameplayTag 매칭 (문자열 변환 없음)
+	// --- 스킬/공격 → Multiplier 스파이크 (CurrentParams에 직접, Target은 1.0 유지) ---
 	for (const FGameplayTag& AnimTag : Entity.PendingAnimTriggers)
 	{
 		if (AnimTag.MatchesTag(Tag_Anim_Skill) || AnimTag.MatchesTag(Tag_Anim_Attack))
 		{
-			HandleSkillActivate();
+			CurrentParams.RibbonWidthMult = SkillRibbonWidthMult;
+			CurrentParams.RibbonEmissiveMult = SkillRibbonEmissiveMult;
+			CurrentParams.FragmentScaleMult = SkillFragmentScaleMult;
+			CurrentParams.AuraVelocityMult = SkillAuraVelMult;
+			bParamsDirty = true;
 			break;
 		}
 	}
@@ -238,69 +199,25 @@ void AHktDeconstructUnitActor::Tick(float DeltaTime)
 
 	if (!bDeconstructInitialized) return;
 
-	TickParamInterpolation(DeltaTime);
+	// Agitation은 항상 0을 향해 자연 감쇠 (피격/이동이 다시 올리지 않는 한)
+	TargetParams.Agitation = FMath::FInterpTo(TargetParams.Agitation, 0.0f, DeltaTime, InterpSpeed_AgitationDecay);
 
-	// 변경 감지: 이전에 Push한 값과 다를 때만 Niagara에 전달
+	// CurrentParams → TargetParams 보간
+	CurrentParams.Coherence = FMath::FInterpTo(CurrentParams.Coherence, TargetParams.Coherence, DeltaTime, InterpSpeed_Coherence);
+	CurrentParams.PointScatter = FMath::FInterpTo(CurrentParams.PointScatter, TargetParams.PointScatter, DeltaTime, InterpSpeed_Scatter);
+	CurrentParams.PointDensity = FMath::FInterpTo(CurrentParams.PointDensity, TargetParams.PointDensity, DeltaTime, InterpSpeed_Coherence);
+	CurrentParams.Agitation = FMath::FInterpTo(CurrentParams.Agitation, TargetParams.Agitation, DeltaTime, InterpSpeed_Agitation);
+	CurrentParams.RibbonWidthMult = FMath::FInterpTo(CurrentParams.RibbonWidthMult, TargetParams.RibbonWidthMult, DeltaTime, InterpSpeed_Multipliers);
+	CurrentParams.RibbonEmissiveMult = FMath::FInterpTo(CurrentParams.RibbonEmissiveMult, TargetParams.RibbonEmissiveMult, DeltaTime, InterpSpeed_Multipliers);
+	CurrentParams.AuraVelocityMult = FMath::FInterpTo(CurrentParams.AuraVelocityMult, TargetParams.AuraVelocityMult, DeltaTime, InterpSpeed_Multipliers);
+	CurrentParams.AuraSpawnRateMult = FMath::FInterpTo(CurrentParams.AuraSpawnRateMult, TargetParams.AuraSpawnRateMult, DeltaTime, InterpSpeed_Multipliers);
+	CurrentParams.FragmentScaleMult = FMath::FInterpTo(CurrentParams.FragmentScaleMult, TargetParams.FragmentScaleMult, DeltaTime, InterpSpeed_Multipliers);
+
+	// 변경 감지 후 Niagara에 전달
 	if (bParamsDirty || FMemory::Memcmp(&CurrentParams, &LastPushedParams, sizeof(FHktDeconstructParams)) != 0)
 	{
 		ParamController->PushParams(CurrentParams);
 		LastPushedParams = CurrentParams;
 		bParamsDirty = false;
 	}
-}
-
-void AHktDeconstructUnitActor::TickParamInterpolation(float DeltaTime)
-{
-	if (bSpawnAnimating)
-	{
-		SpawnAnimElapsed += DeltaTime;
-		if (SpawnAnimElapsed >= SpawnAnimDuration)
-		{
-			bSpawnAnimating = false;
-			TargetParams.Agitation = PostSpawnAgitation;
-		}
-	}
-
-	if (bDeathAnimating)
-	{
-		DeathAnimElapsed += DeltaTime;
-		if (DeathAnimElapsed >= DeathAnimDuration)
-		{
-			bDeathAnimating = false;
-		}
-	}
-
-	if (bSkillSpiking)
-	{
-		SkillSpikeElapsed += DeltaTime;
-		if (SkillSpikeElapsed >= SkillSpikeDuration)
-		{
-			bSkillSpiking = false;
-			TargetParams.RibbonWidthMult = 1.0f;
-			TargetParams.RibbonEmissiveMult = 1.0f;
-			TargetParams.FragmentScaleMult = 1.0f;
-			TargetParams.AuraVelocityMult = 1.0f;
-		}
-	}
-
-	constexpr float CoherenceSpeed = 2.0f;
-	constexpr float AgitationSpeed = 4.0f;
-	constexpr float ScatterSpeed = 2.0f;
-	constexpr float SpikeFalloff = 6.0f;
-
-	CurrentParams.Coherence = FMath::FInterpTo(CurrentParams.Coherence, TargetParams.Coherence, DeltaTime, CoherenceSpeed);
-	CurrentParams.PointScatter = FMath::FInterpTo(CurrentParams.PointScatter, TargetParams.PointScatter, DeltaTime, ScatterSpeed);
-	CurrentParams.PointDensity = FMath::FInterpTo(CurrentParams.PointDensity, TargetParams.PointDensity, DeltaTime, CoherenceSpeed);
-
-	if (!bDeathAnimating && !bSkillSpiking)
-	{
-		TargetParams.Agitation = FMath::FInterpTo(TargetParams.Agitation, 0.0f, DeltaTime, 2.0f);
-	}
-	CurrentParams.Agitation = FMath::FInterpTo(CurrentParams.Agitation, TargetParams.Agitation, DeltaTime, AgitationSpeed);
-
-	CurrentParams.RibbonWidthMult = FMath::FInterpTo(CurrentParams.RibbonWidthMult, TargetParams.RibbonWidthMult, DeltaTime, SpikeFalloff);
-	CurrentParams.RibbonEmissiveMult = FMath::FInterpTo(CurrentParams.RibbonEmissiveMult, TargetParams.RibbonEmissiveMult, DeltaTime, SpikeFalloff);
-	CurrentParams.AuraVelocityMult = FMath::FInterpTo(CurrentParams.AuraVelocityMult, TargetParams.AuraVelocityMult, DeltaTime, SpikeFalloff);
-	CurrentParams.AuraSpawnRateMult = FMath::FInterpTo(CurrentParams.AuraSpawnRateMult, TargetParams.AuraSpawnRateMult, DeltaTime, SpikeFalloff);
-	CurrentParams.FragmentScaleMult = FMath::FInterpTo(CurrentParams.FragmentScaleMult, TargetParams.FragmentScaleMult, DeltaTime, SpikeFalloff);
 }
