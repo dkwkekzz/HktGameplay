@@ -43,7 +43,10 @@ float3 HktExpandQuad(uint FaceDir, float Width, float Height, uint CornerIndex)
     float U = (CornerIndex & 1u) ? Width : 0.0;
     float V = (CornerIndex & 2u) ? Height : 0.0;
 
-    return Tangent * U + Bitangent * V;
+    // 양면(+X,+Y,+Z)은 법선 방향으로 1복셀 오프셋 — 면이 복셀의 바깥쪽에 위치해야 함
+    float NormalOffset = (FaceDir % 2u == 0u) ? 1.0 : 0.0;
+
+    return HktGetFaceNormal(FaceDir) * NormalOffset + Tangent * U + Bitangent * V;
 }
 
 // AO 값(0~3)을 라이팅 스칼라로 변환
