@@ -250,14 +250,11 @@ void FHktVoxelMesher::EmitQuad(
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
 
-	// T×B 외적이 Face 법선과 같은 방향인지 (오른손 좌표계 여부)
-	// PosX(0): T=(0,1,0) B=(0,0,1) → T×B=(+1,0,0) = N  → true
-	// NegX(1): T=(0,1,0) B=(0,0,1) → T×B=(+1,0,0) ≠ -N → false
-	// PosY(2): T=(1,0,0) B=(0,0,1) → T×B=(0,-1,0) ≠ +N → false
-	// NegY(3): T=(1,0,0) B=(0,0,1) → T×B=(0,-1,0) = -N → true
-	// PosZ(4): T=(1,0,0) B=(0,1,0) → T×B=(0,0,+1) = N  → true
-	// NegZ(5): T=(1,0,0) B=(0,1,0) → T×B=(0,0,+1) ≠ -N → false
-	static constexpr bool bRightHanded[EHktVoxelFace::Count] = { true, false, false, true, true, false };
+	// UE5 left-handed 좌표계에서 screen-space CW = front face.
+	// 양면(Pos)은 forward winding, 음면(Neg)은 reverse winding으로 통일.
+	// 참고: 기존 코드는 right-handed 기준으로 PosY/NegY의 winding이 뒤집혀 있어
+	// ±Y 면이 backface culling되는 버그가 있었음.
+	static constexpr bool bRightHanded[EHktVoxelFace::Count] = { true, false, true, false, true, false };
 	const bool bForwardWinding = bRightHanded[Face];
 
 	// UV → XYZ 변환
