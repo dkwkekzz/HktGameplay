@@ -44,17 +44,21 @@ public:
 
 	// === 설정 ===
 
-	/** 카메라로부터 청크 로드/유지 거리 (UE 유닛) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming")
-	float ViewDistance = 204800.f;  // 약 2km
+	/** 카메라로부터 청크 로드/유지 거리 (UE 유닛). 3200 = 청크 1개분 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 3200, ClampMax = 204800))
+	float ViewDistance = 32000.f;  // 10청크 반경 ≈ 320m
 
-	/** 프레임당 최대 청크 로드 수 */
+	/** 프레임당 최대 청크 생성+로드 수 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 1, ClampMax = 32))
-	int32 MaxLoadsPerFrame = 8;
+	int32 MaxLoadsPerFrame = 4;
 
 	/** 프레임당 최대 메싱 수 (MeshScheduler에 전달) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Meshing", meta = (ClampMin = 1, ClampMax = 16))
 	int32 MaxMeshPerFrame = 4;
+
+	/** 동시에 로드 가능한 최대 청크 수 (메모리 예산). 0이면 제한 없음 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 0))
+	int32 MaxLoadedChunks = 2048;
 
 	/** 테레인 높이 범위 — Z축 청크 좌표 [MinZ, MaxZ] */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming")
@@ -68,8 +72,8 @@ public:
 	TObjectPtr<UMaterialInterface> TerrainMaterial;
 
 	/** 컴포넌트 풀 초기 크기 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 16))
-	int32 InitialPoolSize = 256;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 16, ClampMax = 2048))
+	int32 InitialPoolSize = 64;
 
 	// === 지형 생성 설정 ===
 

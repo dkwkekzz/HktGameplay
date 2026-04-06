@@ -88,12 +88,14 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float V
 		return FVector::DistSquared(CenterA, CameraPos) < FVector::DistSquared(CenterB, CameraPos);
 	});
 
-	// 프레임 예산 적용
+	// 프레임 예산 + 메모리 예산 적용
 	PendingLoads.Reset();
-	const int32 LoadCount = FMath::Min(AllPendingLoads.Num(), MaxLoadsPerFrame);
+	const int32 RemainingBudget = (MaxLoadedChunks > 0)
+		? FMath::Max(0, MaxLoadedChunks - LoadedChunkSet.Num())
+		: AllPendingLoads.Num();
+	const int32 LoadCount = FMath::Min3(AllPendingLoads.Num(), MaxLoadsPerFrame, RemainingBudget);
 	for (int32 i = 0; i < LoadCount; ++i)
 	{
-		// Desired에서 벗어난 pending은 버림
 		if (DesiredChunks.Contains(AllPendingLoads[i]))
 		{
 			ChunksToLoad.Add(AllPendingLoads[i]);
