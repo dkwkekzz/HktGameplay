@@ -11,6 +11,9 @@
 #include "HktVoxelCommon.ush"
 #include "HktVoxelTileCommon.ush"
 
+// Voxel size in UE units (default 15 = 15cm)
+float HktVoxelSize;
+
 // Palette texture (256 x 8, RGBA8)
 Texture2D HktPaletteTexture;
 SamplerState HktPaletteSampler;
@@ -135,8 +138,8 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	HktGetFaceTangents(FaceDir, Tangent, Bitangent);
 	Result.WorldTangent = Tangent;
 
-	// Quad corner expansion + scale (1 voxel = 15 UU = 15cm)
-	float3 LocalPos = (BasePos + HktExpandQuad(FaceDir, Width, Height, Corner)) * 15.0;
+	// Quad corner expansion + scale (1 voxel = HktVoxelSize UU)
+	float3 LocalPos = (BasePos + HktExpandQuad(FaceDir, Width, Height, Corner)) * HktVoxelSize;
 
 	// GPU 스키닝 — 본 인덱스가 0이 아니면 본 트랜스폼 적용
 	uint BoneIdx = (PM >> 25) & 0x7F;

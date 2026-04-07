@@ -29,11 +29,15 @@ public:
 	void SetMaxMeshPerFrame(int32 NewMax) { MaxMeshPerFrame = NewMax; }
 	int32 GetMaxMeshPerFrame() const { return MaxMeshPerFrame; }
 
+	/** 복셀 크기 설정 (ChunkToWorld 변환에 사용) */
+	void SetVoxelSize(float InVoxelSize) { VoxelSize = InVoxelSize; }
+
 private:
 	FHktVoxelRenderCache* RenderCache = nullptr;
 	int32 MaxMeshPerFrame = 4;
+	float VoxelSize = 15.0f;
 	TArray<UE::Tasks::FTask> PendingTasks;
 
 	/** 청크 좌표 → 월드 위치 변환 (청크 중심) */
-	static FVector ChunkToWorld(const FIntVector& ChunkCoord);
+	FVector ChunkToWorld(const FIntVector& ChunkCoord) const;
 };

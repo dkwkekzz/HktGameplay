@@ -43,8 +43,8 @@ class HKTVOXELCORE_API UHktVoxelChunkComponent : public UPrimitiveComponent
 public:
 	UHktVoxelChunkComponent();
 
-	/** 초기화 — 렌더 캐시와 청크 좌표 바인딩 */
-	void Initialize(FHktVoxelRenderCache* Cache, const FIntVector& InChunkCoord);
+	/** 초기화 — 렌더 캐시와 청크 좌표 바인딩. InVoxelSize=0이면 기본값(VOXEL_SIZE) 사용 */
+	void Initialize(FHktVoxelRenderCache* Cache, const FIntVector& InChunkCoord, float InVoxelSize = 0.f);
 
 	/** 메싱 완료 시 호출 → SceneProxy에 새 메시 데이터 전달 (ENQUEUE_RENDER_COMMAND) */
 	void OnMeshReady();
@@ -58,6 +58,9 @@ public:
 
 	/** 청크 좌표 반환 */
 	FIntVector GetChunkCoord() const { return ChunkCoord; }
+
+	/** 복셀 크기 반환 (UE 유닛) */
+	float GetVoxelSize() const { return CachedVoxelSize; }
 
 	/** 복셀 렌더링용 머티리얼 설정 (팔레트 기반 단일 머티리얼) */
 	void SetVoxelMaterial(UMaterialInterface* InMaterial);
@@ -76,6 +79,7 @@ public:
 private:
 	FIntVector ChunkCoord = FIntVector::ZeroValue;
 	FHktVoxelRenderCache* RenderCache = nullptr;
+	float CachedVoxelSize = FHktVoxelChunk::VOXEL_SIZE;
 
 	FHktVoxelTileTextureSet CachedTileTextures;
 	FHktVoxelTexturePair CachedMaterialLUT;

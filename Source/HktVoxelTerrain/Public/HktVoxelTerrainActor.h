@@ -134,6 +134,10 @@ public:
 		meta = (TitleProperty = "{DisplayName} (ID:{TypeID})"))
 	TArray<FHktVoxelBlockStyle> BlockStyles;
 
+	/** 복셀 1개의 월드 크기 (UE 유닛). 기본 15 UU = 15cm. 런타임 변경 시 리로드 필요 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering", meta = (ClampMin = 1.0, ClampMax = 500.0))
+	float VoxelSize = 15.0f;
+
 	/** 컴포넌트 풀 초기 크기 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 16, ClampMax = 2048))
 	int32 InitialPoolSize = 64;
@@ -206,8 +210,8 @@ private:
 	/** 비활성 컴포넌트 풀 (재사용) */
 	TArray<UHktVoxelChunkComponent*> ComponentPool;
 
-	/** 청크 월드 크기 (32 * VoxelSize). VoxelSize = 100 UE 유닛 기준 = 3200 */
-	static constexpr float ChunkWorldSize = 32.f * 100.f;
+	/** 청크 월드 크기 = SIZE * VoxelSize */
+	float GetChunkWorldSize() const { return FHktVoxelChunk::SIZE * VoxelSize; }
 
 	// === 스타일 빌드 결과 (BeginPlay에서 생성) ===
 

@@ -47,6 +47,9 @@ public:
 	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
+	/** 복셀 크기 (UE 유닛). 셰이더의 HktVoxelSize에 바인딩 */
+	float VoxelSizeUU = 15.0f;
+
 	FRHITexture* PaletteTextureRHI = nullptr;
 	FRHISamplerState* PaletteSamplerRHI = nullptr;
 	FRHIShaderResourceView* BoneTransformSRV = nullptr;
