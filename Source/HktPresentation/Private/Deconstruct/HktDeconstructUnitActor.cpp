@@ -45,11 +45,7 @@ AHktDeconstructUnitActor::AHktDeconstructUnitActor()
 void AHktDeconstructUnitActor::BeginPlay()
 {
 	Super::BeginPlay();
-
-	if (DeconstructDataAsset && !bDeconstructInitialized)
-	{
-		InitializeDeconstruct(DeconstructDataAsset);
-	}
+	// InitializeDeconstruct는 Renderer에서 스폰 직후 호출한다.
 }
 
 void AHktDeconstructUnitActor::InitializeDeconstruct(const UHktDeconstructVisualDataAsset* InDataAsset)

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HktTagDataAsset.h"
+#include "DataAssets/HktActorVisualDataAsset.h"
 #include "HktDeconstructTypes.h"
 #include "HktDeconstructVisualDataAsset.generated.h"
 
@@ -13,12 +13,13 @@ class UMaterialInterface;
 
 /**
  * Deconstruction 비주얼 설정용 DataAsset.
- * Element별 팔레트, Fragment 메시, Niagara System, CoreGlow Material을 에디터에서 지정한다.
+ * UHktActorVisualDataAsset를 상속하여 ActorClass + Deconstruct 데이터를 하나의 에셋에 통합.
+ * 1개 엔티티에 1개 DataAsset만 필요.
  *
- * IdentifierTag 예시: "Visual.Deconstruct.Default", "Visual.Deconstruct.Boss"
+ * IdentifierTag 예시: "Entity.Character.Boss", "Entity.Character.DeconstructDefault"
  */
 UCLASS(BlueprintType)
-class HKTPRESENTATION_API UHktDeconstructVisualDataAsset : public UHktTagDataAsset
+class HKTPRESENTATION_API UHktDeconstructVisualDataAsset : public UHktActorVisualDataAsset
 {
 	GENERATED_BODY()
 
