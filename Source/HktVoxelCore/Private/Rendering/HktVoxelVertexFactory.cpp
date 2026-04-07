@@ -18,15 +18,14 @@ public:
 	{
 		PaletteTextureParam.Bind(ParameterMap, TEXT("HktPaletteTexture"));
 		PaletteSamplerParam.Bind(ParameterMap, TEXT("HktPaletteSampler"));
+		BoneMatricesParam.Bind(ParameterMap, TEXT("HktBoneMatrices"));
 
-		// Tile Texture (Phase 1)
 		TileEnabledParam.Bind(ParameterMap, TEXT("HktTileEnabled"));
 		TileArrayParam.Bind(ParameterMap, TEXT("HktTileArray"));
 		TileArraySamplerParam.Bind(ParameterMap, TEXT("HktTileSampler"));
 		TileIndexLUTParam.Bind(ParameterMap, TEXT("HktTileIndexLUT"));
 		TileIndexLUTSamplerParam.Bind(ParameterMap, TEXT("HktTileIndexLUTSampler"));
 
-		// Material LUT (Phase 2)
 		MaterialLUTEnabledParam.Bind(ParameterMap, TEXT("HktMaterialLUTEnabled"));
 		MaterialLUTParam.Bind(ParameterMap, TEXT("HktMaterialLUT"));
 		MaterialLUTSamplerParam.Bind(ParameterMap, TEXT("HktMaterialLUTSampler"));
@@ -52,6 +51,10 @@ public:
 		if (PaletteSamplerParam.IsBound() && VoxelVF->PaletteSamplerRHI)
 		{
 			ShaderBindings.Add(PaletteSamplerParam, VoxelVF->PaletteSamplerRHI);
+		}
+		if (BoneMatricesParam.IsBound() && VoxelVF->BoneTransformSRV)
+		{
+			ShaderBindings.Add(BoneMatricesParam, VoxelVF->BoneTransformSRV);
 		}
 
 		const bool bTileEnabled = (VoxelVF->TileArrayRHI != nullptr && VoxelVF->TileIndexLUTRHI != nullptr);
@@ -94,15 +97,14 @@ public:
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteTextureParam);
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteSamplerParam);
+	LAYOUT_FIELD(FShaderResourceParameter, BoneMatricesParam);
 
-	// Tile Texture (Phase 1)
 	LAYOUT_FIELD(FShaderParameter, TileEnabledParam);
 	LAYOUT_FIELD(FShaderResourceParameter, TileArrayParam);
 	LAYOUT_FIELD(FShaderResourceParameter, TileArraySamplerParam);
 	LAYOUT_FIELD(FShaderResourceParameter, TileIndexLUTParam);
 	LAYOUT_FIELD(FShaderResourceParameter, TileIndexLUTSamplerParam);
 
-	// Material LUT (Phase 2)
 	LAYOUT_FIELD(FShaderParameter, MaterialLUTEnabledParam);
 	LAYOUT_FIELD(FShaderResourceParameter, MaterialLUTParam);
 	LAYOUT_FIELD(FShaderResourceParameter, MaterialLUTSamplerParam);
@@ -135,6 +137,11 @@ void FHktVoxelVertexFactory::SetPaletteTexture(FRHITexture* InTexture, FRHISampl
 	PaletteSamplerRHI = InSampler;
 }
 
+void FHktVoxelVertexFactory::SetBoneTransformSRV(FRHIShaderResourceView* InSRV)
+{
+	BoneTransformSRV = InSRV;
+}
+
 void FHktVoxelVertexFactory::SetTileTextures(
 	FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
 	FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler)
@@ -163,6 +170,7 @@ void FHktVoxelVertexFactory::ModifyCompilationEnvironment(
 {
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("HKT_VOXEL_VERTEX_FACTORY"), TEXT("1"));
+	OutEnvironment.SetDefine(TEXT("HKT_VOXEL_GPU_SKINNING"), TEXT("1"));
 }
 
 void FHktVoxelVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)

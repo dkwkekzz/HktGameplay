@@ -34,6 +34,12 @@ public class HktVoxelSkin : ModuleRules
 			}
 		);
 
+		// 에디터 전용 — 에셋 베이킹/저장
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{

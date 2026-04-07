@@ -52,13 +52,14 @@ public:
 		const TArray<FHktVoxelVertex>& Vertices,
 		const TArray<uint32>& Indices);
 
-	/** 타일 텍스처 설정 (Phase 1) — nullptr이면 기존 팔레트 폴백 */
 	void SetTileTextures_RenderThread(
 		FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
 		FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
 
-	/** 머티리얼 LUT 설정 (Phase 2) — nullptr이면 기존 하드코딩 PBR 폴백 */
 	void SetMaterialLUT_RenderThread(FRHITexture* InLUT, FRHISamplerState* InSampler);
+
+	/** Render Thread에서 호출 — 본 트랜스폼 GPU 버퍼 갱신 (GPU 스키닝) */
+	void UpdateBoneTransforms_RenderThread(const TArray<FVector4f>& BoneMatrixRows);
 
 private:
 	/** RHI 버퍼를 감싸는 FVertexBuffer/FIndexBuffer 래퍼 (FVertexStreamComponent, FMeshBatchElement 호환용) */
@@ -79,13 +80,15 @@ private:
 	int32 NumIndices = 0;
 	int32 NumVertices = 0;
 
-	// Tile Texture (Phase 1) — 캐싱용. VertexFactory 생성 전 설정될 수 있음
 	FRHITexture* PendingTileArrayRHI = nullptr;
 	FRHISamplerState* PendingTileArraySamplerRHI = nullptr;
 	FRHITexture* PendingTileIndexLUTRHI = nullptr;
 	FRHISamplerState* PendingTileIndexLUTSamplerRHI = nullptr;
-
-	// Material LUT (Phase 2) — 캐싱용
 	FRHITexture* PendingMaterialLUTRHI = nullptr;
 	FRHISamplerState* PendingMaterialLUTSamplerRHI = nullptr;
+
+	/** GPU 스키닝용 본 트랜스폼 버퍼 (float4 × 3 per bone) */
+	FBufferRHIRef BoneTransformBuffer;
+	FShaderResourceViewRHIRef BoneTransformSRV;
+	uint32 BoneTransformBufferSize = 0;
 };

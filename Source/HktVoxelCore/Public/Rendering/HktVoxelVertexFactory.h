@@ -33,6 +33,9 @@ public:
 	/** 팔레트 텍스처 설정 — 셰이더의 HktPaletteTexture 바인딩용 */
 	void SetPaletteTexture(FRHITexture* InTexture, FRHISamplerState* InSampler);
 
+	/** 본 트랜스폼 SRV 설정 — 셰이더의 HktBoneMatrices 바인딩용 (GPU 스키닝) */
+	void SetBoneTransformSRV(FRHIShaderResourceView* InSRV);
+
 	/** 셰이더 퍼뮤테이션 — 복셀 전용이므로 제한적 컴파일 */
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
@@ -46,6 +49,7 @@ public:
 
 	FRHITexture* PaletteTextureRHI = nullptr;
 	FRHISamplerState* PaletteSamplerRHI = nullptr;
+	FRHIShaderResourceView* BoneTransformSRV = nullptr;
 
 	// --- Tile Texture (Phase 1: 타일 아틀라스) ---
 	FRHITexture* TileArrayRHI = nullptr;           // Texture2DArray — 타일 텍스처
