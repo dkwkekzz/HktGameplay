@@ -32,10 +32,14 @@ public:
 	/** 복셀 크기 설정 (ChunkToWorld 변환에 사용) */
 	void SetVoxelSize(float InVoxelSize) { VoxelSize = InVoxelSize; }
 
+	/** 양면 렌더링 여부 설정 (false: terrain용 단면, true: 엔티티용 양면) */
+	void SetDoubleSided(bool bInDoubleSided) { bDoubleSided = bInDoubleSided; }
+
 private:
 	FHktVoxelRenderCache* RenderCache = nullptr;
 	int32 MaxMeshPerFrame = 4;
 	float VoxelSize = 15.0f;
+	bool bDoubleSided = true;
 	TArray<UE::Tasks::FTask> PendingTasks;
 
 	/** 청크 좌표 → 월드 위치 변환 (청크 중심) */

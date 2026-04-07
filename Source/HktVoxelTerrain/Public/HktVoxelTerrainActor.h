@@ -122,6 +122,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
 	TObjectPtr<UMaterialInterface> TerrainMaterial;
 
+	/** 그림자 렌더링 최대 거리 (UE 유닛). 이 거리 밖 청크는 그림자를 드리우지 않음. 0이면 항상 ON */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering", meta = (ClampMin = 0))
+	float ShadowDistance = 16000.f;
+
 	// === 블록 스타일 (Phase 1+2: 타일 텍스처 + PBR) ===
 
 	/**

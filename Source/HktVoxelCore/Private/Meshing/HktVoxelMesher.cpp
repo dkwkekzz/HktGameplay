@@ -4,34 +4,22 @@
 #include "Meshing/HktVoxelVertex.h"
 #include "Data/HktVoxelTypes.h"
 
-void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk)
+void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided)
 {
 	Chunk.OpaqueVertices.Reset();
 	Chunk.OpaqueIndices.Reset();
 	Chunk.TranslucentVertices.Reset();
 	Chunk.TranslucentIndices.Reset();
 
-	// [DEBUG] 면 방향별 버텍스 수 추적 — 릴리스 전 제거
-	static const TCHAR* FaceNames[] = { TEXT("+X"), TEXT("-X"), TEXT("+Y"), TEXT("-Y"), TEXT("+Z"), TEXT("-Z") };
-
 	for (int32 Face = 0; Face < EHktVoxelFace::Count; Face++)
 	{
-		const int32 VertsBefore = Chunk.OpaqueVertices.Num();
-
 		for (int32 Slice = 0; Slice < FHktVoxelChunk::SIZE; Slice++)
 		{
 			uint32 FaceMask[FHktVoxelChunk::SIZE] = {};
 			BuildFaceMask(Chunk, Face, Slice, FaceMask);
-			MergeQuads(Chunk, Face, Slice, FaceMask);
+			MergeQuads(Chunk, Face, Slice, FaceMask, bDoubleSided);
 		}
-
-		const int32 VertsAdded = Chunk.OpaqueVertices.Num() - VertsBefore;
-		UE_LOG(LogTemp, Warning, TEXT("[VoxelMesher] Face %s: %d verts (%d quads)"),
-			FaceNames[Face], VertsAdded, VertsAdded / 4);
 	}
-	UE_LOG(LogTemp, Warning, TEXT("[VoxelMesher] Total: %d verts, %d indices"),
-		Chunk.OpaqueVertices.Num(), Chunk.OpaqueIndices.Num());
-	// [/DEBUG]
 
 	// bMeshDirty/bMeshReady는 스케줄러 람다에서 세대 확인 후 관리
 }
@@ -102,7 +90,8 @@ void FHktVoxelMesher::BuildFaceMask(
 void FHktVoxelMesher::MergeQuads(
 	FHktVoxelChunk& Chunk,
 	int32 Face, int32 Slice,
-	const uint32 Mask[32])
+	const uint32 Mask[32],
+	bool bDoubleSided)
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
 	const int32 SIZE = FHktVoxelChunk::SIZE;
@@ -209,7 +198,7 @@ void FHktVoxelMesher::MergeQuads(
 			}
 
 			// 쿼드 방출
-			EmitQuad(Chunk, Face, Slice, StartU, V, Width, Height, BaseVoxel, BaseBone);
+			EmitQuad(Chunk, Face, Slice, StartU, V, Width, Height, BaseVoxel, BaseBone, bDoubleSided);
 
 			// 처리된 비트 제거
 			Row &= ~WidthMask;
@@ -275,7 +264,8 @@ void FHktVoxelMesher::EmitQuad(
 	int32 StartU, int32 StartV,
 	int32 Width, int32 Height,
 	const FHktVoxel& Voxel,
-	uint8 BoneIndex)
+	uint8 BoneIndex,
+	bool bDoubleSided)
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
 
@@ -341,9 +331,8 @@ void FHktVoxelMesher::EmitQuad(
 	}
 
 	// 인덱스 (face 방향별 winding + AO flip 고려)
-	// Front face + reverse winding(back face)을 모두 방출하여 양면 렌더링.
-	// 복셀 캐릭터의 body part junction에서 internal face가 culling되어
-	// 특정 각도에서 내부가 보이는 문제를 방지한다.
+	// bDoubleSided=true: 양면 렌더링 (엔티티 복셀 — body part junction 내부 노출 방지)
+	// bDoubleSided=false: 단면 렌더링 (terrain — 삼각형 수 절반)
 	if (AO[0] + AO[3] > AO[1] + AO[2])
 	{
 		// 0-3 대각선 분할
@@ -351,17 +340,24 @@ void FHktVoxelMesher::EmitQuad(
 		{
 			Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+3,
 							BaseIndex,   BaseIndex+3, BaseIndex+2});
-			// Back face (reverse winding)
-			Indices.Append({BaseIndex,   BaseIndex+3, BaseIndex+1,
-							BaseIndex,   BaseIndex+2, BaseIndex+3});
 		}
 		else
 		{
 			Indices.Append({BaseIndex,   BaseIndex+3, BaseIndex+1,
 							BaseIndex,   BaseIndex+2, BaseIndex+3});
-			// Back face (reverse winding)
-			Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+3,
-							BaseIndex,   BaseIndex+3, BaseIndex+2});
+		}
+		if (bDoubleSided)
+		{
+			if (bForwardWinding)
+			{
+				Indices.Append({BaseIndex,   BaseIndex+3, BaseIndex+1,
+								BaseIndex,   BaseIndex+2, BaseIndex+3});
+			}
+			else
+			{
+				Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+3,
+								BaseIndex,   BaseIndex+3, BaseIndex+2});
+			}
 		}
 	}
 	else
@@ -371,17 +367,24 @@ void FHktVoxelMesher::EmitQuad(
 		{
 			Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+2,
 							BaseIndex+1, BaseIndex+3, BaseIndex+2});
-			// Back face (reverse winding)
-			Indices.Append({BaseIndex+2, BaseIndex+1, BaseIndex,
-							BaseIndex+2, BaseIndex+3, BaseIndex+1});
 		}
 		else
 		{
 			Indices.Append({BaseIndex+2, BaseIndex+1, BaseIndex,
 							BaseIndex+2, BaseIndex+3, BaseIndex+1});
-			// Back face (reverse winding)
-			Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+2,
-							BaseIndex+1, BaseIndex+3, BaseIndex+2});
+		}
+		if (bDoubleSided)
+		{
+			if (bForwardWinding)
+			{
+				Indices.Append({BaseIndex+2, BaseIndex+1, BaseIndex,
+								BaseIndex+2, BaseIndex+3, BaseIndex+1});
+			}
+			else
+			{
+				Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+2,
+								BaseIndex+1, BaseIndex+3, BaseIndex+2});
+			}
 		}
 	}
 }

@@ -12,6 +12,8 @@
 FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent)
 	, VoxelSizeUU(InComponent->GetVoxelSize())
+	, ShadowDistanceSq(InComponent->GetShadowDistance() > 0.f
+		? FMath::Square(InComponent->GetShadowDistance()) : 0.f)
 {
 	// 머티리얼은 Component에서 0번 슬롯을 가져옴
 	VoxelMaterial = InComponent->GetMaterial(0);
@@ -50,18 +52,16 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		return;
 	}
 
-	// [DEBUG] 릴리스 전 제거
-	{
-		static bool bLogged = false;
-		if (!bLogged) { bLogged = true; UE_LOG(LogTemp, Warning, TEXT("[VoxelProxy] GetDynamicMeshElements called — VF=%p Indices=%d"), VertexFactory, NumIndices); }
-	}
-
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		if (!(VisibilityMap & (1 << ViewIndex)))
 		{
 			continue;
 		}
+
+		// 거리 기반 그림자 컬링
+		const bool bCastShadow = (ShadowDistanceSq <= 0.f)
+			|| (FVector::DistSquared(GetBounds().Origin, Views[ViewIndex]->ViewMatrices.GetViewOrigin()) < ShadowDistanceSq);
 
 		FMeshBatch& Mesh = Collector.AllocateMesh();
 		Mesh.VertexFactory = VertexFactory;
@@ -70,7 +70,7 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		Mesh.bUseWireframeSelectionColoring = false;
 		Mesh.MaterialRenderProxy = VoxelMaterial->GetRenderProxy();
 		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
-		Mesh.CastShadow = true;
+		Mesh.CastShadow = bCastShadow;
 
 		FMeshBatchElement& BatchElement = Mesh.Elements[0];
 		BatchElement.IndexBuffer = &IndexBufferWrapper;
@@ -135,8 +135,6 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 
 	NumIndices = Indices.Num();
 	NumVertices = Vertices.Num();
-	UE_LOG(LogTemp, Warning, TEXT("[VoxelProxy] UpdateMeshData_RT: %d verts, %d indices"), NumVertices, NumIndices);
-
 	// RenderResource 초기화 마킹 (InitRHI는 비어있고 RHI 핸들은 위에서 직접 설정)
 	if (!VertexBufferWrapper.IsInitialized())
 	{

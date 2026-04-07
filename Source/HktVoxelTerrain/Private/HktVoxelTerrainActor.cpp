@@ -42,6 +42,7 @@ void AHktVoxelTerrainActor::BeginPlay()
 	TerrainMeshScheduler = MakeUnique<FHktVoxelMeshScheduler>(TerrainCache.Get());
 	TerrainMeshScheduler->SetMaxMeshPerFrame(MaxMeshPerFrame);
 	TerrainMeshScheduler->SetVoxelSize(VoxelSize);
+	TerrainMeshScheduler->SetDoubleSided(false);  // terrain은 단면 렌더링 — 삼각형 수 절반
 
 	Streamer = MakeUnique<FHktVoxelTerrainStreamer>();
 	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
@@ -169,6 +170,7 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 	if (Comp)
 	{
 		Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
+		Comp->SetShadowDistance(ShadowDistance);
 		if (TerrainMaterial)
 		{
 			Comp->SetVoxelMaterial(TerrainMaterial);
@@ -235,6 +237,7 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 		if (Comp)
 		{
 			Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
+			Comp->SetShadowDistance(ShadowDistance);
 			if (TerrainMaterial)
 			{
 				Comp->SetVoxelMaterial(TerrainMaterial);

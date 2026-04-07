@@ -20,8 +20,8 @@ struct FHktVoxelChunk;
 class HKTVOXELCORE_API FHktVoxelMesher
 {
 public:
-	/** 단일 청크를 메싱 — 워커 스레드에서 호출 */
-	static void MeshChunk(FHktVoxelChunk& Chunk);
+	/** 단일 청크를 메싱 — 워커 스레드에서 호출. bDoubleSided=true면 양면 렌더링 (엔티티용) */
+	static void MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided = true);
 
 private:
 	/**
@@ -39,7 +39,8 @@ private:
 	static void MergeQuads(
 		FHktVoxelChunk& Chunk,
 		int32 Face, int32 Slice,
-		const uint32 Mask[32]);
+		const uint32 Mask[32],
+		bool bDoubleSided = true);
 
 	/**
 	 * Baked AO 계산 — 인접 복셀 기반, 버텍스당 0~3
@@ -49,12 +50,13 @@ private:
 		const FHktVoxelChunk& Chunk,
 		FIntVector Pos, int32 Face, int32 CornerIndex);
 
-	/** 쿼드 4개 버텍스 + 6개 인덱스를 청크 메시 배열에 추가 */
+	/** 쿼드 4개 버텍스 + 인덱스를 청크 메시 배열에 추가. bDoubleSided=false면 back face 생략 */
 	static void EmitQuad(
 		FHktVoxelChunk& Chunk,
 		int32 Face, int32 Slice,
 		int32 StartU, int32 StartV,
 		int32 Width, int32 Height,
 		const FHktVoxel& Voxel,
-		uint8 BoneIndex = 0);
+		uint8 BoneIndex = 0,
+		bool bDoubleSided = true);
 };

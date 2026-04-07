@@ -71,6 +71,10 @@ public:
 	/** 머티리얼 LUT 설정 — OnMeshReady에서 Proxy에 전달 */
 	void SetMaterialLUT(const FHktVoxelTexturePair& InMaterialLUT);
 
+	/** 그림자 최대 거리 설정 (UE 유닛). 0이면 항상 그림자 ON */
+	void SetShadowDistance(float InDistance) { ShadowDistance = InDistance; }
+	float GetShadowDistance() const { return ShadowDistance; }
+
 	// UPrimitiveComponent
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
@@ -84,4 +88,5 @@ private:
 	FHktVoxelTileTextureSet CachedTileTextures;
 	FHktVoxelTexturePair CachedMaterialLUT;
 	bool bStyleTexturesApplied = false;
+	float ShadowDistance = 0.f;
 };

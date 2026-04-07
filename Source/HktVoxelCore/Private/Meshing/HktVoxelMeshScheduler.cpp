@@ -65,11 +65,12 @@ void FHktVoxelMeshScheduler::Tick(const FVector& CameraPos)
 		ChunkRef->bMeshDirty.store(false, std::memory_order_relaxed);
 		const uint32 Gen = ChunkRef->MeshGeneration.load(std::memory_order_acquire);
 
+		const bool bDS = bDoubleSided;
 		PendingTasks.Add(UE::Tasks::Launch(
 			TEXT("HktVoxelMeshing"),
-			[ChunkRef, Gen]()
+			[ChunkRef, Gen, bDS]()
 			{
-				FHktVoxelMesher::MeshChunk(*ChunkRef);
+				FHktVoxelMesher::MeshChunk(*ChunkRef, bDS);
 				// 세대가 변경되지 않았을 때만 결과를 유효로 마킹
 				if (ChunkRef->MeshGeneration.load(std::memory_order_acquire) == Gen)
 				{

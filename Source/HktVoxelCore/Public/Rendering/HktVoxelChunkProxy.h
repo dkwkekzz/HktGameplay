@@ -78,6 +78,7 @@ private:
 	FHktVoxelVertexFactory* VertexFactory = nullptr;
 	UMaterialInterface* VoxelMaterial = nullptr;
 	float VoxelSizeUU = 15.0f;
+	float ShadowDistanceSq = 0.f;  // 그림자 거리 제곱. 0이면 항상 그림자 ON
 	int32 NumIndices = 0;
 	int32 NumVertices = 0;
 
