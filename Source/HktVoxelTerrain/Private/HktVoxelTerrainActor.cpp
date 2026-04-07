@@ -159,7 +159,7 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 		{
 			Comp->SetVoxelMaterial(TerrainMaterial);
 		}
-		ApplyStyleToComponent(Comp);
+		if (bStyleBuilt) { ApplyStyleToComponent(Comp); }
 		ActiveChunks.Add(ChunkCoord, Comp);
 	}
 }
@@ -392,31 +392,33 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 
 void AHktVoxelTerrainActor::ApplyStyleToComponent(UHktVoxelChunkComponent* Comp)
 {
-	if (!Comp || !bStyleBuilt)
+	if (!Comp)
 	{
 		return;
 	}
 
-	// Tile textures
-	FRHITexture* TileArrayRHI = BuiltTileAtlas ? BuiltTileAtlas->GetTileArrayRHI() : nullptr;
-	FRHITexture* TileLUTRHI = BuiltTileAtlas ? BuiltTileAtlas->GetTileIndexLUTRHI() : nullptr;
-
-	if (TileArrayRHI && TileLUTRHI)
+	if (BuiltTileAtlas)
 	{
-		Comp->SetTileTextures(
-			TileArrayRHI,
-			TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI(),
-			TileLUTRHI,
-			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI());
+		FHktVoxelTileTextureSet TileSet;
+		TileSet.TileArray = { BuiltTileAtlas->GetTileArrayRHI(),
+			TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI() };
+		TileSet.TileIndexLUT = { BuiltTileAtlas->GetTileIndexLUTRHI(),
+			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI() };
+
+		if (TileSet.IsValid())
+		{
+			Comp->SetTileTextures(TileSet);
+		}
 	}
 
-	// Material LUT
-	FRHITexture* MatLUTRHI = BuiltMaterialLUT ? BuiltMaterialLUT->GetMaterialLUTRHI() : nullptr;
-
-	if (MatLUTRHI)
+	if (BuiltMaterialLUT)
 	{
-		Comp->SetMaterialLUT(
-			MatLUTRHI,
-			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI());
+		FHktVoxelTexturePair MatPair = { BuiltMaterialLUT->GetMaterialLUTRHI(),
+			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI() };
+
+		if (MatPair.IsValid())
+		{
+			Comp->SetMaterialLUT(MatPair);
+		}
 	}
 }

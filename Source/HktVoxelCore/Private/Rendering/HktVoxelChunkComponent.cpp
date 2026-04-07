@@ -125,48 +125,51 @@ void UHktVoxelChunkComponent::OnMeshReady()
 	// GetScene()에서 FPrimitiveComponentId를 통해 안전하게 접근
 	FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
 
-	// 텍스처 RHI 캡처 (Game Thread에서 안전하게 읽음)
-	FRHITexture* TileArr = CachedTileArrayRHI;
-	FRHISamplerState* TileSmp = CachedTileArraySamplerRHI;
-	FRHITexture* TileLUT = CachedTileIndexLUTRHI;
-	FRHISamplerState* TileLUTSmp = CachedTileIndexLUTSamplerRHI;
-	FRHITexture* MatLUT = CachedMaterialLUTRHI;
-	FRHISamplerState* MatLUTSmp = CachedMaterialLUTSamplerRHI;
+	// 스타일 텍스처는 첫 OnMeshReady에서만 전달 (이후 Proxy가 캐싱)
+	const bool bNeedStyleSetup = !bStyleTexturesApplied
+		&& (CachedTileTextures.IsValid() || CachedMaterialLUT.IsValid());
+	FHktVoxelTileTextureSet TileTexCopy = CachedTileTextures;
+	FHktVoxelTexturePair MatLUTCopy = CachedMaterialLUT;
 
-	// GPU 버퍼 업로드는 반드시 Render Thread에서
 	ENQUEUE_RENDER_COMMAND(HktVoxelUpdateMesh)(
 		[CapturedProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy),
-		 TileArr, TileSmp, TileLUT, TileLUTSmp, MatLUT, MatLUTSmp](FRHICommandListImmediate& RHICmdList)
+		 bNeedStyleSetup, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
 		{
 			FHktVoxelChunkProxy* Proxy = static_cast<FHktVoxelChunkProxy*>(CapturedProxy);
-			// 텍스처 설정 (있으면 적용, 없으면 기존 폴백)
-			if (TileArr)
+			if (bNeedStyleSetup)
 			{
-				Proxy->SetTileTextures_RenderThread(TileArr, TileSmp, TileLUT, TileLUTSmp);
-			}
-			if (MatLUT)
-			{
-				Proxy->SetMaterialLUT_RenderThread(MatLUT, MatLUTSmp);
+				if (TileTexCopy.IsValid())
+				{
+					Proxy->SetTileTextures_RenderThread(
+						TileTexCopy.TileArray.Texture, TileTexCopy.TileArray.Sampler,
+						TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler);
+				}
+				if (MatLUTCopy.IsValid())
+				{
+					Proxy->SetMaterialLUT_RenderThread(
+						MatLUTCopy.Texture, MatLUTCopy.Sampler);
+				}
 			}
 			Proxy->UpdateMeshData_RenderThread(Verts, Idxs);
 		}
 	);
+
+	if (bNeedStyleSetup)
+	{
+		bStyleTexturesApplied = true;
+	}
 }
 
-void UHktVoxelChunkComponent::SetTileTextures(
-	FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
-	FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler)
+void UHktVoxelChunkComponent::SetTileTextures(const FHktVoxelTileTextureSet& InTileTextures)
 {
-	CachedTileArrayRHI = InTileArray;
-	CachedTileArraySamplerRHI = InTileSampler;
-	CachedTileIndexLUTRHI = InTileIndexLUT;
-	CachedTileIndexLUTSamplerRHI = InLUTSampler;
+	CachedTileTextures = InTileTextures;
+	bStyleTexturesApplied = false;
 }
 
-void UHktVoxelChunkComponent::SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler)
+void UHktVoxelChunkComponent::SetMaterialLUT(const FHktVoxelTexturePair& InMaterialLUT)
 {
-	CachedMaterialLUTRHI = InLUT;
-	CachedMaterialLUTSamplerRHI = InSampler;
+	CachedMaterialLUT = InMaterialLUT;
+	bStyleTexturesApplied = false;
 }
 
 FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()

@@ -54,7 +54,6 @@ public:
 			ShaderBindings.Add(PaletteSamplerParam, VoxelVF->PaletteSamplerRHI);
 		}
 
-		// Tile Texture (Phase 1) — HktTileEnabled으로 셰이더 분기 제어
 		const bool bTileEnabled = (VoxelVF->TileArrayRHI != nullptr && VoxelVF->TileIndexLUTRHI != nullptr);
 		if (TileEnabledParam.IsBound())
 		{
@@ -77,7 +76,6 @@ public:
 			ShaderBindings.Add(TileIndexLUTSamplerParam, VoxelVF->TileIndexLUTSamplerRHI);
 		}
 
-		// Material LUT (Phase 2) — nullptr이면 기존 하드코딩 PBR 폴백
 		const bool bMaterialLUTEnabled = (VoxelVF->MaterialLUTRHI != nullptr);
 		if (MaterialLUTEnabledParam.IsBound())
 		{

@@ -9,6 +9,24 @@
 class FHktVoxelRenderCache;
 struct FHktVoxelChunk;
 
+/** 텍스처+샘플러 RHI 쌍 — 타일/머티리얼 텍스처 전달에 공용 */
+struct FHktVoxelTexturePair
+{
+	FRHITexture* Texture = nullptr;
+	FRHISamplerState* Sampler = nullptr;
+
+	bool IsValid() const { return Texture != nullptr; }
+};
+
+/** 타일 텍스처 셋 (Texture2DArray + IndexLUT) */
+struct FHktVoxelTileTextureSet
+{
+	FHktVoxelTexturePair TileArray;
+	FHktVoxelTexturePair TileIndexLUT;
+
+	bool IsValid() const { return TileArray.IsValid() && TileIndexLUT.IsValid(); }
+};
+
 /**
  * UHktVoxelChunkComponent
  *
@@ -37,12 +55,11 @@ public:
 	/** 복셀 렌더링용 머티리얼 설정 (팔레트 기반 단일 머티리얼) */
 	void SetVoxelMaterial(UMaterialInterface* InMaterial);
 
-	/** 타일 텍스처 설정 (Phase 1) — ENQUEUE_RENDER_COMMAND로 Proxy에 전달 */
-	void SetTileTextures(FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
-	                     FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
+	/** 타일 텍스처 설정 — OnMeshReady에서 Proxy에 전달 */
+	void SetTileTextures(const FHktVoxelTileTextureSet& InTileTextures);
 
-	/** 머티리얼 LUT 설정 (Phase 2) — ENQUEUE_RENDER_COMMAND로 Proxy에 전달 */
-	void SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler);
+	/** 머티리얼 LUT 설정 — OnMeshReady에서 Proxy에 전달 */
+	void SetMaterialLUT(const FHktVoxelTexturePair& InMaterialLUT);
 
 	// UPrimitiveComponent
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
@@ -53,11 +70,7 @@ private:
 	FIntVector ChunkCoord = FIntVector::ZeroValue;
 	FHktVoxelRenderCache* RenderCache = nullptr;
 
-	// 캐시된 텍스처 RHI (SceneProxy 재생성 시에도 유지)
-	FRHITexture* CachedTileArrayRHI = nullptr;
-	FRHISamplerState* CachedTileArraySamplerRHI = nullptr;
-	FRHITexture* CachedTileIndexLUTRHI = nullptr;
-	FRHISamplerState* CachedTileIndexLUTSamplerRHI = nullptr;
-	FRHITexture* CachedMaterialLUTRHI = nullptr;
-	FRHISamplerState* CachedMaterialLUTSamplerRHI = nullptr;
+	FHktVoxelTileTextureSet CachedTileTextures;
+	FHktVoxelTexturePair CachedMaterialLUT;
+	bool bStyleTexturesApplied = false;
 };

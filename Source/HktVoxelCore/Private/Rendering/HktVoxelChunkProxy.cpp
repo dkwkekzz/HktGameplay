@@ -167,15 +167,13 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	VFData.MaterialComponent = FVertexStreamComponent(
 		&VertexBufferWrapper, 4, sizeof(FHktVoxelVertex), VET_UInt);
 
-	// Tile Texture (Phase 1) — 보류 중인 타일 텍스처가 있으면 VertexFactory에 전달
+	// SetTileTextures/SetMaterialLUT이 VertexFactory 생성 전에 호출될 수 있으므로 여기서 적용
 	if (PendingTileArrayRHI)
 	{
 		VertexFactory->SetTileTextures(
 			PendingTileArrayRHI, PendingTileArraySamplerRHI,
 			PendingTileIndexLUTRHI, PendingTileIndexLUTSamplerRHI);
 	}
-
-	// Material LUT (Phase 2) — 보류 중인 머티리얼 LUT가 있으면 전달
 	if (PendingMaterialLUTRHI)
 	{
 		VertexFactory->SetMaterialLUT(PendingMaterialLUTRHI, PendingMaterialLUTSamplerRHI);
@@ -195,7 +193,6 @@ void FHktVoxelChunkProxy::SetTileTextures_RenderThread(
 	PendingTileIndexLUTRHI = InTileIndexLUT;
 	PendingTileIndexLUTSamplerRHI = InLUTSampler;
 
-	// VertexFactory가 이미 존재하면 즉시 전달
 	if (VertexFactory)
 	{
 		VertexFactory->SetTileTextures(InTileArray, InTileSampler, InTileIndexLUT, InLUTSampler);
