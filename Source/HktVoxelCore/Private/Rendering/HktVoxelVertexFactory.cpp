@@ -20,6 +20,7 @@ public:
 		PaletteSamplerParam.Bind(ParameterMap, TEXT("HktPaletteSampler"));
 
 		// Tile Texture (Phase 1)
+		TileEnabledParam.Bind(ParameterMap, TEXT("HktTileEnabled"));
 		TileArrayParam.Bind(ParameterMap, TEXT("HktTileArray"));
 		TileArraySamplerParam.Bind(ParameterMap, TEXT("HktTileSampler"));
 		TileIndexLUTParam.Bind(ParameterMap, TEXT("HktTileIndexLUT"));
@@ -48,7 +49,12 @@ public:
 			ShaderBindings.Add(PaletteSamplerParam, VoxelVF->PaletteSamplerRHI);
 		}
 
-		// Tile Texture (Phase 1) — nullptr이면 바인딩 생략 → 셰이더에서 팔레트 폴백
+		// Tile Texture (Phase 1) — HktTileEnabled으로 셰이더 분기 제어
+		const bool bTileEnabled = (VoxelVF->TileArrayRHI != nullptr && VoxelVF->TileIndexLUTRHI != nullptr);
+		if (TileEnabledParam.IsBound())
+		{
+			ShaderBindings.Add(TileEnabledParam, bTileEnabled ? 1.0f : 0.0f);
+		}
 		if (TileArrayParam.IsBound() && VoxelVF->TileArrayRHI)
 		{
 			ShaderBindings.Add(TileArrayParam, VoxelVF->TileArrayRHI);
@@ -72,6 +78,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteSamplerParam);
 
 	// Tile Texture (Phase 1)
+	LAYOUT_FIELD(FShaderParameter, TileEnabledParam);
 	LAYOUT_FIELD(FShaderResourceParameter, TileArrayParam);
 	LAYOUT_FIELD(FShaderResourceParameter, TileArraySamplerParam);
 	LAYOUT_FIELD(FShaderResourceParameter, TileIndexLUTParam);

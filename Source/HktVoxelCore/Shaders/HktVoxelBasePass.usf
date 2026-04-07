@@ -46,7 +46,9 @@ void MainVS(
     uint AO         = (PM >> 19) & 0x3;
 
     OutTileUV = HktCalcTileUV(Width, Height, Corner);
-    OutTileSlice = HktLookupTileSlice(HktTileIndexLUT, VoxelType, FaceDir);
+    OutTileSlice = (HktTileEnabled > 0.5)
+        ? HktLookupTileSlice(HktTileIndexLUT, VoxelType, FaceDir)
+        : -1.0;
     OutVoxelType = float(VoxelType);
     OutPaletteIdx = float(PaletteIdx);
     OutAOLight = HktAOToLight(AO);

@@ -16,6 +16,8 @@ Texture2D HktPaletteTexture;
 SamplerState HktPaletteSampler;
 
 // Tile Texture (Phase 1: 타일 아틀라스)
+// HktTileEnabled: C++에서 설정. 0.0 = 타일 미사용 (기존 팔레트 폴백), 1.0 = 타일 활성
+float HktTileEnabled;
 Texture2DArray HktTileArray;
 SamplerState HktTileSampler;
 Texture2D HktTileIndexLUT;
@@ -145,9 +147,11 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// Result.Color = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
 	// Result.Color.rgb *= HktAOToLight(AO);
 
-	// Tile Texture (Phase 1) — UV, 슬라이스, 메타데이터 계산
+	// Tile Texture (Phase 1) — HktTileEnabled == 0이면 LUT 접근 자체를 건너뜀
 	Result.TileUV = HktCalcTileUV(Width, Height, Corner);
-	Result.TileSlice = HktLookupTileSlice(HktTileIndexLUT, VoxelType, FaceDir);
+	Result.TileSlice = (HktTileEnabled > 0.5)
+		? HktLookupTileSlice(HktTileIndexLUT, VoxelType, FaceDir)
+		: -1.0;
 	Result.VoxelType = VoxelType;
 	Result.PaletteIdx = PaletteIdx;
 	Result.AOLight = HktAOToLight(AO);
