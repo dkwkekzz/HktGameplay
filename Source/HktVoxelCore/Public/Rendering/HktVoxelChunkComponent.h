@@ -37,6 +37,13 @@ public:
 	/** 복셀 렌더링용 머티리얼 설정 (팔레트 기반 단일 머티리얼) */
 	void SetVoxelMaterial(UMaterialInterface* InMaterial);
 
+	/** 타일 텍스처 설정 (Phase 1) — ENQUEUE_RENDER_COMMAND로 Proxy에 전달 */
+	void SetTileTextures(FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
+	                     FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
+
+	/** 머티리얼 LUT 설정 (Phase 2) — ENQUEUE_RENDER_COMMAND로 Proxy에 전달 */
+	void SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler);
+
 	// UPrimitiveComponent
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
@@ -45,4 +52,12 @@ public:
 private:
 	FIntVector ChunkCoord = FIntVector::ZeroValue;
 	FHktVoxelRenderCache* RenderCache = nullptr;
+
+	// 캐시된 텍스처 RHI (SceneProxy 재생성 시에도 유지)
+	FRHITexture* CachedTileArrayRHI = nullptr;
+	FRHISamplerState* CachedTileArraySamplerRHI = nullptr;
+	FRHITexture* CachedTileIndexLUTRHI = nullptr;
+	FRHISamplerState* CachedTileIndexLUTSamplerRHI = nullptr;
+	FRHITexture* CachedMaterialLUTRHI = nullptr;
+	FRHISamplerState* CachedMaterialLUTSamplerRHI = nullptr;
 };

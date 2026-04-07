@@ -2,6 +2,7 @@
 
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "Rendering/HktVoxelChunkProxy.h"
+#include "RHIStaticStates.h"
 #include "Data/HktVoxelRenderCache.h"
 #include "Data/HktVoxelTypes.h"
 #include "Meshing/HktVoxelVertex.h"
@@ -124,13 +125,48 @@ void UHktVoxelChunkComponent::OnMeshReady()
 	// GetScene()에서 FPrimitiveComponentId를 통해 안전하게 접근
 	FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
 
+	// 텍스처 RHI 캡처 (Game Thread에서 안전하게 읽음)
+	FRHITexture* TileArr = CachedTileArrayRHI;
+	FRHISamplerState* TileSmp = CachedTileArraySamplerRHI;
+	FRHITexture* TileLUT = CachedTileIndexLUTRHI;
+	FRHISamplerState* TileLUTSmp = CachedTileIndexLUTSamplerRHI;
+	FRHITexture* MatLUT = CachedMaterialLUTRHI;
+	FRHISamplerState* MatLUTSmp = CachedMaterialLUTSamplerRHI;
+
 	// GPU 버퍼 업로드는 반드시 Render Thread에서
 	ENQUEUE_RENDER_COMMAND(HktVoxelUpdateMesh)(
-		[CapturedProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy)](FRHICommandListImmediate& RHICmdList)
+		[CapturedProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy),
+		 TileArr, TileSmp, TileLUT, TileLUTSmp, MatLUT, MatLUTSmp](FRHICommandListImmediate& RHICmdList)
 		{
-			static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->UpdateMeshData_RenderThread(Verts, Idxs);
+			FHktVoxelChunkProxy* Proxy = static_cast<FHktVoxelChunkProxy*>(CapturedProxy);
+			// 텍스처 설정 (있으면 적용, 없으면 기존 폴백)
+			if (TileArr)
+			{
+				Proxy->SetTileTextures_RenderThread(TileArr, TileSmp, TileLUT, TileLUTSmp);
+			}
+			if (MatLUT)
+			{
+				Proxy->SetMaterialLUT_RenderThread(MatLUT, MatLUTSmp);
+			}
+			Proxy->UpdateMeshData_RenderThread(Verts, Idxs);
 		}
 	);
+}
+
+void UHktVoxelChunkComponent::SetTileTextures(
+	FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
+	FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler)
+{
+	CachedTileArrayRHI = InTileArray;
+	CachedTileArraySamplerRHI = InTileSampler;
+	CachedTileIndexLUTRHI = InTileIndexLUT;
+	CachedTileIndexLUTSamplerRHI = InLUTSampler;
+}
+
+void UHktVoxelChunkComponent::SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler)
+{
+	CachedMaterialLUTRHI = InLUT;
+	CachedMaterialLUTSamplerRHI = InSampler;
 }
 
 FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
