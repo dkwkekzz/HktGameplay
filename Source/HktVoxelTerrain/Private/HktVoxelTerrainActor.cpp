@@ -71,16 +71,10 @@ void AHktVoxelTerrainActor::BeginPlay()
 
 void AHktVoxelTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// 1. 워커 태스크 완료 대기 — 태스크가 raw FHktVoxelChunk* 캡처하므로 청크 해제 전 필수
-	if (TerrainMeshScheduler)
-	{
-		TerrainMeshScheduler->Flush();
-	}
-
-	// 2. OnMeshReady가 큐잉한 렌더 커맨드 완료 대기 — Proxy 참조 커맨드 처리 후 파괴
+	// 1. OnMeshReady가 큐잉한 렌더 커맨드 완료 대기 — Proxy 참조 커맨드 처리 후 파괴
 	FlushRenderingCommands();
 
-	// 3. 컴포넌트 파괴 → Proxy가 렌더 스레드 지연 삭제 큐에 등록됨
+	// 2. 컴포넌트 파괴 → Proxy가 렌더 스레드 지연 삭제 큐에 등록됨
 	for (auto& Pair : ActiveChunks)
 	{
 		if (Pair.Value)
@@ -99,13 +93,17 @@ void AHktVoxelTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	ComponentPool.Empty();
 
-	// 4. Proxy 지연 삭제 실행 — GPU 버퍼(VB/IB/VertexFactory) 해제 보장
+	// 3. Proxy 지연 삭제 실행 — GPU 버퍼(VB/IB/VertexFactory) 해제 보장
 	FlushRenderingCommands();
 
-	// 5. 나머지 리소스 해제 (Proxy가 이미 삭제된 후이므로 안전)
-	Generator.Reset();
+	// 4. 워커 태스크 완료 대기 + 스케줄러 해제
+	//    태스크는 TSharedPtr<FHktVoxelChunk>를 캡처하므로 청크 수명은 안전.
+	//    Flush 후 TSharedPtr 해제 → 청크 참조 카운트 감소.
 	TerrainMeshScheduler.Reset();
+
+	// 5. 나머지 리소스 해제 — 캐시의 TSharedPtr 해제로 최종 청크 메모리 반환
 	TerrainCache.Reset();
+	Generator.Reset();
 	Streamer.Reset();
 
 	Super::EndPlay(EndPlayReason);
@@ -182,16 +180,9 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 
 void AHktVoxelTerrainActor::ProcessStreamingResults()
 {
-	const TArray<FIntVector>& ChunksToUnload = Streamer->GetChunksToUnload();
-
-	// 언로드 전에 비동기 메싱 태스크 완료 대기
-	// 태스크가 raw FHktVoxelChunk* 캡처하므로 청크 해제 전 반드시 완료해야 함
-	if (ChunksToUnload.Num() > 0 && TerrainMeshScheduler)
-	{
-		TerrainMeshScheduler->Flush();
-	}
-
-	for (const FIntVector& Coord : ChunksToUnload)
+	// 언로드 — 태스크가 TSharedPtr<FHktVoxelChunk>를 캡처하므로 Flush 불필요.
+	// UnloadChunk은 맵에서 제거만 하고, 실제 메모리는 태스크의 TSharedPtr 해제 시 반환.
+	for (const FIntVector& Coord : Streamer->GetChunksToUnload())
 	{
 		TerrainCache->UnloadChunk(Coord);
 

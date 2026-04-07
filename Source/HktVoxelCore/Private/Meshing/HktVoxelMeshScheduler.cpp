@@ -54,25 +54,26 @@ void FHktVoxelMeshScheduler::Tick(const FVector& CameraPos)
 	const int32 Count = FMath::Min(DirtyChunks.Num(), MaxMeshPerFrame);
 	for (int32 i = 0; i < Count; i++)
 	{
-		FHktVoxelChunk* Chunk = RenderCache->GetChunk(DirtyChunks[i]);
-		if (!Chunk || !Chunk->bMeshDirty)
+		// TSharedPtr로 청크 참조 획득 — 태스크가 실행 중에 UnloadChunk이 호출되어도 안전
+		FHktVoxelChunkRef ChunkRef = RenderCache->GetChunkRef(DirtyChunks[i]);
+		if (!ChunkRef || !ChunkRef->bMeshDirty)
 		{
 			continue;
 		}
 
 		// dirty 해제 + 세대 캡처하여 메싱 중 새 delta가 들어오면 결과를 버릴 수 있도록
-		Chunk->bMeshDirty.store(false, std::memory_order_relaxed);
-		const uint32 Gen = Chunk->MeshGeneration.load(std::memory_order_acquire);
+		ChunkRef->bMeshDirty.store(false, std::memory_order_relaxed);
+		const uint32 Gen = ChunkRef->MeshGeneration.load(std::memory_order_acquire);
 
 		PendingTasks.Add(UE::Tasks::Launch(
 			TEXT("HktVoxelMeshing"),
-			[Chunk, Gen]()
+			[ChunkRef, Gen]()
 			{
-				FHktVoxelMesher::MeshChunk(*Chunk);
+				FHktVoxelMesher::MeshChunk(*ChunkRef);
 				// 세대가 변경되지 않았을 때만 결과를 유효로 마킹
-				if (Chunk->MeshGeneration.load(std::memory_order_acquire) == Gen)
+				if (ChunkRef->MeshGeneration.load(std::memory_order_acquire) == Gen)
 				{
-					Chunk->bMeshReady.store(true, std::memory_order_release);
+					ChunkRef->bMeshReady.store(true, std::memory_order_release);
 				}
 			},
 			UE::Tasks::ETaskPriority::BackgroundNormal

@@ -7,7 +7,7 @@ void FHktVoxelRenderCache::ApplyVoxelDelta(const FIntVector& ChunkCoord, uint16 
 {
 	FScopeLock Lock(&ChunkLock);
 
-	TUniquePtr<FHktVoxelChunk>* Found = Chunks.Find(ChunkCoord);
+	FHktVoxelChunkRef* Found = Chunks.Find(ChunkCoord);
 	if (!Found)
 	{
 		UE_LOG(LogHktVoxelCore, Warning, TEXT("ApplyVoxelDelta: Chunk (%d,%d,%d) not loaded"),
@@ -27,7 +27,7 @@ void FHktVoxelRenderCache::LoadChunk(const FIntVector& ChunkCoord, const FHktVox
 {
 	FScopeLock Lock(&ChunkLock);
 
-	TUniquePtr<FHktVoxelChunk> NewChunk = MakeUnique<FHktVoxelChunk>();
+	FHktVoxelChunkRef NewChunk = MakeShared<FHktVoxelChunk, ESPMode::ThreadSafe>();
 	NewChunk->ChunkCoord = ChunkCoord;
 	NewChunk->bMeshDirty.store(true, std::memory_order_relaxed);
 	NewChunk->bMeshReady.store(false, std::memory_order_relaxed);
@@ -70,15 +70,22 @@ void FHktVoxelRenderCache::GetDirtyChunks(TArray<FIntVector>& OutDirtyChunks) co
 FHktVoxelChunk* FHktVoxelRenderCache::GetChunk(const FIntVector& ChunkCoord)
 {
 	FScopeLock Lock(&ChunkLock);
-	TUniquePtr<FHktVoxelChunk>* Found = Chunks.Find(ChunkCoord);
+	FHktVoxelChunkRef* Found = Chunks.Find(ChunkCoord);
 	return Found ? Found->Get() : nullptr;
 }
 
 const FHktVoxelChunk* FHktVoxelRenderCache::GetChunk(const FIntVector& ChunkCoord) const
 {
 	FScopeLock Lock(&ChunkLock);
-	const TUniquePtr<FHktVoxelChunk>* Found = Chunks.Find(ChunkCoord);
+	const FHktVoxelChunkRef* Found = Chunks.Find(ChunkCoord);
 	return Found ? Found->Get() : nullptr;
+}
+
+FHktVoxelChunkRef FHktVoxelRenderCache::GetChunkRef(const FIntVector& ChunkCoord)
+{
+	FScopeLock Lock(&ChunkLock);
+	FHktVoxelChunkRef* Found = Chunks.Find(ChunkCoord);
+	return Found ? *Found : nullptr;
 }
 
 int32 FHktVoxelRenderCache::GetChunkCount() const
