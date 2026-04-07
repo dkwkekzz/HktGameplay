@@ -9,6 +9,24 @@
 class FHktVoxelRenderCache;
 struct FHktVoxelChunk;
 
+/** 텍스처+샘플러 RHI 쌍 — 타일/머티리얼 텍스처 전달에 공용 */
+struct FHktVoxelTexturePair
+{
+	FRHITexture* Texture = nullptr;
+	FRHISamplerState* Sampler = nullptr;
+
+	bool IsValid() const { return Texture != nullptr; }
+};
+
+/** 타일 텍스처 셋 (Texture2DArray + IndexLUT) */
+struct FHktVoxelTileTextureSet
+{
+	FHktVoxelTexturePair TileArray;
+	FHktVoxelTexturePair TileIndexLUT;
+
+	bool IsValid() const { return TileArray.IsValid() && TileIndexLUT.IsValid(); }
+};
+
 /**
  * UHktVoxelChunkComponent
  *
@@ -44,6 +62,12 @@ public:
 	/** 복셀 렌더링용 머티리얼 설정 (팔레트 기반 단일 머티리얼) */
 	void SetVoxelMaterial(UMaterialInterface* InMaterial);
 
+	/** 타일 텍스처 설정 — OnMeshReady에서 Proxy에 전달 */
+	void SetTileTextures(const FHktVoxelTileTextureSet& InTileTextures);
+
+	/** 머티리얼 LUT 설정 — OnMeshReady에서 Proxy에 전달 */
+	void SetMaterialLUT(const FHktVoxelTexturePair& InMaterialLUT);
+
 	// UPrimitiveComponent
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
@@ -52,4 +76,8 @@ public:
 private:
 	FIntVector ChunkCoord = FIntVector::ZeroValue;
 	FHktVoxelRenderCache* RenderCache = nullptr;
+
+	FHktVoxelTileTextureSet CachedTileTextures;
+	FHktVoxelTexturePair CachedMaterialLUT;
+	bool bStyleTexturesApplied = false;
 };

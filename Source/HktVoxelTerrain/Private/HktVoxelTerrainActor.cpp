@@ -7,10 +7,16 @@
 #include "Data/HktVoxelTypes.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
 #include "Rendering/HktVoxelChunkComponent.h"
+#include "Rendering/HktVoxelTileAtlas.h"
+#include "Rendering/HktVoxelMaterialLUT.h"
 #include "Terrain/HktTerrainGenerator.h"
 #include "Terrain/HktTerrainVoxel.h"
 #include "Engine/World.h"
+#include "Engine/Texture2DArray.h"
+#include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
+#include "RHIStaticStates.h"
+#include "TextureResource.h"
 
 // FHktTerrainVoxel과 FHktVoxel은 동일 4바이트 레이아웃
 static_assert(sizeof(FHktTerrainVoxel) == sizeof(FHktVoxel),
@@ -52,9 +58,13 @@ void AHktVoxelTerrainActor::BeginPlay()
 
 	PrewarmPool(InitialPoolSize);
 
+	// 블록 스타일 빌드 (비어있으면 스킵 → 기존 팔레트 렌더링)
+	BuildTerrainStyle();
+
 	UE_LOG(LogHktVoxelTerrain, Log,
-		TEXT("Terrain Actor initialized — Seed=%lld, ViewDist=%.0f, Pool=%d, MaxLoad=%d, MaxMesh=%d"),
-		TerrainSeed, ViewDistance, InitialPoolSize, MaxLoadsPerFrame, MaxMeshPerFrame);
+		TEXT("Terrain Actor initialized — Seed=%lld, ViewDist=%.0f, Pool=%d, MaxLoad=%d, MaxMesh=%d, Style=%s"),
+		TerrainSeed, ViewDistance, InitialPoolSize, MaxLoadsPerFrame, MaxMeshPerFrame,
+		bStyleBuilt ? TEXT("Built") : TEXT("Palette"));
 }
 
 void AHktVoxelTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -149,6 +159,7 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 		{
 			Comp->SetVoxelMaterial(TerrainMaterial);
 		}
+		if (bStyleBuilt) { ApplyStyleToComponent(Comp); }
 		ActiveChunks.Add(ChunkCoord, Comp);
 	}
 }
@@ -212,6 +223,7 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 			{
 				Comp->SetVoxelMaterial(TerrainMaterial);
 			}
+			ApplyStyleToComponent(Comp);
 			ActiveChunks.Add(ChunkCoord, Comp);
 		}
 	}
@@ -279,5 +291,134 @@ void AHktVoxelTerrainActor::PrewarmPool(int32 Count)
 		Comp->RegisterComponent();
 		Comp->SetVisibility(false);
 		ComponentPool.Add(Comp);
+	}
+}
+
+// ============================================================================
+// 블록 스타일 빌드 (BlockStyles → Texture2DArray + LUT + MaterialLUT)
+// ============================================================================
+
+void AHktVoxelTerrainActor::BuildTerrainStyle()
+{
+	bStyleBuilt = false;
+
+	if (BlockStyles.Num() == 0)
+	{
+		UE_LOG(LogHktVoxelTerrain, Log, TEXT("[TerrainStyle] BlockStyles is empty — using palette fallback"));
+		return;
+	}
+
+	// 1. 고유 텍스처 수집 → 슬라이스 인덱스 할당
+	TMap<UTexture2D*, uint8> TextureToSlice;
+	TArray<UTexture2D*> SliceTextures;  // 인덱스 순서
+
+	auto AssignSlice = [&](UTexture2D* Tex) -> uint8
+	{
+		if (!Tex)
+		{
+			return 255;  // 미매핑 → 팔레트 폴백
+		}
+		if (const uint8* Found = TextureToSlice.Find(Tex))
+		{
+			return *Found;
+		}
+		if (SliceTextures.Num() >= 255)
+		{
+			UE_LOG(LogHktVoxelTerrain, Warning, TEXT("[TerrainStyle] Too many unique textures (max 255)"));
+			return 255;
+		}
+		const uint8 Idx = static_cast<uint8>(SliceTextures.Num());
+		TextureToSlice.Add(Tex, Idx);
+		SliceTextures.Add(Tex);
+		return Idx;
+	};
+
+	// 2. TileAtlas 생성 + 매핑
+	BuiltTileAtlas = NewObject<UHktVoxelTileAtlas>(this, TEXT("BuiltTileAtlas"), RF_Transient);
+
+	for (const FHktVoxelBlockStyle& Style : BlockStyles)
+	{
+		UTexture2D* TopTex = Style.TopTexture ? Style.TopTexture.Get() : Style.SideTexture.Get();
+		UTexture2D* SideTex = Style.SideTexture.Get();
+		UTexture2D* BottomTex = Style.BottomTexture ? Style.BottomTexture.Get() : SideTex;
+
+		const uint8 TopSlice = AssignSlice(TopTex);
+		const uint8 SideSlice = AssignSlice(SideTex);
+		const uint8 BottomSlice = AssignSlice(BottomTex);
+
+		BuiltTileAtlas->SetTileMapping(
+			static_cast<uint16>(Style.TypeID), TopSlice, SideSlice, BottomSlice);
+	}
+
+	// 3. 개별 UTexture2D들을 Texture2DArray로 조립
+	if (SliceTextures.Num() > 0)
+	{
+		UTexture2DArray* TileArray = NewObject<UTexture2DArray>(BuiltTileAtlas, TEXT("TileArray"), RF_Transient);
+
+		// SourceTextures에 개별 텍스처 추가 → UE5가 자동으로 Texture2DArray 빌드
+		TileArray->SourceTextures.Empty();
+		for (UTexture2D* Tex : SliceTextures)
+		{
+			TileArray->SourceTextures.Add(Tex);
+		}
+		TileArray->AddressX = TA_Wrap;
+		TileArray->AddressY = TA_Wrap;
+		TileArray->UpdateSourceFromSourceTextures(true);
+		TileArray->UpdateResource();
+
+		BuiltTileAtlas->TileArray = TileArray;
+	}
+
+	// 4. TileIndexLUT 빌드
+	BuiltTileAtlas->BuildLUTTexture();
+
+	// 5. MaterialLUT 생성
+	BuiltMaterialLUT = NewObject<UHktVoxelMaterialLUT>(this, TEXT("BuiltMaterialLUT"), RF_Transient);
+
+	for (const FHktVoxelBlockStyle& Style : BlockStyles)
+	{
+		BuiltMaterialLUT->SetMaterial(
+			static_cast<uint16>(Style.TypeID),
+			Style.Roughness, Style.Metallic, Style.Specular);
+	}
+	BuiltMaterialLUT->BuildLUTTexture();
+
+	bStyleBuilt = true;
+
+	UE_LOG(LogHktVoxelTerrain, Log,
+		TEXT("[TerrainStyle] Built — %d block styles, %d unique textures, %d slices"),
+		BlockStyles.Num(), TextureToSlice.Num(), SliceTextures.Num());
+}
+
+void AHktVoxelTerrainActor::ApplyStyleToComponent(UHktVoxelChunkComponent* Comp)
+{
+	if (!Comp)
+	{
+		return;
+	}
+
+	if (BuiltTileAtlas)
+	{
+		FHktVoxelTileTextureSet TileSet;
+		TileSet.TileArray = { BuiltTileAtlas->GetTileArrayRHI(),
+			TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI() };
+		TileSet.TileIndexLUT = { BuiltTileAtlas->GetTileIndexLUTRHI(),
+			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI() };
+
+		if (TileSet.IsValid())
+		{
+			Comp->SetTileTextures(TileSet);
+		}
+	}
+
+	if (BuiltMaterialLUT)
+	{
+		FHktVoxelTexturePair MatPair = { BuiltMaterialLUT->GetMaterialLUTRHI(),
+			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI() };
+
+		if (MatPair.IsValid())
+		{
+			Comp->SetMaterialLUT(MatPair);
+		}
 	}
 }

@@ -2,6 +2,7 @@
 
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "Rendering/HktVoxelChunkProxy.h"
+#include "RHIStaticStates.h"
 #include "Data/HktVoxelRenderCache.h"
 #include "Data/HktVoxelTypes.h"
 #include "Meshing/HktVoxelVertex.h"
@@ -124,13 +125,51 @@ void UHktVoxelChunkComponent::OnMeshReady()
 	// GetScene()에서 FPrimitiveComponentId를 통해 안전하게 접근
 	FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
 
-	// GPU 버퍼 업로드는 반드시 Render Thread에서
+	// 스타일 텍스처는 첫 OnMeshReady에서만 전달 (이후 Proxy가 캐싱)
+	const bool bNeedStyleSetup = !bStyleTexturesApplied
+		&& (CachedTileTextures.IsValid() || CachedMaterialLUT.IsValid());
+	FHktVoxelTileTextureSet TileTexCopy = CachedTileTextures;
+	FHktVoxelTexturePair MatLUTCopy = CachedMaterialLUT;
+
 	ENQUEUE_RENDER_COMMAND(HktVoxelUpdateMesh)(
-		[CapturedProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy)](FRHICommandListImmediate& RHICmdList)
+		[CapturedProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy),
+		 bNeedStyleSetup, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
 		{
-			static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->UpdateMeshData_RenderThread(Verts, Idxs);
+			FHktVoxelChunkProxy* Proxy = static_cast<FHktVoxelChunkProxy*>(CapturedProxy);
+			if (bNeedStyleSetup)
+			{
+				if (TileTexCopy.IsValid())
+				{
+					Proxy->SetTileTextures_RenderThread(
+						TileTexCopy.TileArray.Texture, TileTexCopy.TileArray.Sampler,
+						TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler);
+				}
+				if (MatLUTCopy.IsValid())
+				{
+					Proxy->SetMaterialLUT_RenderThread(
+						MatLUTCopy.Texture, MatLUTCopy.Sampler);
+				}
+			}
+			Proxy->UpdateMeshData_RenderThread(Verts, Idxs);
 		}
 	);
+
+	if (bNeedStyleSetup)
+	{
+		bStyleTexturesApplied = true;
+	}
+}
+
+void UHktVoxelChunkComponent::SetTileTextures(const FHktVoxelTileTextureSet& InTileTextures)
+{
+	CachedTileTextures = InTileTextures;
+	bStyleTexturesApplied = false;
+}
+
+void UHktVoxelChunkComponent::SetMaterialLUT(const FHktVoxelTexturePair& InMaterialLUT)
+{
+	CachedMaterialLUT = InMaterialLUT;
+	bStyleTexturesApplied = false;
 }
 
 void UHktVoxelChunkComponent::UpdateBoneTransforms(const TArray<FVector4f>& BoneMatrixRows)

@@ -19,6 +19,16 @@ public:
 		PaletteTextureParam.Bind(ParameterMap, TEXT("HktPaletteTexture"));
 		PaletteSamplerParam.Bind(ParameterMap, TEXT("HktPaletteSampler"));
 		BoneMatricesParam.Bind(ParameterMap, TEXT("HktBoneMatrices"));
+
+		TileEnabledParam.Bind(ParameterMap, TEXT("HktTileEnabled"));
+		TileArrayParam.Bind(ParameterMap, TEXT("HktTileArray"));
+		TileArraySamplerParam.Bind(ParameterMap, TEXT("HktTileSampler"));
+		TileIndexLUTParam.Bind(ParameterMap, TEXT("HktTileIndexLUT"));
+		TileIndexLUTSamplerParam.Bind(ParameterMap, TEXT("HktTileIndexLUTSampler"));
+
+		MaterialLUTEnabledParam.Bind(ParameterMap, TEXT("HktMaterialLUTEnabled"));
+		MaterialLUTParam.Bind(ParameterMap, TEXT("HktMaterialLUT"));
+		MaterialLUTSamplerParam.Bind(ParameterMap, TEXT("HktMaterialLUTSampler"));
 	}
 
 	void GetElementShaderBindings(
@@ -46,12 +56,58 @@ public:
 		{
 			ShaderBindings.Add(BoneMatricesParam, VoxelVF->BoneTransformSRV);
 		}
+
+		const bool bTileEnabled = (VoxelVF->TileArrayRHI != nullptr && VoxelVF->TileIndexLUTRHI != nullptr);
+		if (TileEnabledParam.IsBound())
+		{
+			ShaderBindings.Add(TileEnabledParam, bTileEnabled ? 1.0f : 0.0f);
+		}
+		if (TileArrayParam.IsBound() && VoxelVF->TileArrayRHI)
+		{
+			ShaderBindings.Add(TileArrayParam, VoxelVF->TileArrayRHI);
+		}
+		if (TileArraySamplerParam.IsBound() && VoxelVF->TileArraySamplerRHI)
+		{
+			ShaderBindings.Add(TileArraySamplerParam, VoxelVF->TileArraySamplerRHI);
+		}
+		if (TileIndexLUTParam.IsBound() && VoxelVF->TileIndexLUTRHI)
+		{
+			ShaderBindings.Add(TileIndexLUTParam, VoxelVF->TileIndexLUTRHI);
+		}
+		if (TileIndexLUTSamplerParam.IsBound() && VoxelVF->TileIndexLUTSamplerRHI)
+		{
+			ShaderBindings.Add(TileIndexLUTSamplerParam, VoxelVF->TileIndexLUTSamplerRHI);
+		}
+
+		const bool bMaterialLUTEnabled = (VoxelVF->MaterialLUTRHI != nullptr);
+		if (MaterialLUTEnabledParam.IsBound())
+		{
+			ShaderBindings.Add(MaterialLUTEnabledParam, bMaterialLUTEnabled ? 1.0f : 0.0f);
+		}
+		if (MaterialLUTParam.IsBound() && VoxelVF->MaterialLUTRHI)
+		{
+			ShaderBindings.Add(MaterialLUTParam, VoxelVF->MaterialLUTRHI);
+		}
+		if (MaterialLUTSamplerParam.IsBound() && VoxelVF->MaterialLUTSamplerRHI)
+		{
+			ShaderBindings.Add(MaterialLUTSamplerParam, VoxelVF->MaterialLUTSamplerRHI);
+		}
 	}
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteTextureParam);
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteSamplerParam);
 	LAYOUT_FIELD(FShaderResourceParameter, BoneMatricesParam);
+
+	LAYOUT_FIELD(FShaderParameter, TileEnabledParam);
+	LAYOUT_FIELD(FShaderResourceParameter, TileArrayParam);
+	LAYOUT_FIELD(FShaderResourceParameter, TileArraySamplerParam);
+	LAYOUT_FIELD(FShaderResourceParameter, TileIndexLUTParam);
+	LAYOUT_FIELD(FShaderResourceParameter, TileIndexLUTSamplerParam);
+
+	LAYOUT_FIELD(FShaderParameter, MaterialLUTEnabledParam);
+	LAYOUT_FIELD(FShaderResourceParameter, MaterialLUTParam);
+	LAYOUT_FIELD(FShaderResourceParameter, MaterialLUTSamplerParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FHktVoxelVertexFactoryShaderParameters);
@@ -84,6 +140,22 @@ void FHktVoxelVertexFactory::SetPaletteTexture(FRHITexture* InTexture, FRHISampl
 void FHktVoxelVertexFactory::SetBoneTransformSRV(FRHIShaderResourceView* InSRV)
 {
 	BoneTransformSRV = InSRV;
+}
+
+void FHktVoxelVertexFactory::SetTileTextures(
+	FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
+	FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler)
+{
+	TileArrayRHI = InTileArray;
+	TileArraySamplerRHI = InTileSampler;
+	TileIndexLUTRHI = InTileIndexLUT;
+	TileIndexLUTSamplerRHI = InLUTSampler;
+}
+
+void FHktVoxelVertexFactory::SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler)
+{
+	MaterialLUTRHI = InLUT;
+	MaterialLUTSamplerRHI = InSampler;
 }
 
 bool FHktVoxelVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)

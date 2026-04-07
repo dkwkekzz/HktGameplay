@@ -167,6 +167,18 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	VFData.MaterialComponent = FVertexStreamComponent(
 		&VertexBufferWrapper, 4, sizeof(FHktVoxelVertex), VET_UInt);
 
+	// SetTileTextures/SetMaterialLUT이 VertexFactory 생성 전에 호출될 수 있으므로 여기서 적용
+	if (PendingTileArrayRHI)
+	{
+		VertexFactory->SetTileTextures(
+			PendingTileArrayRHI, PendingTileArraySamplerRHI,
+			PendingTileIndexLUTRHI, PendingTileIndexLUTSamplerRHI);
+	}
+	if (PendingMaterialLUTRHI)
+	{
+		VertexFactory->SetMaterialLUT(PendingMaterialLUTRHI, PendingMaterialLUTSamplerRHI);
+	}
+
 	VertexFactory->SetData(VFData);
 
 	// 기존 본 트랜스폼 SRV가 있으면 재바인딩
@@ -208,4 +220,35 @@ void FHktVoxelChunkProxy::UpdateBoneTransforms_RenderThread(const TArray<FVector
 	void* Data = FRHICommandListImmediate::Get().LockBuffer(BoneTransformBuffer, 0, BufferSize, RLM_WriteOnly);
 	FMemory::Memcpy(Data, BoneMatrixRows.GetData(), BufferSize);
 	FRHICommandListImmediate::Get().UnlockBuffer(BoneTransformBuffer);
+}
+
+void FHktVoxelChunkProxy::SetTileTextures_RenderThread(
+	FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
+	FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler)
+{
+	check(IsInRenderingThread());
+
+	PendingTileArrayRHI = InTileArray;
+	PendingTileArraySamplerRHI = InTileSampler;
+	PendingTileIndexLUTRHI = InTileIndexLUT;
+	PendingTileIndexLUTSamplerRHI = InLUTSampler;
+
+	if (VertexFactory)
+	{
+		VertexFactory->SetTileTextures(InTileArray, InTileSampler, InTileIndexLUT, InLUTSampler);
+	}
+}
+
+void FHktVoxelChunkProxy::SetMaterialLUT_RenderThread(
+	FRHITexture* InLUT, FRHISamplerState* InSampler)
+{
+	check(IsInRenderingThread());
+
+	PendingMaterialLUTRHI = InLUT;
+	PendingMaterialLUTSamplerRHI = InSampler;
+
+	if (VertexFactory)
+	{
+		VertexFactory->SetMaterialLUT(InLUT, InSampler);
+	}
 }

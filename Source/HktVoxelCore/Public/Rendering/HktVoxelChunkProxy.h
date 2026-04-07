@@ -52,6 +52,12 @@ public:
 		const TArray<FHktVoxelVertex>& Vertices,
 		const TArray<uint32>& Indices);
 
+	void SetTileTextures_RenderThread(
+		FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
+		FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
+
+	void SetMaterialLUT_RenderThread(FRHITexture* InLUT, FRHISamplerState* InSampler);
+
 	/** Render Thread에서 호출 — 본 트랜스폼 GPU 버퍼 갱신 (GPU 스키닝) */
 	void UpdateBoneTransforms_RenderThread(const TArray<FVector4f>& BoneMatrixRows);
 
@@ -73,6 +79,13 @@ private:
 	UMaterialInterface* VoxelMaterial = nullptr;
 	int32 NumIndices = 0;
 	int32 NumVertices = 0;
+
+	FRHITexture* PendingTileArrayRHI = nullptr;
+	FRHISamplerState* PendingTileArraySamplerRHI = nullptr;
+	FRHITexture* PendingTileIndexLUTRHI = nullptr;
+	FRHISamplerState* PendingTileIndexLUTSamplerRHI = nullptr;
+	FRHITexture* PendingMaterialLUTRHI = nullptr;
+	FRHISamplerState* PendingMaterialLUTSamplerRHI = nullptr;
 
 	/** GPU 스키닝용 본 트랜스폼 버퍼 (float4 × 3 per bone) */
 	FBufferRHIRef BoneTransformBuffer;

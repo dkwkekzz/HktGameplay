@@ -12,6 +12,56 @@
 
 struct FHktTerrainGeneratorConfig;
 class UHktVoxelChunkComponent;
+class UHktVoxelTileAtlas;
+class UHktVoxelMaterialLUT;
+
+/**
+ * FHktVoxelBlockStyle — TypeID별 시각 정의
+ *
+ * 에디터에서 블록 타입별 텍스처(Top/Side/Bottom)와 PBR 속성을 지정한다.
+ * TerrainActor가 BeginPlay에서 이 배열을 Texture2DArray + MaterialLUT로 빌드.
+ */
+USTRUCT(BlueprintType)
+struct FHktVoxelBlockStyle
+{
+	GENERATED_BODY()
+
+	/** 대응하는 복셀 TypeID (HktTerrainType 참조) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Block")
+	int32 TypeID = 0;
+
+	/** 블록 이름 (에디터 표시용) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Block")
+	FString DisplayName;
+
+	// --- 텍스처 (면 방향별) ---
+
+	/** +Z(위) 면 텍스처. nullptr이면 SideTexture 사용 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
+	TObjectPtr<UTexture2D> TopTexture;
+
+	/** ±X/±Y(옆) 면 텍스처. 필수 — nullptr이면 팔레트 폴백 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
+	TObjectPtr<UTexture2D> SideTexture;
+
+	/** -Z(아래) 면 텍스처. nullptr이면 SideTexture 사용 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
+	TObjectPtr<UTexture2D> BottomTexture;
+
+	// --- PBR 속성 ---
+
+	/** 표면 거칠기 (0=매끈/반사, 1=거침/매트) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Roughness = 0.8f;
+
+	/** 금속성 (0=비금속, 1=금속) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Metallic = 0.0f;
+
+	/** 스페큘러 반사 강도 (0=없음, 1=최대) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Specular = 0.5f;
+};
 
 /**
  * AHktVoxelTerrainActor
@@ -72,6 +122,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
 	TObjectPtr<UMaterialInterface> TerrainMaterial;
 
+	// === 블록 스타일 (Phase 1+2: 타일 텍스처 + PBR) ===
+
+	/**
+	 * 블록 타입별 시각 정의.
+	 * TypeID별 텍스처(Top/Side/Bottom)와 PBR(Roughness/Metallic/Specular)을 지정.
+	 * BeginPlay에서 자동으로 Texture2DArray + MaterialLUT로 빌드된다.
+	 * 비어있으면 기존 팔레트 렌더링 그대로 동작.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Style",
+		meta = (TitleProperty = "{DisplayName} (ID:{TypeID})"))
+	TArray<FHktVoxelBlockStyle> BlockStyles;
+
 	/** 컴포넌트 풀 초기 크기 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 16, ClampMax = 2048))
 	int32 InitialPoolSize = 64;
@@ -125,6 +187,12 @@ private:
 	void ReleaseComponent(UHktVoxelChunkComponent* Comp);
 	void PrewarmPool(int32 Count);
 
+	/** BlockStyles 배열로부터 Texture2DArray + LUT + MaterialLUT를 빌드 */
+	void BuildTerrainStyle();
+
+	/** 청크 컴포넌트에 타일/머티리얼 텍스처를 적용 */
+	void ApplyStyleToComponent(UHktVoxelChunkComponent* Comp);
+
 	// === 내부 상태 ===
 
 	TUniquePtr<FHktVoxelRenderCache> TerrainCache;
@@ -140,4 +208,15 @@ private:
 
 	/** 청크 월드 크기 (32 * VoxelSize). VoxelSize = 100 UE 유닛 기준 = 3200 */
 	static constexpr float ChunkWorldSize = 32.f * 100.f;
+
+	// === 스타일 빌드 결과 (BeginPlay에서 생성) ===
+
+	UPROPERTY(Transient)
+	TObjectPtr<UHktVoxelTileAtlas> BuiltTileAtlas;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UHktVoxelMaterialLUT> BuiltMaterialLUT;
+
+	/** 스타일이 빌드되었는지 (BlockStyles가 비어있으면 false → 기존 팔레트 폴백) */
+	bool bStyleBuilt = false;
 };

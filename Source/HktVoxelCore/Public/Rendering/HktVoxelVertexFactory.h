@@ -51,6 +51,23 @@ public:
 	FRHISamplerState* PaletteSamplerRHI = nullptr;
 	FRHIShaderResourceView* BoneTransformSRV = nullptr;
 
+	// --- Tile Texture (Phase 1: 타일 아틀라스) ---
+	FRHITexture* TileArrayRHI = nullptr;           // Texture2DArray — 타일 텍스처
+	FRHISamplerState* TileArraySamplerRHI = nullptr;
+	FRHITexture* TileIndexLUTRHI = nullptr;         // 256×3 R8 — TypeID→슬라이스 LUT
+	FRHISamplerState* TileIndexLUTSamplerRHI = nullptr;
+
+	/** 타일 텍스처 설정 — nullptr이면 타일 비활성 (기존 팔레트 폴백) */
+	void SetTileTextures(FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
+	                     FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
+
+	// --- Material LUT (Phase 2: PBR 질감 차별화) ---
+	FRHITexture* MaterialLUTRHI = nullptr;           // 256×1 RGBA8 — TypeID별 PBR 속성
+	FRHISamplerState* MaterialLUTSamplerRHI = nullptr;
+
+	/** 머티리얼 LUT 설정 — nullptr이면 기존 하드코딩 PBR 폴백 */
+	void SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler);
+
 private:
 	FDataType Data;
 };
