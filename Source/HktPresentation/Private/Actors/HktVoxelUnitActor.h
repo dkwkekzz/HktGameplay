@@ -23,7 +23,8 @@ struct FHktVoxelBoneGroup;
  * 복셀 캐릭터/유닛용 Actor.
  *
  * 기존 AHktUnitActor(SkeletalMesh 기반)의 복셀 버전.
- * UHktVoxelChunkComponent를 사용하여 Greedy Meshed 복셀 캐릭터를 렌더링한다.
+ * 단일 UHktVoxelChunkComponent + GPU 스키닝으로 스켈레톤 애니메이션을 구현한다.
+ * HiddenSkeleton이 본 트랜스폼을 구동하고, 셰이더에서 버텍스별 본 트랜스폼을 적용.
  *
  * 스킨 조합: FHktVoxelSkinAssembler로 7레이어(Body~Weapon) 조합
  * 팔레트 교체: 재메싱 없이 PaletteRow 변경만으로 색상 즉시 전환
@@ -68,11 +69,11 @@ private:
 	/** 메싱 완료 콜백 → GPU 업로드 */
 	void PollMeshReady();
 
-	/** 본별 청크 초기화 (본-리지드 애니메이션 모드 진입) */
-	void InitializeBoneChunks(const TArray<FHktVoxelBoneGroup>& BoneGroups);
+	/** GPU 스키닝 모드 초기화 — 본 인덱스 맵을 청크에 기록 */
+	void InitializeGPUSkinning(const TArray<FHktVoxelBoneGroup>& BoneGroups);
 
-	/** 본별 청크 해제 (정적 모드로 복귀) */
-	void TeardownBoneChunks();
+	/** 매 프레임 본 트랜스폼을 BodyChunk에 전달 */
+	void UpdateBoneTransformsFromSkeleton();
 
 	/** HiddenSkeleton의 AnimInstance 캐시 반환 */
 	UHktAnimInstance* GetAnimInstance();
@@ -81,7 +82,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Voxel")
 	TObjectPtr<USceneComponent> RootScene;
 
-	/** 단일 청크 (정적 모드 / 폴백) */
+	/** 단일 복셀 청크 — 정적 모드와 GPU 스키닝 모드 모두 사용 */
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Voxel")
 	TObjectPtr<UHktVoxelChunkComponent> BodyChunk;
 
@@ -89,14 +90,8 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Voxel")
 	TObjectPtr<USkeletalMeshComponent> HiddenSkeleton;
 
-	/** 본별 청크 컴포넌트 (본-리지드 모드) */
-	TMap<FName, TObjectPtr<UHktVoxelChunkComponent>> BoneChunks;
-
-	/** 본별 청크 좌표 — 공유 RenderCache에서 본 구분용 */
-	TMap<FName, FIntVector> BoneChunkCoords;
-
-	/** 본-리지드 모드 활성 여부 */
-	bool bBoneAnimatedMode = false;
+	/** GPU 스키닝 활성 여부 */
+	bool bGPUSkinningActive = false;
 
 	// --- Voxel Data ---
 	TSharedPtr<FHktVoxelRenderCache> EntityRenderCache;
@@ -105,7 +100,7 @@ private:
 
 	// --- Default Voxel Skin Assets (에디터/블루프린트에서 설정) ---
 
-	/** 레이어별 기본 복셀 스킨 에셋 (본-리지드 데이터를 포함해야 스켈레톤 애니메이션 활성화) */
+	/** 레이어별 기본 복셀 스킨 에셋 (BoneGroups 포함 시 GPU 스키닝 활성화) */
 	UPROPERTY(EditDefaultsOnly, Category = "HKT|VoxelSkin")
 	TObjectPtr<UHktVoxelSkinLayerAsset> DefaultBodyAsset;
 
@@ -117,6 +112,9 @@ private:
 
 	/** 레이어 → 기본 에셋 매핑 헬퍼 */
 	UHktVoxelSkinLayerAsset* GetDefaultAssetForLayer(EHktVoxelSkinLayer::Type Layer) const;
+
+	/** GPU 스키닝: 본 이름 → 본 인덱스(1~) 매핑 */
+	TMap<FName, uint8> BoneNameToIndex;
 
 	// --- Cached State ---
 	FHktEntityId CachedEntityId = InvalidEntityId;

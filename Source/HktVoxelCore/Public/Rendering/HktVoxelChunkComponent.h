@@ -31,6 +31,13 @@ public:
 	/** 메싱 완료 시 호출 → SceneProxy에 새 메시 데이터 전달 (ENQUEUE_RENDER_COMMAND) */
 	void OnMeshReady();
 
+	/**
+	 * GPU 스키닝용 본 트랜스폼 업데이트 — 매 프레임 Tick에서 호출.
+	 * 3x4 affine matrix × NumBones. float4 × 3 per bone.
+	 * 인덱스 0은 identity(루트/스키닝 없음), 유효 본은 인덱스 1~.
+	 */
+	void UpdateBoneTransforms(const TArray<FVector4f>& BoneMatrixRows);
+
 	/** 청크 좌표 반환 */
 	FIntVector GetChunkCoord() const { return ChunkCoord; }
 

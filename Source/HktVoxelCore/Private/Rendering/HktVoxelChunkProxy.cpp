@@ -168,4 +168,42 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 		&VertexBufferWrapper, 4, sizeof(FHktVoxelVertex), VET_UInt);
 
 	VertexFactory->SetData(VFData);
+
+	// 기존 본 트랜스폼 SRV가 있으면 재바인딩
+	if (BoneTransformSRV.IsValid())
+	{
+		VertexFactory->SetBoneTransformSRV(BoneTransformSRV);
+	}
+}
+
+void FHktVoxelChunkProxy::UpdateBoneTransforms_RenderThread(const TArray<FVector4f>& BoneMatrixRows)
+{
+	check(IsInRenderingThread());
+
+	if (BoneMatrixRows.Num() == 0)
+	{
+		return;
+	}
+
+	const uint32 BufferSize = BoneMatrixRows.Num() * sizeof(FVector4f);
+
+	// 버퍼 생성 또는 재활용 (크기가 변경될 수 있으므로 매번 재생성)
+	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("HktVoxelBoneTransforms"));
+		BoneTransformBuffer = FRHICommandListImmediate::Get().CreateVertexBuffer(
+			BufferSize, BUF_ShaderResource | BUF_Dynamic, CreateInfo);
+
+		void* Data = FRHICommandListImmediate::Get().LockBuffer(BoneTransformBuffer, 0, BufferSize, RLM_WriteOnly);
+		FMemory::Memcpy(Data, BoneMatrixRows.GetData(), BufferSize);
+		FRHICommandListImmediate::Get().UnlockBuffer(BoneTransformBuffer);
+
+		BoneTransformSRV = FRHICommandListImmediate::Get().CreateShaderResourceView(
+			BoneTransformBuffer, sizeof(FVector4f), PF_A32B32G32R32F);
+	}
+
+	// Vertex Factory에 SRV 바인딩
+	if (VertexFactory)
+	{
+		VertexFactory->SetBoneTransformSRV(BoneTransformSRV);
+	}
 }

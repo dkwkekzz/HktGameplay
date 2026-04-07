@@ -17,7 +17,6 @@ const FIntVector AHktVoxelUnitActor::EntityChunkCoord = FIntVector::ZeroValue;
 
 AHktVoxelUnitActor::~AHktVoxelUnitActor()
 {
-	// TUniquePtr<FHktVoxelMeshScheduler> 소멸을 위해 명시적 정의 (complete type 필요)
 	MeshScheduler.Reset();
 }
 
@@ -30,47 +29,39 @@ AHktVoxelUnitActor::AHktVoxelUnitActor()
 
 	BodyChunk = CreateDefaultSubobject<UHktVoxelChunkComponent>(TEXT("BodyChunk"));
 	BodyChunk->SetupAttachment(RootScene);
-	// 오프셋은 BeginPlay에서 Initialize() 이후에 설정 (Initialize가 덮어쓰기 때문)
 
-	// 숨긴 스켈레톤 — 본-리지드 모드에서 본 트랜스폼 구동용
+	// 숨긴 스켈레톤 — GPU 스키닝 모드에서 본 트랜스폼 구동용
 	HiddenSkeleton = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HiddenSkeleton"));
 	HiddenSkeleton->SetupAttachment(RootScene);
 	HiddenSkeleton->SetVisibility(false);
 	HiddenSkeleton->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	HiddenSkeleton->SetComponentTickEnabled(false);  // 본 모드 활성화 시 true로 전환
+	HiddenSkeleton->SetComponentTickEnabled(false);
 }
 
 void AHktVoxelUnitActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 엔티티 전용 렌더 캐시 생성 (월드 복셀과 독립)
 	EntityRenderCache = MakeShared<FHktVoxelRenderCache>();
 
-	// 메싱 스케줄러 생성
 	MeshScheduler = MakeUnique<FHktVoxelMeshScheduler>(EntityRenderCache.Get());
-	MeshScheduler->SetMaxMeshPerFrame(1);  // 엔티티 복셀은 1청크뿐
+	MeshScheduler->SetMaxMeshPerFrame(1);
 
-	// 청크 컴포넌트를 렌더 캐시에 바인딩
 	BodyChunk->Initialize(EntityRenderCache.Get(), EntityChunkCoord);
 
-	// Initialize()가 오프셋을 (0,0,0)으로 리셋하므로 이후에 다시 설정
-	// 캐릭터 중심(15.5 voxel) * 15 UU = -232.5 → 액터 원점(발 중앙)에 맞춤
 	static constexpr float Offset = -15.5f * FHktVoxelChunk::VOXEL_SIZE;
 	BodyChunk->SetRelativeLocation(FVector(Offset, Offset, 0.f));
 
-	// 초기 복셀 메시 로드
 	InitializeVoxelMesh();
 
-	OnSkinSetChanged(0);   // SkinSetID=0, DefaultAsset이 있으면 본 모드 진입
-	OnPaletteChanged(0);   // 팔레트 0번 행 (기본 흰색)
+	OnSkinSetChanged(0);
+	OnPaletteChanged(0);
 }
 
 void AHktVoxelUnitActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 위치 보간 (기존 AHktUnitActor와 동일한 패턴)
 	constexpr float InterpSpeed = 15.f;
 	InterpLocation = FMath::VInterpTo(InterpLocation, CachedRenderLocation, DeltaTime, InterpSpeed);
 	InterpRotation = FMath::RInterpTo(InterpRotation, CachedRotation, DeltaTime, InterpSpeed);
@@ -79,41 +70,22 @@ void AHktVoxelUnitActor::Tick(float DeltaTime)
 		InterpLocation, InterpRotation,
 		false, nullptr, ETeleportType::TeleportPhysics);
 
-	// 메싱 스케줄링 (dirty 청크가 있으면 비동기 메싱)
 	if (MeshScheduler)
 	{
 		MeshScheduler->Tick(InterpLocation);
 	}
 
-	// 메싱 완료 시 GPU 업로드
 	PollMeshReady();
 
-	// [DEBUG] 파이프라인 추적 — 릴리스 전 제거
-	if (EntityRenderCache)
+	// GPU 스키닝: 매 프레임 본 트랜스폼 업데이트
+	if (bGPUSkinningActive)
 	{
-		FHktVoxelChunk* DbgChunk = EntityRenderCache->GetChunk(EntityChunkCoord);
-		if (DbgChunk)
-		{
-			static int32 DbgFrame = 0;
-			if (++DbgFrame <= 300 && DbgFrame % 30 == 0)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[VoxelUnit] Frame=%d bMeshDirty=%d bMeshReady=%d OpaqueVerts=%d"),
-					DbgFrame,
-					(int32)DbgChunk->bMeshDirty.load(),
-					(int32)DbgChunk->bMeshReady.load(),
-					DbgChunk->OpaqueVertices.Num());
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[VoxelUnit] Chunk not found in cache!"));
-		}
+		UpdateBoneTransformsFromSkeleton();
 	}
 }
 
 void AHktVoxelUnitActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	TeardownBoneChunks();
 	MeshScheduler.Reset();
 	EntityRenderCache.Reset();
 	Super::EndPlay(EndPlayReason);
@@ -133,8 +105,8 @@ void AHktVoxelUnitActor::ApplyPresentation(
 		InterpRotation = CachedRotation;
 	}
 
-	// --- 본-리지드 애니메이션 포워딩 ---
-	if (bBoneAnimatedMode)
+	// --- 애니메이션 포워딩 (GPU 스키닝 모드) ---
+	if (bGPUSkinningActive)
 	{
 		UHktAnimInstance* HktAnim = GetAnimInstance();
 		if (HktAnim)
@@ -180,7 +152,6 @@ void AHktVoxelUnitActor::ApplyPresentation(
 	}
 
 	// --- 복셀 스킨 변경 감지 ---
-	// VoxelSkinSet 변경 → 전체 재조합 + 재메싱 (레이어 교체)
 	if (bForceAll || Entity.VoxelSkinSet.IsDirty(Frame))
 	{
 		uint16 NewSkinSet = static_cast<uint16>(Entity.VoxelSkinSet.Get());
@@ -190,7 +161,6 @@ void AHktVoxelUnitActor::ApplyPresentation(
 		}
 	}
 
-	// VoxelPalette 변경 → 팔레트만 교체 (재메싱 불필요, GPU 파라미터만 변경)
 	if (bForceAll || Entity.VoxelPalette.IsDirty(Frame))
 	{
 		uint8 NewPalette = static_cast<uint8>(Entity.VoxelPalette.Get());
@@ -219,7 +189,7 @@ void AHktVoxelUnitActor::InitializeVoxelMesh()
 		return;
 	}
 
-	// 기본 스킨으로 레이어 설정 — 에디터/블루프린트에서 지정한 에셋 연결
+	// 에디터/블루프린트에서 지정한 에셋 연결
 	auto SetupLayer = [this](EHktVoxelSkinLayer::Type Layer)
 	{
 		UHktVoxelSkinLayerAsset* Asset = GetDefaultAssetForLayer(Layer);
@@ -238,7 +208,7 @@ void AHktVoxelUnitActor::InitializeVoxelMesh()
 	SetupLayer(EHktVoxelSkinLayer::Head);
 	SetupLayer(EHktVoxelSkinLayer::Armor);
 
-	// 에셋이 하나도 없으면 프로시저럴 폴백 (기존 동작 유지)
+	// 에셋이 하나도 없으면 프로시저럴 폴백
 	if (!SkinAssembler.GetLayer(EHktVoxelSkinLayer::Body))
 	{
 		FHktVoxelSkinLayerData BodyLayer;
@@ -249,12 +219,11 @@ void AHktVoxelUnitActor::InitializeVoxelMesh()
 		SkinAssembler.SetLayer(EHktVoxelSkinLayer::Body, BodyLayer);
 	}
 
-	// 스킨 조합 → 청크 데이터 생성
+	// 스킨 조합 → 단일 청크
 	FHktVoxelChunk TempChunk;
 	TempChunk.ChunkCoord = EntityChunkCoord;
 	SkinAssembler.Assemble(TempChunk);
 
-	// 렌더 캐시에 청크 로드 (LoadChunk가 dirty 마킹)
 	const int32 VoxelCount = FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE;
 	EntityRenderCache->LoadChunk(EntityChunkCoord, &TempChunk.Data[0][0][0], VoxelCount);
 }
@@ -263,7 +232,6 @@ void AHktVoxelUnitActor::OnSkinSetChanged(uint16 NewSkinSetID)
 {
 	CachedSkinSetID = NewSkinSetID;
 
-	// 모든 레이어의 SkinSetID 갱신
 	for (int32 i = 0; i < EHktVoxelSkinLayer::Count; i++)
 	{
 		auto Layer = static_cast<EHktVoxelSkinLayer::Type>(i);
@@ -281,10 +249,9 @@ void AHktVoxelUnitActor::OnSkinSetChanged(uint16 NewSkinSetID)
 		return;
 	}
 
-	// 에셋에 본 데이터가 있으면 본-리지드 모드로 전환
+	// 에셋에 본 데이터가 있으면 GPU 스키닝 모드로 전환
 	if (SkinAssembler.HasAnyBoneData())
 	{
-		// 첫 번째 본 에셋에서 BoneGroup 정보 추출
 		TArray<FHktVoxelBoneGroup> AllBoneGroups;
 		for (int32 i = 0; i < EHktVoxelSkinLayer::Count; i++)
 		{
@@ -296,17 +263,19 @@ void AHktVoxelUnitActor::OnSkinSetChanged(uint16 NewSkinSetID)
 			}
 		}
 
-		InitializeBoneChunks(AllBoneGroups);
+		InitializeGPUSkinning(AllBoneGroups);
 	}
 	else
 	{
-		// 정적 모드로 복귀
-		if (bBoneAnimatedMode)
+		// 정적 모드
+		bGPUSkinningActive = false;
+		BoneNameToIndex.Empty();
+
+		if (HiddenSkeleton)
 		{
-			TeardownBoneChunks();
+			HiddenSkeleton->SetComponentTickEnabled(false);
 		}
 
-		// 재조합 + 렌더 캐시 갱신 → dirty 마킹 → MeshScheduler가 비동기 메싱
 		FHktVoxelChunk TempChunk;
 		TempChunk.ChunkCoord = EntityChunkCoord;
 		SkinAssembler.Assemble(TempChunk);
@@ -320,18 +289,7 @@ void AHktVoxelUnitActor::OnPaletteChanged(uint8 NewPaletteRow)
 {
 	CachedPaletteRow = NewPaletteRow;
 
-	// 팔레트 변경은 재메싱 불필요 — GPU에서 팔레트 텍스처 룩업으로 처리
-	if (bBoneAnimatedMode)
-	{
-		for (auto& [BoneName, Comp] : BoneChunks)
-		{
-			if (Comp)
-			{
-				Comp->SetCustomPrimitiveDataFloat(0, static_cast<float>(NewPaletteRow));
-			}
-		}
-	}
-	else if (BodyChunk)
+	if (BodyChunk)
 	{
 		BodyChunk->SetCustomPrimitiveDataFloat(0, static_cast<float>(NewPaletteRow));
 	}
@@ -339,43 +297,21 @@ void AHktVoxelUnitActor::OnPaletteChanged(uint8 NewPaletteRow)
 
 void AHktVoxelUnitActor::PollMeshReady()
 {
-	if (!EntityRenderCache)
+	if (!EntityRenderCache || !BodyChunk)
 	{
 		return;
 	}
 
-	if (bBoneAnimatedMode)
+	FHktVoxelChunk* Chunk = EntityRenderCache->GetChunk(EntityChunkCoord);
+	if (Chunk && Chunk->bMeshReady.load(std::memory_order_acquire))
 	{
-		// 본-리지드 모드: 각 본 청크에 대해 메싱 완료 확인
-		for (auto& [BoneName, ChunkCoord] : BoneChunkCoords)
-		{
-			FHktVoxelChunk* Chunk = EntityRenderCache->GetChunk(ChunkCoord);
-			if (Chunk && Chunk->bMeshReady.load(std::memory_order_acquire))
-			{
-				Chunk->bMeshReady.store(false, std::memory_order_relaxed);
-				if (auto* Comp = BoneChunks.Find(BoneName))
-				{
-					(*Comp)->OnMeshReady();
-				}
-			}
-		}
-	}
-	else
-	{
-		// 정적 모드: 단일 BodyChunk
-		if (!BodyChunk) return;
-
-		FHktVoxelChunk* Chunk = EntityRenderCache->GetChunk(EntityChunkCoord);
-		if (Chunk && Chunk->bMeshReady.load(std::memory_order_acquire))
-		{
-			Chunk->bMeshReady.store(false, std::memory_order_relaxed);
-			BodyChunk->OnMeshReady();
-		}
+		Chunk->bMeshReady.store(false, std::memory_order_relaxed);
+		BodyChunk->OnMeshReady();
 	}
 }
 
 // ============================================================================
-// 본-리지드 애니메이션
+// GPU 스키닝
 // ============================================================================
 
 UHktAnimInstance* AHktVoxelUnitActor::GetAnimInstance()
@@ -387,20 +323,16 @@ UHktAnimInstance* AHktVoxelUnitActor::GetAnimInstance()
 	return CachedAnimInstance.Get();
 }
 
-void AHktVoxelUnitActor::InitializeBoneChunks(const TArray<FHktVoxelBoneGroup>& BoneGroups)
+void AHktVoxelUnitActor::InitializeGPUSkinning(const TArray<FHktVoxelBoneGroup>& BoneGroups)
 {
-	// 기존 본 청크가 있으면 해제
-	TeardownBoneChunks();
-
 	if (BoneGroups.Num() == 0 || !EntityRenderCache)
 	{
 		return;
 	}
 
-	// HiddenSkeleton에 SkeletalMesh가 없으면 VoxelLayerAsset의 SourceMesh에서 로드
+	// HiddenSkeleton에 SkeletalMesh 설정
 	if (HiddenSkeleton && !HiddenSkeleton->GetSkeletalMeshAsset())
 	{
-		// 본 데이터가 있는 레이어 에셋에서 SourceMesh 참조 찾기
 		for (int32 i = 0; i < EHktVoxelSkinLayer::Count; i++)
 		{
 			const FHktVoxelSkinLayerData* LayerData = SkinAssembler.GetLayer(static_cast<EHktVoxelSkinLayer::Type>(i));
@@ -410,128 +342,119 @@ void AHktVoxelUnitActor::InitializeBoneChunks(const TArray<FHktVoxelBoneGroup>& 
 				if (SkelMesh)
 				{
 					HiddenSkeleton->SetSkeletalMeshAsset(SkelMesh);
-					UE_LOG(LogTemp, Log, TEXT("[VoxelUnit] HiddenSkeleton: SkeletalMesh set from VoxelLayerAsset SourceMesh"));
 					break;
 				}
 			}
 		}
-
-		if (!HiddenSkeleton->GetSkeletalMeshAsset())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[VoxelUnit] InitializeBoneChunks: HiddenSkeleton has no SkeletalMesh — bone attachment will fail!"));
-		}
 	}
 
-	// 정적 BodyChunk 숨기기
-	if (BodyChunk)
-	{
-		BodyChunk->SetVisibility(false);
-	}
-
-	// HiddenSkeleton 활성화
 	if (HiddenSkeleton)
 	{
 		HiddenSkeleton->SetComponentTickEnabled(true);
 	}
 
-	// 메시 스케줄러를 다중 본 처리에 맞게 조정
-	if (MeshScheduler)
-	{
-		MeshScheduler->SetMaxMeshPerFrame(4);
-	}
-
-	int32 BoneIndex = 0;
+	// 본 이름 → 인덱스 매핑 구축 (인덱스 0 = identity/루트, 유효 본은 1~)
+	BoneNameToIndex.Empty();
+	uint8 NextBoneIndex = 1;
 	for (const FHktVoxelBoneGroup& BoneGroup : BoneGroups)
 	{
-		if (BoneGroup.Voxels.Num() == 0)
+		if (BoneGroup.Voxels.Num() > 0 && !BoneNameToIndex.Contains(BoneGroup.BoneName))
 		{
+			BoneNameToIndex.Add(BoneGroup.BoneName, NextBoneIndex);
+			NextBoneIndex++;
+			if (NextBoneIndex >= 128) break;  // 7비트 한계
+		}
+	}
+
+	// 복셀 조합 + 본 인덱스 맵을 단일 청크에 기록
+	FHktVoxelChunk TempChunk;
+	TempChunk.ChunkCoord = EntityChunkCoord;
+	FMemory::Memzero(TempChunk.Data, sizeof(TempChunk.Data));
+	TempChunk.AllocBoneIndices();
+
+	// 에셋의 SparseVoxels를 청크에 기록 (모든 레이어 조합)
+	SkinAssembler.Assemble(TempChunk);
+
+	// 본 인덱스 맵 기록 — BoneGroups에서 각 복셀 위치에 본 인덱스 할당
+	for (const FHktVoxelBoneGroup& BoneGroup : BoneGroups)
+	{
+		const uint8* BoneIdxPtr = BoneNameToIndex.Find(BoneGroup.BoneName);
+		if (!BoneIdxPtr) continue;
+		const uint8 BoneIdx = *BoneIdxPtr;
+
+		for (const FHktVoxelSparse& V : BoneGroup.Voxels)
+		{
+			// BoneGroup의 로컬 좌표는 원본 32^3 공간 기준
+			if (V.X < FHktVoxelChunk::SIZE && V.Y < FHktVoxelChunk::SIZE && V.Z < FHktVoxelChunk::SIZE)
+			{
+				TempChunk.SetBoneIndex(V.X, V.Y, V.Z, BoneIdx);
+			}
+		}
+	}
+
+	// 캐시에 로드 (BoneIndices 포함 — 메싱 시 버텍스에 패킹됨)
+	const int32 VoxelCount = FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE;
+
+	// LoadChunk는 Data만 복사하므로, BoneIndices는 별도로 전달해야 한다.
+	// 직접 청크에 접근하여 BoneIndices를 설정
+	EntityRenderCache->LoadChunk(EntityChunkCoord, &TempChunk.Data[0][0][0], VoxelCount);
+
+	// 캐시의 청크에 본 인덱스 맵 전달
+	FHktVoxelChunk* CachedChunk = EntityRenderCache->GetChunk(EntityChunkCoord);
+	if (CachedChunk && TempChunk.BoneIndices)
+	{
+		CachedChunk->AllocBoneIndices();
+		FMemory::Memcpy(CachedChunk->BoneIndices.Get(), TempChunk.BoneIndices.Get(),
+			FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE);
+		// dirty 마킹하여 본 인덱스 포함 재메싱 트리거
+		CachedChunk->bMeshDirty.store(true, std::memory_order_release);
+	}
+
+	bGPUSkinningActive = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[VoxelUnit] GPU Skinning initialized: %d bones"), BoneNameToIndex.Num());
+}
+
+void AHktVoxelUnitActor::UpdateBoneTransformsFromSkeleton()
+{
+	if (!HiddenSkeleton || !HiddenSkeleton->GetSkeletalMeshAsset() || BoneNameToIndex.Num() == 0)
+	{
+		return;
+	}
+
+	// 본 트랜스폼 배열 구성: float4 × 3 per bone (3x4 affine matrix)
+	// 인덱스 0 = identity, 유효 본 인덱스는 1~
+	const int32 NumBones = BoneNameToIndex.Num() + 1;  // +1 for index 0
+	TArray<FVector4f> BoneMatrixRows;
+	BoneMatrixRows.SetNumZeroed(NumBones * 3);
+
+	// 인덱스 0 = identity matrix
+	BoneMatrixRows[0] = FVector4f(1, 0, 0, 0);
+	BoneMatrixRows[1] = FVector4f(0, 1, 0, 0);
+	BoneMatrixRows[2] = FVector4f(0, 0, 1, 0);
+
+	const TArray<FTransform>& SpaceBases = HiddenSkeleton->GetComponentSpaceTransforms();
+
+	for (const auto& [BoneName, BoneIdx] : BoneNameToIndex)
+	{
+		const int32 SkeletonBoneIndex = HiddenSkeleton->GetBoneIndex(BoneName);
+		if (SkeletonBoneIndex == INDEX_NONE || SkeletonBoneIndex >= SpaceBases.Num())
+		{
+			// Identity 폴백
+			const int32 Base = BoneIdx * 3;
+			BoneMatrixRows[Base + 0] = FVector4f(1, 0, 0, 0);
+			BoneMatrixRows[Base + 1] = FVector4f(0, 1, 0, 0);
+			BoneMatrixRows[Base + 2] = FVector4f(0, 0, 1, 0);
 			continue;
 		}
 
-		// 고유 청크 좌표 할당 (공유 캐시에서 본 구분)
-		const FIntVector ChunkCoord(BoneIndex + 1, 0, 0);  // 0은 EntityChunkCoord 예약
-
-		// 청크 컴포넌트 생성
-		UHktVoxelChunkComponent* BoneComp = NewObject<UHktVoxelChunkComponent>(this);
-		BoneComp->RegisterComponent();
-
-		// HiddenSkeleton의 본 소켓에 어태치
-		BoneComp->AttachToComponent(HiddenSkeleton,
-			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-			BoneGroup.BoneName);
-
-		// 렌더 캐시에 바인딩
-		BoneComp->Initialize(EntityRenderCache.Get(), ChunkCoord);
-
-		// 복셀 데이터를 임시 청크에 기록 → 캐시에 로드
-		FHktVoxelChunk TempChunk;
-		FMemory::Memzero(TempChunk.Data, sizeof(TempChunk.Data));
-		TempChunk.ChunkCoord = ChunkCoord;
-		UHktVoxelSkinLayerAsset::WriteBoneGroupToChunk(TempChunk, BoneGroup, CachedPaletteRow);
-
-		const int32 VoxelCount = FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE;
-		EntityRenderCache->LoadChunk(ChunkCoord, &TempChunk.Data[0][0][0], VoxelCount);
-
-		// 복셀이 본 기준 올바른 위치에 나타나도록 오프셋 설정
-		// 원본 32^3 공간에서의 복셀 월드 위치 - 본 레퍼런스 포즈 위치
-		static constexpr float VoxelSize = FHktVoxelChunk::VOXEL_SIZE;
-		static constexpr float HalfChunk = 15.5f * VoxelSize;
-		const FVector VoxelOriginWorld = FVector(
-			BoneGroup.LocalOrigin.X * VoxelSize - HalfChunk,
-			BoneGroup.LocalOrigin.Y * VoxelSize - HalfChunk,
-			BoneGroup.LocalOrigin.Z * VoxelSize);
-		const FVector BoneOffset = VoxelOriginWorld - BoneGroup.RefPoseBonePos;
-		BoneComp->SetRelativeLocation(BoneOffset);
-
-		// 팔레트 설정
-		BoneComp->SetCustomPrimitiveDataFloat(0, static_cast<float>(CachedPaletteRow));
-
-		// 맵에 등록
-		BoneChunks.Add(BoneGroup.BoneName, BoneComp);
-		BoneChunkCoords.Add(BoneGroup.BoneName, ChunkCoord);
-
-		BoneIndex++;
+		// Component-space 본 트랜스폼 → 3x4 행렬
+		const FMatrix44f BoneMatrix = FMatrix44f(SpaceBases[SkeletonBoneIndex].ToMatrixWithScale());
+		const int32 Base = BoneIdx * 3;
+		BoneMatrixRows[Base + 0] = FVector4f(BoneMatrix.M[0][0], BoneMatrix.M[0][1], BoneMatrix.M[0][2], BoneMatrix.M[0][3]);
+		BoneMatrixRows[Base + 1] = FVector4f(BoneMatrix.M[1][0], BoneMatrix.M[1][1], BoneMatrix.M[1][2], BoneMatrix.M[1][3]);
+		BoneMatrixRows[Base + 2] = FVector4f(BoneMatrix.M[2][0], BoneMatrix.M[2][1], BoneMatrix.M[2][2], BoneMatrix.M[2][3]);
 	}
 
-	bBoneAnimatedMode = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[VoxelUnit] InitializeBoneChunks: %d bone chunks created"), BoneChunks.Num());
-}
-
-void AHktVoxelUnitActor::TeardownBoneChunks()
-{
-	for (auto& [BoneName, Comp] : BoneChunks)
-	{
-		if (Comp)
-		{
-			// 캐시에서 해당 청크 언로드
-			if (auto* CoordPtr = BoneChunkCoords.Find(BoneName))
-			{
-				if (EntityRenderCache)
-				{
-					EntityRenderCache->UnloadChunk(*CoordPtr);
-				}
-			}
-			Comp->DestroyComponent();
-		}
-	}
-
-	BoneChunks.Empty();
-	BoneChunkCoords.Empty();
-	bBoneAnimatedMode = false;
-	CachedAnimInstance.Reset();
-
-	// 정적 모드 복원
-	if (BodyChunk)
-	{
-		BodyChunk->SetVisibility(true);
-	}
-	if (HiddenSkeleton)
-	{
-		HiddenSkeleton->SetComponentTickEnabled(false);
-	}
-	if (MeshScheduler)
-	{
-		MeshScheduler->SetMaxMeshPerFrame(1);
-	}
+	BodyChunk->UpdateBoneTransforms(BoneMatrixRows);
 }
