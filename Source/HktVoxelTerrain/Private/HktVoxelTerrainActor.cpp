@@ -15,6 +15,7 @@
 #include "Engine/Texture2DArray.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
+#include "RenderingThread.h"
 #include "RHIStaticStates.h"
 #include "TextureResource.h"
 
@@ -70,6 +71,16 @@ void AHktVoxelTerrainActor::BeginPlay()
 
 void AHktVoxelTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// 1. 워커 태스크 완료 대기 — 태스크가 raw FHktVoxelChunk* 캡처하므로 청크 해제 전 필수
+	if (TerrainMeshScheduler)
+	{
+		TerrainMeshScheduler->Flush();
+	}
+
+	// 2. OnMeshReady가 큐잉한 렌더 커맨드 완료 대기 — Proxy 참조 커맨드 처리 후 파괴
+	FlushRenderingCommands();
+
+	// 3. 컴포넌트 파괴 → Proxy가 렌더 스레드 지연 삭제 큐에 등록됨
 	for (auto& Pair : ActiveChunks)
 	{
 		if (Pair.Value)
@@ -88,6 +99,10 @@ void AHktVoxelTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	ComponentPool.Empty();
 
+	// 4. Proxy 지연 삭제 실행 — GPU 버퍼(VB/IB/VertexFactory) 해제 보장
+	FlushRenderingCommands();
+
+	// 5. 나머지 리소스 해제 (Proxy가 이미 삭제된 후이므로 안전)
 	Generator.Reset();
 	TerrainMeshScheduler.Reset();
 	TerrainCache.Reset();
@@ -167,8 +182,16 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 
 void AHktVoxelTerrainActor::ProcessStreamingResults()
 {
-	// 언로드
-	for (const FIntVector& Coord : Streamer->GetChunksToUnload())
+	const TArray<FIntVector>& ChunksToUnload = Streamer->GetChunksToUnload();
+
+	// 언로드 전에 비동기 메싱 태스크 완료 대기
+	// 태스크가 raw FHktVoxelChunk* 캡처하므로 청크 해제 전 반드시 완료해야 함
+	if (ChunksToUnload.Num() > 0 && TerrainMeshScheduler)
+	{
+		TerrainMeshScheduler->Flush();
+	}
+
+	for (const FIntVector& Coord : ChunksToUnload)
 	{
 		TerrainCache->UnloadChunk(Coord);
 
@@ -195,9 +218,10 @@ void AHktVoxelTerrainActor::ProcessMeshReadyChunks()
 {
 	for (auto& Pair : ActiveChunks)
 	{
-		const FHktVoxelChunk* Chunk = TerrainCache->GetChunk(Pair.Key);
+		FHktVoxelChunk* Chunk = TerrainCache->GetChunk(Pair.Key);
 		if (Chunk && Chunk->bMeshReady.load(std::memory_order_acquire))
 		{
+			Chunk->bMeshReady.store(false, std::memory_order_release);
 			Pair.Value->OnMeshReady();
 		}
 	}

@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Components/PrimitiveComponent.h"
+#include "Data/HktVoxelTypes.h"
 #include "HktVoxelChunkComponent.generated.h"
 
 class FHktVoxelRenderCache;
-struct FHktVoxelChunk;
 
 /** 텍스처+샘플러 RHI 쌍 — 타일/머티리얼 텍스처 전달에 공용 */
 struct FHktVoxelTexturePair

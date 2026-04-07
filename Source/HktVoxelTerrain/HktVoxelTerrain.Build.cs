@@ -24,6 +24,8 @@ public class HktVoxelTerrain : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"RHI",
+				"RenderCore",
 				"HktCore",
 				"HktVoxelCore",
 			}

@@ -72,11 +72,10 @@ struct FVertexFactoryInterpolantsVSToPS
 	float3 WorldTangent : TEXCOORD1;
 
 	// Tile Texture (Phase 1)
-	float2 TileUV                       : TEXCOORD2;
-	nointerpolation float  TileSlice    : TEXCOORD3;
-	nointerpolation float  VoxelType    : TEXCOORD4;
-	nointerpolation float  PaletteIdx   : TEXCOORD5;
-	float  AOLight                      : TEXCOORD6;
+	float2 TileUV                               : TEXCOORD2;
+	// x=TileSlice, y=VoxelType, z=PaletteIdx, w=AOLight
+	// TEXCOORD6+ reserved by engine (HitProxy, velocity, etc.)
+	nointerpolation float4 VoxelParams           : TEXCOORD3;
 };
 
 // ============================================================================
@@ -258,10 +257,11 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(
 
 	// Tile Texture (Phase 1)
 	Interpolants.TileUV = Intermediates.TileUV;
-	Interpolants.TileSlice = Intermediates.TileSlice;
-	Interpolants.VoxelType = float(Intermediates.VoxelType);
-	Interpolants.PaletteIdx = float(Intermediates.PaletteIdx);
-	Interpolants.AOLight = Intermediates.AOLight;
+	Interpolants.VoxelParams = float4(
+		Intermediates.TileSlice,
+		float(Intermediates.VoxelType),
+		float(Intermediates.PaletteIdx),
+		Intermediates.AOLight);
 
 	return Interpolants;
 }

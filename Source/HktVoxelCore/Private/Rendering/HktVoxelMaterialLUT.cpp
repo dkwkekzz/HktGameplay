@@ -61,7 +61,7 @@ void UHktVoxelMaterialLUT::BuildLUTTexture()
 	Mip->SizeY = Height;
 
 	Mip->BulkData.Lock(LOCK_READ_WRITE);
-	FColor* TexData = static_cast<FColor*>(Mip->BulkData.Realloc(Width * Height * sizeof(FColor)));
+	FColor* TexData = reinterpret_cast<FColor*>(Mip->BulkData.Realloc(Width * Height * sizeof(FColor)));
 
 	for (int32 i = 0; i < Width; i++)
 	{
