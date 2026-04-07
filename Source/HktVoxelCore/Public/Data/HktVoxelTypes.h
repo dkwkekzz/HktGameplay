@@ -39,6 +39,30 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 
 	FHktVoxel Data[SIZE][SIZE][SIZE];  // ~128KB
 
+	/**
+	 * 선택적 본 인덱스 맵 — GPU 스키닝용.
+	 * 엔티티 복셀에서만 할당. nullptr이면 스키닝 없음 (월드 복셀).
+	 * BoneIndices[X][Y][Z] = 해당 복셀이 귀속된 본 인덱스 (0~127).
+	 */
+	TUniquePtr<uint8[]> BoneIndices;   // SIZE^3 = 32768 bytes (할당 시)
+
+	/** 본 인덱스 맵 할당 (0으로 초기화) */
+	void AllocBoneIndices()
+	{
+		BoneIndices = MakeUnique<uint8[]>(SIZE * SIZE * SIZE);
+		FMemory::Memzero(BoneIndices.Get(), SIZE * SIZE * SIZE);
+	}
+
+	/** 본 인덱스 접근 (맵 할당 시에만 유효) — Data[X][Y][Z]와 동일한 레이아웃 */
+	uint8 GetBoneIndex(int32 X, int32 Y, int32 Z) const
+	{
+		return BoneIndices ? BoneIndices[X * SIZE * SIZE + Y * SIZE + Z] : 0;
+	}
+	void SetBoneIndex(int32 X, int32 Y, int32 Z, uint8 Index)
+	{
+		if (BoneIndices) { BoneIndices[X * SIZE * SIZE + Y * SIZE + Z] = Index; }
+	}
+
 	FIntVector ChunkCoord;             // 청크 좌표 (VM 기준)
 	std::atomic<bool> bMeshDirty{true};   // 재메싱 필요 (Game↔Worker 원자적)
 	std::atomic<bool> bMeshReady{false};  // 메싱 완료, GPU 업로드 대기
@@ -52,7 +76,8 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 
 	FHktVoxelChunk() = default;
 	FHktVoxelChunk(FHktVoxelChunk&& Other) noexcept
-		: ChunkCoord(Other.ChunkCoord)
+		: BoneIndices(MoveTemp(Other.BoneIndices))
+		, ChunkCoord(Other.ChunkCoord)
 		, bMeshDirty(Other.bMeshDirty.load(std::memory_order_relaxed))
 		, bMeshReady(Other.bMeshReady.load(std::memory_order_relaxed))
 		, MeshGeneration(Other.MeshGeneration.load(std::memory_order_relaxed))
@@ -68,6 +93,7 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 		if (this != &Other)
 		{
 			FMemory::Memcpy(Data, Other.Data, sizeof(Data));
+			BoneIndices = MoveTemp(Other.BoneIndices);
 			ChunkCoord = Other.ChunkCoord;
 			bMeshDirty.store(Other.bMeshDirty.load(std::memory_order_relaxed), std::memory_order_relaxed);
 			bMeshReady.store(Other.bMeshReady.load(std::memory_order_relaxed), std::memory_order_relaxed);

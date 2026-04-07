@@ -92,9 +92,16 @@ Source/
 │   │   ├── HktVoxelPalette.h             팔레트 텍스처 관리 (256×8 RGBA8)
 │   │   ├── HktVoxelSkinAssembler.h       7레이어 모듈러 스킨 조합
 │   │   ├── HktVoxelSkinTypes.h           레이어/스킨 ID 정의
+│   │   ├── HktVoxelSkinLayerAsset.h      베이크된 복셀 스킨 데이터 (정적/본-리지드)
 │   │   ├── IHktVoxelSkinModule.h
 │   │   └── HktVoxelSkinLog.h
 │   └── HktVoxelSkin.Build.cs
+│
+├── HktPresentation/        엔티티 시각화
+│   └── Private/Actors/
+│       ├── HktVoxelUnitActorBase.h/cpp   복셀 캐릭터 공통 베이스 (보간, 스킨, 애니메이션)
+│       ├── HktVoxelUnitActor.h/cpp       GPU 스키닝 복셀 캐릭터 (단일 메시)
+│       └── HktVoxelRigidUnitActor.h/cpp  리지드 본 복셀 캐릭터 (본별 청크)
 ```
 
 ### 의존성 그래프
@@ -139,6 +146,10 @@ struct FHktVoxelChunk
     static constexpr int32 SIZE = 32;
     FHktVoxel Data[SIZE][SIZE][SIZE];
 
+    // GPU 스키닝용 본 인덱스 맵 (선택적, 엔티티 복셀 전용)
+    // nullptr이면 스키닝 없음 (월드 복셀)
+    TUniquePtr<uint8[]> BoneIndices;   // SIZE^3 = 32KB (할당 시)
+
     FIntVector ChunkCoord;      // VM 기준 청크 좌표
     bool bMeshDirty;            // 재메싱 필요
     bool bMeshReady;            // GPU 업로드 대기
@@ -151,6 +162,8 @@ struct FHktVoxelChunk
 };
 ```
 
+`BoneIndices`가 할당되면 메싱 시 본 경계에서 쿼드 병합이 중단되고, 버텍스에 본 인덱스가 패킹된다.
+
 ### FHktVoxelVertex — 압축 버텍스 (8바이트)
 
 ```
@@ -160,12 +173,13 @@ PackedPositionAndSize (32bit):
   └──────┴──────┴──────┴───────┴────────┴───────────────┴────┘
 
 PackedMaterialAndAO (32bit):
-  ┌────────────┬────────┬─────┬───────┬──────────┬────────┐
-  │ type:16    │ pal:3  │ao:2 │ flg:3 │face_hi:1 │ _:7    │
-  └────────────┴────────┴─────┴───────┴──────────┴────────┘
+  ┌────────────┬────────┬─────┬───────┬──────────┬──────────┐
+  │ type:16    │ pal:3  │ao:2 │ flg:3 │face_hi:1 │ bone:7   │
+  └────────────┴────────┴─────┴───────┴──────────┴──────────┘
 ```
 
-셰이더에서 `SV_VertexID % 4`로 쿼드의 4개 코너를 확장한다. Width/Height는 Greedy Meshing으로 병합된 면의 크기.
+- `bone:7` — GPU 스키닝용 본 인덱스 (0~127). 0=스키닝 없음, 1~=유효 본.
+- 셰이더에서 `SV_VertexID % 4`로 쿼드의 4개 코너를 확장한다. Width/Height는 Greedy Meshing으로 병합된 면의 크기.
 
 ### FHktVoxelDelta — VM → 렌더 캐시 변경 이벤트
 
@@ -403,6 +417,140 @@ LOD 3:   4× 4× 4  (8× 다운샘플)     거리 ≥ 128m
 ```
 
 `FHktVoxelLODPolicy::GetLODLevel(DistanceSquared)` → 메싱 스케줄러가 LOD에 따라 해상도 조절.
+
+---
+
+## 복셀 캐릭터 스켈레톤 애니메이션
+
+복셀 캐릭터에 스켈레톤 애니메이션을 적용하는 두 가지 방식을 지원한다. `UHktActorVisualDataAsset::ActorClass`에 원하는 액터 클래스를 지정하여 선택한다.
+
+### 액터 클래스 구조
+
+```
+AHktVoxelUnitActorBase (Abstract)
+│  보간, 스킨 조합, 팔레트, 애니메이션 포워딩
+│  BodyChunk, HiddenSkeleton, SkinAssembler
+│
+├── AHktVoxelUnitActor          ← GPU 스키닝 (단일 메시)
+│
+└── AHktVoxelRigidUnitActor     ← 본별 청크 리지드 (블록 관절)
+```
+
+| | AHktVoxelUnitActor (GPU 스키닝) | AHktVoxelRigidUnitActor (리지드) |
+|---|---|---|
+| **원리** | 단일 BodyChunk, 버텍스별 본 인덱스 → 셰이더에서 본 행렬 적용 | 본마다 별도 ChunkComponent → 본 소켓에 어태치 |
+| **Draw Call** | 1 | 본 수만큼 (보통 15~30) |
+| **변형** | 부드러운 버텍스 변형 | 파츠 단위 리지드 (블록 관절) |
+| **미적 느낌** | 일반 스켈레탈 메시와 유사 | 마인크래프트 / 레고 스타일 |
+| **비용** | 매 프레임 본 행렬 GPU 업로드 | 본마다 메싱/렌더 오버헤드 |
+
+### 사전 준비
+
+1. **UHktVoxelSkinLayerAsset 생성** — 에디터에서 FHktVoxelMeshVoxelizer로 SkeletalMesh를 복셀화하여 베이크. `BoneGroups`가 포함되어야 스켈레톤 모드가 활성화됨.
+2. **SkeletalMesh + AnimBP** — `HiddenSkeleton` 컴포넌트가 사용할 메시와 애니메이션 블루프린트.
+
+### 사용법 (GPU 스키닝 — AHktVoxelUnitActor)
+
+1. `AHktVoxelUnitActor` 또는 이를 상속한 블루프린트 생성
+2. 디테일 패널에서:
+   - `DefaultBodyAsset` → 베이크된 `UHktVoxelSkinLayerAsset` (BoneGroups 포함) 지정
+   - `HiddenSkeleton` → SkeletalMesh, AnimBP 지정 (미지정 시 SourceMesh에서 자동 로드)
+3. `UHktActorVisualDataAsset`의 `ActorClass`에 위 블루프린트 지정
+
+```
+BeginPlay 흐름:
+  InitializeVoxelMesh()
+    └─ SkinAssembler에 DefaultBodyAsset 연결
+  OnSkinSetChanged()
+    └─ HasAnyBoneData() == true
+       └─ OnBoneDataAvailable()
+          └─ InitializeGPUSkinning()
+             ├─ BoneNameToIndex 매핑 구축 (본 이름 → 1~127)
+             ├─ Assemble → 단일 청크에 복셀 기록
+             ├─ BoneGroups → 청크 BoneIndices 맵 기록
+             └─ LoadChunk → 메싱 트리거
+
+매 프레임 Tick:
+  TickAnimation()
+    └─ UpdateBoneTransformsFromSkeleton()
+       ├─ HiddenSkeleton.GetComponentSpaceTransforms()
+       ├─ 본 행렬 → TArray<FVector4f> (float4 × 3 per bone)
+       └─ BodyChunk->UpdateBoneTransforms()
+          └─ ENQUEUE_RENDER_COMMAND → GPU Buffer<float4> 업로드
+             └─ 셰이더: BoneIdx = vertex[31:25] → HktBoneMatrices[BoneIdx*3]
+```
+
+### 사용법 (리지드 — AHktVoxelRigidUnitActor)
+
+1. `AHktVoxelRigidUnitActor` 또는 이를 상속한 블루프린트 생성
+2. 디테일 패널에서:
+   - `DefaultBodyAsset` → 베이크된 `UHktVoxelSkinLayerAsset` (BoneGroups 포함) 지정
+   - `HiddenSkeleton` → SkeletalMesh, AnimBP 지정
+3. `UHktActorVisualDataAsset`의 `ActorClass`에 위 블루프린트 지정
+
+```
+BeginPlay 흐름:
+  InitializeVoxelMesh()
+    └─ (GPU 스키닝과 동일)
+  OnSkinSetChanged()
+    └─ HasAnyBoneData() == true
+       └─ OnBoneDataAvailable()
+          └─ InitializeBoneChunks()
+             ├─ BodyChunk 숨기기
+             ├─ HiddenSkeleton 활성화
+             └─ 본마다:
+                ├─ NewObject<UHktVoxelChunkComponent>
+                ├─ AttachToComponent(HiddenSkeleton, BoneName)
+                ├─ WriteBoneGroupToChunk → LoadChunk
+                └─ 본 기준 오프셋 설정
+
+매 프레임:
+  HiddenSkeleton이 AnimBP로 자동 Tick
+  → 본 소켓에 어태치된 청크들이 자동으로 따라감
+  → 추가 코드 없음
+```
+
+### GPU 스키닝 파이프라인 상세
+
+```
+┌─ CPU (Game Thread) ────────────────────────────────────────┐
+│                                                            │
+│  HiddenSkeleton (SkeletalMeshComponent)                    │
+│    ↓ GetComponentSpaceTransforms()                         │
+│  AHktVoxelUnitActor::UpdateBoneTransformsFromSkeleton()    │
+│    ↓ TArray<FVector4f> (3x4 matrix × N bones)             │
+│  BodyChunk->UpdateBoneTransforms()                         │
+│    ↓ ENQUEUE_RENDER_COMMAND                                │
+│                                                            │
+└─────────────────────┬──────────────────────────────────────┘
+                      │
+                      ▼
+┌─ GPU (Render Thread) ──────────────────────────────────────┐
+│                                                            │
+│  FHktVoxelChunkProxy::UpdateBoneTransforms_RenderThread()  │
+│    ↓ CreateVertexBuffer(BUF_ShaderResource | BUF_Dynamic)  │
+│    ↓ CreateShaderResourceView(PF_A32B32G32R32F)            │
+│  FHktVoxelVertexFactory::BoneTransformSRV                  │
+│                                                            │
+│  Vertex Shader (HktVoxelVertexFactory.ush):                │
+│    BoneIdx = (PackedMaterialAndAO >> 25) & 0x7F            │
+│    if (BoneIdx > 0)                                        │
+│      Row0 = HktBoneMatrices[BoneIdx * 3 + 0]              │
+│      Row1 = HktBoneMatrices[BoneIdx * 3 + 1]              │
+│      Row2 = HktBoneMatrices[BoneIdx * 3 + 2]              │
+│      SkinnedPos = float3(dot(Row0,P), dot(Row1,P), ...)   │
+│                                                            │
+└────────────────────────────────────────────────────────────┘
+```
+
+### 메싱 시 본 인덱스 처리
+
+`FHktVoxelChunk::BoneIndices`가 할당되어 있으면 Greedy Mesher가 다음을 추가로 수행:
+
+1. **본 경계 병합 방지** — 같은 TypeID/PaletteIndex라도 본 인덱스가 다르면 쿼드를 병합하지 않음
+2. **버텍스 패킹** — `FHktVoxelVertex::Pack()`의 `BoneIndex` 파라미터로 본 인덱스를 `[31:25]`에 기록
+
+월드 복셀(`BoneIndices == nullptr`)에서는 기존과 동일하게 동작하며, 본 인덱스는 0으로 패킹된다.
 
 ---
 

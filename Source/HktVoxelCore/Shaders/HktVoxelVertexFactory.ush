@@ -14,6 +14,11 @@
 Texture2D HktPaletteTexture;
 SamplerState HktPaletteSampler;
 
+// GPU 스키닝용 본 트랜스폼 (float4 x 3 per bone = 3x4 affine matrix)
+// 128 본 × 3 float4 = 384 엔트리. 인덱스: BoneIndex * 3 + row.
+// 바인딩 안 됨(월드 복셀) → 스키닝 스킵.
+Buffer<float4> HktBoneMatrices;
+
 // ============================================================================
 // FVertexFactoryInput
 // ============================================================================
@@ -105,7 +110,37 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Result.WorldTangent = Tangent;
 
 	// Quad corner expansion + scale (1 voxel = 15 UU = 15cm)
-	Result.LocalPosition = (BasePos + HktExpandQuad(FaceDir, Width, Height, Corner)) * 15.0;
+	float3 LocalPos = (BasePos + HktExpandQuad(FaceDir, Width, Height, Corner)) * 15.0;
+
+	// GPU 스키닝 — 본 인덱스가 0이 아니면 본 트랜스폼 적용
+	uint BoneIdx = (PM >> 25) & 0x7F;
+	float3 SkinnedNormal = Result.WorldNormal;
+
+#if HKT_VOXEL_GPU_SKINNING
+	if (BoneIdx > 0)
+	{
+		uint Base = BoneIdx * 3;
+		float4 Row0 = HktBoneMatrices[Base + 0];
+		float4 Row1 = HktBoneMatrices[Base + 1];
+		float4 Row2 = HktBoneMatrices[Base + 2];
+
+		float3 Skinned;
+		Skinned.x = dot(Row0, float4(LocalPos, 1.0));
+		Skinned.y = dot(Row1, float4(LocalPos, 1.0));
+		Skinned.z = dot(Row2, float4(LocalPos, 1.0));
+		LocalPos = Skinned;
+
+		// 법선은 회전만 적용 (w=0)
+		float3 SN;
+		SN.x = dot(Row0.xyz, Result.WorldNormal);
+		SN.y = dot(Row1.xyz, Result.WorldNormal);
+		SN.z = dot(Row2.xyz, Result.WorldNormal);
+		SkinnedNormal = normalize(SN);
+	}
+#endif
+
+	Result.LocalPosition = LocalPos;
+	Result.WorldNormal = SkinnedNormal;
 
 	// Material unpack
 	uint VoxelType  = PM & 0xFFFF;

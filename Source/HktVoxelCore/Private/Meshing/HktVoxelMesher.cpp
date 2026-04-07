@@ -133,9 +133,31 @@ void FHktVoxelMesher::MergeQuads(
 				default: SX = SY = SZ = 0; break;
 			}
 			const FHktVoxel& BaseVoxel = Chunk.At(SX, SY, SZ);
+			const uint8 BaseBone = Chunk.GetBoneIndex(SX, SY, SZ);
+
+			// GPU 스키닝: 본 인덱스가 다르면 병합 불가 — Width 재계산
+			if (Chunk.BoneIndices)
+			{
+				int32 NewWidth = 1;
+				for (int32 DU = StartU + 1; DU < StartU + Width; DU++)
+				{
+					int32 BX, BY, BZ;
+					switch (Axis)
+					{
+						case 0: BX = Slice; BY = DU; BZ = V; break;
+						case 1: BX = DU; BY = Slice; BZ = V; break;
+						case 2: BX = DU; BY = V; BZ = Slice; break;
+						default: BX = BY = BZ = 0; break;
+					}
+					if (Chunk.GetBoneIndex(BX, BY, BZ) != BaseBone) break;
+					NewWidth++;
+				}
+				Width = NewWidth;
+			}
+
 			uint32 WidthMask = ((1u << Width) - 1) << StartU;
 
-			// 아래 행들로 Height 확장 — 같은 타입 + 같은 노출 패턴
+			// 아래 행들로 Height 확장 — 같은 타입 + 같은 노출 패턴 + 같은 본
 			int32 Height = 1;
 			for (int32 DV = V + 1; DV < SIZE; DV++)
 			{
@@ -145,7 +167,7 @@ void FHktVoxelMesher::MergeQuads(
 					break;
 				}
 
-				// 같은 타입인지 확인
+				// 같은 타입 + 같은 본인지 확인
 				bool bSameType = true;
 				for (int32 DU = StartU; DU < StartU + Width; DU++)
 				{
@@ -160,6 +182,11 @@ void FHktVoxelMesher::MergeQuads(
 					const FHktVoxel& CheckVoxel = Chunk.At(CX, CY, CZ);
 					if (CheckVoxel.TypeID != BaseVoxel.TypeID ||
 						CheckVoxel.PaletteIndex != BaseVoxel.PaletteIndex)
+					{
+						bSameType = false;
+						break;
+					}
+					if (Chunk.BoneIndices && Chunk.GetBoneIndex(CX, CY, CZ) != BaseBone)
 					{
 						bSameType = false;
 						break;
@@ -181,7 +208,7 @@ void FHktVoxelMesher::MergeQuads(
 			}
 
 			// 쿼드 방출
-			EmitQuad(Chunk, Face, Slice, StartU, V, Width, Height, BaseVoxel);
+			EmitQuad(Chunk, Face, Slice, StartU, V, Width, Height, BaseVoxel, BaseBone);
 
 			// 처리된 비트 제거
 			Row &= ~WidthMask;
@@ -246,7 +273,8 @@ void FHktVoxelMesher::EmitQuad(
 	int32 Face, int32 Slice,
 	int32 StartU, int32 StartV,
 	int32 Width, int32 Height,
-	const FHktVoxel& Voxel)
+	const FHktVoxel& Voxel,
+	uint8 BoneIndex)
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
 
@@ -287,7 +315,7 @@ void FHktVoxelMesher::EmitQuad(
 	FHktVoxelVertex V0 = FHktVoxelVertex::Pack(
 		BasePos.X, BasePos.Y, BasePos.Z,
 		Width, Height, Face,
-		Voxel.TypeID, Voxel.PaletteIndex, AO[0], Voxel.Flags);
+		Voxel.TypeID, Voxel.PaletteIndex, AO[0], Voxel.Flags, BoneIndex);
 
 	// 대상 배열 선택
 	TArray<FHktVoxelVertex>& Vertices = Voxel.IsTranslucent()

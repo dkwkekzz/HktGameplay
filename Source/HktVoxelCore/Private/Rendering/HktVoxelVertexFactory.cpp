@@ -18,6 +18,7 @@ public:
 	{
 		PaletteTextureParam.Bind(ParameterMap, TEXT("HktPaletteTexture"));
 		PaletteSamplerParam.Bind(ParameterMap, TEXT("HktPaletteSampler"));
+		BoneMatricesParam.Bind(ParameterMap, TEXT("HktBoneMatrices"));
 	}
 
 	void GetElementShaderBindings(
@@ -41,11 +42,16 @@ public:
 		{
 			ShaderBindings.Add(PaletteSamplerParam, VoxelVF->PaletteSamplerRHI);
 		}
+		if (BoneMatricesParam.IsBound() && VoxelVF->BoneTransformSRV)
+		{
+			ShaderBindings.Add(BoneMatricesParam, VoxelVF->BoneTransformSRV);
+		}
 	}
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteTextureParam);
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteSamplerParam);
+	LAYOUT_FIELD(FShaderResourceParameter, BoneMatricesParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FHktVoxelVertexFactoryShaderParameters);
@@ -75,6 +81,11 @@ void FHktVoxelVertexFactory::SetPaletteTexture(FRHITexture* InTexture, FRHISampl
 	PaletteSamplerRHI = InSampler;
 }
 
+void FHktVoxelVertexFactory::SetBoneTransformSRV(FRHIShaderResourceView* InSRV)
+{
+	BoneTransformSRV = InSRV;
+}
+
 bool FHktVoxelVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
 	// Surface 도메인만 허용 (wireframe/debug 포함 — SpecialEngineMaterial 차단하면 와이어프레임 불가)
@@ -87,6 +98,7 @@ void FHktVoxelVertexFactory::ModifyCompilationEnvironment(
 {
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("HKT_VOXEL_VERTEX_FACTORY"), TEXT("1"));
+	OutEnvironment.SetDefine(TEXT("HKT_VOXEL_GPU_SKINNING"), TEXT("1"));
 }
 
 void FHktVoxelVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)

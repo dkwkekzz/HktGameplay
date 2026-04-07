@@ -133,6 +133,24 @@ void UHktVoxelChunkComponent::OnMeshReady()
 	);
 }
 
+void UHktVoxelChunkComponent::UpdateBoneTransforms(const TArray<FVector4f>& BoneMatrixRows)
+{
+	if (!SceneProxy || BoneMatrixRows.Num() == 0)
+	{
+		return;
+	}
+
+	// 데이터 복사 후 렌더 스레드로 전달
+	FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
+
+	ENQUEUE_RENDER_COMMAND(HktVoxelUpdateBones)(
+		[CapturedProxy, Rows = BoneMatrixRows](FRHICommandListImmediate& RHICmdList)
+		{
+			static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->UpdateBoneTransforms_RenderThread(Rows);
+		}
+	);
+}
+
 FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 {
 	return new FHktVoxelChunkProxy(this);

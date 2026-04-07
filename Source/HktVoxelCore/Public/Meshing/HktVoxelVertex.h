@@ -21,7 +21,7 @@
 //   [20:19] ao_value      (0~3, Baked AO)
 //   [23:21] flags         (발광, 투명, 애니메이션)
 //   [24]    face_direction_high (1bit — face_direction 3bit 중 MSB)
-//   [31:25] unused
+//   [31:25] bone_index    (0~127, GPU 스키닝용. 0=루트/스키닝 없음)
 // ============================================================================
 
 struct FHktVoxelVertex
@@ -38,7 +38,8 @@ struct FHktVoxelVertex
 		uint16 VoxelType,
 		uint8 PaletteIndex,
 		uint8 AOValue,
-		uint8 Flags)
+		uint8 Flags,
+		uint8 BoneIndex = 0)
 	{
 		FHktVoxelVertex V;
 		V.PackedPositionAndSize =
@@ -54,7 +55,8 @@ struct FHktVoxelVertex
 			((static_cast<uint32>(PaletteIndex) & 0x7) << 16) |
 			((static_cast<uint32>(AOValue) & 0x3) << 19) |
 			((static_cast<uint32>(Flags) & 0x7) << 21) |
-			((static_cast<uint32>((FaceDirection >> 2) & 0x1)) << 24);
+			((static_cast<uint32>((FaceDirection >> 2) & 0x1)) << 24) |
+			((static_cast<uint32>(BoneIndex) & 0x7F) << 25);
 
 		return V;
 	}
@@ -75,6 +77,7 @@ struct FHktVoxelVertex
 	uint8 GetPaletteIndex() const { return (PackedMaterialAndAO >> 16) & 0x7; }
 	uint8 GetAOValue() const { return (PackedMaterialAndAO >> 19) & 0x3; }
 	uint8 GetFlags() const { return (PackedMaterialAndAO >> 21) & 0x7; }
+	uint8 GetBoneIndex() const { return (PackedMaterialAndAO >> 25) & 0x7F; }
 };
 
 static_assert(sizeof(FHktVoxelVertex) == 8, "FHktVoxelVertex must be exactly 8 bytes");

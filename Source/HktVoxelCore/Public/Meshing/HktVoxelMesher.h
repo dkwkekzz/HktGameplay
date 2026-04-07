@@ -55,5 +55,6 @@ private:
 		int32 Face, int32 Slice,
 		int32 StartU, int32 StartV,
 		int32 Width, int32 Height,
-		const FHktVoxel& Voxel);
+		const FHktVoxel& Voxel,
+		uint8 BoneIndex = 0);
 };
