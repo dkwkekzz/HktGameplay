@@ -5,8 +5,6 @@
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
 #include "DataAssets/HktItemVisualDataAsset.h"
-#include "Deconstruct/HktDeconstructVisualDataAsset.h"
-#include "Deconstruct/HktDeconstructUnitActor.h"
 #include "Actors/HktItemActor.h"
 #include "Actors/IHktPresentableActor.h"
 #include "Engine/World.h"
@@ -157,15 +155,12 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			FActorSpawnParameters SpawnParams;
 			SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, SpawnRotation, SpawnParams);
 
-			// DeconstructUnitActor이면 DataAsset으로 Niagara/Tuning 초기화
-			if (SpawnedActor)
+			// Actor가 필요한 DataAsset을 스스로 Cast해서 초기화하도록 범용 콜백
+			if (SpawnedActor && VisualAsset)
 			{
-				if (UHktDeconstructVisualDataAsset* DeconstructAsset = Cast<UHktDeconstructVisualDataAsset>(VisualAsset))
+				if (IHktPresentableActor* P = Cast<IHktPresentableActor>(SpawnedActor))
 				{
-					if (AHktDeconstructUnitActor* DeconstructActor = Cast<AHktDeconstructUnitActor>(SpawnedActor))
-					{
-						DeconstructActor->InitializeDeconstruct(DeconstructAsset);
-					}
+					P->OnVisualAssetLoaded(VisualAsset);
 				}
 			}
 		}

@@ -42,23 +42,13 @@ AHktDeconstructUnitActor::AHktDeconstructUnitActor()
 	ParamController = CreateDefaultSubobject<UHktDeconstructParamController>(TEXT("DeconstructParamController"));
 }
 
-void AHktDeconstructUnitActor::BeginPlay()
+void AHktDeconstructUnitActor::OnVisualAssetLoaded(UHktTagDataAsset* InAsset)
 {
-	Super::BeginPlay();
-	// InitializeDeconstruct는 Renderer에서 스폰 직후 호출한다.
-}
-
-void AHktDeconstructUnitActor::InitializeDeconstruct(const UHktDeconstructVisualDataAsset* InDataAsset)
-{
+	UHktDeconstructVisualDataAsset* InDataAsset = Cast<UHktDeconstructVisualDataAsset>(InAsset);
 	if (!InDataAsset || bDeconstructInitialized) return;
 	bDeconstructInitialized = true;
 
-	if (!DeconstructDataAsset)
-	{
-		DeconstructDataAsset = const_cast<UHktDeconstructVisualDataAsset*>(InDataAsset);
-	}
-
-	// DataAsset에서 튜닝값 캐시
+	DeconstructDataAsset = InDataAsset;
 	Tuning = InDataAsset->Tuning;
 
 	if (InDataAsset->DeconstructSystem)

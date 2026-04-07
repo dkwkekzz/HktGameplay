@@ -34,20 +34,18 @@ public:
 		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) override;
 
 	virtual void Tick(float DeltaTime) override;
-	virtual void BeginPlay() override;
-
-	void InitializeDeconstruct(const UHktDeconstructVisualDataAsset* InDataAsset);
+	virtual void OnVisualAssetLoaded(UHktTagDataAsset* InAsset) override;
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Deconstruct")
 	TObjectPtr<UNiagaraComponent> DeconstructNiagaraComponent;
 
 private:
-	/** Renderer에서 InitializeDeconstruct()로 주입. 런타임 Element 조회용 캐시. */
+	/** OnVisualAssetLoaded()에서 설정. 런타임 Element 조회용 캐시. */
 	UPROPERTY(Transient)
 	TObjectPtr<UHktDeconstructVisualDataAsset> DeconstructDataAsset;
 
-	/** DataAsset에서 복사한 튜닝값 (InitializeDeconstruct 시점에 캐시) */
+	/** DataAsset에서 복사한 튜닝값 캐시 */
 	FHktDeconstructTuning Tuning;
 
 	UPROPERTY()
