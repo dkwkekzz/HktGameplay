@@ -77,6 +77,7 @@ private:
 	FVoxelIndexBuffer IndexBufferWrapper;
 	FHktVoxelVertexFactory* VertexFactory = nullptr;
 	UMaterialInterface* VoxelMaterial = nullptr;
+	float VoxelSizeUU = 15.0f;
 	int32 NumIndices = 0;
 	int32 NumVertices = 0;
 

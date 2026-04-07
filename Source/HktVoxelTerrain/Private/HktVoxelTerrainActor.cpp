@@ -40,6 +40,7 @@ void AHktVoxelTerrainActor::BeginPlay()
 	TerrainCache = MakeUnique<FHktVoxelRenderCache>();
 	TerrainMeshScheduler = MakeUnique<FHktVoxelMeshScheduler>(TerrainCache.Get());
 	TerrainMeshScheduler->SetMaxMeshPerFrame(MaxMeshPerFrame);
+	TerrainMeshScheduler->SetVoxelSize(VoxelSize);
 
 	Streamer = MakeUnique<FHktVoxelTerrainStreamer>();
 	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
@@ -62,8 +63,8 @@ void AHktVoxelTerrainActor::BeginPlay()
 	BuildTerrainStyle();
 
 	UE_LOG(LogHktVoxelTerrain, Log,
-		TEXT("Terrain Actor initialized — Seed=%lld, ViewDist=%.0f, Pool=%d, MaxLoad=%d, MaxMesh=%d, Style=%s"),
-		TerrainSeed, ViewDistance, InitialPoolSize, MaxLoadsPerFrame, MaxMeshPerFrame,
+		TEXT("Terrain Actor initialized — Seed=%lld, VoxelSize=%.1f, ChunkWorld=%.0f, ViewDist=%.0f, Pool=%d, MaxLoad=%d, MaxMesh=%d, Style=%s"),
+		TerrainSeed, VoxelSize, GetChunkWorldSize(), ViewDistance, InitialPoolSize, MaxLoadsPerFrame, MaxMeshPerFrame,
 		bStyleBuilt ? TEXT("Built") : TEXT("Palette"));
 }
 
@@ -110,7 +111,7 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
 	Streamer->SetMaxLoadedChunks(MaxLoadedChunks);
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
-	Streamer->UpdateStreaming(CameraPos, ViewDistance, ChunkWorldSize);
+	Streamer->UpdateStreaming(CameraPos, ViewDistance, GetChunkWorldSize());
 
 	// 2. 스트리밍 결과 반영 (생성 + 로드 + 컴포넌트 할당)
 	ProcessStreamingResults();
@@ -154,7 +155,7 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 	UHktVoxelChunkComponent* Comp = AcquireComponent();
 	if (Comp)
 	{
-		Comp->Initialize(TerrainCache.Get(), ChunkCoord);
+		Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
 		if (TerrainMaterial)
 		{
 			Comp->SetVoxelMaterial(TerrainMaterial);
@@ -218,7 +219,7 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 		UHktVoxelChunkComponent* Comp = AcquireComponent();
 		if (Comp)
 		{
-			Comp->Initialize(TerrainCache.Get(), ChunkCoord);
+			Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
 			if (TerrainMaterial)
 			{
 				Comp->SetVoxelMaterial(TerrainMaterial);

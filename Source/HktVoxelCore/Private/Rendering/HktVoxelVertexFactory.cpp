@@ -16,6 +16,7 @@ class FHktVoxelVertexFactoryShaderParameters : public FVertexFactoryShaderParame
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
+		VoxelSizeParam.Bind(ParameterMap, TEXT("HktVoxelSize"));
 		PaletteTextureParam.Bind(ParameterMap, TEXT("HktPaletteTexture"));
 		PaletteSamplerParam.Bind(ParameterMap, TEXT("HktPaletteSampler"));
 		BoneMatricesParam.Bind(ParameterMap, TEXT("HktBoneMatrices"));
@@ -44,6 +45,10 @@ public:
 	{
 		const FHktVoxelVertexFactory* VoxelVF = static_cast<const FHktVoxelVertexFactory*>(VertexFactory);
 
+		if (VoxelSizeParam.IsBound())
+		{
+			ShaderBindings.Add(VoxelSizeParam, VoxelVF->VoxelSizeUU);
+		}
 		if (PaletteTextureParam.IsBound() && VoxelVF->PaletteTextureRHI)
 		{
 			ShaderBindings.Add(PaletteTextureParam, VoxelVF->PaletteTextureRHI);
@@ -95,6 +100,7 @@ public:
 	}
 
 private:
+	LAYOUT_FIELD(FShaderParameter, VoxelSizeParam);
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteTextureParam);
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteSamplerParam);
 	LAYOUT_FIELD(FShaderResourceParameter, BoneMatricesParam);

@@ -64,16 +64,14 @@ void UHktVoxelChunkComponent::SetVoxelMaterial(UMaterialInterface* InMaterial)
 	}
 }
 
-void UHktVoxelChunkComponent::Initialize(FHktVoxelRenderCache* Cache, const FIntVector& InChunkCoord)
+void UHktVoxelChunkComponent::Initialize(FHktVoxelRenderCache* Cache, const FIntVector& InChunkCoord, float InVoxelSize)
 {
 	RenderCache = Cache;
 	ChunkCoord = InChunkCoord;
+	CachedVoxelSize = (InVoxelSize > 0.f) ? InVoxelSize : FHktVoxelChunk::VOXEL_SIZE;
 
 	// 청크 좌표에 따른 상대 위치 설정
-	// 엔티티 복셀(ChunkCoord=0,0,0)은 원점이므로 Actor에 붙어서 이동
-	// 월드 복셀은 청크 좌표에 맞는 오프셋 적용
-	static constexpr float VoxelSize = FHktVoxelChunk::VOXEL_SIZE;
-	static constexpr float ChunkWorldSize = FHktVoxelChunk::SIZE * VoxelSize;
+	const float ChunkWorldSize = FHktVoxelChunk::SIZE * CachedVoxelSize;
 
 	SetRelativeLocation(FVector(
 		ChunkCoord.X * ChunkWorldSize,
@@ -197,8 +195,7 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 
 FBoxSphereBounds UHktVoxelChunkComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	static constexpr float VoxelSize = FHktVoxelChunk::VOXEL_SIZE;
-	static constexpr float ChunkWorldSize = FHktVoxelChunk::SIZE * VoxelSize;
+	const float ChunkWorldSize = FHktVoxelChunk::SIZE * CachedVoxelSize;
 
 	// 복셀은 로컬 (0,0,0)~(ChunkWorldSize,ChunkWorldSize,ChunkWorldSize) 범위에 배치됨
 	const FBox Box(FVector::ZeroVector, FVector(ChunkWorldSize, ChunkWorldSize, ChunkWorldSize));

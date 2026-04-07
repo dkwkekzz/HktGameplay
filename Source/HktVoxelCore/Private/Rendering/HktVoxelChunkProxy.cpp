@@ -11,6 +11,7 @@
 
 FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent)
+	, VoxelSizeUU(InComponent->GetVoxelSize())
 {
 	// 머티리얼은 Component에서 0번 슬롯을 가져옴
 	VoxelMaterial = InComponent->GetMaterial(0);
@@ -152,6 +153,7 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 		VertexFactory = new FHktVoxelVertexFactory(GetScene().GetFeatureLevel());
 		VertexFactory->InitResource(FRHICommandListImmediate::Get());
 	}
+	VertexFactory->VoxelSizeUU = VoxelSizeUU;
 
 	// 팔레트 텍스처 — 커스텀 텍스처 미설정 시 GWhiteTexture 폴백 (흰색)
 	if (!VertexFactory->PaletteTextureRHI)
