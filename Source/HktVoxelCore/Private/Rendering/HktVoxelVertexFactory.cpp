@@ -18,6 +18,12 @@ public:
 	{
 		PaletteTextureParam.Bind(ParameterMap, TEXT("HktPaletteTexture"));
 		PaletteSamplerParam.Bind(ParameterMap, TEXT("HktPaletteSampler"));
+
+		// Tile Texture (Phase 1)
+		TileArrayParam.Bind(ParameterMap, TEXT("HktTileArray"));
+		TileArraySamplerParam.Bind(ParameterMap, TEXT("HktTileSampler"));
+		TileIndexLUTParam.Bind(ParameterMap, TEXT("HktTileIndexLUT"));
+		TileIndexLUTSamplerParam.Bind(ParameterMap, TEXT("HktTileIndexLUTSampler"));
 	}
 
 	void GetElementShaderBindings(
@@ -41,11 +47,35 @@ public:
 		{
 			ShaderBindings.Add(PaletteSamplerParam, VoxelVF->PaletteSamplerRHI);
 		}
+
+		// Tile Texture (Phase 1) — nullptr이면 바인딩 생략 → 셰이더에서 팔레트 폴백
+		if (TileArrayParam.IsBound() && VoxelVF->TileArrayRHI)
+		{
+			ShaderBindings.Add(TileArrayParam, VoxelVF->TileArrayRHI);
+		}
+		if (TileArraySamplerParam.IsBound() && VoxelVF->TileArraySamplerRHI)
+		{
+			ShaderBindings.Add(TileArraySamplerParam, VoxelVF->TileArraySamplerRHI);
+		}
+		if (TileIndexLUTParam.IsBound() && VoxelVF->TileIndexLUTRHI)
+		{
+			ShaderBindings.Add(TileIndexLUTParam, VoxelVF->TileIndexLUTRHI);
+		}
+		if (TileIndexLUTSamplerParam.IsBound() && VoxelVF->TileIndexLUTSamplerRHI)
+		{
+			ShaderBindings.Add(TileIndexLUTSamplerParam, VoxelVF->TileIndexLUTSamplerRHI);
+		}
 	}
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteTextureParam);
 	LAYOUT_FIELD(FShaderResourceParameter, PaletteSamplerParam);
+
+	// Tile Texture (Phase 1)
+	LAYOUT_FIELD(FShaderResourceParameter, TileArrayParam);
+	LAYOUT_FIELD(FShaderResourceParameter, TileArraySamplerParam);
+	LAYOUT_FIELD(FShaderResourceParameter, TileIndexLUTParam);
+	LAYOUT_FIELD(FShaderResourceParameter, TileIndexLUTSamplerParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FHktVoxelVertexFactoryShaderParameters);
@@ -73,6 +103,16 @@ void FHktVoxelVertexFactory::SetPaletteTexture(FRHITexture* InTexture, FRHISampl
 {
 	PaletteTextureRHI = InTexture;
 	PaletteSamplerRHI = InSampler;
+}
+
+void FHktVoxelVertexFactory::SetTileTextures(
+	FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
+	FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler)
+{
+	TileArrayRHI = InTileArray;
+	TileArraySamplerRHI = InTileSampler;
+	TileIndexLUTRHI = InTileIndexLUT;
+	TileIndexLUTSamplerRHI = InLUTSampler;
 }
 
 bool FHktVoxelVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)

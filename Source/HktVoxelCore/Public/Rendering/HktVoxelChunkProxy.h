@@ -52,6 +52,11 @@ public:
 		const TArray<FHktVoxelVertex>& Vertices,
 		const TArray<uint32>& Indices);
 
+	/** 타일 텍스처 설정 (Phase 1) — nullptr이면 기존 팔레트 폴백 */
+	void SetTileTextures_RenderThread(
+		FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
+		FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
+
 private:
 	/** RHI 버퍼를 감싸는 FVertexBuffer/FIndexBuffer 래퍼 (FVertexStreamComponent, FMeshBatchElement 호환용) */
 	struct FVoxelVertexBuffer : public FVertexBuffer
@@ -70,4 +75,10 @@ private:
 	UMaterialInterface* VoxelMaterial = nullptr;
 	int32 NumIndices = 0;
 	int32 NumVertices = 0;
+
+	// Tile Texture (Phase 1) — 캐싱용. VertexFactory 생성 전 설정될 수 있음
+	FRHITexture* PendingTileArrayRHI = nullptr;
+	FRHISamplerState* PendingTileArraySamplerRHI = nullptr;
+	FRHITexture* PendingTileIndexLUTRHI = nullptr;
+	FRHISamplerState* PendingTileIndexLUTSamplerRHI = nullptr;
 };

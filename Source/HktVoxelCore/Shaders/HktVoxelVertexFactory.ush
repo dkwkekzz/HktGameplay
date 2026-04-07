@@ -9,10 +9,17 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/VertexFactoryCommon.ush"
 #include "HktVoxelCommon.ush"
+#include "HktVoxelTileCommon.ush"
 
 // Palette texture (256 x 8, RGBA8)
 Texture2D HktPaletteTexture;
 SamplerState HktPaletteSampler;
+
+// Tile Texture (Phase 1: 타일 아틀라스)
+Texture2DArray HktTileArray;
+SamplerState HktTileSampler;
+Texture2D HktTileIndexLUT;
+SamplerState HktTileIndexLUTSampler;
 
 // ============================================================================
 // FVertexFactoryInput
@@ -33,6 +40,13 @@ struct FVertexFactoryIntermediates
 	float3 WorldNormal;
 	float3 WorldTangent;
 	float4 Color;
+
+	// Tile Texture (Phase 1)
+	float2 TileUV;
+	float  TileSlice;    // -1 = 미매핑 → 팔레트 폴백
+	uint   VoxelType;
+	uint   PaletteIdx;
+	float  AOLight;
 };
 
 // ============================================================================
@@ -43,6 +57,13 @@ struct FVertexFactoryInterpolantsVSToPS
 	float4 Color        : COLOR0;
 	float3 WorldNormal  : TEXCOORD0;
 	float3 WorldTangent : TEXCOORD1;
+
+	// Tile Texture (Phase 1)
+	float2 TileUV                       : TEXCOORD2;
+	nointerpolation float  TileSlice    : TEXCOORD3;
+	nointerpolation float  VoxelType    : TEXCOORD4;
+	nointerpolation float  PaletteIdx   : TEXCOORD5;
+	float  AOLight                      : TEXCOORD6;
 };
 
 // ============================================================================
@@ -124,6 +145,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// Result.Color = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
 	// Result.Color.rgb *= HktAOToLight(AO);
 
+	// Tile Texture (Phase 1) — UV, 슬라이스, 메타데이터 계산
+	Result.TileUV = HktCalcTileUV(Width, Height, Corner);
+	Result.TileSlice = HktLookupTileSlice(HktTileIndexLUT, VoxelType, FaceDir);
+	Result.VoxelType = VoxelType;
+	Result.PaletteIdx = PaletteIdx;
+	Result.AOLight = HktAOToLight(AO);
+
 	return Result;
 }
 
@@ -182,6 +210,14 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(
 	Interpolants.Color = Intermediates.Color;
 	Interpolants.WorldNormal = Intermediates.WorldNormal;
 	Interpolants.WorldTangent = Intermediates.WorldTangent;
+
+	// Tile Texture (Phase 1)
+	Interpolants.TileUV = Intermediates.TileUV;
+	Interpolants.TileSlice = Intermediates.TileSlice;
+	Interpolants.VoxelType = float(Intermediates.VoxelType);
+	Interpolants.PaletteIdx = float(Intermediates.PaletteIdx);
+	Interpolants.AOLight = Intermediates.AOLight;
+
 	return Interpolants;
 }
 

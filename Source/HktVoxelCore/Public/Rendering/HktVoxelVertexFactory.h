@@ -47,6 +47,16 @@ public:
 	FRHITexture* PaletteTextureRHI = nullptr;
 	FRHISamplerState* PaletteSamplerRHI = nullptr;
 
+	// --- Tile Texture (Phase 1: 타일 아틀라스) ---
+	FRHITexture* TileArrayRHI = nullptr;           // Texture2DArray — 타일 텍스처
+	FRHISamplerState* TileArraySamplerRHI = nullptr;
+	FRHITexture* TileIndexLUTRHI = nullptr;         // 256×3 R8 — TypeID→슬라이스 LUT
+	FRHISamplerState* TileIndexLUTSamplerRHI = nullptr;
+
+	/** 타일 텍스처 설정 — nullptr이면 타일 비활성 (기존 팔레트 폴백) */
+	void SetTileTextures(FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
+	                     FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
+
 private:
 	FDataType Data;
 };
