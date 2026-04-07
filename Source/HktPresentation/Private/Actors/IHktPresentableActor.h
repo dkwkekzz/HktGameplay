@@ -7,13 +7,12 @@
 
 struct FHktEntityPresentation;
 class AActor;
+class UHktTagDataAsset;
 
 UINTERFACE()
 class UHktPresentableActor : public UInterface { GENERATED_BODY() };
 
 /** ActorRenderer가 Actor에게 EntityId 설정 및 ViewModel 변경점 전달에 사용하는 인터페이스 */
-class UHktTagDataAsset;
-
 class IHktPresentableActor
 {
 	GENERATED_BODY()

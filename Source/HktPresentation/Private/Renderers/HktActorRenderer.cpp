@@ -154,15 +154,6 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 
 			FActorSpawnParameters SpawnParams;
 			SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, SpawnRotation, SpawnParams);
-
-			// Actor가 필요한 DataAsset을 스스로 Cast해서 초기화하도록 범용 콜백
-			if (SpawnedActor && VisualAsset)
-			{
-				if (IHktPresentableActor* P = Cast<IHktPresentableActor>(SpawnedActor))
-				{
-					P->OnVisualAssetLoaded(VisualAsset);
-				}
-			}
 		}
 
 		if (SpawnedActor)
@@ -180,7 +171,10 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			ConfigureCollisionForSelection(SpawnedActor);
 
 			if (IHktPresentableActor* P = Cast<IHktPresentableActor>(SpawnedActor))
+			{
 				P->SetEntityId(EntityId);
+				P->OnVisualAssetLoaded(LoadedAsset);
+			}
 
 			PendingSpawnSet.Remove(EntityId);
 			ActorMap.Add(EntityId, SpawnedActor);
