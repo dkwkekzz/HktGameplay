@@ -119,9 +119,9 @@ void FHktVoxelMesher::MergeQuads(
 			// 가장 낮은 설정 비트 찾기
 			int32 StartU = FMath::CountTrailingZeros(Row);
 
-			// StartU에서 시작하는 연속 비트 폭 계산
+			// StartU에서 시작하는 연속 비트 폭 계산 (최대 SIZE-StartU)
 			uint32 Shifted = Row >> StartU;
-			int32 Width = FMath::CountTrailingZeros(~Shifted);
+			int32 Width = FMath::Min((int32)FMath::CountTrailingZeros(~Shifted), SIZE - StartU);
 
 			// 해당 복셀의 타입 확인
 			int32 SX, SY, SZ;
@@ -155,7 +155,8 @@ void FHktVoxelMesher::MergeQuads(
 				Width = NewWidth;
 			}
 
-			uint32 WidthMask = ((1u << Width) - 1) << StartU;
+			// Width=32일 때 1u<<32은 UB → 별도 처리
+			uint32 WidthMask = (Width >= 32) ? (~0u << StartU) : (((1u << Width) - 1) << StartU);
 
 			// 아래 행들로 Height 확장 — 같은 타입 + 같은 노출 패턴 + 같은 본
 			int32 Height = 1;
