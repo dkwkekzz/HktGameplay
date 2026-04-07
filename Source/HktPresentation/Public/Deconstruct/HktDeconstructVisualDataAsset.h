@@ -40,6 +40,10 @@ public:
 		meta = (TitleProperty = "{Primary}"))
 	TArray<FHktDeconstructPalette> ElementPalettes;
 
+	/** 보간/매핑/연출 튜닝 파라미터. 에디터에서 유닛별로 조정 가능. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Deconstruct|Tuning")
+	FHktDeconstructTuning Tuning;
+
 	/**
 	 * Element별 GeoFragment 메시.
 	 * Fire=SM_HktGeo_CustomShard, Ice=SM_HktGeo_Octahedron,
