@@ -57,6 +57,9 @@ public:
 		FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
 		FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
 
+	/** 머티리얼 LUT 설정 (Phase 2) — nullptr이면 기존 하드코딩 PBR 폴백 */
+	void SetMaterialLUT_RenderThread(FRHITexture* InLUT, FRHISamplerState* InSampler);
+
 private:
 	/** RHI 버퍼를 감싸는 FVertexBuffer/FIndexBuffer 래퍼 (FVertexStreamComponent, FMeshBatchElement 호환용) */
 	struct FVoxelVertexBuffer : public FVertexBuffer
@@ -81,4 +84,8 @@ private:
 	FRHISamplerState* PendingTileArraySamplerRHI = nullptr;
 	FRHITexture* PendingTileIndexLUTRHI = nullptr;
 	FRHISamplerState* PendingTileIndexLUTSamplerRHI = nullptr;
+
+	// Material LUT (Phase 2) — 캐싱용
+	FRHITexture* PendingMaterialLUTRHI = nullptr;
+	FRHISamplerState* PendingMaterialLUTSamplerRHI = nullptr;
 };

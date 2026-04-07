@@ -25,6 +25,11 @@ public:
 		TileArraySamplerParam.Bind(ParameterMap, TEXT("HktTileSampler"));
 		TileIndexLUTParam.Bind(ParameterMap, TEXT("HktTileIndexLUT"));
 		TileIndexLUTSamplerParam.Bind(ParameterMap, TEXT("HktTileIndexLUTSampler"));
+
+		// Material LUT (Phase 2)
+		MaterialLUTEnabledParam.Bind(ParameterMap, TEXT("HktMaterialLUTEnabled"));
+		MaterialLUTParam.Bind(ParameterMap, TEXT("HktMaterialLUT"));
+		MaterialLUTSamplerParam.Bind(ParameterMap, TEXT("HktMaterialLUTSampler"));
 	}
 
 	void GetElementShaderBindings(
@@ -71,6 +76,21 @@ public:
 		{
 			ShaderBindings.Add(TileIndexLUTSamplerParam, VoxelVF->TileIndexLUTSamplerRHI);
 		}
+
+		// Material LUT (Phase 2) — nullptr이면 기존 하드코딩 PBR 폴백
+		const bool bMaterialLUTEnabled = (VoxelVF->MaterialLUTRHI != nullptr);
+		if (MaterialLUTEnabledParam.IsBound())
+		{
+			ShaderBindings.Add(MaterialLUTEnabledParam, bMaterialLUTEnabled ? 1.0f : 0.0f);
+		}
+		if (MaterialLUTParam.IsBound() && VoxelVF->MaterialLUTRHI)
+		{
+			ShaderBindings.Add(MaterialLUTParam, VoxelVF->MaterialLUTRHI);
+		}
+		if (MaterialLUTSamplerParam.IsBound() && VoxelVF->MaterialLUTSamplerRHI)
+		{
+			ShaderBindings.Add(MaterialLUTSamplerParam, VoxelVF->MaterialLUTSamplerRHI);
+		}
 	}
 
 private:
@@ -83,6 +103,11 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, TileArraySamplerParam);
 	LAYOUT_FIELD(FShaderResourceParameter, TileIndexLUTParam);
 	LAYOUT_FIELD(FShaderResourceParameter, TileIndexLUTSamplerParam);
+
+	// Material LUT (Phase 2)
+	LAYOUT_FIELD(FShaderParameter, MaterialLUTEnabledParam);
+	LAYOUT_FIELD(FShaderResourceParameter, MaterialLUTParam);
+	LAYOUT_FIELD(FShaderResourceParameter, MaterialLUTSamplerParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FHktVoxelVertexFactoryShaderParameters);
@@ -120,6 +145,12 @@ void FHktVoxelVertexFactory::SetTileTextures(
 	TileArraySamplerRHI = InTileSampler;
 	TileIndexLUTRHI = InTileIndexLUT;
 	TileIndexLUTSamplerRHI = InLUTSampler;
+}
+
+void FHktVoxelVertexFactory::SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler)
+{
+	MaterialLUTRHI = InLUT;
+	MaterialLUTSamplerRHI = InSampler;
 }
 
 bool FHktVoxelVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)

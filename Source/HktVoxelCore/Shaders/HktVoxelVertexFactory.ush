@@ -23,6 +23,12 @@ SamplerState HktTileSampler;
 Texture2D HktTileIndexLUT;
 SamplerState HktTileIndexLUTSampler;
 
+// Material LUT (Phase 2: PBR 질감 차별화)
+// HktMaterialLUTEnabled: 0.0 = 미사용 (기존 하드코딩 폴백), 1.0 = LUT 활성
+float HktMaterialLUTEnabled;
+Texture2D HktMaterialLUT;
+SamplerState HktMaterialLUTSampler;
+
 // ============================================================================
 // FVertexFactoryInput
 // ============================================================================

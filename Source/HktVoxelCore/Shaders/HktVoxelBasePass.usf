@@ -90,7 +90,17 @@ void MainPS(
     }
 
     OutGBufferA = float4(N * 0.5 + 0.5, 1.0);
-    OutGBufferB = float4(0.0, 0.5, 0.8, 1.0);  // 비금속, 중간 스페큘러, 약간 거친
+
+    // GBufferB: PBR 속성 — Material LUT 활성 시 TypeID별 차별화
+    float4 PBR = float4(0.0, 0.5, 0.8, 1.0);  // 기본: 비금속, 중간 스페큘러, 약간 거친
+    if (HktMaterialLUTEnabled > 0.5)
+    {
+        // LUT: 256×1 텍스처, X=TypeID%256. R=Roughness, G=Specular, B=Metallic
+        float4 MatSample = HktMaterialLUT.Load(int3(uint(InVoxelType) % 256, 0, 0));
+        PBR = float4(MatSample.b, MatSample.g, MatSample.r, 1.0);  // (Metallic, Specular, Roughness)
+    }
+    OutGBufferB = PBR;
+
     OutGBufferC = BaseColor;
     OutGBufferD = float4(BaseColor.rgb * InEmission, 0.0);
 }

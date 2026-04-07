@@ -175,6 +175,12 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 			PendingTileIndexLUTRHI, PendingTileIndexLUTSamplerRHI);
 	}
 
+	// Material LUT (Phase 2) — 보류 중인 머티리얼 LUT가 있으면 전달
+	if (PendingMaterialLUTRHI)
+	{
+		VertexFactory->SetMaterialLUT(PendingMaterialLUTRHI, PendingMaterialLUTSamplerRHI);
+	}
+
 	VertexFactory->SetData(VFData);
 }
 
@@ -193,5 +199,19 @@ void FHktVoxelChunkProxy::SetTileTextures_RenderThread(
 	if (VertexFactory)
 	{
 		VertexFactory->SetTileTextures(InTileArray, InTileSampler, InTileIndexLUT, InLUTSampler);
+	}
+}
+
+void FHktVoxelChunkProxy::SetMaterialLUT_RenderThread(
+	FRHITexture* InLUT, FRHISamplerState* InSampler)
+{
+	check(IsInRenderingThread());
+
+	PendingMaterialLUTRHI = InLUT;
+	PendingMaterialLUTSamplerRHI = InSampler;
+
+	if (VertexFactory)
+	{
+		VertexFactory->SetMaterialLUT(InLUT, InSampler);
 	}
 }

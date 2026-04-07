@@ -57,6 +57,13 @@ public:
 	void SetTileTextures(FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
 	                     FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
 
+	// --- Material LUT (Phase 2: PBR 질감 차별화) ---
+	FRHITexture* MaterialLUTRHI = nullptr;           // 256×1 RGBA8 — TypeID별 PBR 속성
+	FRHISamplerState* MaterialLUTSamplerRHI = nullptr;
+
+	/** 머티리얼 LUT 설정 — nullptr이면 기존 하드코딩 PBR 폴백 */
+	void SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler);
+
 private:
 	FDataType Data;
 };
