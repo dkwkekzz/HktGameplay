@@ -62,7 +62,7 @@ void AHktVoxelUnitActor::BeginPlay()
 	// 초기 복셀 메시 로드
 	InitializeVoxelMesh();
 
-	OnSkinSetChanged(0);   // SkinSetID=0, GenerateDefaultShape() 실행됨
+	OnSkinSetChanged(0);   // SkinSetID=0, DefaultAsset이 있으면 본 모드 진입
 	OnPaletteChanged(0);   // 팔레트 0번 행 (기본 흰색)
 }
 
@@ -201,6 +201,17 @@ void AHktVoxelUnitActor::ApplyPresentation(
 	}
 }
 
+UHktVoxelSkinLayerAsset* AHktVoxelUnitActor::GetDefaultAssetForLayer(EHktVoxelSkinLayer::Type Layer) const
+{
+	switch (Layer)
+	{
+	case EHktVoxelSkinLayer::Body:  return DefaultBodyAsset;
+	case EHktVoxelSkinLayer::Head:  return DefaultHeadAsset;
+	case EHktVoxelSkinLayer::Armor: return DefaultArmorAsset;
+	default: return nullptr;
+	}
+}
+
 void AHktVoxelUnitActor::InitializeVoxelMesh()
 {
 	if (!EntityRenderCache)
@@ -208,13 +219,35 @@ void AHktVoxelUnitActor::InitializeVoxelMesh()
 		return;
 	}
 
-	// 기본 스킨으로 Body 레이어 설정
-	FHktVoxelSkinLayerData BodyLayer;
-	BodyLayer.Layer = EHktVoxelSkinLayer::Body;
-	BodyLayer.SkinID.SkinSetID = CachedSkinSetID;
-	BodyLayer.SkinID.PaletteRow = CachedPaletteRow;
-	BodyLayer.bVisible = true;
-	SkinAssembler.SetLayer(EHktVoxelSkinLayer::Body, BodyLayer);
+	// 기본 스킨으로 레이어 설정 — 에디터/블루프린트에서 지정한 에셋 연결
+	auto SetupLayer = [this](EHktVoxelSkinLayer::Type Layer)
+	{
+		UHktVoxelSkinLayerAsset* Asset = GetDefaultAssetForLayer(Layer);
+		if (!Asset) return;
+
+		FHktVoxelSkinLayerData LayerData;
+		LayerData.Layer = Layer;
+		LayerData.SkinID.SkinSetID = CachedSkinSetID;
+		LayerData.SkinID.PaletteRow = CachedPaletteRow;
+		LayerData.bVisible = true;
+		LayerData.VoxelLayerAsset = Asset;
+		SkinAssembler.SetLayer(Layer, LayerData);
+	};
+
+	SetupLayer(EHktVoxelSkinLayer::Body);
+	SetupLayer(EHktVoxelSkinLayer::Head);
+	SetupLayer(EHktVoxelSkinLayer::Armor);
+
+	// 에셋이 하나도 없으면 프로시저럴 폴백 (기존 동작 유지)
+	if (!SkinAssembler.GetLayer(EHktVoxelSkinLayer::Body))
+	{
+		FHktVoxelSkinLayerData BodyLayer;
+		BodyLayer.Layer = EHktVoxelSkinLayer::Body;
+		BodyLayer.SkinID.SkinSetID = CachedSkinSetID;
+		BodyLayer.SkinID.PaletteRow = CachedPaletteRow;
+		BodyLayer.bVisible = true;
+		SkinAssembler.SetLayer(EHktVoxelSkinLayer::Body, BodyLayer);
+	}
 
 	// 스킨 조합 → 청크 데이터 생성
 	FHktVoxelChunk TempChunk;
@@ -362,6 +395,31 @@ void AHktVoxelUnitActor::InitializeBoneChunks(const TArray<FHktVoxelBoneGroup>& 
 	if (BoneGroups.Num() == 0 || !EntityRenderCache)
 	{
 		return;
+	}
+
+	// HiddenSkeleton에 SkeletalMesh가 없으면 VoxelLayerAsset의 SourceMesh에서 로드
+	if (HiddenSkeleton && !HiddenSkeleton->GetSkeletalMeshAsset())
+	{
+		// 본 데이터가 있는 레이어 에셋에서 SourceMesh 참조 찾기
+		for (int32 i = 0; i < EHktVoxelSkinLayer::Count; i++)
+		{
+			const FHktVoxelSkinLayerData* LayerData = SkinAssembler.GetLayer(static_cast<EHktVoxelSkinLayer::Type>(i));
+			if (LayerData && LayerData->VoxelLayerAsset.IsValid() && LayerData->VoxelLayerAsset->HasBoneData())
+			{
+				USkeletalMesh* SkelMesh = LayerData->VoxelLayerAsset->SourceMesh.LoadSynchronous();
+				if (SkelMesh)
+				{
+					HiddenSkeleton->SetSkeletalMeshAsset(SkelMesh);
+					UE_LOG(LogTemp, Log, TEXT("[VoxelUnit] HiddenSkeleton: SkeletalMesh set from VoxelLayerAsset SourceMesh"));
+					break;
+				}
+			}
+		}
+
+		if (!HiddenSkeleton->GetSkeletalMeshAsset())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[VoxelUnit] InitializeBoneChunks: HiddenSkeleton has no SkeletalMesh — bone attachment will fail!"));
+		}
 	}
 
 	// 정적 BodyChunk 숨기기

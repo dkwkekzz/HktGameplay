@@ -14,6 +14,7 @@
 class UHktVoxelChunkComponent;
 class USkeletalMeshComponent;
 class UHktAnimInstance;
+class UHktVoxelSkinLayerAsset;
 class FHktVoxelRenderCache;
 struct FHktEntityPresentation;
 struct FHktVoxelBoneGroup;
@@ -101,6 +102,21 @@ private:
 	TSharedPtr<FHktVoxelRenderCache> EntityRenderCache;
 	TUniquePtr<FHktVoxelMeshScheduler> MeshScheduler;
 	FHktVoxelSkinAssembler SkinAssembler;
+
+	// --- Default Voxel Skin Assets (에디터/블루프린트에서 설정) ---
+
+	/** 레이어별 기본 복셀 스킨 에셋 (본-리지드 데이터를 포함해야 스켈레톤 애니메이션 활성화) */
+	UPROPERTY(EditDefaultsOnly, Category = "HKT|VoxelSkin")
+	TObjectPtr<UHktVoxelSkinLayerAsset> DefaultBodyAsset;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HKT|VoxelSkin")
+	TObjectPtr<UHktVoxelSkinLayerAsset> DefaultHeadAsset;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HKT|VoxelSkin")
+	TObjectPtr<UHktVoxelSkinLayerAsset> DefaultArmorAsset;
+
+	/** 레이어 → 기본 에셋 매핑 헬퍼 */
+	UHktVoxelSkinLayerAsset* GetDefaultAssetForLayer(EHktVoxelSkinLayer::Type Layer) const;
 
 	// --- Cached State ---
 	FHktEntityId CachedEntityId = InvalidEntityId;
