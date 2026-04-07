@@ -122,10 +122,12 @@ void AHktVoxelUnitActor::UpdateBoneTransformsFromSkeleton()
 			continue;
 		}
 
+		// UE5는 v*M (행 벡터 좌측 곱) 규약이므로,
+		// 셰이더에서 dot(Col, float4(pos,1))로 사용하려면 열(column)을 저장
 		const FMatrix44f M = FMatrix44f(SpaceBases[SkelIdx].ToMatrixWithScale());
-		BoneMatrixRows[Base + 0] = FVector4f(M.M[0][0], M.M[0][1], M.M[0][2], M.M[0][3]);
-		BoneMatrixRows[Base + 1] = FVector4f(M.M[1][0], M.M[1][1], M.M[1][2], M.M[1][3]);
-		BoneMatrixRows[Base + 2] = FVector4f(M.M[2][0], M.M[2][1], M.M[2][2], M.M[2][3]);
+		BoneMatrixRows[Base + 0] = FVector4f(M.M[0][0], M.M[1][0], M.M[2][0], M.M[3][0]);
+		BoneMatrixRows[Base + 1] = FVector4f(M.M[0][1], M.M[1][1], M.M[2][1], M.M[3][1]);
+		BoneMatrixRows[Base + 2] = FVector4f(M.M[0][2], M.M[1][2], M.M[2][2], M.M[3][2]);
 	}
 
 	BodyChunk->UpdateBoneTransforms(BoneMatrixRows);

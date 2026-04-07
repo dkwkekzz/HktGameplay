@@ -53,14 +53,14 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 		FMemory::Memzero(BoneIndices.Get(), SIZE * SIZE * SIZE);
 	}
 
-	/** 본 인덱스 접근 (맵 할당 시에만 유효) */
+	/** 본 인덱스 접근 (맵 할당 시에만 유효) — Data[X][Y][Z]와 동일한 레이아웃 */
 	uint8 GetBoneIndex(int32 X, int32 Y, int32 Z) const
 	{
-		return BoneIndices ? BoneIndices[X + Y * SIZE + Z * SIZE * SIZE] : 0;
+		return BoneIndices ? BoneIndices[X * SIZE * SIZE + Y * SIZE + Z] : 0;
 	}
 	void SetBoneIndex(int32 X, int32 Y, int32 Z, uint8 Index)
 	{
-		if (BoneIndices) { BoneIndices[X + Y * SIZE + Z * SIZE * SIZE] = Index; }
+		if (BoneIndices) { BoneIndices[X * SIZE * SIZE + Y * SIZE + Z] = Index; }
 	}
 
 	FIntVector ChunkCoord;             // 청크 좌표 (VM 기준)

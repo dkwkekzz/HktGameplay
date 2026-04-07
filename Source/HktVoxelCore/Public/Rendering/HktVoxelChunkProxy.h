@@ -77,4 +77,5 @@ private:
 	/** GPU 스키닝용 본 트랜스폼 버퍼 (float4 × 3 per bone) */
 	FBufferRHIRef BoneTransformBuffer;
 	FShaderResourceViewRHIRef BoneTransformSRV;
+	uint32 BoneTransformBufferSize = 0;
 };
