@@ -103,6 +103,67 @@ struct FHktDeconstructParams
 };
 
 // ============================================================================
+// 보간/매핑/연출 튜닝 파라미터 (DataAsset에서 에디터 조정 가능)
+// ============================================================================
+USTRUCT(BlueprintType)
+struct FHktDeconstructTuning
+{
+	GENERATED_BODY()
+
+	// --- 보간 속도 (높을수록 빠르게 수렴) ---
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Interp", meta = (ClampMin = "0.1", ClampMax = "20.0"))
+	float InterpSpeed_Coherence = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Interp", meta = (ClampMin = "0.1", ClampMax = "20.0"))
+	float InterpSpeed_Scatter = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Interp", meta = (ClampMin = "0.1", ClampMax = "20.0"))
+	float InterpSpeed_Agitation = 4.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Interp", meta = (ClampMin = "0.1", ClampMax = "20.0"))
+	float InterpSpeed_Multipliers = 6.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Interp", meta = (ClampMin = "0.1", ClampMax = "20.0"))
+	float InterpSpeed_AgitationDecay = 2.0f;
+
+	// --- 매핑 상수 ---
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Mapping", meta = (ClampMin = "1.0", ClampMax = "200.0"))
+	float MaxPointScatter = 50.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Mapping", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MinPointDensity = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Mapping", meta = (ClampMin = "0.1", ClampMax = "20.0"))
+	float DamageToAgitationScale = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Mapping", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MaxAgitationFromMovement = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Mapping", meta = (ClampMin = "100.0", ClampMax = "2000.0"))
+	float MovementSpeedRef = 600.0f;
+
+	// --- 스킬 스파이크 값 ---
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Skill", meta = (ClampMin = "0.0", ClampMax = "10.0"))
+	float SkillRibbonWidthMult = 3.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Skill", meta = (ClampMin = "0.0", ClampMax = "20.0"))
+	float SkillRibbonEmissiveMult = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Skill", meta = (ClampMin = "0.0", ClampMax = "10.0"))
+	float SkillFragmentScaleMult = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Skill", meta = (ClampMin = "0.0", ClampMax = "10.0"))
+	float SkillAuraVelMult = 3.0f;
+
+	// --- 사망 연출 값 ---
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Death", meta = (ClampMin = "0.0", ClampMax = "10.0"))
+	float DeathAuraSpawnMult = 3.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Death", meta = (ClampMin = "0.0", ClampMax = "10.0"))
+	float DeathAuraVelMult = 2.0f;
+};
+
+// ============================================================================
 // EHktVFXElement → EHktDeconstructElement 변환
 // ============================================================================
 enum class EHktVFXElement : uint8;

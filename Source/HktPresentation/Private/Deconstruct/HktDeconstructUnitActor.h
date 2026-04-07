@@ -34,41 +34,19 @@ public:
 		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) override;
 
 	virtual void Tick(float DeltaTime) override;
-	virtual void BeginPlay() override;
-
-	void InitializeDeconstruct(const UHktDeconstructVisualDataAsset* InDataAsset);
+	virtual void OnVisualAssetLoaded(UHktTagDataAsset* InAsset) override;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Deconstruct")
-	TObjectPtr<UHktDeconstructVisualDataAsset> DeconstructDataAsset;
-
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Deconstruct")
 	TObjectPtr<UNiagaraComponent> DeconstructNiagaraComponent;
 
 private:
-	// --- 보간 속도 (높을수록 빠르게 수렴) ---
-	static constexpr float InterpSpeed_Coherence = 2.0f;
-	static constexpr float InterpSpeed_Scatter = 2.0f;
-	static constexpr float InterpSpeed_Agitation = 4.0f;
-	static constexpr float InterpSpeed_Multipliers = 6.0f;
-	static constexpr float InterpSpeed_AgitationDecay = 2.0f;
+	/** OnVisualAssetLoaded()에서 설정. 런타임 Element 조회용 캐시. */
+	UPROPERTY(Transient)
+	TObjectPtr<UHktDeconstructVisualDataAsset> DeconstructDataAsset;
 
-	// --- 매핑 상수 ---
-	static constexpr float MaxPointScatter = 50.0f;
-	static constexpr float MinPointDensity = 0.3f;
-	static constexpr float DamageToAgitationScale = 5.0f;
-	static constexpr float MaxAgitationFromMovement = 0.3f;
-	static constexpr float MovementSpeedRef = 600.0f;
-
-	// --- 스킬 스파이크 값 ---
-	static constexpr float SkillRibbonWidthMult = 3.0f;
-	static constexpr float SkillRibbonEmissiveMult = 5.0f;
-	static constexpr float SkillFragmentScaleMult = 2.0f;
-	static constexpr float SkillAuraVelMult = 3.0f;
-
-	// --- 사망 연출 값 ---
-	static constexpr float DeathAuraSpawnMult = 3.0f;
-	static constexpr float DeathAuraVelMult = 2.0f;
+	/** DataAsset에서 복사한 튜닝값 캐시 */
+	FHktDeconstructTuning Tuning;
 
 	UPROPERTY()
 	TObjectPtr<UHktDeconstructParamController> ParamController;

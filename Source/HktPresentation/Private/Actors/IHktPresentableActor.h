@@ -7,6 +7,7 @@
 
 struct FHktEntityPresentation;
 class AActor;
+class UHktTagDataAsset;
 
 UINTERFACE()
 class UHktPresentableActor : public UInterface { GENERATED_BODY() };
@@ -20,4 +21,7 @@ public:
 	virtual void ApplyTransform(const FHktEntityPresentation& Entity) = 0;
 	virtual void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
 		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) = 0;
+
+	/** Renderer가 에셋 로드 후 호출. Actor가 필요한 타입으로 Cast해서 사용. */
+	virtual void OnVisualAssetLoaded(UHktTagDataAsset* InAsset) {}
 };

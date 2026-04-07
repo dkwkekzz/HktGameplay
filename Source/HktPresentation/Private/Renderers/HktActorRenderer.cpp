@@ -171,7 +171,10 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			ConfigureCollisionForSelection(SpawnedActor);
 
 			if (IHktPresentableActor* P = Cast<IHktPresentableActor>(SpawnedActor))
+			{
 				P->SetEntityId(EntityId);
+				P->OnVisualAssetLoaded(LoadedAsset);
+			}
 
 			PendingSpawnSet.Remove(EntityId);
 			ActorMap.Add(EntityId, SpawnedActor);
