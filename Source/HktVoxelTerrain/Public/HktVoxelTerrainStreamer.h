@@ -15,7 +15,7 @@ class FHktVoxelRenderCache;
  * Y축(높이)은 전체 로드한다.
  *
  * 프레임 예산:
- *   프레임당 MaxLoadsPerFrame개 청크만 로드 (나머지는 다음 프레임으로 이월)
+ *   프레임당 MaxLoadsPerFrame개 청크만 로드 (카메라 거리 기준 partial sort로 선택)
  */
 class HKTVOXELTERRAIN_API FHktVoxelTerrainStreamer
 {
@@ -55,7 +55,6 @@ private:
 	TSet<FIntVector> LoadedChunkSet;
 	TArray<FIntVector> ChunksToLoad;
 	TArray<FIntVector> ChunksToUnload;
-	TArray<FIntVector> PendingLoads;  // 아직 로드 예산이 부족하여 대기 중인 청크
 
 	int32 MaxLoadsPerFrame = 4;
 	int32 MaxLoadedChunks = 2048;

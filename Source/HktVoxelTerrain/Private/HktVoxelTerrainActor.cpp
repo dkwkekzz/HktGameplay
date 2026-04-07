@@ -303,7 +303,17 @@ void AHktVoxelTerrainActor::ReleaseComponent(UHktVoxelChunkComponent* Comp)
 	}
 
 	Comp->SetVisibility(false);
-	ComponentPool.Add(Comp);
+
+	// 풀 크기 제한 — InitialPoolSize의 2배 초과 시 컴포넌트 파괴
+	const int32 MaxPoolSize = InitialPoolSize * 2;
+	if (ComponentPool.Num() >= MaxPoolSize)
+	{
+		Comp->DestroyComponent();
+	}
+	else
+	{
+		ComponentPool.Add(Comp);
+	}
 }
 
 void AHktVoxelTerrainActor::PrewarmPool(int32 Count)

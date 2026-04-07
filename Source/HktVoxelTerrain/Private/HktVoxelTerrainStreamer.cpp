@@ -63,50 +63,50 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float V
 		}
 	}
 
-	// 로드 대상: 필요하지만 아직 로드되지 않은 청크 + 이전 Pending
-	TArray<FIntVector> AllPendingLoads;
-	AllPendingLoads.Append(PendingLoads);
+	// 로드 대상: 필요하지만 아직 로드되지 않은 청크
+	// TSet → TSet 조회 = O(1), 전체 O(n) — 기존 AddUnique O(n²) 제거
+	TArray<FIntVector> Candidates;
 	for (const FIntVector& Coord : DesiredChunks)
 	{
 		if (!LoadedChunkSet.Contains(Coord))
 		{
-			AllPendingLoads.AddUnique(Coord);
+			Candidates.Add(Coord);
 		}
 	}
-
-	// 카메라 거리 기준 정렬 (가까운 순)
-	AllPendingLoads.Sort([&CameraPos, ChunkWorldSize](const FIntVector& A, const FIntVector& B)
-	{
-		const FVector CenterA(
-			(A.X + 0.5f) * ChunkWorldSize,
-			(A.Y + 0.5f) * ChunkWorldSize,
-			(A.Z + 0.5f) * ChunkWorldSize);
-		const FVector CenterB(
-			(B.X + 0.5f) * ChunkWorldSize,
-			(B.Y + 0.5f) * ChunkWorldSize,
-			(B.Z + 0.5f) * ChunkWorldSize);
-		return FVector::DistSquared(CenterA, CameraPos) < FVector::DistSquared(CenterB, CameraPos);
-	});
 
 	// 프레임 예산 + 메모리 예산 적용
-	PendingLoads.Reset();
 	const int32 RemainingBudget = (MaxLoadedChunks > 0)
 		? FMath::Max(0, MaxLoadedChunks - LoadedChunkSet.Num())
-		: AllPendingLoads.Num();
-	const int32 LoadCount = FMath::Min3(AllPendingLoads.Num(), MaxLoadsPerFrame, RemainingBudget);
+		: Candidates.Num();
+	const int32 LoadCount = FMath::Min3(Candidates.Num(), MaxLoadsPerFrame, RemainingBudget);
+
+	if (LoadCount > 0 && Candidates.Num() > LoadCount)
+	{
+		// 카메라 거리 기준 partial sort — 필요한 LoadCount개만 정렬
+		auto DistLambda = [&CameraPos, ChunkWorldSize](const FIntVector& A, const FIntVector& B)
+		{
+			const FVector CenterA(
+				(A.X + 0.5f) * ChunkWorldSize,
+				(A.Y + 0.5f) * ChunkWorldSize,
+				(A.Z + 0.5f) * ChunkWorldSize);
+			const FVector CenterB(
+				(B.X + 0.5f) * ChunkWorldSize,
+				(B.Y + 0.5f) * ChunkWorldSize,
+				(B.Z + 0.5f) * ChunkWorldSize);
+			return FVector::DistSquared(CenterA, CameraPos) < FVector::DistSquared(CenterB, CameraPos);
+		};
+
+		// std::partial_sort: O(n * log(k)) — 전체 정렬 O(n*log(n)) 대비 효율적
+		std::partial_sort(
+			Candidates.GetData(),
+			Candidates.GetData() + LoadCount,
+			Candidates.GetData() + Candidates.Num(),
+			DistLambda);
+	}
+
 	for (int32 i = 0; i < LoadCount; ++i)
 	{
-		if (DesiredChunks.Contains(AllPendingLoads[i]))
-		{
-			ChunksToLoad.Add(AllPendingLoads[i]);
-		}
-	}
-	for (int32 i = LoadCount; i < AllPendingLoads.Num(); ++i)
-	{
-		if (DesiredChunks.Contains(AllPendingLoads[i]))
-		{
-			PendingLoads.Add(AllPendingLoads[i]);
-		}
+		ChunksToLoad.Add(Candidates[i]);
 	}
 
 	// 로드/언로드 반영
@@ -127,6 +127,5 @@ void FHktVoxelTerrainStreamer::Clear()
 	LoadedChunkSet.Empty();
 	ChunksToLoad.Reset();
 	ChunksToUnload.Reset();
-	PendingLoads.Reset();
 	LastCameraChunk = FIntVector(INT32_MAX);
 }
