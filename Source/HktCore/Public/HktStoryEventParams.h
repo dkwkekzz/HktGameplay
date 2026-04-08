@@ -108,6 +108,17 @@ namespace HktEventBuilder
 		return E;
 	}
 
+	/** 점프 이벤트 — SourceEntity만 필요 (타겟 없음) */
+	inline FHktEvent Jump(
+		const FGameplayTag& EventTag,
+		FHktEntityId SourceEntity)
+	{
+		FHktEvent E;
+		E.EventTag     = EventTag;
+		E.SourceEntity = SourceEntity;
+		return E;
+	}
+
 	/** NPC 스포너 이벤트 — Param0 = X, Param1 = Y */
 	inline FHktEvent Spawner(
 		const FGameplayTag& EventTag,

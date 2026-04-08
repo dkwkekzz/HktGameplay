@@ -5,6 +5,7 @@
 #include "HktCoreEventLog.h"
 #include "HktStoryBuilder.h"
 #include "HktStoryEventParams.h"
+#include "HktRuntimeTags.h"
 
 // 기본 액션 태그 (슬롯 미선택 시 타겟 유형에 따라 TargetDefault Story가 분기)
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Target_Default, "Story.Event.Target.Default");
@@ -193,6 +194,58 @@ void FHktDefaultClientRule::OnUserEvent_CommandInputAction(int32 InSlotIndex)
 
 void FHktDefaultClientRule::OnUserEvent_ZoomInputAction(float InDelta)
 {
+}
+
+void FHktDefaultClientRule::OnUserEvent_JumpInputAction()
+{
+	if (!CachedBuilder || !CachedSimulator || !CachedSimulator->IsInitialized())
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("JumpAction ignored: context not bound"));
+		return;
+	}
+
+	FHktEntityId SubjectEntity = CachedBuilder->GetSubjectEntityId();
+	if (SubjectEntity == InvalidEntityId)
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("JumpAction ignored: no Subject selected"));
+		return;
+	}
+
+	if (!IsOwnedByMe(SubjectEntity))
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("JumpAction ignored: Subject %d is not owned by this player"), SubjectEntity),
+			SubjectEntity);
+		return;
+	}
+
+	// 이미 점프 중이면 무시 (IsGrounded == 0)
+	const FHktWorldState& WS = CachedSimulator->GetWorldState();
+	if (WS.GetProperty(SubjectEntity, PropertyId::IsGrounded) == 0)
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+			FString::Printf(TEXT("JumpAction ignored: Subject %d is already airborne"), SubjectEntity),
+			SubjectEntity);
+		return;
+	}
+
+	FHktEvent Event = HktEventBuilder::Jump(HktGameplayTags::Story_Event_Move_Jump, SubjectEntity);
+
+	if (!HktStory::ValidateEvent(WS, Event))
+	{
+		HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("JumpAction rejected by ValidateEvent")),
+			SubjectEntity, Event.EventTag);
+		return;
+	}
+
+	CachedBuilder->SetPendingRuntimeEvent(Event);
+
+	HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+		FString::Printf(TEXT("JumpAction %s"), *Event.ToString()),
+		SubjectEntity, Event.EventTag);
 }
 
 // ============================================================================

@@ -43,6 +43,10 @@ struct FHktEntityPresentation
 	THktVisualField<bool> bIsMoving;
 	THktVisualField<FVector> Velocity;
 
+	// --- Jump ---
+	THktVisualField<bool> bIsJumping;      // IsGrounded == 0에서 파생
+	THktVisualField<int32> JumpVelZ;       // 수직 속도 (디버그/VFX용)
+
 	// --- Vitals ---
 	THktVisualField<float> Health;
 	THktVisualField<float> MaxHealth;

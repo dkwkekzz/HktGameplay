@@ -62,6 +62,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     // Event Wait
     case EOpCode::WaitCollision: return Op_WaitCollision(Runtime, Inst.Src1);
     case EOpCode::WaitMoveEnd: return Op_WaitMoveEnd(Runtime, Inst.Src1);
+    case EOpCode::WaitGrounded: return Op_WaitGrounded(Runtime, Inst.Src1);
     case EOpCode::WaitAnimEnd: return Op_WaitAnimEnd(Runtime, Inst.Src1);
     // Data Operations
     case EOpCode::LoadConst: Op_LoadConst(Runtime, Inst._Dst, Inst.GetSignedImm20()); break;
@@ -187,6 +188,16 @@ EVMStatus FHktVMInterpreter::Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterInde
     Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity);
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_WaitMoveEnd WatchEntity=%d"), Runtime.EventWait.WatchedEntity),
+        Runtime.EventWait.WatchedEntity);
+    return EVMStatus::WaitingEvent;
+}
+
+EVMStatus FHktVMInterpreter::Op_WaitGrounded(FHktVMRuntime& Runtime, RegisterIndex WatchEntity)
+{
+    Runtime.EventWait.Type = EWaitEventType::Grounded;
+    Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity);
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_WaitGrounded WatchEntity=%d"), Runtime.EventWait.WatchedEntity),
         Runtime.EventWait.WatchedEntity);
     return EVMStatus::WaitingEvent;
 }
@@ -444,6 +455,7 @@ bool FHktVMInterpreter::ExecutePrecondition(
         case EOpCode::YieldSeconds:
         case EOpCode::WaitCollision:
         case EOpCode::WaitMoveEnd:
+        case EOpCode::WaitGrounded:
         case EOpCode::WaitAnimEnd:
             continue;  // skip
         default:

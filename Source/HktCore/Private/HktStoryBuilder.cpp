@@ -485,6 +485,12 @@ FHktStoryBuilder& FHktStoryBuilder::WaitMoveEnd(RegisterIndex Entity)
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::WaitGrounded(RegisterIndex Entity)
+{
+    Emit(FInstruction::Make(EOpCode::WaitGrounded, 0, Entity, 0, 0));
+    return *this;
+}
+
 // ============================================================================
 // Data Operations (근본 opcode 래퍼)
 // ============================================================================
@@ -765,6 +771,13 @@ FHktStoryBuilder& FHktStoryBuilder::StopMovement(RegisterIndex Entity)
     SaveConstEntity(Entity, PropertyId::VelX, 0);
     SaveConstEntity(Entity, PropertyId::VelY, 0);
     SaveConstEntity(Entity, PropertyId::VelZ, 0);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::ApplyJump(RegisterIndex Entity, int32 ImpulseVelZ)
+{
+    SaveConstEntity(Entity, PropertyId::IsGrounded, 0);
+    SaveConstEntity(Entity, PropertyId::JumpVelZ, ImpulseVelZ);
     return *this;
 }
 

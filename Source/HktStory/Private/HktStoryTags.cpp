@@ -19,6 +19,10 @@ namespace HktStoryTags
 	// --- Anim ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Spawn, "Anim.FullBody.Action.Spawn", "Spawn intro state tag.");
 
+	// --- Anim: Jump ---
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Jump,           "Anim.FullBody.Jump",   "Jump in-air animation state.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_Montage_Land,            "Anim.Montage.Land",    "Landing one-shot montage.");
+
 	// --- VFX (Niagara convention: VFX.Niagara.{Name}) ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(VFX_SpawnEffect,              "VFX.Niagara.SpawnEffect",  "Character spawn VFX.");
 

@@ -132,7 +132,7 @@ void InitializeHktArchetypes()
         HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
         HktProperty::MoveTargetX, HktProperty::MoveTargetY, HktProperty::MoveTargetZ,
         HktProperty::MoveForce, HktProperty::IsMoving, HktProperty::IsGrounded, HktProperty::MaxSpeed,
-        HktProperty::VelX, HktProperty::VelY, HktProperty::VelZ,
+        HktProperty::VelX, HktProperty::VelY, HktProperty::VelZ, HktProperty::JumpVelZ,
     });
 
     HktTrait::Collidable = R.DefineTrait(TEXT("Collidable"), {

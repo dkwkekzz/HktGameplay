@@ -95,6 +95,7 @@ protected:
     void OnTargetAction(const FInputActionValue& Value);
     void OnSlotAction(const FInputActionValue& Value, int32 SlotIndex);
     void OnZoom(const FInputActionValue& Value);
+    void OnJumpAction(const FInputActionValue& Value);
 
     IHktClientRule* GetClientRule() const;
 
@@ -111,6 +112,9 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TObjectPtr<UInputAction> ZoomAction;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
+    TObjectPtr<UInputAction> JumpAction;
 
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TArray<TObjectPtr<UInputAction>> SlotInputActions;

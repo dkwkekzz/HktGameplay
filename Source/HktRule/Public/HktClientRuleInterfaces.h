@@ -131,6 +131,7 @@ public:
 	virtual void OnUserEvent_TargetInputAction() {}
 	virtual void OnUserEvent_CommandInputAction(int32 InSlotIndex) {}
 	virtual void OnUserEvent_ZoomInputAction(float InDelta) {}
+	virtual void OnUserEvent_JumpInputAction() {}
 
 	/** 내부 캐싱된 Simulator 사용 */
 	virtual void OnReceived_InitialState(const FHktWorldState& InState, int32 InGroupIndex) {}

@@ -37,6 +37,18 @@ static TAutoConsoleVariable<float> CVarMoveMinSpeed(
     TEXT("Minimum speed enforced to prevent infinite arrival time (Zeno's paradox)."),
     ECVF_Default);
 
+static TAutoConsoleVariable<float> CVarJumpGravity(
+    TEXT("hkt.Jump.Gravity"),
+    980.0f, // 표준 중력 9.8m/s² = 980cm/s²
+    TEXT("Gravity applied to jumping entities (cm/s^2)."),
+    ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarJumpMaxFallSpeed(
+    TEXT("hkt.Jump.MaxFallSpeed"),
+    2000.0f, // 최대 낙하 속도 제한
+    TEXT("Maximum falling speed for jumping entities (cm/s)."),
+    ECVF_Default);
+
 static TAutoConsoleVariable<float> CVarPhysicsSoftPushRatio(
     TEXT("hkt.Physics.SoftPushRatio"),
     0.5f, // 프레임당 겹침의 10%만 보정 — 일반 이동 시 거의 안 밀림
@@ -69,6 +81,7 @@ static const TCHAR* WaitEventTypeToString(EWaitEventType Type)
     case EWaitEventType::Timer:     return TEXT("Timer");
     case EWaitEventType::Collision: return TEXT("Collision");
     case EWaitEventType::MoveEnd:   return TEXT("MoveEnd");
+    case EWaitEventType::Grounded:  return TEXT("Grounded");
     default:                        return TEXT("None");
     }
 }
@@ -718,6 +731,59 @@ void FHktMovementSystem::Process(
             {
                 VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::PosZ, SurfaceCmZ);
             }
+        });
+    }
+
+    // 점프 중력 패스: JumpVelZ != 0인 엔티티에 중력 적용
+    {
+        const float Gravity = CVarJumpGravity.GetValueOnAnyThread();
+        const float MaxFall = CVarJumpMaxFallSpeed.GetValueOnAnyThread();
+
+        WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
+        {
+            const int32 RawJumpVelZ = WorldState.GetProperty(Id, PropertyId::JumpVelZ);
+            if (RawJumpVelZ == 0)
+                return;
+
+            float JumpVZ = static_cast<float>(RawJumpVelZ);
+
+            // 중력 적용
+            JumpVZ -= Gravity * FixedDeltaSeconds;
+            JumpVZ = FMath::Max(JumpVZ, -MaxFall);
+
+            // 수직 위치 갱신
+            const float CurZ = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosZ));
+            float NewZ = CurZ + JumpVZ * FixedDeltaSeconds;
+
+            // 착지 판정
+            {
+                float SurfaceCmZ = 0.0f;  // 지형 없을 시 기본 바닥 Z=0
+
+                if (TerrainState)
+                {
+                    const int32 CurX = WorldState.GetProperty(Id, PropertyId::PosX);
+                    const int32 CurY = WorldState.GetProperty(Id, PropertyId::PosY);
+                    const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, FMath::RoundToInt(NewZ));
+                    const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
+                    SurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z);
+                }
+
+                if (NewZ <= SurfaceCmZ)
+                {
+                    // 착지
+                    NewZ = SurfaceCmZ;
+                    JumpVZ = 0.0f;
+                    VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::IsGrounded, 1);
+
+                    FHktPendingEvent Evt;
+                    Evt.Type = EWaitEventType::Grounded;
+                    Evt.WatchedEntity = Id;
+                    OutMoveEndEvents.Add(Evt);
+                }
+            }
+
+            VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::PosZ, FMath::RoundToInt(NewZ));
+            VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::JumpVelZ, FMath::RoundToInt(JumpVZ));
         });
     }
 }

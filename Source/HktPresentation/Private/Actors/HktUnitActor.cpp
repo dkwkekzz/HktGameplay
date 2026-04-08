@@ -67,6 +67,9 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	if (bForceAll || Entity.bIsMoving.IsDirty(Frame))
 		HktAnim->bIsMoving = Entity.bIsMoving.Get();
 
+	if (bForceAll || Entity.bIsJumping.IsDirty(Frame))
+		HktAnim->bIsJumping = Entity.bIsJumping.Get();
+
 	if (bForceAll || Entity.Velocity.IsDirty(Frame))
 	{
 		FVector Vel = Entity.Velocity.Get();

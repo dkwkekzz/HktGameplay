@@ -32,6 +32,10 @@ namespace HktStoryTags
 	// --- Anim ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_Anim_FullBody_Action_Spawn); // Anim.FullBody.Action.Spawn
 
+	// --- Anim: Jump ---
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_Anim_FullBody_Jump);           // Anim.FullBody.Jump
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_Anim_Montage_Land);            // Anim.Montage.Land
+
 	// --- VFX (Niagara convention: VFX.Niagara.{Name}) ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(VFX_SpawnEffect);              // VFX.Niagara.SpawnEffect
 
