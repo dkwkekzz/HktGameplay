@@ -19,7 +19,7 @@
  * 2. RegisterFlow: 범용 레지스터(R0~R9) Read-before-Write / Dead Write 감지
  *
  * 검증 정책:
- * - EntityFlow 실패: 등록 차단 + checkf (에디터/게임 공통 크래시)
+ * - EntityFlow 실패: 등록 차단 + ensure (에디터/게임 공통)
  * - RegisterFlow: Editor Warning, Game(Shipping) 등록 차단
  */
 class HKTCORE_API FHktStoryValidator

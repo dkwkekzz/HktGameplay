@@ -23,7 +23,7 @@ FHktStoryValidator::FHktStoryValidator(
 }
 
 // ============================================================================
-// Entity Register Validation (R10~R14)
+// Entity Register Validation (R0~R9 entity params + R10~R14 special)
 // ============================================================================
 
 bool FHktStoryValidator::ValidateEntityFlow()
