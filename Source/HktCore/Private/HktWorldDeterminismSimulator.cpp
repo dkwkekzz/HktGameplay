@@ -57,11 +57,11 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     EntityArrangeSystem.Process(WorldState, Event.RemovedOwnerIds);
     FrameRemovedEntities = EntityArrangeSystem.ScratchRemoveList;
 
-    // Terrain: 엔티티 위치 기반 청크 로드/언로드
+    // Terrain: 엔티티 위치 + 이벤트 Location 기반 청크 로드/언로드
     if (TerrainGenerator)
     {
         PendingVoxelDeltas.Reset();
-        TerrainSystem.Process(WorldState, TerrainState, *TerrainGenerator);
+        TerrainSystem.Process(WorldState, TerrainState, *TerrainGenerator, &Event.NewEvents);
     }
 
     VMBuildSystem.Process(Event.NewEvents, static_cast<int32>(Event.FrameNumber),

@@ -49,10 +49,27 @@ namespace HktStoryCharacterSpawn
 			// 스폰 위치 설정 (IntentEvent에서)
 			.ReadProperty(pos, PropertyId::TargetPosX)
 			.SetPosition(Self, pos)
+		;
 
-			// 스폰 이펙트
-			.PlayVFXAttached(Self, VFX_SpawnEffect)
-			.PlaySound(Sound_Spawn)
+		// 지형 높이에 맞춰 Z 보정 (지면 아래/공중 스폰 방지)
+		{
+			FHktScopedReg surfaceZ(B);
+			FHktScopedReg voxelSize(B);
+			FHktScopedReg cmZ(B);
+
+			B	.EntityPosToVoxel(pos, Self)                         // cm → 복셀 좌표 (pos = voxelX, pos+1 = voxelY, pos+2 = voxelZ)
+				.GetTerrainHeight(surfaceZ, pos, pos + 1)            // 표면 높이 (복셀 Z)
+				.LoadConst(voxelSize, 15)                             // VoxelSizeCm
+				.Mul(cmZ, surfaceZ, voxelSize)                        // 표면 cm Z = 복셀Z * 15
+				.ReadProperty(pos, PropertyId::TargetPosX)            // 원래 cm XY 복원
+				.Move(pos + 2, cmZ)                                   // Z만 지형 높이로 교체
+				.SetPosition(Self, pos)
+			;
+		}
+
+		B	// 스폰 이펙트
+				.PlayVFXAttached(Self, VFX_SpawnEffect)
+				.PlaySound(Sound_Spawn)
 
 			// 스폰 상태 태그 추가 → AnimInstance가 태그를 감지하여 스폰 애니메이션 자동 재생
 			.AddTag(Self, Tag_Anim_FullBody_Action_Spawn)

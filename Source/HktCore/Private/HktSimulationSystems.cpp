@@ -466,7 +466,8 @@ FIntVector FHktTerrainSystem::VoxelToCm(int32 VX, int32 VY, int32 VZ)
 void FHktTerrainSystem::Process(
     const FHktWorldState& WorldState,
     FHktTerrainState& TerrainState,
-    const FHktTerrainGenerator& Generator)
+    const FHktTerrainGenerator& Generator,
+    const TArray<FHktEvent>* PendingEvents)
 {
     RequiredChunks.Reset();
 
@@ -480,6 +481,23 @@ void FHktTerrainSystem::Process(
         const FIntVector VoxelPos = CmToVoxel(Pos.X, Pos.Y, Pos.Z);
         EntityChunks.Add(FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z));
     });
+
+    // 1b. 이번 프레임 이벤트의 Location도 사전 로드 대상에 포함
+    //     (스폰 이벤트 등에서 GetTerrainHeight 쿼리 시 청크가 준비되도록)
+    if (PendingEvents)
+    {
+        for (const FHktEvent& Evt : *PendingEvents)
+        {
+            if (!Evt.Location.IsNearlyZero())
+            {
+                const FIntVector VoxelPos = CmToVoxel(
+                    static_cast<float>(Evt.Location.X),
+                    static_cast<float>(Evt.Location.Y),
+                    static_cast<float>(Evt.Location.Z));
+                EntityChunks.Add(FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z));
+            }
+        }
+    }
 
     // 고유 청크 좌표에서만 반경 확장 (엔티티 200개 → 고유 청크 ~10개)
     for (const FIntVector& ChunkCoord : EntityChunks)

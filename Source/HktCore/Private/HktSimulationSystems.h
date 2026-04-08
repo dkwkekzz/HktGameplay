@@ -78,7 +78,8 @@ struct HKTCORE_API FHktTerrainSystem
     void Process(
         const FHktWorldState& WorldState,
         FHktTerrainState& TerrainState,
-        const FHktTerrainGenerator& Generator
+        const FHktTerrainGenerator& Generator,
+        const TArray<FHktEvent>* PendingEvents = nullptr
     );
 
     /** cm 위치 → 복셀 좌표 변환 */
