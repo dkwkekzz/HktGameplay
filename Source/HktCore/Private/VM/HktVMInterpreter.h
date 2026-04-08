@@ -31,6 +31,7 @@ class HKTCORE_API FHktVMInterpreter
 public:
     /** WorldState 및 VMProxy 참조 초기화 */
     void Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy,
+                    EHktLogSource InLogSource,
                     FHktTerrainState* InTerrainState = nullptr,
                     TArray<FHktVoxelDelta>* InPendingVoxelDeltas = nullptr);
 
@@ -158,6 +159,6 @@ private:
     TArray<FHktVoxelDelta>* PendingVoxelDeltas = nullptr;
 
 public:
-    /** 시뮬레이터에서 설정: 로그 소스 (Server/Client) */
-    EHktLogSource LogSource = EHktLogSource::Server;
+    /** Initialize 시 주입: 로그 소스 (Server/Client) */
+    EHktLogSource LogSource;
 };

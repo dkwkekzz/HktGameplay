@@ -40,7 +40,7 @@ struct HKTCORE_API FHktWorldState
     static constexpr int32 HotStride = PropertyId::HotMaxCount;
     static constexpr int32 WarmCapacity = 16;
 
-    // --- LogSource (시뮬레이터에서 설정) ---
+    // --- LogSource (시뮬레이터에서 Initialize 시 주입) ---
     EHktLogSource LogSource = EHktLogSource::Server;
 
     // --- Frame State ---
@@ -87,7 +87,7 @@ struct HKTCORE_API FHktWorldState
 #endif // ENABLE_HKT_INSIGHTS
 
     // --- Lifecycle ---
-    void Initialize();
+    void Initialize(EHktLogSource InLogSource);
     FHktEntityId AllocateEntity();
     void RemoveEntity(FHktEntityId Id);
 

@@ -27,7 +27,9 @@ struct FHktPhysicsEvent
 /** 1. Entity Arrange System: 제거된 소유자 정리 */
 struct HKTCORE_API FHktEntityArrangeSystem
 {
-    EHktLogSource LogSource = EHktLogSource::Server;
+    explicit FHktEntityArrangeSystem(EHktLogSource InLogSource) : LogSource(InLogSource) {}
+
+    EHktLogSource LogSource;
     TArray<FHktEntityId> ScratchRemoveList;  // Reserve(MaxEntities)
     void Process(FHktWorldState& WorldState, const TArray<int64>& RemovedOwnerIds);
 };
@@ -35,7 +37,9 @@ struct HKTCORE_API FHktEntityArrangeSystem
 /** 2. VM Build System: 이벤트 -> VM 생성 */
 struct HKTCORE_API FHktVMBuildSystem
 {
-    EHktLogSource LogSource = EHktLogSource::Server;
+    explicit FHktVMBuildSystem(EHktLogSource InLogSource) : LogSource(InLogSource) {}
+
+    EHktLogSource LogSource;
     void Process(
         const TArray<FHktEvent>& Events,
         int32 CurrentFrame,
@@ -50,7 +54,9 @@ struct HKTCORE_API FHktVMBuildSystem
 /** 3. VM Process System: 바이트코드 실행 */
 struct HKTCORE_API FHktVMProcessSystem
 {
-    EHktLogSource LogSource = EHktLogSource::Server;
+    explicit FHktVMProcessSystem(EHktLogSource InLogSource) : LogSource(InLogSource) {}
+
+    EHktLogSource LogSource;
     FHktVMInterpreter* Interpreter = nullptr;
     TArray<FHktPendingEvent> ScratchEvents;  // Reserve(MaxPendingEvents)
 
@@ -133,6 +139,8 @@ struct HKTCORE_API FHktPhysicsSystem
 /** 5. VM Cleanup System: 종료된 VM 해제 */
 struct HKTCORE_API FHktVMCleanupSystem
 {
-    EHktLogSource LogSource = EHktLogSource::Server;
+    explicit FHktVMCleanupSystem(EHktLogSource InLogSource) : LogSource(InLogSource) {}
+
+    EHktLogSource LogSource;
     void Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState, FHktVMWorldStateProxy& VMProxy);
 };

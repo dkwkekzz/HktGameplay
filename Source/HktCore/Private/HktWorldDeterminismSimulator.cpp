@@ -16,16 +16,13 @@
 FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLogSource)
     : LogSource(InLogSource)
     , SourceName(FString(GetLogSourceName(InLogSource)))
+    , EntityArrangeSystem(InLogSource)
+    , VMBuildSystem(InLogSource)
+    , VMProcessSystem(InLogSource)
+    , VMCleanupSystem(InLogSource)
 {
-    WorldState.Initialize();
+    WorldState.Initialize(InLogSource);
     VMProxy.Initialize(WorldState);
-
-    // LogSource를 서브시스템에 전파
-    WorldState.LogSource = LogSource;
-    EntityArrangeSystem.LogSource = LogSource;
-    VMBuildSystem.LogSource = LogSource;
-    VMProcessSystem.LogSource = LogSource;
-    VMCleanupSystem.LogSource = LogSource;
 
     ActiveVMs.Reserve(HktLimits::MaxVMs);
     CompletedVMs.Reserve(HktLimits::MaxVMs);
@@ -41,8 +38,7 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
 
     VMPool = MakeUnique<FHktVMRuntimePool>();
     Interpreter = MakeUnique<FHktVMInterpreter>();
-    Interpreter->Initialize(&WorldState, &VMProxy, &TerrainState, &PendingVoxelDeltas);
-    Interpreter->LogSource = LogSource;
+    Interpreter->Initialize(&WorldState, &VMProxy, InLogSource, &TerrainState, &PendingVoxelDeltas);
     VMProcessSystem.Interpreter = Interpreter.Get();
 }
 

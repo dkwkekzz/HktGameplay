@@ -136,8 +136,9 @@ void FHktWorldState::FreeSlot(int32 Slot)
 // Lifecycle
 // ============================================================================
 
-void FHktWorldState::Initialize()
+void FHktWorldState::Initialize(EHktLogSource InLogSource)
 {
+    LogSource = InLogSource;
     EntitySlots.Reserve(HktLimits::MaxEntities);
     ActiveEvents.Reserve(HktLimits::MaxActiveEvents);
 

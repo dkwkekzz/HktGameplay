@@ -10,10 +10,12 @@
 #include "HktCoreProperties.h"
 
 void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy,
+                                   EHktLogSource InLogSource,
                                    FHktTerrainState* InTerrainState, TArray<FHktVoxelDelta>* InPendingVoxelDeltas)
 {
     WorldState = InWorldState;
     VMProxy = InVMProxy;
+    LogSource = InLogSource;
     TerrainState = InTerrainState;
     PendingVoxelDeltas = InPendingVoxelDeltas;
 }
