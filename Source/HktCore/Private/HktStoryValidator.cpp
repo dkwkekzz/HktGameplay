@@ -31,7 +31,8 @@ bool FHktStoryValidator::ValidateEntityFlow()
 	bool bValid = true;
 	// Self(R10), Target(R11)은 이벤트에서 항상 초기화됨
 	// Spawned(R12), Hit(R13), Iter(R14)는 특정 Op 실행 후에만 유효
-	uint16 EntityRegs = (1 << Reg::Self) | (1 << Reg::Target);
+	constexpr uint16 AlwaysValid = (1 << Reg::Self) | (1 << Reg::Target);
+	uint16 EntityRegs = AlwaysValid;
 
 	auto GetEntityRegName = [](RegisterIndex R) -> const TCHAR*
 	{
@@ -46,6 +47,15 @@ bool FHktStoryValidator::ValidateEntityFlow()
 		}
 	};
 
+	// 에러 상세 정보를 수집 — 검증 완료 후 일괄 출력
+	struct FEntityError
+	{
+		int32 PC;
+		EOpCode Op;
+		RegisterIndex Reg;
+	};
+	TArray<FEntityError> Errors;
+
 	// 특수 엔티티 레지스터(R10~R14)가 초기화되기 전에 사용되는지 검사
 	auto CheckEntityReg = [&](int32 PC, EOpCode Op, RegisterIndex R)
 	{
@@ -55,16 +65,21 @@ bool FHktStoryValidator::ValidateEntityFlow()
 
 		if (!(EntityRegs & (1 << R)))
 		{
-			HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
-				TEXT("Story BUILD: %s PC=%d Op=%s — Reg %s (R%d) 가 엔티티로 사용되었지만 이전에 초기화되지 않았습니다. "
-					 "SpawnEntity/WaitCollision/NextFound 호출 순서를 확인하세요."),
-				*Tag.ToString(), PC, GetOpCodeName(Op), Name, R));
+			Errors.Add({ PC, Op, R });
 			bValid = false;
 		}
 	};
 
 	for (int32 PC = 0; PC < Code.Num(); ++PC)
 	{
+		// Label 합류점: 다른 경로에서 올 수 있으므로 엔티티 레지스터 상태를
+		// 보수적으로 리셋한다. Self/Target만 항상 유효하고 Spawned/Hit/Iter는
+		// 모든 경로에서 초기화되었는지 보장할 수 없으므로 무효로 전환.
+		if (LabelPCs.Contains(PC))
+		{
+			EntityRegs = AlwaysValid;
+		}
+
 		const FInstruction& Inst = Code[PC];
 		EOpCode Op = Inst.GetOpCode();
 
@@ -99,6 +114,7 @@ bool FHktStoryValidator::ValidateEntityFlow()
 		case EOpCode::RemoveTag:
 		case EOpCode::HasTag:
 		case EOpCode::PlayVFXAttached:
+		case EOpCode::PlayAnim:
 		case EOpCode::ApplyEffect:
 		case EOpCode::RemoveEffect:
 		case EOpCode::SetOwnerUid:
@@ -107,11 +123,50 @@ bool FHktStoryValidator::ValidateEntityFlow()
 		case EOpCode::FindByOwner:
 		case EOpCode::WaitMoveEnd:
 		case EOpCode::WaitAnimEnd:
+		case EOpCode::SetForwardTarget:
 			CheckEntityReg(PC, Op, Inst.Src1);
+			break;
+
+		// --- Entity register readers (Dst = entity, MakeImm 인코딩) ---
+		case EOpCode::DispatchEventTo:
+		case EOpCode::DispatchEventFrom:
+			CheckEntityReg(PC, Op, Inst.Dst);
 			break;
 
 		default:
 			break;
+		}
+	}
+
+	// 에러 상세 출력 — 모든 위반을 한꺼번에 보여준다
+	if (!bValid)
+	{
+		FString Detail;
+		for (const FEntityError& Err : Errors)
+		{
+			const TCHAR* Name = GetEntityRegName(Err.Reg);
+			Detail += FString::Printf(
+				TEXT("\n  [PC=%d] Op=%s — Reg %s (R%d) 미초기화 사용"),
+				Err.PC, GetOpCodeName(Err.Op), Name, Err.Reg);
+		}
+
+		UE_LOG(LogHktCore, Error,
+			TEXT("========================================\n")
+			TEXT("  STORY ENTITY VALIDATION FAILED: %s\n")
+			TEXT("  %d건의 invalid entity 사용 감지:%s\n")
+			TEXT("\n  Spawned → SpawnEntity 이후 유효")
+			TEXT("\n  Hit     → WaitCollision 이후 유효")
+			TEXT("\n  Iter    → NextFound 이후 유효")
+			TEXT("\n  분기(Label) 합류점에서는 보수적으로 무효 처리됩니다.")
+			TEXT("\n========================================"),
+			*Tag.ToString(), Errors.Num(), *Detail);
+
+		for (const FEntityError& Err : Errors)
+		{
+			HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
+				TEXT("Story BUILD: %s PC=%d Op=%s — Reg %s (R%d) 가 엔티티로 사용되었지만 이전에 초기화되지 않았습니다. "
+					 "SpawnEntity/WaitCollision/NextFound 호출 순서를 확인하세요."),
+				*Tag.ToString(), Err.PC, GetOpCodeName(Err.Op), GetEntityRegName(Err.Reg), Err.Reg));
 		}
 	}
 

@@ -14,11 +14,13 @@
  *
  * 검증 항목:
  * 1. EntityFlow: 엔티티 레지스터(R10~R14) 초기화 순서 검증
+ *    - Label 합류점에서 보수적으로 Spawned/Hit/Iter를 무효 처리
+ *    - PlayAnim, SetForwardTarget, DispatchEventTo/From 포함 전 opcode 검증
  * 2. RegisterFlow: 범용 레지스터(R0~R9) Read-before-Write / Dead Write 감지
  *
  * 검증 정책:
- * - Editor: Warning 로그 출력, 게임 실행 허용 (무시 가능)
- * - Game(Shipping): EntityFlow 실패 시 등록 차단 + checkf
+ * - EntityFlow 실패: 등록 차단 + checkf (에디터/게임 공통 크래시)
+ * - RegisterFlow: Editor Warning, Game(Shipping) 등록 차단
  */
 class HKTCORE_API FHktStoryValidator
 {
