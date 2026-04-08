@@ -521,13 +521,13 @@ inline FString SHktIngameHudWidget::GetEntityDisplayName(const FHktWorldState* W
 }
 
 /** EquipSlot PropertyId 테이블 (UI용) */
-static constexpr uint16 UIEquipSlotPropertyIds[] =
+static const uint16 UIEquipSlotPropertyIds[] =
 {
 	PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
 	PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
 	PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 };
-static constexpr int32 UIMaxEquipSlots = UE_ARRAY_COUNT(UIEquipSlotPropertyIds);
+static const int32 UIMaxEquipSlots = UE_ARRAY_COUNT(UIEquipSlotPropertyIds);
 
 // ============================================================================
 // Inventory 패널 (가방에 보관된 아이템 — BagComponent)

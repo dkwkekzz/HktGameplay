@@ -6,6 +6,7 @@
 #include "HktCoreEvents.h"
 #include "HktCoreEventLog.h"
 #include "HktCoreProperties.h"
+#include "HktCoreArchetype.h"
 
 // ============================================================================
 // FHktPropertyPair — Warm/Overflow 페어 저장 단위
@@ -37,7 +38,7 @@ struct FHktPropertyPair
 
 struct HKTCORE_API FHktWorldState
 {
-    static constexpr int32 HotStride = PropertyId::HotMaxCount;
+    static inline const int32 HotStride = PropertyId::HotMaxCount;
     static constexpr int32 WarmCapacity = 16;
 
     // --- LogSource (시뮬레이터에서 설정) ---
@@ -58,6 +59,7 @@ struct HKTCORE_API FHktWorldState
     int32 ActiveCount = 0;
 
     TArray<FGameplayTagContainer> TagContainers;
+    TArray<EHktArchetype> EntityArchetypes;             // Slot → Archetype 매핑
     TArray<int64> OwnerUids;
     TArray<FHktEvent> ActiveEvents;
 
@@ -141,6 +143,19 @@ struct HKTCORE_API FHktWorldState
 
     // --- Tag Access (Slot 기반, 내부용) ---
     FORCEINLINE const FGameplayTagContainer& GetTagsBySlot(int32 Slot) const { return TagContainers[Slot]; }
+
+    // --- Archetype Access ---
+    FORCEINLINE EHktArchetype GetArchetype(FHktEntityId Entity) const
+    {
+        if (!IsValidEntity(Entity)) return EHktArchetype::None;
+        return EntityArchetypes[EntitySlots[Entity]];
+    }
+
+    FORCEINLINE void SetArchetype(FHktEntityId Entity, EHktArchetype Arch)
+    {
+        if (!ensure(IsValidEntity(Entity))) return;
+        EntityArchetypes[EntitySlots[Entity]] = Arch;
+    }
 
     // --- Owner Access ---
     FORCEINLINE int64 GetOwnerUid(FHktEntityId Entity) const

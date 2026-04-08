@@ -450,13 +450,13 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
 }
 
 /** EquipSlot0~8에 대응하는 PropertyId 테이블 */
-static constexpr uint16 EquipSlotPropertyIds[] =
+static const uint16 EquipSlotPropertyIds[] =
 {
     PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
     PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
     PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 };
-static constexpr int32 MaxEquipSlots = UE_ARRAY_COUNT(EquipSlotPropertyIds);
+static const int32 MaxEquipSlots = UE_ARRAY_COUNT(EquipSlotPropertyIds);
 
 void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldView& View)
 {

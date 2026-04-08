@@ -95,6 +95,7 @@ int32 FHktWorldState::AllocateSlot(FHktEntityId EntityId)
         Slot = FreeSlots.Pop();
         SlotToEntity[Slot] = EntityId;
         TagContainers[Slot].Reset();
+        EntityArchetypes[Slot] = EHktArchetype::None;
         OwnerUids[Slot] = 0;
 #if ENABLE_HKT_INSIGHTS
         if (Slot < EntityDebugInfos.Num())
@@ -111,6 +112,7 @@ int32 FHktWorldState::AllocateSlot(FHktEntityId EntityId)
         WarmData.AddDefaulted(WarmCapacity);
         OverflowData.AddDefaulted(1);
         TagContainers.Add({});
+        EntityArchetypes.Add(EHktArchetype::None);
         OwnerUids.Add(0);
 #if ENABLE_HKT_INSIGHTS
         EntityDebugInfos.AddDefaulted(1);
@@ -126,6 +128,7 @@ void FHktWorldState::FreeSlot(int32 Slot)
 {
     SlotToEntity[Slot] = InvalidEntityId;
     TagContainers[Slot].Reset();
+    EntityArchetypes[Slot] = EHktArchetype::None;
     OwnerUids[Slot] = 0;
     ClearSlotWarm(Slot);
     FreeSlots.Add(Slot);
@@ -322,6 +325,7 @@ void FHktWorldState::CopyFrom(const FHktWorldState& Other)
     FreeSlots = Other.FreeSlots;
     ActiveCount = Other.ActiveCount;
     TagContainers = Other.TagContainers;
+    EntityArchetypes = Other.EntityArchetypes;
     OwnerUids = Other.OwnerUids;
 
 #if ENABLE_HKT_INSIGHTS
@@ -392,6 +396,7 @@ bool FHktWorldState::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bO
         SlotToEntity.Reset();
         FreeSlots.Reset();
         TagContainers.Reset();
+        EntityArchetypes.Reset();
         OwnerUids.Reset();
         ActiveCount = 0;
 #if ENABLE_HKT_INSIGHTS

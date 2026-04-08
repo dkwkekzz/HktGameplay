@@ -24,9 +24,9 @@
 namespace UseSkillParams
 {
 	/** Param0: 타겟 엔티티 오버라이드 (0이면 Event.TargetEntity 사용) */
-	constexpr uint16 TargetOverride = PropertyId::Param0;
+	inline const uint16 TargetOverride = PropertyId::Param0;
 	/** Param1: 장착 슬롯 인덱스 (LoadItemFromSlot에서 사용) */
-	constexpr uint16 EquipSlotIndex = PropertyId::Param1;
+	inline const uint16 EquipSlotIndex = PropertyId::Param1;
 }
 
 // ============================================================================
@@ -35,9 +35,9 @@ namespace UseSkillParams
 namespace SpawnerParams
 {
 	/** Param0: 스폰 위치 X */
-	constexpr uint16 SpawnPosX = PropertyId::Param0;
+	inline const uint16 SpawnPosX = PropertyId::Param0;
 	/** Param1: 스폰 위치 Y */
-	constexpr uint16 SpawnPosY = PropertyId::Param1;
+	inline const uint16 SpawnPosY = PropertyId::Param1;
 }
 
 // ============================================================================
@@ -46,9 +46,9 @@ namespace SpawnerParams
 namespace ItemActivateParams
 {
 	/** Param0: 장착 슬롯 인덱스 */
-	constexpr uint16 EquipIndex = PropertyId::Param0;
+	inline const uint16 EquipIndex = PropertyId::Param0;
 	/** Param1: 아이템 엔티티 (NewEntityStates 인덱스) */
-	constexpr uint16 ItemEntityIndex = PropertyId::Param1;
+	inline const uint16 ItemEntityIndex = PropertyId::Param1;
 }
 
 // ============================================================================
@@ -57,9 +57,9 @@ namespace ItemActivateParams
 namespace ItemTradeParams
 {
 	/** Param0: 제안 아이템 EntityId */
-	constexpr uint16 OfferItem = PropertyId::Param0;
+	inline const uint16 OfferItem = PropertyId::Param0;
 	/** Param1: 요청 아이템 EntityId */
-	constexpr uint16 RequestItem = PropertyId::Param1;
+	inline const uint16 RequestItem = PropertyId::Param1;
 }
 
 // ============================================================================
@@ -68,7 +68,7 @@ namespace ItemTradeParams
 namespace HealParams
 {
 	/** Param0: 회복량 (0이면 기본값 사용) */
-	constexpr uint16 HealAmount = PropertyId::Param0;
+	inline const uint16 HealAmount = PropertyId::Param0;
 }
 
 // ============================================================================

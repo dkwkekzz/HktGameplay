@@ -175,10 +175,8 @@ RegisterIndex FHktStoryJsonParser::ParseRegister(const FString& RegStr)
 
 uint16 FHktStoryJsonParser::ParsePropertyId(const FString& PropStr)
 {
-	#define HKT_PROP_PARSE(Name) if (PropStr == TEXT(#Name)) return PropertyId::Name;
-	HKT_PROPERTY_LIST(HKT_PROP_PARSE)
-	#undef HKT_PROP_PARSE
-	return 0xFFFF;
+	const FHktPropertyDef* Found = HktProperty::FindByName(PropStr);
+	return Found ? Found->Id : 0xFFFF;
 }
 
 // ============================================================================
@@ -243,6 +241,26 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 
 	// Builder 생성
 	FHktStoryBuilder Builder = FHktStoryBuilder::Create(FName(*StoryTagStr));
+
+	// Archetype (선택적)
+	FString ArchetypeStr;
+	if (Root->TryGetStringField(TEXT("archetype"), ArchetypeStr))
+	{
+		EHktArchetype Arch = EHktArchetype::None;
+		if      (ArchetypeStr == TEXT("Character"))  Arch = EHktArchetype::Character;
+		else if (ArchetypeStr == TEXT("NPC"))         Arch = EHktArchetype::NPC;
+		else if (ArchetypeStr == TEXT("Item"))        Arch = EHktArchetype::Item;
+		else if (ArchetypeStr == TEXT("Projectile"))  Arch = EHktArchetype::Projectile;
+		else if (ArchetypeStr == TEXT("Building"))    Arch = EHktArchetype::Building;
+		else
+		{
+			Result.Warnings.Add(FString::Printf(TEXT("Unknown archetype: '%s'"), *ArchetypeStr));
+		}
+		if (Arch != EHktArchetype::None)
+		{
+			Builder.SetArchetype(Arch);
+		}
+	}
 
 	// CancelOnDuplicate
 	bool bCancelOnDuplicate = false;

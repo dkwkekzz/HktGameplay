@@ -123,13 +123,13 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Deactivate, "Story.Event.Item.Deactivat
 
 
 /** EquipSlot PropertyId 테이블 (서버용) */
-static constexpr uint16 ServerEquipSlotPropertyIds[] =
+static const uint16 ServerEquipSlotPropertyIds[] =
 {
 	PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
 	PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
 	PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
 };
-static constexpr int32 MaxServerEquipSlots = UE_ARRAY_COUNT(ServerEquipSlotPropertyIds);
+static const int32 MaxServerEquipSlots = UE_ARRAY_COUNT(ServerEquipSlotPropertyIds);
 
 /** FHktBagItem → FHktEntityState 변환 (엔티티 복원용) */
 static FHktEntityState BagItemToEntityState(const FHktBagItem& InItem, int64 OwnerUid)

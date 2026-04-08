@@ -6,6 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "HktCoreDefs.h"
 #include "HktStoryTypes.h"
+#include "HktCoreArchetype.h"
 
 struct FHktVMProgram;
 struct FHktWorldState;
@@ -153,6 +154,11 @@ public:
     FHktStoryBuilder& operator=(const FHktStoryBuilder&) = delete;
     FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept;
     FHktStoryBuilder& operator=(FHktStoryBuilder&&) = delete;
+
+    // ========== Archetype 검증 ==========
+
+    /** Self 엔티티의 Archetype 설정 — 프로퍼티 접근 빌드타임 검증 활성화 */
+    FHktStoryBuilder& SetArchetype(EHktArchetype Arch);
 
     // ========== Story Policy ==========
 
@@ -585,6 +591,11 @@ private:
 
     // 문자열 → int32 키 매핑 (JSON 파서용 — 런타임 동적 라벨 해석)
     TMap<FString, int32> NamedLabelMap;
+
+    // Archetype 프로퍼티 검증
+    EHktArchetype SelfArchetype = EHktArchetype::None;
+    TArray<FString> ValidationErrors;
+    void ValidatePropertyAccess(uint16 PropId, EHktArchetype Arch);
 };
 
 // ============================================================================

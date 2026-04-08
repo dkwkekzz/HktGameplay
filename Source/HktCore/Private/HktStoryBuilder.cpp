@@ -499,8 +499,31 @@ FHktStoryBuilder& FHktStoryBuilder::LoadConst(RegisterIndex Dst, int32 Value)
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::SetArchetype(EHktArchetype Arch)
+{
+    SelfArchetype = Arch;
+    return *this;
+}
+
+void FHktStoryBuilder::ValidatePropertyAccess(uint16 PropId, EHktArchetype Arch)
+{
+    if (Arch == EHktArchetype::None) return;
+
+    const FHktArchetypeMetadata* Meta = FHktArchetypeRegistry::Get().Find(Arch);
+    if (!Meta) return;
+
+    if (!Meta->HasProperty(PropId))
+    {
+        const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
+        ValidationErrors.Add(FString::Printf(
+            TEXT("Archetype '%s' does not have property '%s' (Id=%d)"),
+            Meta->Name, PropName ? PropName : TEXT("?"), PropId));
+    }
+}
+
 FHktStoryBuilder& FHktStoryBuilder::LoadStore(RegisterIndex Dst, uint16 PropertyId)
 {
+    ValidatePropertyAccess(PropertyId, SelfArchetype);
     Emit(FInstruction::Make(EOpCode::LoadStore, Dst, 0, 0, PropertyId));
     return *this;
 }
@@ -513,6 +536,7 @@ FHktStoryBuilder& FHktStoryBuilder::LoadStoreEntity(RegisterIndex Dst, RegisterI
 
 FHktStoryBuilder& FHktStoryBuilder::SaveStore(uint16 PropertyId, RegisterIndex Src)
 {
+    ValidatePropertyAccess(PropertyId, SelfArchetype);
     Emit(FInstruction::Make(EOpCode::SaveStore, 0, Src, 0, PropertyId));
     return *this;
 }
@@ -1177,6 +1201,20 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
     Program->Code = MoveTemp(MainSection.Code);
     Program->Constants = MoveTemp(MainSection.Constants);
     Program->Strings = MoveTemp(MainSection.Strings);
+
+    // === Archetype 프로퍼티 검증 ===
+    if (ValidationErrors.Num() > 0)
+    {
+        HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
+            TEXT("===== Story '%s' Build FAILED — Archetype validation ====="),
+            *Program->Tag.ToString()));
+        for (const FString& Err : ValidationErrors)
+        {
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server,
+                FString::Printf(TEXT("  %s"), *Err));
+        }
+        return nullptr;
+    }
 
     // === Story 바이트코드 검증 ===
     FHktStoryValidator Validator(Program->Code, Program->Tag, MainSection.Labels, MainSection.IntLabels);
