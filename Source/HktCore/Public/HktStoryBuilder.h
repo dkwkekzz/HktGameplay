@@ -538,6 +538,12 @@ public:
     /** @deprecated AllocLabel() + Label(int32) 사용 권장 */
     FString MakeInternalLabel(const TCHAR* Prefix);
 
+    // ========== Flow Mode ==========
+
+    /** Flow 모드 설정 — Self/Target 엔티티가 없는 Story (Spawner 등).
+     *  Validator에서 Self/Target을 항상 유효하다고 가정하지 않게 한다. */
+    FHktStoryBuilder& SetFlowMode() { bFlowMode = true; return *this; }
+
     // ========== Build ==========
 
     /** 빌드 — 검증 실패 시 nullptr 반환, 실패한 Story는 등록되지 않음 */
@@ -597,6 +603,9 @@ private:
 
     // 문자열 → int32 키 매핑 (JSON 파서용 — 런타임 동적 라벨 해석)
     TMap<FString, int32> NamedLabelMap;
+
+    // Flow 모드 — Self/Target 엔티티 없음
+    bool bFlowMode = false;
 
     // Archetype 프로퍼티 검증
     EHktArchetype SelfArchetype = EHktArchetype::None;

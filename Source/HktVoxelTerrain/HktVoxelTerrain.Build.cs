@@ -34,6 +34,7 @@ public class HktVoxelTerrain : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"HktRuntime",
 			}
 		);
 

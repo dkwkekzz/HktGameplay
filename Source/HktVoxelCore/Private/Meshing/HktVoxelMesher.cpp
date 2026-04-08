@@ -269,9 +269,12 @@ void FHktVoxelMesher::EmitQuad(
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
 
-	// T×B 외적이 Face 법선과 같은 방향인지 (오른손 좌표계 여부)
-	static constexpr bool bRightHanded[EHktVoxelFace::Count] = { true, false, false, true, true, false };
-	const bool bForwardWinding = bRightHanded[Face];
+	// UE5 왼손 좌표계: 면 법선 방향에서 봤을 때 CW가 앞면
+	// PosX(+X): U=Y,V=Z → CW=forward  | NegX(-X): U=Y,V=Z → CCW=forward
+	// PosY(+Y): U=X,V=Z → CCW=forward | NegY(-Y): U=X,V=Z → CW=forward
+	// PosZ(+Z): U=X,V=Y → CW=forward  | NegZ(-Z): U=X,V=Y → CCW=forward
+	static constexpr bool bForwardWindingTable[EHktVoxelFace::Count] = { false, true, true, false, false, true };
+	const bool bForwardWinding = bForwardWindingTable[Face];
 
 	// UV → XYZ 변환
 	auto ToWorld = [&](int32 U, int32 V) -> FIntVector

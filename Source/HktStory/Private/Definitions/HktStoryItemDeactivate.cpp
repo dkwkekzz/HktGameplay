@@ -15,6 +15,7 @@ namespace HktStoryItemDeactivate
 {
 	using namespace HktStoryTags;
 	using namespace HktGameplayTags;
+	using namespace HktArchetypeTags;
 
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Deactivate, "Story.Event.Item.Deactivate", "Item deactivate intent event.");

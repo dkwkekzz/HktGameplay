@@ -14,6 +14,7 @@ namespace HktStoryPlayerInWorld
 {
 	using namespace HktStoryTags;
 	using namespace HktGameplayTags;
+	using namespace HktArchetypeTags;
 
 	// Item
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item_WoodenSword, "Entity.Item.WoodenSword", "Wooden sword starter item.");
@@ -47,9 +48,9 @@ namespace HktStoryPlayerInWorld
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
 			// 위치 설정 (이벤트의 Location에서)
-			.LoadConst(pos, 0.f)
-			.LoadConst(pos + 1, 0.f)
-			.LoadConst(pos + 2, 0.f)
+			.LoadStore(pos, PropertyId::TargetPosX)
+			.LoadStore(pos + 1, PropertyId::TargetPosY)
+			.LoadStore(pos + 2, PropertyId::TargetPosZ)
 			.SetPosition(Self, pos)
 
 			// 스폰 이펙트

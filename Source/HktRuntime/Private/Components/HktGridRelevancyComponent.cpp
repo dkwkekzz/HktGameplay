@@ -28,6 +28,11 @@ bool FHktRelevancyGroupImpl::HasPlayer(int64 Uid) const
     return PlayerUids.Contains(Uid);
 }
 
+void FHktRelevancyGroupImpl::SetTerrainConfig(const FHktTerrainGeneratorConfig& Config)
+{
+    if (Simulator) { Simulator->SetTerrainConfig(Config); }
+}
+
 UHktGridRelevancyComponent::UHktGridRelevancyComponent() { PrimaryComponentTick.bCanEverTick = false; }
 
 void UHktGridRelevancyComponent::BeginPlay()
@@ -84,4 +89,12 @@ int32 UHktGridRelevancyComponent::GetRelevancyGroupIndex(int64 PlayerUid) const
 int32 UHktGridRelevancyComponent::CalculateRelevancyGroupIndex(FVector PlayerPos) const
 {
     return 0;
+}
+
+void UHktGridRelevancyComponent::SetTerrainConfig(const FHktTerrainGeneratorConfig& Config)
+{
+    for (FHktRelevancyGroupImpl& Group : Groups)
+    {
+        Group.SetTerrainConfig(Config);
+    }
 }

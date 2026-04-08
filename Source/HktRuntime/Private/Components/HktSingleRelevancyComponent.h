@@ -28,6 +28,7 @@ public:
     virtual const IHktRelevancyGroup& GetRelevancyGroup(int32 Index) const override;
     virtual int32 GetRelevancyGroupIndex(int64 PlayerUid) const override;
     virtual int32 CalculateRelevancyGroupIndex(FVector PlayerPos) const override { return 0; }
+    virtual void SetTerrainConfig(const FHktTerrainGeneratorConfig& Config) override;
 
     // IHktAuthoritySimulator
     virtual void AdvanceFrame(const FHktSimulationEvent& InEvent) override { Simulator->AdvanceFrame(InEvent); }

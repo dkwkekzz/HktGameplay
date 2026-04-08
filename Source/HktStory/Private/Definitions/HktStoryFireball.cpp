@@ -53,6 +53,7 @@ namespace HktStoryFireball
 
 		auto B = Story(Story_Fireball);
 		FHktScopedRegBlock explosionPos(B, 3);
+		FHktScopedReg hitTarget(B);     // Hit → GP 레지스터 복사용 (Label 합류점 무효화 방지)
 
 		// === 공격별 쿨타임 갱신 ===
 		HktSnippetCombat::CooldownUpdateConst(B, RecoveryFrame);
@@ -76,6 +77,7 @@ namespace HktStoryFireball
 			// === 충돌 대기 ===
 			.Log(TEXT("Fireball: 충돌 대기 중..."))
 			.WaitCollision(Spawned)                     // 충돌 시 Hit = 충돌 대상
+			.Move(hitTarget, Hit)                       // Hit → GP 레지스터 (Label 무효화 방지)
 
 			// === 충돌 처리 ===
 			.Log(TEXT("Fireball: 충돌! 폭발 처리"))
@@ -87,11 +89,11 @@ namespace HktStoryFireball
 			.DestroyEntity(Spawned)
 
 			// 직격 대상에게 100 피해
-			.ApplyDamageConst(Hit, 100)
-			.PlayVFXAttached(Hit, VFX_DirectHit);
+			.ApplyDamageConst(hitTarget, 100)
+			.PlayVFXAttached(hitTarget, VFX_DirectHit);
 
 		// 직격 사망 판정
-		HktSnippetCombat::CheckDeath(B, Hit, Tag_State_Dead);
+		HktSnippetCombat::CheckDeath(B, hitTarget, Tag_State_Dead);
 
 		B	// 폭발 이펙트
 			.PlayVFX(explosionPos, VFX_FireballExplosion)
@@ -100,9 +102,9 @@ namespace HktStoryFireball
 			// === 범위 피해 (반경 300cm) ===
 			.Log(TEXT("Fireball: 범위 피해 적용"))
 
-			.ForEachInRadius(Hit, 300)                  // Hit 주변 300cm 내 적들
-				.Move(Target, Iter)                     // Target = 현재 순회 대상
-				.ApplyDamageConst(Target, 50)           // 50 피해
+			.ForEachInRadius(hitTarget, 300)             // hitTarget 주변 300cm 내 적들
+				.Move(Target, Iter)                      // Target = 현재 순회 대상
+				.ApplyDamageConst(Target, 50)            // 50 피해
 				.ApplyEffect(Target, Effect_Burn);
 
 			// AoE 사망 판정

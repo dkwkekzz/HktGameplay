@@ -11,6 +11,7 @@
 #include "Rendering/HktVoxelMaterialLUT.h"
 #include "Terrain/HktTerrainGenerator.h"
 #include "Terrain/HktTerrainVoxel.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 #include "Engine/World.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/Texture2D.h"
@@ -49,14 +50,9 @@ void AHktVoxelTerrainActor::BeginPlay()
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
 	Streamer->SetMaxLoadedChunks(MaxLoadedChunks);
 
-	// 지형 생성기 초기화
-	FHktTerrainGeneratorConfig GenConfig;
-	GenConfig.Seed = TerrainSeed;
-	GenConfig.HeightScale = HeightScale;
-	GenConfig.HeightOffset = HeightOffset;
-	GenConfig.WaterLevel = WaterLevel;
-	GenConfig.MountainBlend = MountainBlend;
-	GenConfig.bEnableCaves = bEnableCaves;
+	// 지형 생성기 초기화 (UHktRuntimeGlobalSetting에서 설정 읽기)
+	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+	const FHktTerrainGeneratorConfig GenConfig = Settings->ToTerrainConfig();
 	Generator = MakeUnique<FHktTerrainGenerator>(GenConfig);
 
 	PrewarmPool(InitialPoolSize);
@@ -66,7 +62,7 @@ void AHktVoxelTerrainActor::BeginPlay()
 
 	UE_LOG(LogHktVoxelTerrain, Log,
 		TEXT("Terrain Actor initialized — Seed=%lld, VoxelSize=%.1f, ChunkWorld=%.0f, ViewDist=%.0f, Pool=%d, MaxLoad=%d, MaxMesh=%d, Style=%s"),
-		TerrainSeed, VoxelSize, GetChunkWorldSize(), ViewDistance, InitialPoolSize, MaxLoadsPerFrame, MaxMeshPerFrame,
+		GenConfig.Seed, VoxelSize, GetChunkWorldSize(), ViewDistance, InitialPoolSize, MaxLoadsPerFrame, MaxMeshPerFrame,
 		bStyleBuilt ? TEXT("Built") : TEXT("Palette"));
 }
 

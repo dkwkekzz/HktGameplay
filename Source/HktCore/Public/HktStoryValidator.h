@@ -30,12 +30,14 @@ public:
 	 * @param InTag       Story 태그 (로그 출력용)
 	 * @param InLabels    문자열 Label → PC 매핑 (합류점 판정용)
 	 * @param InIntLabels 정수 Label → PC 매핑 (자동 생성 라벨)
+	 * @param bInFlowMode true이면 Self/Target 엔티티가 항상 유효하다고 가정하지 않음
 	 */
 	FHktStoryValidator(
 		const TArray<FInstruction>& InCode,
 		const FGameplayTag& InTag,
 		const TMap<FName, int32>& InLabels,
-		const TMap<int32, int32>& InIntLabels = {});
+		const TMap<int32, int32>& InIntLabels = {},
+		bool bInFlowMode = false);
 
 	/**
 	 * 엔티티 레지스터 초기화 검증
@@ -58,4 +60,5 @@ private:
 	const TArray<FInstruction>& Code;
 	const FGameplayTag& Tag;
 	TSet<int32> LabelPCs;
+	bool bFlowMode = false;
 };

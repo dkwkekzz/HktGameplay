@@ -16,6 +16,7 @@ namespace HktStoryItemActivate
 {
 	using namespace HktStoryTags;
 	using namespace HktGameplayTags;
+	using namespace HktArchetypeTags;
 
 	// Story Name
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Item_Activate, "Story.Event.Item.Activate", "Item activate intent event.");

@@ -1247,7 +1247,7 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
     }
 
     // === Story 바이트코드 검증 ===
-    FHktStoryValidator Validator(Program->Code, Program->Tag, MainSection.Labels, MainSection.IntLabels);
+    FHktStoryValidator Validator(Program->Code, Program->Tag, MainSection.Labels, MainSection.IntLabels, bFlowMode);
 
     if (!Validator.ValidateEntityFlow())
     {

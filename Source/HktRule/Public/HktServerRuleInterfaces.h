@@ -130,6 +130,9 @@ public:
 	virtual const IHktRelevancyGroup& GetRelevancyGroup(int32 Index) const = 0;
 	virtual int32 GetRelevancyGroupIndex(int64 PlayerUid) const = 0;
 	virtual int32 CalculateRelevancyGroupIndex(FVector PlayerPos) const = 0;
+
+	/** InitGame에서 첫 AdvanceFrame 이전에 호출 필수 — 시뮬레이션 지형 인지 활성화 */
+	virtual void SetTerrainConfig(const FHktTerrainGeneratorConfig& Config) {}
 };
 
 //=============================================================================

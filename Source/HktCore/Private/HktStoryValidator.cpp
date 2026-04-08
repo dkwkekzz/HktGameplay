@@ -8,9 +8,11 @@ FHktStoryValidator::FHktStoryValidator(
 	const TArray<FInstruction>& InCode,
 	const FGameplayTag& InTag,
 	const TMap<FName, int32>& InLabels,
-	const TMap<int32, int32>& InIntLabels)
+	const TMap<int32, int32>& InIntLabels,
+	bool bInFlowMode)
 	: Code(InCode)
 	, Tag(InTag)
+	, bFlowMode(bInFlowMode)
 {
 	for (const auto& Pair : InLabels)
 	{
@@ -30,8 +32,9 @@ bool FHktStoryValidator::ValidateEntityFlow()
 {
 	bool bValid = true;
 	// Self(R10), Target(R11)은 이벤트에서 항상 초기화됨
+	// Flow 모드에서는 SourceEntity가 없으므로 Self/Target도 무효
 	// Spawned(R12), Hit(R13), Iter(R14)는 특정 Op 실행 후에만 유효
-	constexpr uint16 AlwaysValid = (1 << Reg::Self) | (1 << Reg::Target);
+	const uint16 AlwaysValid = bFlowMode ? 0 : ((1 << Reg::Self) | (1 << Reg::Target));
 	uint16 EntityRegs = AlwaysValid;
 
 	// GP 레지스터(R0~R9) 초기화 추적 — 엔티티 파라미터로 사용될 때 검증

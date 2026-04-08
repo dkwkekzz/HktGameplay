@@ -249,11 +249,11 @@ FLinearColor FHktEntityPresentation::GetTeamColor(int32 TeamIndex)
 
 EHktRenderCategory FHktEntityPresentation::DetermineRenderCategory(const FGameplayTagContainer& Tags)
 {
-	if (Tags.HasTag(HktGameplayTags::Entity_Character) || Tags.HasTag(HktGameplayTags::Entity_NPC) || Tags.HasTag(HktGameplayTags::Entity_Building))
+	if (Tags.HasTag(HktArchetypeTags::Entity_Character) || Tags.HasTag(HktArchetypeTags::Entity_NPC) || Tags.HasTag(HktArchetypeTags::Entity_Building))
 		return EHktRenderCategory::Actor;
-	if (Tags.HasTag(HktGameplayTags::Entity_Projectile))
+	if (Tags.HasTag(HktArchetypeTags::Entity_Projectile))
 		return EHktRenderCategory::MassEntity;
-	if (Tags.HasTag(HktGameplayTags::Entity_Item))
+	if (Tags.HasTag(HktArchetypeTags::Entity_Item))
 		return EHktRenderCategory::Actor;
 	return EHktRenderCategory::None;
 }

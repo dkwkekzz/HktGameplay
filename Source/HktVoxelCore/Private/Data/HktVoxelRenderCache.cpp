@@ -38,7 +38,19 @@ void FHktVoxelRenderCache::LoadChunk(const FIntVector& ChunkCoord, const FHktVox
 
 	if (VoxelData && CopyCount > 0)
 	{
-		FMemory::Memcpy(NewChunk->Data, VoxelData, CopyCount * sizeof(FHktVoxel));
+		// VoxelData flat index: X + Y*S + Z*S*S  (Z-major, Generator 레이아웃)
+		// Data[X][Y][Z] memory: X*S*S + Y*S + Z  (X-major, C++ 3D 배열)
+		constexpr int32 S = FHktVoxelChunk::SIZE;
+		for (int32 Z = 0; Z < S; ++Z)
+		{
+			for (int32 Y = 0; Y < S; ++Y)
+			{
+				for (int32 X = 0; X < S; ++X)
+				{
+					NewChunk->Data[X][Y][Z] = VoxelData[X + Y * S + Z * S * S];
+				}
+			}
+		}
 	}
 
 	Chunks.Emplace(ChunkCoord, MoveTemp(NewChunk));

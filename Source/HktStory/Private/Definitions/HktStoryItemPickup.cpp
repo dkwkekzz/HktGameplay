@@ -61,7 +61,7 @@ namespace HktStoryItemPickup
 					return false;
 
 				// 빈 EquipIndex 존재 여부 확인 (EquipSlot0~8 중 값==0인 슬롯)
-				static constexpr uint16 SlotProps[] = {
+				static const uint16 SlotProps[] = {
 					PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
 					PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
 					PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,

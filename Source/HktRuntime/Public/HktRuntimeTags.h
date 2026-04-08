@@ -6,21 +6,12 @@
 namespace HktGameplayTags
 {
     // --- Story IDs used by Runtime ---
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Event_Move_ToLocation);
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Event_Move_Jump);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Event_Item_Drop);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_PlayerInWorld);
 
     // --- Database Defaults ---
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Visual_Character_Default);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Flow_Character_Default);
-
-    // --- Entity Classification ---
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Character);
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC);
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Building);
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Projectile);
-    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Item);
 
     // --- Animation Parent Tags ---
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim);

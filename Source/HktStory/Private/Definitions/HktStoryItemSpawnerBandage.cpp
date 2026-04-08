@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
+#include "HktStoryEventParams.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryTags.h"
 #include "NativeGameplayTags.h"
@@ -40,14 +41,22 @@ namespace HktStoryItemSpawnerBandage
 		using namespace Reg;
 
 		auto B = Story(Story_Spawner_Item_Bandage);
+		B.SetFlowMode();
 		int32 LoopLabel = B.AllocLabel();
 		int32 WaitLabel = B.AllocLabel();
+
+		FHktScopedRegBlock pos(B, 3);
 
 		// 주기적 스포너 루프 시작 (플레이어 체크 + 아이템 1개 상한)
 		HktSnippetNPC::SpawnerLoopBegin(B, LoopLabel, WaitLabel, Tag_Item_Bandage, 1);
 
+		// 위치 레지스터 로드 (이벤트 파라미터에서)
+		B.ReadProperty(pos, SpawnerParams::SpawnPosX)
+		 .ReadProperty(pos + 1, SpawnerParams::SpawnPosY)
+		 .LoadConst(pos + 2, 0);
+
 		// 아이템 엔티티 생성
-		HktSnippetItem::SpawnGroundItem(B, Entity_Item_Bandage, { 202 }, Self);
+		HktSnippetItem::SpawnGroundItemAtPos(B, Entity_Item_Bandage, { 202 }, pos);
 
 		B	// 아이템 속성 설정 — 붕대는 공격력 없음, 자가 회복용
 			.SaveConstEntity(Spawned, PropertyId::AttackPower, 0)

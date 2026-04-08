@@ -10,6 +10,7 @@
 #include "HktRuntimeTypes.h"
 #include "HktCoreDataCollector.h"
 #include "HktCoreEventLog.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 
 DEFINE_LOG_CATEGORY(LogHktRuntime);
 
@@ -56,6 +57,12 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
             CachedFrameManager,
             CachedRelevancyGraph,
             CachedWorldDatabase);
+    }
+
+    if (CachedRelevancyGraph)
+    {
+        const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+        CachedRelevancyGraph->SetTerrainConfig(Settings->ToTerrainConfig());
     }
 }
 

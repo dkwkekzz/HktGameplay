@@ -6,6 +6,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Paths.h"
 #include "HktRuntimeTags.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 
 // ============================================================================
 // SaveGame Custom Serialization
@@ -160,7 +161,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 			EnterWorldEvent.EventTag = HktGameplayTags::Story_PlayerInWorld;
 			EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid);
 			EnterWorldEvent.TargetEntity = InvalidEntityId;
-			EnterWorldEvent.Location = FVector::ZeroVector;
+			EnterWorldEvent.Location = GetDefault<UHktRuntimeGlobalSetting>()->ComputeDefaultSpawnLocation();
 			EnterWorldEvent.PlayerUid = InPlayerUid;
 			NewRecord.ActiveEvents.Add(EnterWorldEvent);
 

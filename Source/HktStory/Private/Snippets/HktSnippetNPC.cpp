@@ -13,6 +13,7 @@ FHktStoryBuilder& HktSnippetNPC::SetupNPCStats(
 	using namespace Reg;
 	using namespace HktStoryTags;
 	using namespace HktGameplayTags;
+	using namespace HktArchetypeTags;
 
 	B.SaveConstEntity(Spawned, PropertyId::IsNPC, 1)
 	 .SaveConstEntity(Spawned, PropertyId::Health, Stats.Health)

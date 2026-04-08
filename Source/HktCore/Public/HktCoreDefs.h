@@ -16,6 +16,16 @@ constexpr FHktEntityId InvalidEntityId = -1;
 // Stance (무기별 동작 모드) — FGameplayTag 기반
 // ============================================================================
 
+namespace HktArchetypeTags
+{
+	// --- Entity Classification ---
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Character);
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC);
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Building);
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Projectile);
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Item);
+}
+
 namespace HktStance
 {
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Unarmed);  // Entity.Stance.Unarmed

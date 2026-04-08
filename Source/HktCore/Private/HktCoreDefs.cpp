@@ -2,6 +2,16 @@
 
 #include "HktCoreDefs.h"
 
+namespace HktArchetypeTags
+{
+    // --- Entity Classification ---
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character, "Entity.Character", "Player character entity root tag.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC, "Entity.NPC", "Generic NPC tag.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Building, "Entity.Building", "Building entity.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Projectile, "Entity.Projectile", "Projectile entity.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item, "Entity.Item", "Item entity parent tag.");
+}
+
 namespace HktStance
 {
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Unarmed, "Entity.Stance.Unarmed", "비무장 스탠스");

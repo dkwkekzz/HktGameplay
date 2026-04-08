@@ -5,10 +5,10 @@
 #include "HktCoreEventLog.h"
 #include "HktStoryBuilder.h"
 #include "HktStoryEventParams.h"
-#include "HktRuntimeTags.h"
 
 // 기본 액션 태그 (슬롯 미선택 시 타겟 유형에 따라 TargetDefault Story가 분기)
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Target_Default, "Story.Event.Target.Default");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Jump, "Story.Event.Move.Jump");
 
 FHktDefaultClientRule::FHktDefaultClientRule()
 {
@@ -231,7 +231,7 @@ void FHktDefaultClientRule::OnUserEvent_JumpInputAction()
 		return;
 	}
 
-	FHktEvent Event = HktEventBuilder::Jump(HktGameplayTags::Story_Event_Move_Jump, SubjectEntity);
+	FHktEvent Event = HktEventBuilder::Jump(Tag_Event_Move_Jump, SubjectEntity);
 
 	if (!HktStory::ValidateEvent(WS, Event))
 	{

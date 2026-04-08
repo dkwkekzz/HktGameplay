@@ -5,6 +5,7 @@
 #include "HktCoreEventLog.h"
 #include "GameplayTagContainer.h"
 #include "HktRuntimeTags.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 
 UHktTransientDatabaseComponent::UHktTransientDatabaseComponent()
 {
@@ -37,7 +38,7 @@ void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TF
     EnterWorldEvent.EventTag = HktGameplayTags::Story_PlayerInWorld;
     EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid); // 임시, 플로우에서 실제 엔티티 생성
     EnterWorldEvent.TargetEntity = InvalidEntityId;
-    EnterWorldEvent.Location = FVector::ZeroVector; // 기본 스폰 위치는 여기서 정하는게 아님
+    EnterWorldEvent.Location = GetDefault<UHktRuntimeGlobalSetting>()->ComputeDefaultSpawnLocation();
     EnterWorldEvent.PlayerUid = InPlayerUid;
     NewRecord.ActiveEvents.Add(EnterWorldEvent);
 

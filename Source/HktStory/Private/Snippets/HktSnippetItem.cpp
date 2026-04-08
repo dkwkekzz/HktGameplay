@@ -345,3 +345,22 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItem(
 
 	return B;
 }
+
+FHktStoryBuilder& HktSnippetItem::SpawnGroundItemAtPos(
+	FHktStoryBuilder& B,
+	const FGameplayTag& ItemClassTag,
+	const FHktGroundItemTemplate& Template,
+	RegisterIndex PosBase)
+{
+	FHktRegReserve Guard(B.GetRegAllocator(), {PosBase, static_cast<RegisterIndex>(PosBase + 1), static_cast<RegisterIndex>(PosBase + 2)});
+
+	B.Log(TEXT("[Snippet] SpawnGroundItem"))
+	 .SpawnEntity(ItemClassTag)
+	 .SaveConstEntity(Reg::Spawned, PropertyId::ItemState, 0)                 // Ground
+	 .SaveConstEntity(Reg::Spawned, PropertyId::ItemId, Template.ItemId)
+	 .SaveConstEntity(Reg::Spawned, PropertyId::EquipIndex, -1);              // 미등록
+
+	B.SetPosition(Reg::Spawned, PosBase);
+
+	return B;
+}

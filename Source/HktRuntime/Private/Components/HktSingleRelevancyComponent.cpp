@@ -68,3 +68,8 @@ int32 UHktSingleRelevancyComponent::GetRelevancyGroupIndex(int64 PlayerUid) cons
 {
     return 0;
 }
+
+void UHktSingleRelevancyComponent::SetTerrainConfig(const FHktTerrainGeneratorConfig& Config)
+{
+    if (Simulator) { Simulator->SetTerrainConfig(Config); }
+}

@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktCoreArchetype.h"
+#include "HktCoreDefs.h"
 
 // ============================================================================
 // HktTrait 포인터 정의
@@ -171,7 +172,7 @@ void InitializeHktArchetypes()
     // ===== Archetype 등록 (ClassTag + Trait 포인터 조합 + 고유 프로퍼티) =====
 
     R.Register(EHktArchetype::Character, TEXT("Character"),
-        FGameplayTag::RequestGameplayTag(FName("Entity.Character")),
+        HktArchetypeTags::Entity_Character,
         {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
          HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam, HktTrait::EquipSlots},
         {
@@ -180,7 +181,7 @@ void InitializeHktArchetypes()
         });
 
     R.Register(EHktArchetype::NPC, TEXT("NPC"),
-        FGameplayTag::RequestGameplayTag(FName("Entity.NPC")),
+        HktArchetypeTags::Entity_NPC,
         {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
          HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam},
         {
@@ -188,7 +189,7 @@ void InitializeHktArchetypes()
         });
 
     R.Register(EHktArchetype::Item, TEXT("Item"),
-        FGameplayTag::RequestGameplayTag(FName("Entity.Item")),
+        HktArchetypeTags::Entity_Item,
         {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable, HktTrait::EventParam},
         {
             HktProperty::ItemState, HktProperty::ItemId, HktProperty::EquipIndex,
@@ -199,14 +200,14 @@ void InitializeHktArchetypes()
         });
 
     R.Register(EHktArchetype::Projectile, TEXT("Projectile"),
-        FGameplayTag::RequestGameplayTag(FName("Entity.Projectile")),
+        HktArchetypeTags::Entity_Projectile,
         {HktTrait::Movable, HktTrait::Collidable, HktTrait::Ownable},
         {
             HktProperty::AttackPower, HktProperty::Team,
         });
 
     R.Register(EHktArchetype::Building, TEXT("Building"),
-        FGameplayTag::RequestGameplayTag(FName("Entity.Building")),
+        HktArchetypeTags::Entity_Building,
         {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable},
         {
             HktProperty::Health, HktProperty::MaxHealth, HktProperty::Team,

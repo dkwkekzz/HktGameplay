@@ -151,4 +151,16 @@ namespace HktSnippetItem
 		const FGameplayTag& ItemClassTag,
 		const FHktGroundItemTemplate& Template,
 		RegisterIndex PosSourceEntity);
+
+	/**
+	 * 아이템을 월드(Ground 상태)에 생성 — 위치를 레지스터 블록으로 지정.
+	 * Flow 스토리(Self 엔티티 없음)에서 사용. 이벤트 파라미터에서 위치를 읽은 후 호출.
+	 *
+	 * @param PosBase 위치 레지스터 블록 (PosBase, PosBase+1, PosBase+2 = X, Y, Z)
+	 */
+	HKTSTORY_API FHktStoryBuilder& SpawnGroundItemAtPos(
+		FHktStoryBuilder& B,
+		const FGameplayTag& ItemClassTag,
+		const FHktGroundItemTemplate& Template,
+		RegisterIndex PosBase);
 }
