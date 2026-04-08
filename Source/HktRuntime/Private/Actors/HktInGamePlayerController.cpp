@@ -138,6 +138,7 @@ void AHktIngamePlayerController::SetupInputComponent()
     if (SubjectAction) EnhancedInput->BindAction(SubjectAction, ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSubjectAction);
     if (TargetAction)  EnhancedInput->BindAction(TargetAction,  ETriggerEvent::Started, this, &AHktIngamePlayerController::OnTargetAction);
     if (ZoomAction)    EnhancedInput->BindAction(ZoomAction,    ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnZoom);
+    if (JumpAction)    EnhancedInput->BindAction(JumpAction,    ETriggerEvent::Started, this, &AHktIngamePlayerController::OnJumpAction);
 
     for (int32 i = 0; i < SlotInputActions.Num(); ++i)
     {
@@ -246,6 +247,27 @@ void AHktIngamePlayerController::OnZoom(const FInputActionValue& Value)
         float Delta = Value.Get<float>();
         Rule->OnUserEvent_ZoomInputAction(Delta);
         WheelInputDelegate.Broadcast(Delta);
+    }
+}
+
+void AHktIngamePlayerController::OnJumpAction(const FInputActionValue& Value)
+{
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule) return;
+
+    Rule->OnUserEvent_JumpInputAction();
+
+    // Rule이 빌드한 점프 이벤트가 있으면 즉시 전송
+    if (CachedIntentBuilder && CachedIntentBuilder->HasPendingRuntimeEvent())
+    {
+        FHktEvent Event = CachedIntentBuilder->ConsumePendingRuntimeEvent();
+        Event.PlayerUid = GetPlayerUid();
+        Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
+        IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(Event));
+
+        HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+            FString::Printf(TEXT("OnJumpAction Submit %s"), *Event.ToString()),
+            Event.SourceEntity, Event.EventTag);
     }
 }
 

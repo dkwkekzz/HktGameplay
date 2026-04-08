@@ -71,6 +71,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	bool bIsMoving = false;
 
+	/** 점프 중 여부 (IsGrounded == 0에서 파생) */
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
+	bool bIsJumping = false;
+
 	/** 이동 속도 (cm/s) — VelX/VelY에서 계산 */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	float MoveSpeed = 0.0f;

@@ -64,6 +64,7 @@ private:
     // ===== Event Wait =====
     EVMStatus Op_WaitCollision(FHktVMRuntime& Runtime, RegisterIndex WatchEntity);
     EVMStatus Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity);
+    EVMStatus Op_WaitGrounded(FHktVMRuntime& Runtime, RegisterIndex WatchEntity);
     EVMStatus Op_WaitAnimEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity);
 
     // ===== Data Operations =====

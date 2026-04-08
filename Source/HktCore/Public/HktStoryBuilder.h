@@ -229,6 +229,9 @@ public:
     /** 이동 완료 대기 */
     FHktStoryBuilder& WaitMoveEnd(RegisterIndex Entity = Reg::Self);
 
+    /** 착지 대기: 점프 후 엔티티가 지면에 착지할 때까지 대기 */
+    FHktStoryBuilder& WaitGrounded(RegisterIndex Entity = Reg::Self);
+
     // ========== Structured Control Flow ==========
 
     /** 조건이 참이면 블록 진입, EndIf()까지 실행 */
@@ -393,6 +396,9 @@ public:
 
     /** 이동 중지 */
     FHktStoryBuilder& StopMovement(RegisterIndex Entity);
+
+    /** 점프 적용: IsGrounded=0, JumpVelZ=ImpulseVelZ 설정 (조합 연산) */
+    FHktStoryBuilder& ApplyJump(RegisterIndex Entity, int32 ImpulseVelZ);
 
     /** 거리 계산 (VM opcode — sqrt 필요) */
     FHktStoryBuilder& GetDistance(RegisterIndex Dst, RegisterIndex Entity1, RegisterIndex Entity2);

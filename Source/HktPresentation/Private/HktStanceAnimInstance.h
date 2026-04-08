@@ -42,6 +42,9 @@ public:
 	float MoveSpeed = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Stance")
+	bool bIsJumping = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Stance")
 	FGameplayTag StanceTag;
 
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Stance")

@@ -47,6 +47,7 @@ enum class EWaitEventType : uint8
     Timer,
     Collision,
     MoveEnd,
+    Grounded,       // 착지 대기 (점프 후 IsGrounded 전환)
 };
 
 /**

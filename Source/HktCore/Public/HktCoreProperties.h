@@ -128,6 +128,9 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(CollisionRadius, Hot)    // 28
     HKT_DEFINE_PROPERTY(Mass,            Hot)    // 29
 
+    // 점프
+    HKT_DEFINE_PROPERTY(JumpVelZ,        Hot)    // 30  — 점프 수직 속도 (cm/s). 0이면 점프 중 아님
+
     // ===== Cold Properties (공간 절약, 선형 탐색) =====
 
     // 이벤트 파라미터
