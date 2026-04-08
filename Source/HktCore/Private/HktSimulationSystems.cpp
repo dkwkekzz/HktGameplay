@@ -8,6 +8,8 @@
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
 #include "VM/HktVMWorldStateProxy.h"
+#include "Terrain/HktTerrainState.h"
+#include "Terrain/HktTerrainGenerator.h"
 #include "Math/UnrealMathUtility.h"
 #include "HAL/IConsoleManager.h"
 #include "HktCoreEventLog.h"
@@ -427,13 +429,105 @@ void FHktVMProcessSystem::Process(
 }
 
 // ============================================================================
+// 3.2 Terrain System
+// ============================================================================
+
+FIntVector FHktTerrainSystem::CmToVoxel(int32 X, int32 Y, int32 Z)
+{
+    // 음수 좌표를 올바르게 처리하기 위해 floor 연산 사용
+    auto FloorDivF = [](float A, float B) -> int32
+    {
+        return FMath::FloorToInt(A / B);
+    };
+    return FIntVector(
+        FloorDivF(static_cast<float>(X), VoxelSizeCm),
+        FloorDivF(static_cast<float>(Y), VoxelSizeCm),
+        FloorDivF(static_cast<float>(Z), VoxelSizeCm));
+}
+
+FIntVector FHktTerrainSystem::CmToVoxel(float X, float Y, float Z)
+{
+    return FIntVector(
+        FMath::FloorToInt(X / VoxelSizeCm),
+        FMath::FloorToInt(Y / VoxelSizeCm),
+        FMath::FloorToInt(Z / VoxelSizeCm));
+}
+
+FIntVector FHktTerrainSystem::VoxelToCm(int32 VX, int32 VY, int32 VZ)
+{
+    // 복셀 중심 좌표 반환
+    const float Half = VoxelSizeCm * 0.5f;
+    return FIntVector(
+        FMath::RoundToInt(VX * VoxelSizeCm + Half),
+        FMath::RoundToInt(VY * VoxelSizeCm + Half),
+        FMath::RoundToInt(VZ * VoxelSizeCm + Half));
+}
+
+void FHktTerrainSystem::Process(
+    const FHktWorldState& WorldState,
+    FHktTerrainState& TerrainState,
+    const FHktTerrainGenerator& Generator)
+{
+    RequiredChunks.Reset();
+
+    // 1. 모든 엔티티 위치에서 필요한 청크 좌표를 수집
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
+    {
+        const FIntVector Pos = WorldState.GetPosition(Id);
+        const FIntVector VoxelPos = CmToVoxel(Pos.X, Pos.Y, Pos.Z);
+        const FIntVector ChunkCoord = FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z);
+
+        // 엔티티 주변 반경의 청크를 필요 목록에 추가
+        for (int32 DX = -LoadRadiusXY; DX <= LoadRadiusXY; ++DX)
+        {
+            for (int32 DY = -LoadRadiusXY; DY <= LoadRadiusXY; ++DY)
+            {
+                for (int32 DZ = -LoadRadiusZ; DZ <= LoadRadiusZ; ++DZ)
+                {
+                    RequiredChunks.Add(FIntVector(ChunkCoord.X + DX, ChunkCoord.Y + DY, ChunkCoord.Z + DZ));
+                }
+            }
+        }
+    });
+
+    // 2. 필요한 청크 로드
+    for (const FIntVector& Coord : RequiredChunks)
+    {
+        if (!TerrainState.IsChunkLoaded(Coord))
+        {
+            // 메모리 제한 검사
+            if (TerrainState.GetLoadedChunkCount() >= MaxChunksLoaded)
+            {
+                break;
+            }
+            TerrainState.LoadChunk(Coord, Generator);
+        }
+    }
+
+    // 3. 불필요한 청크 언로드 (필요 목록에 없는 로드된 청크)
+    TArray<FIntVector> ToUnload;
+    for (const auto& Pair : TerrainState.LoadedChunks)
+    {
+        if (!RequiredChunks.Contains(Pair.Key))
+        {
+            ToUnload.Add(Pair.Key);
+        }
+    }
+    for (const FIntVector& Coord : ToUnload)
+    {
+        TerrainState.UnloadChunk(Coord);
+    }
+}
+
+// ============================================================================
 // 3.5 Movement System
 // ============================================================================
 
 void FHktMovementSystem::Process(
     FHktWorldState& WorldState,
     FHktVMWorldStateProxy& VMProxy,
-    TArray<FHktPendingEvent>& OutMoveEndEvents)
+    TArray<FHktPendingEvent>& OutMoveEndEvents,
+    const FHktTerrainState* TerrainState)
 {
     OutMoveEndEvents.Reset();
 
@@ -553,6 +647,18 @@ void FHktMovementSystem::Process(
         float NewX = CurX + VX * FixedDeltaSeconds;
         float NewY = CurY + VY * FixedDeltaSeconds;
         float NewZ = CurZ + VZ * FixedDeltaSeconds;
+
+        // 지형 스냅: 지면 아래로 내려가지 않도록 보정
+        if (TerrainState)
+        {
+            const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(NewX, NewY, NewZ);
+            const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
+            const float SurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z);
+            if (NewZ < SurfaceCmZ)
+            {
+                NewZ = SurfaceCmZ;
+            }
+        }
 
         VMProxy.SetPosition(WorldState, Id,
             FMath::RoundToInt(NewX), FMath::RoundToInt(NewY), FMath::RoundToInt(NewZ));

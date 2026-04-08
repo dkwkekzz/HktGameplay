@@ -13,6 +13,8 @@
 class FHktVMInterpreter;
 class FHktVMRuntimePool;
 struct FHktVMWorldStateProxy;
+struct FHktTerrainState;
+class FHktTerrainGenerator;
 
 /** Private: Physics 이벤트 (시스템 내부용) */
 struct FHktPhysicsEvent
@@ -61,6 +63,30 @@ struct HKTCORE_API FHktVMProcessSystem
     );
 };
 
+/** 3.2 Terrain System: 엔티티 위치 기반 청크 로드/언로드 */
+struct HKTCORE_API FHktTerrainSystem
+{
+    static constexpr int32 LoadRadiusXY = 2;    // 엔티티 주변 XY 2청크 반경 로드
+    static constexpr int32 LoadRadiusZ = 1;     // 엔티티 주변 Z 1청크 반경 로드
+    static constexpr int32 MaxChunksLoaded = 256;  // 시뮬레이션 메모리 제한
+    static constexpr float VoxelSizeCm = 15.0f;    // HktVoxelCore와 동일
+
+    TSet<FIntVector> RequiredChunks;  // 프레임 내 재사용 (할당 회피)
+
+    void Process(
+        const FHktWorldState& WorldState,
+        FHktTerrainState& TerrainState,
+        const FHktTerrainGenerator& Generator
+    );
+
+    /** cm 위치 → 복셀 좌표 변환 */
+    static FIntVector CmToVoxel(int32 X, int32 Y, int32 Z);
+    static FIntVector CmToVoxel(float X, float Y, float Z);
+
+    /** 복셀 좌표 → cm 위치 변환 (복셀 중심) */
+    static FIntVector VoxelToCm(int32 VX, int32 VY, int32 VZ);
+};
+
 /** 3.5 Movement System: 힘→가속도 물리 기반 이동 (고정 프레임 1/30초) */
 struct HKTCORE_API FHktMovementSystem
 {
@@ -71,7 +97,8 @@ struct HKTCORE_API FHktMovementSystem
     void Process(
         FHktWorldState& WorldState,
         FHktVMWorldStateProxy& VMProxy,
-        TArray<FHktPendingEvent>& OutMoveEndEvents
+        TArray<FHktPendingEvent>& OutMoveEndEvents,
+        const FHktTerrainState* TerrainState = nullptr
     );
 };
 

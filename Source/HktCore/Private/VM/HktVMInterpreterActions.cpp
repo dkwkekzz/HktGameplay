@@ -8,6 +8,7 @@
 #include "GameplayTagsManager.h"
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
+#include "Terrain/HktTerrainState.h"
 
 // ============================================================================
 // Helper
@@ -651,6 +652,80 @@ void FHktVMInterpreter::Op_SetForwardTarget(FHktVMRuntime& Runtime, RegisterInde
         VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetY, TgtY);
         VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetZ, TgtZ);
     }
+}
+
+// ============================================================================
+// Terrain
+// ============================================================================
+
+void FHktVMInterpreter::Op_GetTerrainHeight(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex XReg, RegisterIndex YReg)
+{
+    if (!TerrainState)
+    {
+        Runtime.SetReg(Dst, 0);
+        return;
+    }
+
+    const int32 VoxelX = Runtime.GetReg(XReg);
+    const int32 VoxelY = Runtime.GetReg(YReg);
+    const int32 Height = TerrainState->GetSurfaceHeightAt(VoxelX, VoxelY);
+    Runtime.SetReg(Dst, Height);
+
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_GetTerrainHeight VoxelXY=(%d,%d) Height=%d"), VoxelX, VoxelY, Height));
+}
+
+void FHktVMInterpreter::Op_GetVoxelType(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
+{
+    if (!TerrainState)
+    {
+        Runtime.SetReg(Dst, 0);
+        return;
+    }
+
+    const int32 X = Runtime.GetReg(PosBase);
+    const int32 Y = Runtime.GetReg(static_cast<RegisterIndex>(PosBase + 1));
+    const int32 Z = Runtime.GetReg(ZReg);
+    const uint16 TypeID = TerrainState->GetVoxelType(X, Y, Z);
+    Runtime.SetReg(Dst, static_cast<int32>(TypeID));
+
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_GetVoxelType Pos=(%d,%d,%d) TypeID=%d"), X, Y, Z, TypeID));
+}
+
+void FHktVMInterpreter::Op_SetVoxel(FHktVMRuntime& Runtime, RegisterIndex PosBase, RegisterIndex TypeReg)
+{
+    if (!TerrainState || !PendingVoxelDeltas)
+    {
+        return;
+    }
+
+    const int32 X = Runtime.GetReg(PosBase);
+    const int32 Y = Runtime.GetReg(static_cast<RegisterIndex>(PosBase + 1));
+    const int32 Z = Runtime.GetReg(static_cast<RegisterIndex>(PosBase + 2));
+    const uint16 TypeID = static_cast<uint16>(Runtime.GetReg(TypeReg));
+
+    FHktTerrainVoxel Voxel;
+    Voxel.TypeID = TypeID;
+    TerrainState->SetVoxel(X, Y, Z, Voxel, *PendingVoxelDeltas);
+
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_SetVoxel Pos=(%d,%d,%d) TypeID=%d"), X, Y, Z, TypeID));
+}
+
+void FHktVMInterpreter::Op_IsTerrainSolid(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
+{
+    if (!TerrainState)
+    {
+        Runtime.SetReg(Dst, 0);
+        return;
+    }
+
+    const int32 X = Runtime.GetReg(PosBase);
+    const int32 Y = Runtime.GetReg(static_cast<RegisterIndex>(PosBase + 1));
+    const int32 Z = Runtime.GetReg(ZReg);
+    const bool bSolid = TerrainState->IsSolid(X, Y, Z);
+    Runtime.SetReg(Dst, bSolid ? 1 : 0);
 }
 
 // ============================================================================

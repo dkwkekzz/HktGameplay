@@ -37,6 +37,8 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
     EntityArrangeSystem.ScratchRemoveList.Reserve(HktLimits::MaxEntities);
     VMProcessSystem.ScratchEvents.Reserve(HktLimits::MaxPendingEvents);
 
+    PendingVoxelDeltas.Reserve(256);
+
     VMPool = MakeUnique<FHktVMRuntimePool>();
     Interpreter = MakeUnique<FHktVMInterpreter>();
     Interpreter->Initialize(&WorldState, &VMProxy);
@@ -54,6 +56,13 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
 
     EntityArrangeSystem.Process(WorldState, Event.RemovedOwnerIds);
     FrameRemovedEntities = EntityArrangeSystem.ScratchRemoveList;
+
+    // Terrain: 엔티티 위치 기반 청크 로드/언로드
+    if (TerrainGenerator)
+    {
+        PendingVoxelDeltas.Reset();
+        TerrainSystem.Process(WorldState, TerrainState, *TerrainGenerator);
+    }
 
     VMBuildSystem.Process(Event.NewEvents, static_cast<int32>(Event.FrameNumber),
                           *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
@@ -94,7 +103,8 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
                               *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
     }
 
-    MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents);
+    MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents,
+                           TerrainGenerator ? &TerrainState : nullptr);
     for (const FHktPendingEvent& ME : GeneratedMoveEndEvents)
     {
         PendingExternalEvents.Add(ME);
@@ -191,6 +201,7 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
 
     Diff.VFXEvents = MoveTemp(VMProxy.PendingVFXEvents);
     Diff.AnimEvents = MoveTemp(VMProxy.PendingAnimEvents);
+    Diff.VoxelDeltas = MoveTemp(PendingVoxelDeltas);
 
 #if ENABLE_HKT_INSIGHTS
     if (!SourceName.IsEmpty())
@@ -281,6 +292,14 @@ void FHktWorldDeterminismSimulator::RestoreWorldState(const FHktWorldState& InSt
 void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)
 {
     WorldState.UndoDiff(Diff);
+}
+
+void FHktWorldDeterminismSimulator::SetTerrainConfig(const FHktTerrainGeneratorConfig& Config)
+{
+    TerrainGenerator = MakeUnique<FHktTerrainGenerator>(Config);
+
+    // Interpreter에 지형 참조 재설정
+    Interpreter->Initialize(&WorldState, &VMProxy, &TerrainState, &PendingVoxelDeltas);
 }
 
 // ============================================================================

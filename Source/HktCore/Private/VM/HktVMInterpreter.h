@@ -11,6 +11,8 @@
 // Forward declarations
 struct FHktWorldState;
 struct FHktVMWorldStateProxy;
+struct FHktTerrainState;
+struct FHktVoxelDelta;
 
 /**
  * FHktVMInterpreter - 바이트코드 인터프리터 (Pure C++)
@@ -28,7 +30,9 @@ class HKTCORE_API FHktVMInterpreter
 {
 public:
     /** WorldState 및 VMProxy 참조 초기화 */
-    void Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy);
+    void Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy,
+                    FHktTerrainState* InTerrainState = nullptr,
+                    TArray<FHktVoxelDelta>* InPendingVoxelDeltas = nullptr);
 
     /** VM을 yield/완료/실패까지 실행 */
     EVMStatus Execute(FHktVMRuntime& Runtime);
@@ -132,6 +136,12 @@ private:
     // ===== Movement =====
     void Op_SetForwardTarget(FHktVMRuntime& Runtime, RegisterIndex Entity);
 
+    // ===== Terrain =====
+    void Op_GetTerrainHeight(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex XReg, RegisterIndex YReg);
+    void Op_GetVoxelType(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+    void Op_SetVoxel(FHktVMRuntime& Runtime, RegisterIndex PosBase, RegisterIndex TypeReg);
+    void Op_IsTerrainSolid(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);
 
@@ -144,6 +154,8 @@ private:
 
     FHktWorldState* WorldState = nullptr;
     FHktVMWorldStateProxy* VMProxy = nullptr;
+    FHktTerrainState* TerrainState = nullptr;
+    TArray<FHktVoxelDelta>* PendingVoxelDeltas = nullptr;
 
 public:
     /** 시뮬레이터에서 설정: 로그 소스 (Server/Client) */

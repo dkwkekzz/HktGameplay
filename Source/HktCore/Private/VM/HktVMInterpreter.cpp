@@ -9,10 +9,13 @@
 #include "HktCoreEventLog.h"
 #include "HktCoreProperties.h"
 
-void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy)
+void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy,
+                                   FHktTerrainState* InTerrainState, TArray<FHktVoxelDelta>* InPendingVoxelDeltas)
 {
     WorldState = InWorldState;
     VMProxy = InVMProxy;
+    TerrainState = InTerrainState;
+    PendingVoxelDeltas = InPendingVoxelDeltas;
 }
 
 EVMStatus FHktVMInterpreter::Execute(FHktVMRuntime& Runtime)
@@ -119,6 +122,11 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::DispatchEventFrom: Op_DispatchEventFrom(Runtime, Inst.Dst, Inst.GetSignedImm20()); break;
     // Movement
     case EOpCode::SetForwardTarget: Op_SetForwardTarget(Runtime, Inst.Src1); break;
+    // Terrain
+    case EOpCode::GetTerrainHeight: Op_GetTerrainHeight(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
+    case EOpCode::GetVoxelType: Op_GetVoxelType(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
+    case EOpCode::SetVoxel: Op_SetVoxel(Runtime, Inst.Src1, Inst.Src2); break;
+    case EOpCode::IsTerrainSolid: Op_IsTerrainSolid(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     // Utility
     case EOpCode::Log: Op_Log(Runtime, Inst.GetSignedImm20()); break;
     default: return EVMStatus::Failed;

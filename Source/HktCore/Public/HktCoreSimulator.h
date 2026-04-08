@@ -5,6 +5,7 @@
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
 #include "HktCoreEventLog.h"
+#include "Terrain/HktTerrainGenerator.h"
 
 // ============================================================================
 // FHktVMDebugInfo — VM 실행 상태 디버그 정보 (Public, 순수 데이터)
@@ -38,6 +39,9 @@ public:
 
     /** Diff 역적용 — 프레임 변경 되돌리기 (클라이언트 예측 롤백용) */
     virtual void UndoDiff(const FHktSimulationDiff& Diff) = 0;
+
+    /** 지형 생성기 설정 — 설정 시 시뮬레이션이 복셀 지형을 인지하기 시작함 */
+    virtual void SetTerrainConfig(const FHktTerrainGeneratorConfig& Config) {}
 };
 
 // ============================================================================

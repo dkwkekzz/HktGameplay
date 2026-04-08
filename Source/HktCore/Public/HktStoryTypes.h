@@ -294,6 +294,11 @@ struct FHktRegReserve
     X(DispatchEventFrom, _, R, _) \
     /* Movement */          \
     X(SetForwardTarget, _, R, _) \
+    /* Terrain */           \
+    X(GetTerrainHeight, W, R, R) \
+    X(GetVoxelType,     W, R, R) \
+    X(SetVoxel,         _, R, R) \
+    X(IsTerrainSolid,   W, R, R) \
     /* Utility */           \
     X(Log,              _, _, _)
 
