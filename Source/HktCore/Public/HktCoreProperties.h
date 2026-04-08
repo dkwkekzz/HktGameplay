@@ -72,11 +72,8 @@ namespace HktProperty
 // ============================================================================
 
 #define HKT_DEFINE_PROPERTY(PropName, TierValue) \
-    inline const FHktPropertyDef PropName = []() -> FHktPropertyDef { \
-        FHktPropertyDef P{::HktProperty::Detail::Counter()++, TEXT(#PropName), EHktPropertyTier::TierValue}; \
-        ::HktProperty::Detail::GetRegistry().Register(&PropName); \
-        return P; \
-    }();
+    inline const FHktPropertyDef PropName{::HktProperty::Detail::Counter()++, TEXT(#PropName), EHktPropertyTier::TierValue}; \
+    inline const bool PropName##_Registered = (::HktProperty::Detail::GetRegistry().Register(&PropName), true);
 
 // ============================================================================
 // HktProperty — 프로퍼티 정의 (선언 순서 = ID, 기존 enum 순서 유지)

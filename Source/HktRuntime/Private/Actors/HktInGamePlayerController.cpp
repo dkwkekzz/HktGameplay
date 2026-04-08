@@ -463,9 +463,10 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
     bool bNeedsSync = View.bIsInitialSync;
     if (!bNeedsSync && View.PropertyDeltas)
     {
+        const TArray<uint16>& EquipSlotProps = HktTrait::GetEquipSlotPropertyIds();
         for (const FHktPropertyDelta& D : *View.PropertyDeltas)
         {
-            if (D.PropertyId >= PropertyId::EquipSlot0 && D.PropertyId <= PropertyId::EquipSlot8)
+            if (EquipSlotProps.Contains(D.PropertyId))
             {
                 bNeedsSync = true;
                 break;
