@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktIngamePlayerController.h"
+#include "HktCoreArchetype.h"
 #include "HktRuntimeLog.h"
 #include "HktPlayerState.h"
 #include "HktClientRuleInterfaces.h"
@@ -449,14 +450,7 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
     }
 }
 
-/** EquipSlot0~8에 대응하는 PropertyId 테이블 */
-static const uint16 EquipSlotPropertyIds[] =
-{
-    PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
-    PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
-    PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
-};
-static const int32 MaxEquipSlots = UE_ARRAY_COUNT(EquipSlotPropertyIds);
+// EquipSlot PropertyId는 HktTrait::GetEquipSlotPropertyIds()에서 가져옴
 
 void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldView& View)
 {
@@ -486,7 +480,7 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
     if (!bNeedsSync) return;
 
     // 모든 슬롯 클리어
-    const int32 NumSlots = FMath::Min(CachedCommandContainer->GetNumSlots(), MaxEquipSlots);
+    const int32 NumSlots = FMath::Min(CachedCommandContainer->GetNumSlots(), HktTrait::GetEquipSlotPropertyIds().Num());
     for (int32 i = 0; i < NumSlots; ++i)
     {
         CachedCommandContainer->ClearSlotBinding(i);
@@ -495,7 +489,7 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
     // 캐릭터 엔티티의 EquipSlot0~8에서 아이템 EntityId 읽기 → 스킬 바인딩
     for (int32 i = 0; i < NumSlots; ++i)
     {
-        const FHktEntityId ItemId = WS.GetProperty(DefaultSubjectEntityId, EquipSlotPropertyIds[i]);
+        const FHktEntityId ItemId = WS.GetProperty(DefaultSubjectEntityId, HktTrait::GetEquipSlotPropertyIds()[i]);
         if (ItemId == 0 || !WS.IsValidEntity(ItemId))
             continue;
 

@@ -134,6 +134,12 @@ void InitializeHktArchetypes()
         HktProperty::OwnerEntity, HktProperty::EntitySpawnTag,
     });
 
+    R.DefineTrait(HktTrait::EquipSlots, {
+        HktProperty::EquipSlot0, HktProperty::EquipSlot1, HktProperty::EquipSlot2,
+        HktProperty::EquipSlot3, HktProperty::EquipSlot4, HktProperty::EquipSlot5,
+        HktProperty::EquipSlot6, HktProperty::EquipSlot7, HktProperty::EquipSlot8,
+    });
+
     R.DefineTrait(HktTrait::EventParam, {
         HktProperty::TargetPosX, HktProperty::TargetPosY, HktProperty::TargetPosZ,
         HktProperty::Param0, HktProperty::Param1, HktProperty::Param2, HktProperty::Param3,
@@ -143,13 +149,10 @@ void InitializeHktArchetypes()
 
     R.Register(EHktArchetype::Character, TEXT("Character"),
         {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
-         HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam},
+         HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam, HktTrait::EquipSlots},
         {
             HktProperty::Mana, HktProperty::MaxMana,
             HktProperty::BagCapacity,
-            HktProperty::EquipSlot0, HktProperty::EquipSlot1, HktProperty::EquipSlot2,
-            HktProperty::EquipSlot3, HktProperty::EquipSlot4, HktProperty::EquipSlot5,
-            HktProperty::EquipSlot6, HktProperty::EquipSlot7, HktProperty::EquipSlot8,
         });
 
     R.Register(EHktArchetype::NPC, TEXT("NPC"),

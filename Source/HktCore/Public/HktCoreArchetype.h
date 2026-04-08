@@ -100,6 +100,15 @@ namespace HktTrait
     inline const FName Animated   = FName(TEXT("Animated"));
     inline const FName EventParam = FName(TEXT("EventParam"));
     inline const FName Ownable    = FName(TEXT("Ownable"));
+    inline const FName EquipSlots = FName(TEXT("EquipSlots"));
+
+    /** EquipSlot0~8 PropertyId 배열 — Trait에서 가져옴 (5곳 중복 제거) */
+    inline const TArray<uint16>& GetEquipSlotPropertyIds()
+    {
+        const FHktPropertyTrait* T = FHktArchetypeRegistry::Get().FindTrait(EquipSlots);
+        check(T);
+        return T->PropertyIds;
+    }
 }
 
 // ============================================================================
