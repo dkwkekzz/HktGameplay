@@ -90,6 +90,16 @@ EHktArchetype FHktArchetypeRegistry::FindByTag(const FGameplayTag& Tag) const
     return EHktArchetype::None;
 }
 
+EHktArchetype FHktArchetypeRegistry::FindByName(const TCHAR* Name) const
+{
+    for (int32 i = 1; i < static_cast<int32>(EHktArchetype::Max); ++i)
+    {
+        if (Archetypes[i].Type != EHktArchetype::None && FCString::Stricmp(Archetypes[i].Name, Name) == 0)
+            return Archetypes[i].Type;
+    }
+    return EHktArchetype::None;
+}
+
 const FHktPropertyTrait* FHktArchetypeRegistry::FindTrait(FName TraitName) const
 {
     return Traits.Find(TraitName);
@@ -105,7 +115,12 @@ void InitializeHktArchetypes()
 
     // ===== Trait 정의 =====
 
+    R.DefineTrait(HktTrait::Spatial, {
+        HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
+    });
+
     R.DefineTrait(HktTrait::Movable, {
+        // Spatial 프로퍼티 포함 (Register에서 AddUnique로 중복 제거)
         HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
         HktProperty::MoveTargetX, HktProperty::MoveTargetY, HktProperty::MoveTargetZ,
         HktProperty::MoveForce, HktProperty::IsMoving, HktProperty::IsGrounded, HktProperty::MaxSpeed,
@@ -163,9 +178,8 @@ void InitializeHktArchetypes()
         });
 
     R.Register(EHktArchetype::Item, TEXT("Item"),
-        {HktTrait::Collidable, HktTrait::Ownable, HktTrait::EventParam},
+        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable, HktTrait::EventParam},
         {
-            HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ,
             HktProperty::ItemState, HktProperty::ItemId, HktProperty::EquipIndex,
             HktProperty::Equippable,
             HktProperty::ItemSkillTag, HktProperty::SkillCPCost, HktProperty::RecoveryFrame,
@@ -180,9 +194,8 @@ void InitializeHktArchetypes()
         });
 
     R.Register(EHktArchetype::Building, TEXT("Building"),
-        {HktTrait::Collidable, HktTrait::Ownable},
+        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable},
         {
-            HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
             HktProperty::Health, HktProperty::MaxHealth, HktProperty::Team,
         });
 

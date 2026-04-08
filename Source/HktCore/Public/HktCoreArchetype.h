@@ -80,6 +80,7 @@ public:
 
     const FHktArchetypeMetadata* Find(EHktArchetype Type) const;
     EHktArchetype FindByTag(const FGameplayTag& Tag) const;
+    EHktArchetype FindByName(const TCHAR* Name) const;
     const FHktPropertyTrait* FindTrait(FName TraitName) const;
 
 private:
@@ -94,6 +95,7 @@ private:
 
 namespace HktTrait
 {
+    inline const FName Spatial    = FName(TEXT("Spatial"));
     inline const FName Movable    = FName(TEXT("Movable"));
     inline const FName Collidable = FName(TEXT("Collidable"));
     inline const FName Combatable = FName(TEXT("Combatable"));

@@ -123,8 +123,7 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Deactivate, "Story.Event.Item.Deactivat
 // ============================================================================
 
 
-static const TArray<uint16>& ServerEquipSlotPropertyIds() { return HktTrait::GetEquipSlotPropertyIds(); }
-static int32 MaxServerEquipSlots() { return HktTrait::GetEquipSlotPropertyIds().Num(); }
+// EquipSlot PropertyId는 HktTrait::GetEquipSlotPropertyIds()에서 가져옴
 
 /** FHktBagItem → FHktEntityState 변환 (엔티티 복원용) */
 static FHktEntityState BagItemToEntityState(const FHktBagItem& InItem, int64 OwnerUid)
@@ -197,9 +196,9 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	case EHktBagAction::StoreFromSlot:
 	{
 		// EquipSlot → Bag: 엔티티 프로퍼티 스냅샷 → 가방에 저장 → Deactivate 이벤트
-		if (InRequest.EquipIndex < 0 || InRequest.EquipIndex >= MaxServerEquipSlots()) return;
+		if (InRequest.EquipIndex < 0 || InRequest.EquipIndex >= HktTrait::GetEquipSlotPropertyIds().Num()) return;
 
-		const FHktEntityId ItemEntity = WS.GetProperty(InRequest.SourceEntity, ServerEquipSlotPropertyIds()[InRequest.EquipIndex]);
+		const FHktEntityId ItemEntity = WS.GetProperty(InRequest.SourceEntity, HktTrait::GetEquipSlotPropertyIds()[InRequest.EquipIndex]);
 		if (ItemEntity == 0 || !WS.IsValidEntity(ItemEntity)) return;
 
 		// Deactivate 전에 스냅샷 (Deactivate가 엔티티를 파괴하기 때문)
@@ -220,7 +219,7 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	case EHktBagAction::RestoreToSlot:
 	{
 		// Bag → EquipSlot: 가방에서 아이템 꺼내기 → 엔티티 생성 + Activate (틱에서 처리)
-		if (InRequest.EquipIndex < 0 || InRequest.EquipIndex >= MaxServerEquipSlots()) return;
+		if (InRequest.EquipIndex < 0 || InRequest.EquipIndex >= HktTrait::GetEquipSlotPropertyIds().Num()) return;
 
 		FHktBagItem OutItem;
 		if (!InPlayer.TakeFromBag(InRequest.BagSlot, OutItem)) return;

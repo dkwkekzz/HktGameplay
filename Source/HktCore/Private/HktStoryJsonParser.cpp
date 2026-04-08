@@ -246,19 +246,14 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 	FString ArchetypeStr;
 	if (Root->TryGetStringField(TEXT("archetype"), ArchetypeStr))
 	{
-		EHktArchetype Arch = EHktArchetype::None;
-		if      (ArchetypeStr == TEXT("Character"))  Arch = EHktArchetype::Character;
-		else if (ArchetypeStr == TEXT("NPC"))         Arch = EHktArchetype::NPC;
-		else if (ArchetypeStr == TEXT("Item"))        Arch = EHktArchetype::Item;
-		else if (ArchetypeStr == TEXT("Projectile"))  Arch = EHktArchetype::Projectile;
-		else if (ArchetypeStr == TEXT("Building"))    Arch = EHktArchetype::Building;
-		else
-		{
-			Result.Warnings.Add(FString::Printf(TEXT("Unknown archetype: '%s'"), *ArchetypeStr));
-		}
+		EHktArchetype Arch = FHktArchetypeRegistry::Get().FindByName(*ArchetypeStr);
 		if (Arch != EHktArchetype::None)
 		{
 			Builder.SetArchetype(Arch);
+		}
+		else
+		{
+			Result.Warnings.Add(FString::Printf(TEXT("Unknown archetype: '%s'"), *ArchetypeStr));
 		}
 	}
 
