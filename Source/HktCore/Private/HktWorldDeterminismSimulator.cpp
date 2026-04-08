@@ -41,7 +41,7 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
 
     VMPool = MakeUnique<FHktVMRuntimePool>();
     Interpreter = MakeUnique<FHktVMInterpreter>();
-    Interpreter->Initialize(&WorldState, &VMProxy);
+    Interpreter->Initialize(&WorldState, &VMProxy, &TerrainState, &PendingVoxelDeltas);
     Interpreter->LogSource = LogSource;
     VMProcessSystem.Interpreter = Interpreter.Get();
 }
@@ -296,10 +296,9 @@ void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)
 
 void FHktWorldDeterminismSimulator::SetTerrainConfig(const FHktTerrainGeneratorConfig& Config)
 {
+    // Interpreter의 TerrainState/PendingVoxelDeltas 포인터는 생성자에서 이미 전달됨.
+    // Generator만 생성하면 ProcessBatch의 if(TerrainGenerator) 가드가 지형 파이프라인을 활성화.
     TerrainGenerator = MakeUnique<FHktTerrainGenerator>(Config);
-
-    // Interpreter에 지형 참조 재설정
-    Interpreter->Initialize(&WorldState, &VMProxy, &TerrainState, &PendingVoxelDeltas);
 }
 
 // ============================================================================
