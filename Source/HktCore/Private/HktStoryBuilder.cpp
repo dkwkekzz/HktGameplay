@@ -521,6 +521,13 @@ void FHktStoryBuilder::ValidatePropertyAccess(uint16 PropId, EHktArchetype Arch)
     }
 }
 
+EHktArchetype FHktStoryBuilder::ResolveArchetypeForRegister(RegisterIndex Entity) const
+{
+    if (Entity == Reg::Self)    return SelfArchetype;
+    if (Entity == Reg::Spawned) return SpawnedArchetype;
+    return EHktArchetype::None;
+}
+
 FHktStoryBuilder& FHktStoryBuilder::LoadStore(RegisterIndex Dst, uint16 PropertyId)
 {
     ValidatePropertyAccess(PropertyId, SelfArchetype);
@@ -530,6 +537,7 @@ FHktStoryBuilder& FHktStoryBuilder::LoadStore(RegisterIndex Dst, uint16 Property
 
 FHktStoryBuilder& FHktStoryBuilder::LoadStoreEntity(RegisterIndex Dst, RegisterIndex Entity, uint16 PropertyId)
 {
+    ValidatePropertyAccess(PropertyId, ResolveArchetypeForRegister(Entity));
     Emit(FInstruction::Make(EOpCode::LoadStoreEntity, Dst, Entity, 0, PropertyId));
     return *this;
 }
@@ -543,6 +551,7 @@ FHktStoryBuilder& FHktStoryBuilder::SaveStore(uint16 PropertyId, RegisterIndex S
 
 FHktStoryBuilder& FHktStoryBuilder::SaveStoreEntity(RegisterIndex Entity, uint16 PropertyId, RegisterIndex Src)
 {
+    ValidatePropertyAccess(PropertyId, ResolveArchetypeForRegister(Entity));
     Emit(FInstruction::Make(EOpCode::SaveStoreEntity, 0, Entity, Src, PropertyId));
     return *this;
 }
@@ -652,6 +661,10 @@ FHktStoryBuilder& FHktStoryBuilder::SpawnEntity(const FGameplayTag& ClassTag)
 {
     int32 TagIdx = TagToInt(ClassTag);
     Emit(FInstruction::Make(EOpCode::SpawnEntity, 0, 0, 0, TagIdx & 0xFFF));
+
+    // ClassTag → Archetype 자동 추론 (Spawned 레지스터 검증용)
+    SpawnedArchetype = FHktArchetypeRegistry::Get().FindByTag(ClassTag);
+
     return *this;
 }
 

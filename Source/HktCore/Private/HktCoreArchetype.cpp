@@ -166,7 +166,8 @@ void InitializeHktArchetypes()
             HktProperty::ItemState, HktProperty::ItemId, HktProperty::EquipIndex,
             HktProperty::Equippable,
             HktProperty::ItemSkillTag, HktProperty::SkillCPCost, HktProperty::RecoveryFrame,
-            HktProperty::SkillTargetRequired, HktProperty::AttackRange, HktProperty::AttackPower,
+            HktProperty::SkillTargetRequired, HktProperty::AttackRange,
+            HktProperty::AttackPower, HktProperty::Defense, HktProperty::Stance,
         });
 
     R.Register(EHktArchetype::Projectile, TEXT("Projectile"),

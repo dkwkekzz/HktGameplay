@@ -594,8 +594,10 @@ private:
 
     // Archetype 프로퍼티 검증
     EHktArchetype SelfArchetype = EHktArchetype::None;
+    EHktArchetype SpawnedArchetype = EHktArchetype::None;
     TArray<FString> ValidationErrors;
     void ValidatePropertyAccess(uint16 PropId, EHktArchetype Arch);
+    EHktArchetype ResolveArchetypeForRegister(RegisterIndex Entity) const;
 };
 
 // ============================================================================
