@@ -38,7 +38,7 @@ struct FHktPropertyPair
 
 struct HKTCORE_API FHktWorldState
 {
-    static inline const int32 HotStride = PropertyId::HotMaxCount;
+    static inline const int32 HotStride = HktProperty::HotMaxCount();
     static constexpr int32 WarmCapacity = 16;
 
     // --- LogSource (시뮬레이터에서 설정) ---

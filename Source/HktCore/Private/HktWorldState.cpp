@@ -199,7 +199,7 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
     int32 Slot = EntitySlots[Id];
 
     // Hot + Cold를 단일 배열로 복원
-    S.Data.SetNumZeroed(PropertyId::MaxCount);
+    S.Data.SetNumZeroed(PropertyId::MaxCount());
     FMemory::Memcpy(S.Data.GetData(), HotEntityData(Slot), HotStride * sizeof(int32));
 
     // Warm
@@ -207,7 +207,7 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
     for (int32 i = 0; i < WarmCapacity; ++i)
     {
         if (Base[i].IsEmpty()) break;
-        if (Base[i].PropId < PropertyId::MaxCount)
+        if (Base[i].PropId < PropertyId::MaxCount())
             S.Data[Base[i].PropId] = Base[i].Value;
     }
 
@@ -215,7 +215,7 @@ FHktEntityState FHktWorldState::ExtractEntityState(FHktEntityId Id) const
     if (OverflowData.IsValidIndex(Slot))
     {
         for (const FHktPropertyPair& P : OverflowData[Slot])
-            if (P.PropId < PropertyId::MaxCount)
+            if (P.PropId < PropertyId::MaxCount())
                 S.Data[P.PropId] = P.Value;
     }
 
@@ -234,7 +234,7 @@ FHktEntityId FHktWorldState::ImportEntityState(const FHktEntityState& InState)
     FMemory::Memcpy(HotEntityData(Slot), InState.Data.GetData(), HotN * sizeof(int32));
 
     // Cold 영역을 Warm에 분배
-    for (int32 P = HotStride; P < FMath::Min((int32)PropertyId::MaxCount, InState.Data.Num()); ++P)
+    for (int32 P = HotStride; P < FMath::Min((int32)PropertyId::MaxCount(), InState.Data.Num()); ++P)
     {
         if (InState.Data[P] != 0)
             SetCold(Slot, static_cast<uint16>(P), InState.Data[P]);
@@ -263,7 +263,7 @@ void FHktWorldState::ImportEntityStateWithId(const FHktEntityState& InState)
     FMemory::Memcpy(HotEntityData(Slot), InState.Data.GetData(), HotN * sizeof(int32));
 
     // Cold 영역을 Warm에 분배
-    for (int32 P = HotStride; P < FMath::Min((int32)PropertyId::MaxCount, InState.Data.Num()); ++P)
+    for (int32 P = HotStride; P < FMath::Min((int32)PropertyId::MaxCount(), InState.Data.Num()); ++P)
     {
         if (InState.Data[P] != 0)
             SetCold(Slot, static_cast<uint16>(P), InState.Data[P]);

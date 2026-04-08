@@ -129,7 +129,7 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Deactivate, "Story.Event.Item.Deactivat
 static FHktEntityState BagItemToEntityState(const FHktBagItem& InItem, int64 OwnerUid)
 {
 	FHktEntityState ES;
-	ES.Data.SetNumZeroed(PropertyId::MaxCount);
+	ES.Data.SetNumZeroed(PropertyId::MaxCount());
 	ES.OwnerUid = OwnerUid;
 
 	ES.Data[PropertyId::ItemId]              = InItem.ItemId;
