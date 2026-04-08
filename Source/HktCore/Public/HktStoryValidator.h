@@ -38,7 +38,9 @@ public:
 		const TMap<int32, int32>& InIntLabels = {});
 
 	/**
-	 * 엔티티 레지스터(R10~R14) 초기화 순서 검증
+	 * 엔티티 레지스터 초기화 검증
+	 * - R10~R14: SpawnEntity/WaitCollision/NextFound 이후에만 유효
+	 * - R0~R9: 엔티티 파라미터로 사용될 때 Write 이후에만 유효
 	 * @return true면 검증 통과, false면 치명적 오류 (등록 차단)
 	 */
 	bool ValidateEntityFlow();

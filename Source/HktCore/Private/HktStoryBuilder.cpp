@@ -1186,9 +1186,8 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
         HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
             TEXT("Story BUILD FAILED: %s — 엔티티 레지스터 검증 실패. 이 Story는 등록되지 않습니다."),
             *Program->Tag.ToString()));
-        checkf(false, TEXT("Story BUILD FAILED: %s — 초기화되지 않은 엔티티 레지스터 사용 감지. "
-            "로그에서 상세 PC/OpCode 정보를 확인하세요. "
-            "(Spawned→SpawnEntity, Hit→WaitCollision, Iter→NextFound 이후에만 유효)"),
+        ensureAlwaysMsgf(false, TEXT("Story BUILD FAILED: %s — 초기화되지 않은 레지스터를 엔티티로 사용. "
+            "로그에서 상세 PC/OpCode 정보를 확인하세요."),
             *Program->Tag.ToString());
         return nullptr;
     }

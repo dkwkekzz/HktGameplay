@@ -34,7 +34,11 @@ bool FHktStoryValidator::ValidateEntityFlow()
 	constexpr uint16 AlwaysValid = (1 << Reg::Self) | (1 << Reg::Target);
 	uint16 EntityRegs = AlwaysValid;
 
-	auto GetEntityRegName = [](RegisterIndex R) -> const TCHAR*
+	// GP 레지스터(R0~R9) 초기화 추적 — 엔티티 파라미터로 사용될 때 검증
+	constexpr int32 NumGPRegs = 10;
+	uint16 GPRegsWritten = 0;
+
+	auto GetRegName = [](RegisterIndex R) -> FString
 	{
 		switch (R)
 		{
@@ -43,7 +47,7 @@ bool FHktStoryValidator::ValidateEntityFlow()
 		case Reg::Spawned: return TEXT("Spawned");
 		case Reg::Hit:     return TEXT("Hit");
 		case Reg::Iter:    return TEXT("Iter");
-		default:           return nullptr;
+		default:           return FString::Printf(TEXT("R%d"), R);
 		}
 	};
 
@@ -56,14 +60,24 @@ bool FHktStoryValidator::ValidateEntityFlow()
 	};
 	TArray<FEntityError> Errors;
 
-	// 특수 엔티티 레지스터(R10~R14)가 초기화되기 전에 사용되는지 검사
+	// 엔티티로 사용되는 레지스터가 초기화되었는지 검사
+	// - R10~R14: 특수 엔티티 레지스터 (SpawnEntity/WaitCollision/NextFound으로 초기화)
+	// - R0~R9: GP 레지스터가 엔티티 파라미터로 사용되는 경우 Write 여부 검사
 	auto CheckEntityReg = [&](int32 PC, EOpCode Op, RegisterIndex R)
 	{
-		const TCHAR* Name = GetEntityRegName(R);
-		if (!Name)
+		if (R < NumGPRegs)
+		{
+			// GP register used as entity parameter
+			if (!(GPRegsWritten & (1 << R)))
+			{
+				Errors.Add({ PC, Op, R });
+				bValid = false;
+			}
 			return;
+		}
 
-		if (!(EntityRegs & (1 << R)))
+		// Special entity register (R10~R14)
+		if (R <= Reg::Iter && !(EntityRegs & (1 << R)))
 		{
 			Errors.Add({ PC, Op, R });
 			bValid = false;
@@ -72,16 +86,24 @@ bool FHktStoryValidator::ValidateEntityFlow()
 
 	for (int32 PC = 0; PC < Code.Num(); ++PC)
 	{
-		// Label 합류점: 다른 경로에서 올 수 있으므로 엔티티 레지스터 상태를
-		// 보수적으로 리셋한다. Self/Target만 항상 유효하고 Spawned/Hit/Iter는
-		// 모든 경로에서 초기화되었는지 보장할 수 없으므로 무효로 전환.
 		if (LabelPCs.Contains(PC))
 		{
+			// Label 합류점: 다른 경로에서 올 수 있으므로 보수적으로 리셋.
+			// - 엔티티 레지스터: Self/Target만 항상 유효
+			// - GP 레지스터: 합류점에서는 초기화 가정 (ValidateRegisterFlow와 동일, 오탐 방지)
 			EntityRegs = AlwaysValid;
+			GPRegsWritten = (1 << NumGPRegs) - 1;  // 모든 GP를 Written으로 (오탐 방지)
 		}
 
 		const FInstruction& Inst = Code[PC];
 		EOpCode Op = Inst.GetOpCode();
+
+		// GP 레지스터 Write 추적 (모든 opcode 공통)
+		FOpRegInfo Info = GetOpRegInfo(Op);
+		if (Info.Dst == ERegRole::Write && Inst.Dst < NumGPRegs)
+		{
+			GPRegsWritten |= (1 << Inst.Dst);
+		}
 
 		switch (Op)
 		{
@@ -144,29 +166,28 @@ bool FHktStoryValidator::ValidateEntityFlow()
 		FString Detail;
 		for (const FEntityError& Err : Errors)
 		{
-			const TCHAR* Name = GetEntityRegName(Err.Reg);
 			Detail += FString::Printf(
 				TEXT("\n  [PC=%d] Op=%s — Reg %s (R%d) 미초기화 사용"),
-				Err.PC, GetOpCodeName(Err.Op), Name, Err.Reg);
+				Err.PC, GetOpCodeName(Err.Op), *GetRegName(Err.Reg), Err.Reg);
 		}
 
 		UE_LOG(LogHktCore, Error,
 			TEXT("========================================\n")
 			TEXT("  STORY ENTITY VALIDATION FAILED: %s\n")
 			TEXT("  %d건의 invalid entity 사용 감지:%s\n")
+			TEXT("\n  R0~R9   → 엔티티 파라미터 사용 전 Write 필요")
 			TEXT("\n  Spawned → SpawnEntity 이후 유효")
 			TEXT("\n  Hit     → WaitCollision 이후 유효")
 			TEXT("\n  Iter    → NextFound 이후 유효")
-			TEXT("\n  분기(Label) 합류점에서는 보수적으로 무효 처리됩니다.")
+			TEXT("\n  분기(Label) 합류점에서 Spawned/Hit/Iter는 무효 처리됩니다.")
 			TEXT("\n========================================"),
 			*Tag.ToString(), Errors.Num(), *Detail);
 
 		for (const FEntityError& Err : Errors)
 		{
 			HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
-				TEXT("Story BUILD: %s PC=%d Op=%s — Reg %s (R%d) 가 엔티티로 사용되었지만 이전에 초기화되지 않았습니다. "
-					 "SpawnEntity/WaitCollision/NextFound 호출 순서를 확인하세요."),
-				*Tag.ToString(), Err.PC, GetOpCodeName(Err.Op), GetEntityRegName(Err.Reg), Err.Reg));
+				TEXT("Story BUILD: %s PC=%d Op=%s — Reg %s (R%d) 가 엔티티로 사용되었지만 이전에 초기화되지 않았습니다."),
+				*Tag.ToString(), Err.PC, GetOpCodeName(Err.Op), *GetRegName(Err.Reg), Err.Reg));
 		}
 	}
 
