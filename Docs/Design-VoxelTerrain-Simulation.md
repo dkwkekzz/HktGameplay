@@ -114,10 +114,10 @@ Simulator->SetTerrainConfig(Config);
 매 프레임 `FHktTerrainSystem::Process()` 실행.
 
 ```
-[모든 엔티티 순회]
+[모든 엔티��� 순회] + [이번 프레임 이벤트의 Location]
        │
        ▼
-엔티티 cm 위치 → CmToVoxel → WorldToChunk → EntityChunks TSet (중복 제거)
+위치 → CmToVoxel → WorldToChunk → EntityChunks TSet (중복 제거)
        │
        ▼
 고유 청크 좌표에서만 반경 확장 (5×5×3 = 75개/청크)
@@ -125,6 +125,8 @@ Simulator->SetTerrainConfig(Config);
        ├── 미로드 청크 → LoadChunk() (프레임당 최대 4개)
        └── Required에 없는 로드된 청크 → UnloadChunk()
 ```
+
+이벤트 Location 사전 로드: 스폰 이벤트의 위치에 해당하는 청크를 TerrainSystem 단계에서 미리 로드하여, VMProcess에서 GetTerrainHeight 호출 시 청크가 준비되도록 보장.
 
 **LoadChunk 내부:**
 
@@ -192,25 +194,40 @@ Story(TEXT("AI.TerrainCheck"))
     .End();
 ```
 
-### 4단계: MovementSystem — 지면 스냅
+### 4단계: MovementSystem — 지면 스냅 (IsGrounded 시스템)
 
-이동 후 엔티티가 지형 아래로 빠지지 않도록 보정:
+`IsGrounded=1`인 모든 엔티티를 매 프레임 지형 표면에 스냅한다.
+이동 중이든 정지 상태이든 관계없이 적용되므로, 스폰 직후나 지형 변형 후에도 즉시 보정.
 
 ```
+[패스 1: 이동 엔티티]
 NewPos = CurPos + Velocity * dt
    │
    ▼
-CmToVoxel(NewX, NewY, NewZ)
+if (IsGrounded == 1 && TerrainState)
    │
    ▼
-HeightmapCache 조회 → 표면 복셀 Z (O(1))
-   │
-   ▼
-VoxelToCm(0, 0, SurfaceZ) → 표면 cm 높이
+HeightmapCache 조회 → 표면 Z (O(1))
    │
    ▼
 if (NewZ < SurfaceCmZ) NewZ = SurfaceCmZ
+
+[패스 2: 정지 접지 엔티티]  ← 스폰 직후, 지형 변형 후 등
+   │
+   ▼
+if (IsMoving == 0 && IsGrounded == 1 && TerrainState)
+   │
+   ▼
+HeightmapCache 조회 → 표면 Z (O(1))
+   │
+   ▼
+if (CurZ < SurfaceCmZ) CurZ = SurfaceCmZ
 ```
+
+**IsGrounded 프로퍼티:**
+- `Op_SpawnEntity`에서 기본값 `IsGrounded=1` 설정 (모든 엔티티는 기본 접지)
+- 투사체 등 공중 엔티티는 Story에서 `IsGrounded=0`으로 명시 해제
+- Hot 프로퍼티 목록에 포함되어 매 프레임 빠르게 접근 가능
 
 ### 5단계: Diff 전파
 

@@ -47,27 +47,11 @@ namespace HktStoryCharacterSpawn
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
 			// 스폰 위치 설정 (IntentEvent에서)
+			// 지형 높이 보정은 MovementSystem이 IsGrounded 엔티티를 자동 스냅
 			.ReadProperty(pos, PropertyId::TargetPosX)
 			.SetPosition(Self, pos)
-		;
 
-		// 지형 높이에 맞춰 Z 보정 (지면 아래/공중 스폰 방지)
-		{
-			FHktScopedReg surfaceZ(B);
-			FHktScopedReg voxelSize(B);
-			FHktScopedReg cmZ(B);
-
-			B	.EntityPosToVoxel(pos, Self)                         // cm → 복셀 좌표 (pos = voxelX, pos+1 = voxelY, pos+2 = voxelZ)
-				.GetTerrainHeight(surfaceZ, pos, pos + 1)            // 표면 높이 (복셀 Z)
-				.LoadConst(voxelSize, 15)                             // VoxelSizeCm
-				.Mul(cmZ, surfaceZ, voxelSize)                        // 표면 cm Z = 복셀Z * 15
-				.ReadProperty(pos, PropertyId::TargetPosX)            // 원래 cm XY 복원
-				.Move(pos + 2, cmZ)                                   // Z만 지형 높이로 교체
-				.SetPosition(Self, pos)
-			;
-		}
-
-		B	// 스폰 이펙트
+			// 스폰 이펙트
 				.PlayVFXAttached(Self, VFX_SpawnEffect)
 				.PlaySound(Sound_Spawn)
 

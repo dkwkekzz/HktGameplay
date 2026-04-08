@@ -25,6 +25,7 @@
     X(MoveTargetZ)            \
     X(MoveForce)              \
     X(IsMoving)               \
+    X(IsGrounded)             \
     X(MaxSpeed)               \
     /* 전투/상태 */           \
     X(Health)                 \

@@ -677,8 +677,8 @@ void FHktMovementSystem::Process(
         float NewY = CurY + VY * FixedDeltaSeconds;
         float NewZ = CurZ + VZ * FixedDeltaSeconds;
 
-        // 지형 스냅: 지면 아래로 내려가지 않도록 보정
-        if (TerrainState)
+        // 지형 스냅: IsGrounded 엔티티가 지면 아래로 내려가지 않도록 보정
+        if (TerrainState && WorldState.GetProperty(Id, PropertyId::IsGrounded) != 0)
         {
             const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(NewX, NewY, NewZ);
             const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
@@ -695,6 +695,31 @@ void FHktMovementSystem::Process(
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelY, FMath::RoundToInt(VY));
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelZ, FMath::RoundToInt(VZ));
     });
+
+    // 정지 상태 접지 엔티티 지면 스냅 (스폰 직후, 지형 변형 후 등)
+    if (TerrainState)
+    {
+        WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
+        {
+            if (WorldState.GetProperty(Id, PropertyId::IsMoving) != 0)
+                return;  // 이동 중인 엔티티는 위에서 이미 처리
+            if (WorldState.GetProperty(Id, PropertyId::IsGrounded) == 0)
+                return;  // 비접지 엔티티 (투사체 등) 스킵
+
+            const int32 CurX = WorldState.GetProperty(Id, PropertyId::PosX);
+            const int32 CurY = WorldState.GetProperty(Id, PropertyId::PosY);
+            const int32 CurZ = WorldState.GetProperty(Id, PropertyId::PosZ);
+
+            const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ);
+            const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
+            const int32 SurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z;
+
+            if (CurZ < SurfaceCmZ)
+            {
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::PosZ, SurfaceCmZ);
+            }
+        });
+    }
 }
 
 

@@ -64,6 +64,7 @@ namespace HktStoryFireball
 			// === 파이어볼 생성 및 발사 ===
 			.Log(TEXT("Fireball: 투사체 생성"))
 			.SpawnEntity(Entity_Projectile_Fireball)
+			.SaveConstEntity(Spawned, PropertyId::IsGrounded, 0)  // 투사체: 비접지
 
 			// 파이어볼 위치를 시전자 위치로 설정
 			.CopyPosition(Spawned, Self)
