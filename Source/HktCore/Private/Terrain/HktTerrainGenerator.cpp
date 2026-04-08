@@ -154,7 +154,7 @@ void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 Chunk
 		}
 	}
 
-	// 복셀 생성: 인덱스 = X*S*S + Y*S + Z (Data[X][Y][Z] C 메모리 레이아웃 일치)
+	// 복셀 생성: 인덱스 = X + Y*S + Z*S*S (WorldToLocalIndex와 동일한 Z-major 레이아웃)
 	for (int32 X = 0; X < S; ++X)
 	{
 		const double WorldX = BaseX + X;
@@ -169,7 +169,8 @@ void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 Chunk
 			for (int32 Z = 0; Z < S; ++Z)
 			{
 				const double WorldZ = BaseZ + Z;
-				const int32 Index = X * S * S + Y * S + Z;
+				// WorldToLocalIndex와 동일: X + Y*S + Z*S*S (Z-major 레이아웃)
+				const int32 Index = X + Y * S + Z * S * S;
 
 				FHktTerrainVoxel Voxel = DetermineVoxel(WorldX, WorldY, WorldZ, SurfaceH, Biome, Rule);
 
