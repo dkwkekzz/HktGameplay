@@ -46,9 +46,11 @@ namespace HktStoryCharacterSpawn
 			.SpawnEntity(Entity_Character_Player)
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
-			// 스폰 위치 설정 (IntentEvent에서)
+			// 스폰 위치 설정 (IntentEvent에서 TargetPosX/Y/Z 로드)
 			// 지형 높이 보정은 MovementSystem이 IsGrounded 엔티티를 자동 스냅
-			.ReadProperty(pos, PropertyId::TargetPosX)
+			.LoadStore(pos,                                        PropertyId::TargetPosX)
+			.LoadStore(static_cast<RegisterIndex>(pos + 1),        PropertyId::TargetPosY)
+			.LoadStore(static_cast<RegisterIndex>(pos + 2),        PropertyId::TargetPosZ)
 			.SetPosition(Self, pos)
 
 			// 스폰 이펙트

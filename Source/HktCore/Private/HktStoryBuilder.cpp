@@ -47,6 +47,10 @@ FHktStoryBuilder::FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept
     , IfCounter(Other.IfCounter)
     , RepeatStack(MoveTemp(Other.RepeatStack))
     , RepeatCounter(Other.RepeatCounter)
+    , NamedLabelMap(MoveTemp(Other.NamedLabelMap))
+    , SelfArchetype(Other.SelfArchetype)
+    , SpawnedArchetype(Other.SpawnedArchetype)
+    , ValidationErrors(MoveTemp(Other.ValidationErrors))
 {
     // ActiveSection 포인터 재조정: 원본이 어느 섹션을 가리키고 있었는지에 따라 결정
     ActiveSection = (Other.ActiveSection == &Other.PreconditionSection)
