@@ -52,14 +52,6 @@ namespace HktStoryCombatUseSkill
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Lightning,   "Story.Event.Skill.Lightning",   "Lightning skill story.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Buff,       "Story.Event.Skill.Buff",       "Buff skill story.");
 
-	/** EquipSlot[N] PropertyId 테이블 */
-	static constexpr uint16 EquipSlotProperties[] =
-	{
-		PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
-		PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
-		PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
-	};
-
 	/**
 	 * ================================================================
 	 * 통합 스킬 사용 Flow (Story.Event.Combat.UseSkill)

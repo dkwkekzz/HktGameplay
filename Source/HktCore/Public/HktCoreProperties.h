@@ -4,135 +4,216 @@
 
 #include "CoreMinimal.h"
 
-/**
- * PropertyId - 엔티티 속성 ID (3-Tier Storage)
- *
- * Hot 프로퍼티: 직접 인덱싱 (O(1)) — 매 프레임 접근하는 핵심 속성
- * Cold 프로퍼티: {PropId, Value} 페어 배열 순회 — 공간 절약
- *
- * PropertyId 자체가 0..MaxCount-1 범위의 dense enum.
- * PropId < HotMaxCount 이면 Hot, 아니면 Cold.
- */
+// ============================================================================
+// FHktPropertyDef — 프로퍼티 메타데이터
+//
+// 매크로로 등록된 각 프로퍼티의 ID, 이름, 저장 Tier를 보관.
+// operator uint16() 덕분에 기존 enum 문법 그대로 사용 가능.
+// ============================================================================
 
-#define HKT_HOT_PROPERTY_LIST(X) \
-    /* 위치/이동 */           \
-    X(PosX)                   \
-    X(PosY)                   \
-    X(PosZ)                   \
-    X(RotYaw)                 \
-    X(MoveTargetX)            \
-    X(MoveTargetY)            \
-    X(MoveTargetZ)            \
-    X(MoveForce)              \
-    X(IsMoving)               \
-    X(IsGrounded)             \
-    X(MaxSpeed)               \
-    /* 전투/상태 */           \
-    X(Health)                 \
-    X(MaxHealth)              \
-    X(AttackPower)            \
-    X(Defense)                \
-    X(Team)                   \
-    X(Mana)                   \
-    X(MaxMana)                \
-    /* 소유 */                \
-    X(OwnerEntity)            \
-    X(EntitySpawnTag)         \
-    /* 스탠스 */              \
-    X(Stance)                 \
-    /* 전투 (CP/공속) */      \
-    X(CP)                     \
-    X(MaxCP)                  \
-    X(AttackSpeed)            \
-    X(MotionPlayRate)         \
-    X(NextActionFrame)            \
-    /* 충돌 레이어 */             \
-    X(CollisionLayer)             \
-    X(CollisionMask)              \
-    /* 충돌 반경/질량 (매 프레임 물리 루프에서 사용) */ \
-    X(CollisionRadius)            \
-    X(Mass)
+enum class EHktPropertyTier : uint8 { Hot, Cold };
 
-#define HKT_COLD_PROPERTY_LIST(X) \
-    /* 이벤트 파라미터 */     \
-    X(TargetPosX)             \
-    X(TargetPosY)             \
-    X(TargetPosZ)             \
-    X(Param0)                 \
-    X(Param1)                 \
-    X(Param2)                 \
-    X(Param3)                 \
-    /* 애니메이션/비주얼 */   \
-    X(AnimState)              \
-    X(VisualState)            \
-    X(AnimStateUpper)         \
-    /* 물리 */                \
-    X(VelX)                   \
-    X(VelY)                   \
-    X(VelZ)                   \
-    /* 아이템 */              \
-    X(ItemState)              \
-    X(ItemId)                 \
-    X(EquipIndex)             \
-    /* 가방 */                \
-    X(BagCapacity)            \
-    /* NPC */                 \
-    X(IsNPC)                  \
-    X(SpawnFlowTag)           \
-    /* 아이템 스킬 */         \
-    X(ItemSkillTag)           \
-    X(SkillCPCost)            \
-    X(RecoveryFrame)          \
-    X(SkillTargetRequired)    \
-    /* 공격 사거리 (cm) */    \
-    X(AttackRange)            \
-    /* 장착 가능 여부 (0=불가, 1=장착 가능) */ \
-    X(Equippable)             \
-    /* 캐릭터 장착 슬롯 (EntityId 참조) */ \
-    X(EquipSlot0)             \
-    X(EquipSlot1)             \
-    X(EquipSlot2)             \
-    X(EquipSlot3)             \
-    X(EquipSlot4)             \
-    X(EquipSlot5)             \
-    X(EquipSlot6)             \
-    X(EquipSlot7)             \
-    X(EquipSlot8)             \
-    /* 복셀 스킨 */           \
-    X(VoxelSkinSet)           \
-    X(VoxelPalette)
-
-#define HKT_PROPERTY_LIST(X) \
-    HKT_HOT_PROPERTY_LIST(X) \
-    HKT_COLD_PROPERTY_LIST(X)
-
-namespace PropertyId
+struct FHktPropertyDef
 {
-    enum : uint16
-    {
-        #define HKT_PROP_ENUM(Name) Name,
-        HKT_HOT_PROPERTY_LIST(HKT_PROP_ENUM)
-        #undef HKT_PROP_ENUM
-        HotMaxCount,
+    uint16 Id;
+    const TCHAR* Name;
+    EHktPropertyTier Tier;
 
-        #define HKT_PROP_ENUM(Name) Name,
-        HKT_COLD_PROPERTY_LIST(HKT_PROP_ENUM)
-        #undef HKT_PROP_ENUM
-        MaxCount
-    };
+    FORCEINLINE operator uint16() const { return Id; }
+    FORCEINLINE const TCHAR* ToString() const { return Name; }
+    FORCEINLINE bool IsHot() const { return Tier == EHktPropertyTier::Hot; }
+};
 
-    // Cold enum의 시작 오프셋 (HotMaxCount 바로 다음)
-    // 첫 번째 Cold 프로퍼티 ID == HotMaxCount
-}
+// ============================================================================
+// FHktPropertyRegistry — 프로퍼티 메타데이터 중앙 저장소
+//
+// 매크로 등록 시 자동으로:
+//   - ID 부여 (선언 순서)
+//   - NameTable[Id] → 이름  (O(1) 조회)
+//   - NameMap[Name] → Def*  (O(1) 조회)
+//   - HotCount 자동 집계
+// ============================================================================
 
-/** PropertyId -> 이름 문자열 (디버그/인사이트용) */
-inline const TCHAR* GetPropertyName(uint16 PropId)
+namespace HktProperty
 {
-    switch (PropId)
+    namespace Detail
     {
-    #define HKT_PROP_NAME(Name) case PropertyId::Name: return TEXT(#Name);
-    HKT_PROPERTY_LIST(HKT_PROP_NAME)
-    #undef HKT_PROP_NAME
-    default: return nullptr;
+        struct FPropertyRegistry
+        {
+            const TCHAR* NameTable[256]{};
+            TMap<FName, const FHktPropertyDef*> NameMap;
+            uint16 TotalCount = 0;
+            uint16 HotCount = 0;
+
+            void Register(const FHktPropertyDef* P)
+            {
+                NameTable[P->Id] = P->Name;
+                NameMap.Add(FName(P->Name), P);
+                TotalCount = FMath::Max(TotalCount, static_cast<uint16>(P->Id + 1));
+                if (P->IsHot()) ++HotCount;
+            }
+        };
+
+        inline uint16& Counter() { static uint16 C = 0; return C; }
+
+        inline FPropertyRegistry& GetRegistry()
+        {
+            static FPropertyRegistry R;
+            return R;
+        }
     }
 }
+
+// ============================================================================
+// HKT_DEFINE_PROPERTY — 프로퍼티 선언 매크로
+//
+// 사용: HKT_DEFINE_PROPERTY(PosX, Hot)   → ID 자동, Hot tier
+//       HKT_DEFINE_PROPERTY(AnimState, Cold) → ID 자동, Cold tier
+// ============================================================================
+
+#define HKT_DEFINE_PROPERTY(PropName, TierValue) \
+    inline const FHktPropertyDef PropName = []() -> FHktPropertyDef { \
+        FHktPropertyDef P{::HktProperty::Detail::Counter()++, TEXT(#PropName), EHktPropertyTier::TierValue}; \
+        ::HktProperty::Detail::GetRegistry().Register(&PropName); \
+        return P; \
+    }();
+
+// ============================================================================
+// HktProperty — 프로퍼티 정의 (선언 순서 = ID, 기존 enum 순서 유지)
+// ============================================================================
+
+namespace HktProperty
+{
+    // ===== Hot Properties (매 프레임 접근, O(1) 직접 인덱싱) =====
+
+    // 위치/이동
+    HKT_DEFINE_PROPERTY(PosX,            Hot)    // 0
+    HKT_DEFINE_PROPERTY(PosY,            Hot)    // 1
+    HKT_DEFINE_PROPERTY(PosZ,            Hot)    // 2
+    HKT_DEFINE_PROPERTY(RotYaw,          Hot)    // 3
+    HKT_DEFINE_PROPERTY(MoveTargetX,     Hot)    // 4
+    HKT_DEFINE_PROPERTY(MoveTargetY,     Hot)    // 5
+    HKT_DEFINE_PROPERTY(MoveTargetZ,     Hot)    // 6
+    HKT_DEFINE_PROPERTY(MoveForce,       Hot)    // 7
+    HKT_DEFINE_PROPERTY(IsMoving,        Hot)    // 8
+    HKT_DEFINE_PROPERTY(IsGrounded,      Hot)    // 9
+    HKT_DEFINE_PROPERTY(MaxSpeed,        Hot)    // 10
+
+    // 전투/상태
+    HKT_DEFINE_PROPERTY(Health,          Hot)    // 11
+    HKT_DEFINE_PROPERTY(MaxHealth,       Hot)    // 12
+    HKT_DEFINE_PROPERTY(AttackPower,     Hot)    // 13
+    HKT_DEFINE_PROPERTY(Defense,         Hot)    // 14
+    HKT_DEFINE_PROPERTY(Team,            Hot)    // 15
+    HKT_DEFINE_PROPERTY(Mana,            Hot)    // 16
+    HKT_DEFINE_PROPERTY(MaxMana,         Hot)    // 17
+
+    // 소유
+    HKT_DEFINE_PROPERTY(OwnerEntity,     Hot)    // 18
+    HKT_DEFINE_PROPERTY(EntitySpawnTag,  Hot)    // 19
+
+    // 스탠스
+    HKT_DEFINE_PROPERTY(Stance,          Hot)    // 20
+
+    // 전투 (CP/공속)
+    HKT_DEFINE_PROPERTY(CP,              Hot)    // 21
+    HKT_DEFINE_PROPERTY(MaxCP,           Hot)    // 22
+    HKT_DEFINE_PROPERTY(AttackSpeed,     Hot)    // 23
+    HKT_DEFINE_PROPERTY(MotionPlayRate,  Hot)    // 24
+    HKT_DEFINE_PROPERTY(NextActionFrame, Hot)    // 25
+
+    // 충돌
+    HKT_DEFINE_PROPERTY(CollisionLayer,  Hot)    // 26
+    HKT_DEFINE_PROPERTY(CollisionMask,   Hot)    // 27
+    HKT_DEFINE_PROPERTY(CollisionRadius, Hot)    // 28
+    HKT_DEFINE_PROPERTY(Mass,            Hot)    // 29
+
+    // ===== Cold Properties (공간 절약, 선형 탐색) =====
+
+    // 이벤트 파라미터
+    HKT_DEFINE_PROPERTY(TargetPosX,      Cold)   // 30
+    HKT_DEFINE_PROPERTY(TargetPosY,      Cold)   // 31
+    HKT_DEFINE_PROPERTY(TargetPosZ,      Cold)   // 32
+    HKT_DEFINE_PROPERTY(Param0,          Cold)   // 33
+    HKT_DEFINE_PROPERTY(Param1,          Cold)   // 34
+    HKT_DEFINE_PROPERTY(Param2,          Cold)   // 35
+    HKT_DEFINE_PROPERTY(Param3,          Cold)   // 36
+
+    // 애니메이션/비주얼
+    HKT_DEFINE_PROPERTY(AnimState,       Cold)   // 37
+    HKT_DEFINE_PROPERTY(VisualState,     Cold)   // 38
+    HKT_DEFINE_PROPERTY(AnimStateUpper,  Cold)   // 39
+
+    // 물리
+    HKT_DEFINE_PROPERTY(VelX,            Cold)   // 40
+    HKT_DEFINE_PROPERTY(VelY,            Cold)   // 41
+    HKT_DEFINE_PROPERTY(VelZ,            Cold)   // 42
+
+    // 아이템
+    HKT_DEFINE_PROPERTY(ItemState,       Cold)   // 43
+    HKT_DEFINE_PROPERTY(ItemId,          Cold)   // 44
+    HKT_DEFINE_PROPERTY(EquipIndex,      Cold)   // 45
+
+    // 가방
+    HKT_DEFINE_PROPERTY(BagCapacity,     Cold)   // 46
+
+    // NPC
+    HKT_DEFINE_PROPERTY(IsNPC,           Cold)   // 47
+    HKT_DEFINE_PROPERTY(SpawnFlowTag,    Cold)   // 48
+
+    // 아이템 스킬
+    HKT_DEFINE_PROPERTY(ItemSkillTag,    Cold)   // 49
+    HKT_DEFINE_PROPERTY(SkillCPCost,     Cold)   // 50
+    HKT_DEFINE_PROPERTY(RecoveryFrame,   Cold)   // 51
+    HKT_DEFINE_PROPERTY(SkillTargetRequired, Cold) // 52
+
+    // 공격 사거리
+    HKT_DEFINE_PROPERTY(AttackRange,     Cold)   // 53
+
+    // 장착 가능 여부
+    HKT_DEFINE_PROPERTY(Equippable,      Cold)   // 54
+
+    // 캐릭터 장착 슬롯
+    HKT_DEFINE_PROPERTY(EquipSlot0,      Cold)   // 55
+    HKT_DEFINE_PROPERTY(EquipSlot1,      Cold)   // 56
+    HKT_DEFINE_PROPERTY(EquipSlot2,      Cold)   // 57
+    HKT_DEFINE_PROPERTY(EquipSlot3,      Cold)   // 58
+    HKT_DEFINE_PROPERTY(EquipSlot4,      Cold)   // 59
+    HKT_DEFINE_PROPERTY(EquipSlot5,      Cold)   // 60
+    HKT_DEFINE_PROPERTY(EquipSlot6,      Cold)   // 61
+    HKT_DEFINE_PROPERTY(EquipSlot7,      Cold)   // 62
+    HKT_DEFINE_PROPERTY(EquipSlot8,      Cold)   // 63
+
+    // 복셀 스킨
+    HKT_DEFINE_PROPERTY(VoxelSkinSet,    Cold)   // 64
+    HKT_DEFINE_PROPERTY(VoxelPalette,    Cold)   // 65
+
+    // ================================================================
+    // 메타데이터 질의 — Registry에서 자동 집계
+    // ================================================================
+
+    /** Hot 프로퍼티 개수 (3-Tier Storage의 HotStride) */
+    inline uint16 HotMaxCount() { return Detail::GetRegistry().HotCount; }
+
+    /** 전체 프로퍼티 개수 */
+    inline uint16 MaxCount() { return Detail::GetRegistry().TotalCount; }
+
+    /** PropId → 이름 문자열 (O(1)) */
+    inline const TCHAR* GetPropertyName(uint16 PropId)
+    {
+        return PropId < Detail::GetRegistry().TotalCount
+            ? Detail::GetRegistry().NameTable[PropId]
+            : nullptr;
+    }
+
+    /** 이름 → FHktPropertyDef (O(1) TMap 조회) */
+    inline const FHktPropertyDef* FindByName(const FString& InName)
+    {
+        if (const auto* Found = Detail::GetRegistry().NameMap.Find(FName(*InName)))
+            return *Found;
+        return nullptr;
+    }
+}
+
+// 하위 호환 — 기존 PropertyId::PosX 문법 유지
+namespace PropertyId = HktProperty;

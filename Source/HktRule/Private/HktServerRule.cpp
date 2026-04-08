@@ -3,6 +3,7 @@
 #include "HktServerRule.h"
 #include "HktCoreSimulator.h"
 #include "HktCoreProperties.h"
+#include "HktCoreArchetype.h"
 #include "HktBagTypes.h"
 #include "HktStoryEventParams.h"
 #include "GameplayTagsManager.h"
@@ -122,20 +123,13 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(Event_Item_Deactivate, "Story.Event.Item.Deactivat
 // ============================================================================
 
 
-/** EquipSlot PropertyId 테이블 (서버용) */
-static constexpr uint16 ServerEquipSlotPropertyIds[] =
-{
-	PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
-	PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
-	PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
-};
-static constexpr int32 MaxServerEquipSlots = UE_ARRAY_COUNT(ServerEquipSlotPropertyIds);
+// EquipSlot PropertyId는 HktTrait::GetEquipSlotPropertyIds()에서 가져옴
 
 /** FHktBagItem → FHktEntityState 변환 (엔티티 복원용) */
 static FHktEntityState BagItemToEntityState(const FHktBagItem& InItem, int64 OwnerUid)
 {
 	FHktEntityState ES;
-	ES.Data.SetNumZeroed(PropertyId::MaxCount);
+	ES.Data.SetNumZeroed(PropertyId::MaxCount());
 	ES.OwnerUid = OwnerUid;
 
 	ES.Data[PropertyId::ItemId]              = InItem.ItemId;
@@ -202,9 +196,9 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	case EHktBagAction::StoreFromSlot:
 	{
 		// EquipSlot → Bag: 엔티티 프로퍼티 스냅샷 → 가방에 저장 → Deactivate 이벤트
-		if (InRequest.EquipIndex < 0 || InRequest.EquipIndex >= MaxServerEquipSlots) return;
+		if (InRequest.EquipIndex < 0 || InRequest.EquipIndex >= HktTrait::GetEquipSlotPropertyIds().Num()) return;
 
-		const FHktEntityId ItemEntity = WS.GetProperty(InRequest.SourceEntity, ServerEquipSlotPropertyIds[InRequest.EquipIndex]);
+		const FHktEntityId ItemEntity = WS.GetProperty(InRequest.SourceEntity, HktTrait::GetEquipSlotPropertyIds()[InRequest.EquipIndex]);
 		if (ItemEntity == 0 || !WS.IsValidEntity(ItemEntity)) return;
 
 		// Deactivate 전에 스냅샷 (Deactivate가 엔티티를 파괴하기 때문)
@@ -225,7 +219,7 @@ void FHktDefaultServerRule::OnReceived_BagRequest(
 	case EHktBagAction::RestoreToSlot:
 	{
 		// Bag → EquipSlot: 가방에서 아이템 꺼내기 → 엔티티 생성 + Activate (틱에서 처리)
-		if (InRequest.EquipIndex < 0 || InRequest.EquipIndex >= MaxServerEquipSlots) return;
+		if (InRequest.EquipIndex < 0 || InRequest.EquipIndex >= HktTrait::GetEquipSlotPropertyIds().Num()) return;
 
 		FHktBagItem OutItem;
 		if (!InPlayer.TakeFromBag(InRequest.BagSlot, OutItem)) return;

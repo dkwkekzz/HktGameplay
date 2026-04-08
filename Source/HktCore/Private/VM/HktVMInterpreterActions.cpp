@@ -5,6 +5,7 @@
 #include "HktVMContext.h"
 #include "HktVMWorldStateProxy.h"
 #include "HktCollisionLayers.h"
+#include "HktCoreArchetype.h"
 #include "GameplayTagsManager.h"
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
@@ -49,6 +50,13 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 TagIndex)
         if (ClassTag.IsValid() && VMProxy)
         {
             VMProxy->AddTag(*WorldState, NewEntity, ClassTag);
+
+            // ClassTag에서 Archetype 자동 설정
+            EHktArchetype Arch = FHktArchetypeRegistry::Get().FindByTag(ClassTag);
+            if (Arch != EHktArchetype::None)
+            {
+                WorldState->SetArchetype(NewEntity, Arch);
+            }
         }
 
 #if ENABLE_HKT_INSIGHTS

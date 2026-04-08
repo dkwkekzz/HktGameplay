@@ -246,9 +246,9 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             const FGameplayTagContainer& SlotTags = WorldState.GetTagsBySlot(Slot);
             PropSummary += FString::Printf(TEXT(" | Tags=%s"), *SlotTags.ToStringSimple());
             PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
-            for (uint16 PropId = 0; PropId < PropertyId::MaxCount; ++PropId)
+            for (uint16 PropId = 0; PropId < PropertyId::MaxCount(); ++PropId)
             {
-                const TCHAR* PropName = GetPropertyName(PropId);
+                const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
                 if (!PropName) continue;
                 int32 Val = WorldState.Get(Slot, PropId);
                 if (Val == 0) continue;

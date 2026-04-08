@@ -15,6 +15,7 @@
 #include "Styling/CoreStyle.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "HktCoreProperties.h"
+#include "HktCoreArchetype.h"
 #include "HktBagTypes.h"
 #include "HktClientRuleInterfaces.h"
 #include "GameplayTagsManager.h"
@@ -520,14 +521,7 @@ inline FString SHktIngameHudWidget::GetEntityDisplayName(const FHktWorldState* W
 	return FString::Printf(TEXT("Item#%d"), WS->GetProperty(Id, PropertyId::ItemId));
 }
 
-/** EquipSlot PropertyId 테이블 (UI용) */
-static constexpr uint16 UIEquipSlotPropertyIds[] =
-{
-	PropertyId::EquipSlot0, PropertyId::EquipSlot1, PropertyId::EquipSlot2,
-	PropertyId::EquipSlot3, PropertyId::EquipSlot4, PropertyId::EquipSlot5,
-	PropertyId::EquipSlot6, PropertyId::EquipSlot7, PropertyId::EquipSlot8,
-};
-static constexpr int32 UIMaxEquipSlots = UE_ARRAY_COUNT(UIEquipSlotPropertyIds);
+// EquipSlot PropertyId는 HktTrait::GetEquipSlotPropertyIds()에서 가져옴
 
 // ============================================================================
 // Inventory 패널 (가방에 보관된 아이템 — BagComponent)
@@ -564,9 +558,9 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 		&& CachedSubjectEntityId != InvalidEntityId
 		&& WS->IsValidEntity(CachedSubjectEntityId))
 	{
-		for (int32 i = 0; i < UIMaxEquipSlots; ++i)
+		for (int32 i = 0; i < HktTrait::GetEquipSlotPropertyIds().Num(); ++i)
 		{
-			if (WS->GetProperty(CachedSubjectEntityId, UIEquipSlotPropertyIds[i]) != 0)
+			if (WS->GetProperty(CachedSubjectEntityId, HktTrait::GetEquipSlotPropertyIds()[i]) != 0)
 				UsedSlots.Add(i);
 		}
 	}
@@ -670,9 +664,9 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 	struct FEquipItem { FHktEntityId EntityId; int32 EquipIndex; FString Name; int32 AttackPower; bool bEquippable; };
 	TArray<FEquipItem> Items;
 
-	for (int32 i = 0; i < UIMaxEquipSlots; ++i)
+	for (int32 i = 0; i < HktTrait::GetEquipSlotPropertyIds().Num(); ++i)
 	{
-		const FHktEntityId ItemId = WS->GetProperty(CachedSubjectEntityId, UIEquipSlotPropertyIds[i]);
+		const FHktEntityId ItemId = WS->GetProperty(CachedSubjectEntityId, HktTrait::GetEquipSlotPropertyIds()[i]);
 		if (ItemId == 0 || !WS->IsValidEntity(ItemId))
 			continue;
 
@@ -774,9 +768,9 @@ inline void SHktIngameHudWidget::RefreshSkillsPanel()
 	};
 	TArray<FHktSlotInfo> SlotInfos;
 
-	for (int32 i = 0; i < UIMaxEquipSlots; ++i)
+	for (int32 i = 0; i < HktTrait::GetEquipSlotPropertyIds().Num(); ++i)
 	{
-		const FHktEntityId ItemId = WS->GetProperty(CachedSubjectEntityId, UIEquipSlotPropertyIds[i]);
+		const FHktEntityId ItemId = WS->GetProperty(CachedSubjectEntityId, HktTrait::GetEquipSlotPropertyIds()[i]);
 		if (ItemId == 0 || !WS->IsValidEntity(ItemId))
 			continue;
 

@@ -30,17 +30,13 @@ struct FHktVMContext
     FORCEINLINE int32 Read(uint16 PropId) const
     {
         // 이벤트 파라미터는 로컬 저장소에서 읽기 (SourceEntity 불필요)
-        switch (PropId)
-        {
-        case PropertyId::TargetPosX: return EventTargetPosX;
-        case PropertyId::TargetPosY: return EventTargetPosY;
-        case PropertyId::TargetPosZ: return EventTargetPosZ;
-        case PropertyId::Param0:     return EventParam0;
-        case PropertyId::Param1:     return EventParam1;
-        case PropertyId::Param2:     return EventParam2;
-        case PropertyId::Param3:     return EventParam3;
-        default: break;
-        }
+        if      (PropId == PropertyId::TargetPosX) return EventTargetPosX;
+        else if (PropId == PropertyId::TargetPosY) return EventTargetPosY;
+        else if (PropId == PropertyId::TargetPosZ) return EventTargetPosZ;
+        else if (PropId == PropertyId::Param0)     return EventParam0;
+        else if (PropId == PropertyId::Param1)     return EventParam1;
+        else if (PropId == PropertyId::Param2)     return EventParam2;
+        else if (PropId == PropertyId::Param3)     return EventParam3;
         if (!WorldState) return 0;
         return WorldState->GetProperty(SourceEntity, PropId);
     }

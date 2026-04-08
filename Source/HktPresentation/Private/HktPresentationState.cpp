@@ -108,86 +108,85 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 
 void FHktEntityPresentation::ApplyDelta(uint16 PropId, int32 NewValue, int64 Frame)
 {
-	switch (PropId)
-	{
 	// Transform
-	case PropertyId::PosX:   Location.Value.X = static_cast<float>(NewValue); Location.Set(Location.Value, Frame); break;
-	case PropertyId::PosY:   Location.Value.Y = static_cast<float>(NewValue); Location.Set(Location.Value, Frame); break;
-	case PropertyId::PosZ:   Location.Value.Z = static_cast<float>(NewValue); Location.Set(Location.Value, Frame); break;
-	case PropertyId::RotYaw: Rotation.Value.Yaw = static_cast<float>(NewValue); Rotation.Set(Rotation.Value, Frame); break;
+	if      (PropId == PropertyId::PosX)   { Location.Value.X = static_cast<float>(NewValue); Location.Set(Location.Value, Frame); }
+	else if (PropId == PropertyId::PosY)   { Location.Value.Y = static_cast<float>(NewValue); Location.Set(Location.Value, Frame); }
+	else if (PropId == PropertyId::PosZ)   { Location.Value.Z = static_cast<float>(NewValue); Location.Set(Location.Value, Frame); }
+	else if (PropId == PropertyId::RotYaw) { Rotation.Value.Yaw = static_cast<float>(NewValue); Rotation.Set(Rotation.Value, Frame); }
 
 	// Movement
-	case PropertyId::MoveTargetX: MoveTarget.Value.X = static_cast<float>(NewValue); MoveTarget.Set(MoveTarget.Value, Frame); break;
-	case PropertyId::MoveTargetY: MoveTarget.Value.Y = static_cast<float>(NewValue); MoveTarget.Set(MoveTarget.Value, Frame); break;
-	case PropertyId::MoveTargetZ: MoveTarget.Value.Z = static_cast<float>(NewValue); MoveTarget.Set(MoveTarget.Value, Frame); break;
-	case PropertyId::MoveForce:   MoveForce.Set(static_cast<float>(NewValue), Frame); break;
-	case PropertyId::IsMoving:    bIsMoving.Set(NewValue != 0, Frame); break;
-	case PropertyId::VelX:        Velocity.Value.X = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); break;
-	case PropertyId::VelY:        Velocity.Value.Y = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); break;
-	case PropertyId::VelZ:        Velocity.Value.Z = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); break;
+	else if (PropId == PropertyId::MoveTargetX) { MoveTarget.Value.X = static_cast<float>(NewValue); MoveTarget.Set(MoveTarget.Value, Frame); }
+	else if (PropId == PropertyId::MoveTargetY) { MoveTarget.Value.Y = static_cast<float>(NewValue); MoveTarget.Set(MoveTarget.Value, Frame); }
+	else if (PropId == PropertyId::MoveTargetZ) { MoveTarget.Value.Z = static_cast<float>(NewValue); MoveTarget.Set(MoveTarget.Value, Frame); }
+	else if (PropId == PropertyId::MoveForce)   { MoveForce.Set(static_cast<float>(NewValue), Frame); }
+	else if (PropId == PropertyId::IsMoving)    { bIsMoving.Set(NewValue != 0, Frame); }
+	else if (PropId == PropertyId::VelX)        { Velocity.Value.X = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); }
+	else if (PropId == PropertyId::VelY)        { Velocity.Value.Y = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); }
+	else if (PropId == PropertyId::VelZ)        { Velocity.Value.Z = static_cast<float>(NewValue); Velocity.Set(Velocity.Value, Frame); }
 
 	// Physics
-	case PropertyId::CollisionRadius:
-		CollisionRadius.Set(FMath::Max(static_cast<float>(NewValue), 50.f), Frame);
-		break;
-	case PropertyId::CollisionLayer:
-		CollisionLayer.Set(NewValue, Frame);
-		break;
+	else if (PropId == PropertyId::CollisionRadius) { CollisionRadius.Set(FMath::Max(static_cast<float>(NewValue), 50.f), Frame); }
+	else if (PropId == PropertyId::CollisionLayer)  { CollisionLayer.Set(NewValue, Frame); }
 
 	// Vitals
-	case PropertyId::Health:
+	else if (PropId == PropertyId::Health)
+	{
 		Health.Set(static_cast<float>(NewValue), Frame);
 		HealthRatio.Set((MaxHealth.Get() > 0.f) ? static_cast<float>(NewValue) / MaxHealth.Get() : 0.f, Frame);
-		break;
-	case PropertyId::MaxHealth:
+	}
+	else if (PropId == PropertyId::MaxHealth)
+	{
 		MaxHealth.Set(static_cast<float>(NewValue), Frame);
 		HealthRatio.Set((NewValue > 0) ? Health.Get() / static_cast<float>(NewValue) : 0.f, Frame);
-		break;
-	case PropertyId::Mana:
+	}
+	else if (PropId == PropertyId::Mana)
+	{
 		Mana.Set(static_cast<float>(NewValue), Frame);
 		ManaRatio.Set((MaxMana.Get() > 0.f) ? static_cast<float>(NewValue) / MaxMana.Get() : 0.f, Frame);
-		break;
-	case PropertyId::MaxMana:
+	}
+	else if (PropId == PropertyId::MaxMana)
+	{
 		MaxMana.Set(static_cast<float>(NewValue), Frame);
 		ManaRatio.Set((NewValue > 0) ? Mana.Get() / static_cast<float>(NewValue) : 0.f, Frame);
-		break;
+	}
 
 	// Combat
-	case PropertyId::AttackPower: AttackPower.Set(NewValue, Frame); break;
-	case PropertyId::Defense:     Defense.Set(NewValue, Frame); break;
-	case PropertyId::CP:
+	else if (PropId == PropertyId::AttackPower) { AttackPower.Set(NewValue, Frame); }
+	else if (PropId == PropertyId::Defense)     { Defense.Set(NewValue, Frame); }
+	else if (PropId == PropertyId::CP)
+	{
 		CP.Set(NewValue, Frame);
 		CPRatio.Set((MaxCP.Get() > 0) ? static_cast<float>(NewValue) / static_cast<float>(MaxCP.Get()) : 0.f, Frame);
-		break;
-	case PropertyId::MaxCP:
+	}
+	else if (PropId == PropertyId::MaxCP)
+	{
 		MaxCP.Set(NewValue, Frame);
 		CPRatio.Set((NewValue > 0) ? static_cast<float>(CP.Get()) / static_cast<float>(NewValue) : 0.f, Frame);
-		break;
-	case PropertyId::AttackSpeed: AttackSpeed.Set(NewValue, Frame); break;
-	case PropertyId::MotionPlayRate: MotionPlayRate.Set(NewValue, Frame); break;
+	}
+	else if (PropId == PropertyId::AttackSpeed)     { AttackSpeed.Set(NewValue, Frame); }
+	else if (PropId == PropertyId::MotionPlayRate)  { MotionPlayRate.Set(NewValue, Frame); }
 
 	// Ownership
-	case PropertyId::Team: Team.Set(NewValue, Frame); ComputeTeamColor(NewValue, Frame); break;
+	else if (PropId == PropertyId::Team) { Team.Set(NewValue, Frame); ComputeTeamColor(NewValue, Frame); }
 
 	// Animation
-	case PropertyId::AnimState:      AnimState.Set(IndexToTag(NewValue), Frame); break;
-	case PropertyId::VisualState:    MontageState.Set(IndexToTag(NewValue), Frame); break;
-	case PropertyId::AnimStateUpper: AnimStateUpper.Set(IndexToTag(NewValue), Frame); break;
-	case PropertyId::Stance:         Stance.Set(IndexToTag(NewValue), Frame); break;
+	else if (PropId == PropertyId::AnimState)      { AnimState.Set(IndexToTag(NewValue), Frame); }
+	else if (PropId == PropertyId::VisualState)    { MontageState.Set(IndexToTag(NewValue), Frame); }
+	else if (PropId == PropertyId::AnimStateUpper) { AnimStateUpper.Set(IndexToTag(NewValue), Frame); }
+	else if (PropId == PropertyId::Stance)         { Stance.Set(IndexToTag(NewValue), Frame); }
 
 	// Visualization
-	case PropertyId::EntitySpawnTag: VisualElement.Set(IndexToTag(NewValue), Frame); break;
+	else if (PropId == PropertyId::EntitySpawnTag) { VisualElement.Set(IndexToTag(NewValue), Frame); }
 
 	// Item
-	case PropertyId::OwnerEntity: OwnerEntity.Set(NewValue, Frame); break;
-	case PropertyId::EquipIndex:  EquipIndex.Set(NewValue, Frame); break;
-	case PropertyId::ItemState:  ItemState.Set(NewValue, Frame); break;
+	else if (PropId == PropertyId::OwnerEntity) { OwnerEntity.Set(NewValue, Frame); }
+	else if (PropId == PropertyId::EquipIndex)  { EquipIndex.Set(NewValue, Frame); }
+	else if (PropId == PropertyId::ItemState)   { ItemState.Set(NewValue, Frame); }
 
 	// Voxel Skin
-	case PropertyId::VoxelSkinSet:  VoxelSkinSet.Set(NewValue, Frame); break;
-	case PropertyId::VoxelPalette:  VoxelPalette.Set(NewValue, Frame); break;
-	case PropertyId::Equippable: Equippable.Set(NewValue, Frame); break;
-	}
+	else if (PropId == PropertyId::VoxelSkinSet)  { VoxelSkinSet.Set(NewValue, Frame); }
+	else if (PropId == PropertyId::VoxelPalette)  { VoxelPalette.Set(NewValue, Frame); }
+	else if (PropId == PropertyId::Equippable)    { Equippable.Set(NewValue, Frame); }
 }
 
 void FHktEntityPresentation::ApplyOwnerDelta(int64 NewOwnerUid, int64 Frame)

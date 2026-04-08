@@ -175,10 +175,8 @@ RegisterIndex FHktStoryJsonParser::ParseRegister(const FString& RegStr)
 
 uint16 FHktStoryJsonParser::ParsePropertyId(const FString& PropStr)
 {
-	#define HKT_PROP_PARSE(Name) if (PropStr == TEXT(#Name)) return PropertyId::Name;
-	HKT_PROPERTY_LIST(HKT_PROP_PARSE)
-	#undef HKT_PROP_PARSE
-	return 0xFFFF;
+	const FHktPropertyDef* Found = HktProperty::FindByName(PropStr);
+	return Found ? Found->Id : 0xFFFF;
 }
 
 // ============================================================================
@@ -243,6 +241,21 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 
 	// Builder 생성
 	FHktStoryBuilder Builder = FHktStoryBuilder::Create(FName(*StoryTagStr));
+
+	// Archetype (선택적)
+	FString ArchetypeStr;
+	if (Root->TryGetStringField(TEXT("archetype"), ArchetypeStr))
+	{
+		EHktArchetype Arch = FHktArchetypeRegistry::Get().FindByName(*ArchetypeStr);
+		if (Arch != EHktArchetype::None)
+		{
+			Builder.SetArchetype(Arch);
+		}
+		else
+		{
+			Result.Warnings.Add(FString::Printf(TEXT("Unknown archetype: '%s'"), *ArchetypeStr));
+		}
+	}
 
 	// CancelOnDuplicate
 	bool bCancelOnDuplicate = false;
