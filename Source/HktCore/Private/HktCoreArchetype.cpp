@@ -3,6 +3,22 @@
 #include "HktCoreArchetype.h"
 
 // ============================================================================
+// HktTrait 포인터 정의
+// ============================================================================
+
+namespace HktTrait
+{
+    const FHktPropertyTrait* Spatial    = nullptr;
+    const FHktPropertyTrait* Movable    = nullptr;
+    const FHktPropertyTrait* Collidable = nullptr;
+    const FHktPropertyTrait* Combatable = nullptr;
+    const FHktPropertyTrait* Animated   = nullptr;
+    const FHktPropertyTrait* EventParam = nullptr;
+    const FHktPropertyTrait* Ownable    = nullptr;
+    const FHktPropertyTrait* EquipSlots = nullptr;
+}
+
+// ============================================================================
 // FHktArchetypeRegistry
 // ============================================================================
 
@@ -12,17 +28,20 @@ FHktArchetypeRegistry& FHktArchetypeRegistry::Get()
     return Instance;
 }
 
-void FHktArchetypeRegistry::DefineTrait(FName TraitName, std::initializer_list<uint16> Props)
+const FHktPropertyTrait* FHktArchetypeRegistry::DefineTrait(const TCHAR* DebugName, std::initializer_list<uint16> Props)
 {
-    FHktPropertyTrait& T = Traits.FindOrAdd(TraitName);
-    T.Name = TraitName;
+    check(TraitCount < MaxTraits);
+    FHktPropertyTrait& T = TraitStorage[TraitCount++];
+    T.Name = DebugName;
     T.PropertyIds.Reset();
     T.PropertyIds.Append(Props.begin(), static_cast<int32>(Props.size()));
+    return &T;
 }
 
 void FHktArchetypeRegistry::Register(
     EHktArchetype Type, const TCHAR* Name,
-    std::initializer_list<FName> TraitList,
+    const FGameplayTag& ClassTag,
+    std::initializer_list<const FHktPropertyTrait*> TraitList,
     std::initializer_list<uint16> ExtraProps)
 {
     const int32 Idx = static_cast<int32>(Type);
@@ -31,19 +50,18 @@ void FHktArchetypeRegistry::Register(
     FHktArchetypeMetadata& Meta = Archetypes[Idx];
     Meta.Type = Type;
     Meta.Name = Name;
+    Meta.ClassTag = ClassTag;
     Meta.PropertyIds.Reset();
-    Meta.TraitNames.Reset();
+    Meta.Traits.Reset();
 
     // Trait 프로퍼티 병합 (중복 제거)
-    for (const FName& TName : TraitList)
+    for (const FHktPropertyTrait* T : TraitList)
     {
-        Meta.TraitNames.Add(TName);
-        if (const FHktPropertyTrait* T = Traits.Find(TName))
+        if (!T) continue;
+        Meta.Traits.Add(T);
+        for (uint16 PropId : T->PropertyIds)
         {
-            for (uint16 PropId : T->PropertyIds)
-            {
-                Meta.PropertyIds.AddUnique(PropId);
-            }
+            Meta.PropertyIds.AddUnique(PropId);
         }
     }
 
@@ -51,14 +69,6 @@ void FHktArchetypeRegistry::Register(
     for (uint16 PropId : ExtraProps)
     {
         Meta.PropertyIds.AddUnique(PropId);
-    }
-}
-
-void FHktArchetypeRegistry::MapTag(const FGameplayTag& Tag, EHktArchetype Type)
-{
-    if (Tag.IsValid())
-    {
-        TagMapping.Add(Tag, Type);
     }
 }
 
@@ -72,18 +82,21 @@ const FHktArchetypeMetadata* FHktArchetypeRegistry::Find(EHktArchetype Type) con
 
 EHktArchetype FHktArchetypeRegistry::FindByTag(const FGameplayTag& Tag) const
 {
-    // 정확한 매칭 먼저
-    if (const EHktArchetype* Found = TagMapping.Find(Tag))
+    // 정확한 매칭 먼저 (고정 배열 순회, 최대 5개)
+    for (int32 i = 1; i < static_cast<int32>(EHktArchetype::Max); ++i)
     {
-        return *Found;
+        if (Archetypes[i].Type != EHktArchetype::None && Archetypes[i].ClassTag == Tag)
+        {
+            return Archetypes[i].Type;
+        }
     }
 
     // 부모 태그 매칭 (Entity.Character.Player → Entity.Character)
-    for (const auto& Pair : TagMapping)
+    for (int32 i = 1; i < static_cast<int32>(EHktArchetype::Max); ++i)
     {
-        if (Tag.MatchesTag(Pair.Key))
+        if (Archetypes[i].Type != EHktArchetype::None && Tag.MatchesTag(Archetypes[i].ClassTag))
         {
-            return Pair.Value;
+            return Archetypes[i].Type;
         }
     }
 
@@ -100,11 +113,6 @@ EHktArchetype FHktArchetypeRegistry::FindByName(const TCHAR* Name) const
     return EHktArchetype::None;
 }
 
-const FHktPropertyTrait* FHktArchetypeRegistry::FindTrait(FName TraitName) const
-{
-    return Traits.Find(TraitName);
-}
-
 // ============================================================================
 // InitializeHktArchetypes
 // ============================================================================
@@ -113,13 +121,13 @@ void InitializeHktArchetypes()
 {
     auto& R = FHktArchetypeRegistry::Get();
 
-    // ===== Trait 정의 =====
+    // ===== Trait 정의 → 포인터 할당 =====
 
-    R.DefineTrait(HktTrait::Spatial, {
+    HktTrait::Spatial = R.DefineTrait(TEXT("Spatial"), {
         HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
     });
 
-    R.DefineTrait(HktTrait::Movable, {
+    HktTrait::Movable = R.DefineTrait(TEXT("Movable"), {
         // Spatial 프로퍼티 포함 (Register에서 AddUnique로 중복 제거)
         HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
         HktProperty::MoveTargetX, HktProperty::MoveTargetY, HktProperty::MoveTargetZ,
@@ -127,12 +135,12 @@ void InitializeHktArchetypes()
         HktProperty::VelX, HktProperty::VelY, HktProperty::VelZ,
     });
 
-    R.DefineTrait(HktTrait::Collidable, {
+    HktTrait::Collidable = R.DefineTrait(TEXT("Collidable"), {
         HktProperty::CollisionLayer, HktProperty::CollisionMask,
         HktProperty::CollisionRadius, HktProperty::Mass,
     });
 
-    R.DefineTrait(HktTrait::Combatable, {
+    HktTrait::Combatable = R.DefineTrait(TEXT("Combatable"), {
         HktProperty::Health, HktProperty::MaxHealth,
         HktProperty::AttackPower, HktProperty::Defense, HktProperty::Team,
         HktProperty::CP, HktProperty::MaxCP,
@@ -140,29 +148,30 @@ void InitializeHktArchetypes()
         HktProperty::NextActionFrame, HktProperty::Stance,
     });
 
-    R.DefineTrait(HktTrait::Animated, {
+    HktTrait::Animated = R.DefineTrait(TEXT("Animated"), {
         HktProperty::AnimState, HktProperty::VisualState, HktProperty::AnimStateUpper,
         HktProperty::VoxelSkinSet, HktProperty::VoxelPalette,
     });
 
-    R.DefineTrait(HktTrait::Ownable, {
+    HktTrait::Ownable = R.DefineTrait(TEXT("Ownable"), {
         HktProperty::OwnerEntity, HktProperty::EntitySpawnTag,
     });
 
-    R.DefineTrait(HktTrait::EquipSlots, {
+    HktTrait::EquipSlots = R.DefineTrait(TEXT("EquipSlots"), {
         HktProperty::EquipSlot0, HktProperty::EquipSlot1, HktProperty::EquipSlot2,
         HktProperty::EquipSlot3, HktProperty::EquipSlot4, HktProperty::EquipSlot5,
         HktProperty::EquipSlot6, HktProperty::EquipSlot7, HktProperty::EquipSlot8,
     });
 
-    R.DefineTrait(HktTrait::EventParam, {
+    HktTrait::EventParam = R.DefineTrait(TEXT("EventParam"), {
         HktProperty::TargetPosX, HktProperty::TargetPosY, HktProperty::TargetPosZ,
         HktProperty::Param0, HktProperty::Param1, HktProperty::Param2, HktProperty::Param3,
     });
 
-    // ===== Archetype 등록 (Trait 조합 + 고유 프로퍼티) =====
+    // ===== Archetype 등록 (ClassTag + Trait 포인터 조합 + 고유 프로퍼티) =====
 
     R.Register(EHktArchetype::Character, TEXT("Character"),
+        FGameplayTag::RequestGameplayTag(FName("Entity.Character")),
         {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
          HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam, HktTrait::EquipSlots},
         {
@@ -171,6 +180,7 @@ void InitializeHktArchetypes()
         });
 
     R.Register(EHktArchetype::NPC, TEXT("NPC"),
+        FGameplayTag::RequestGameplayTag(FName("Entity.NPC")),
         {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
          HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam},
         {
@@ -178,6 +188,7 @@ void InitializeHktArchetypes()
         });
 
     R.Register(EHktArchetype::Item, TEXT("Item"),
+        FGameplayTag::RequestGameplayTag(FName("Entity.Item")),
         {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable, HktTrait::EventParam},
         {
             HktProperty::ItemState, HktProperty::ItemId, HktProperty::EquipIndex,
@@ -188,22 +199,16 @@ void InitializeHktArchetypes()
         });
 
     R.Register(EHktArchetype::Projectile, TEXT("Projectile"),
+        FGameplayTag::RequestGameplayTag(FName("Entity.Projectile")),
         {HktTrait::Movable, HktTrait::Collidable, HktTrait::Ownable},
         {
             HktProperty::AttackPower, HktProperty::Team,
         });
 
     R.Register(EHktArchetype::Building, TEXT("Building"),
+        FGameplayTag::RequestGameplayTag(FName("Entity.Building")),
         {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable},
         {
             HktProperty::Health, HktProperty::MaxHealth, HktProperty::Team,
         });
-
-    // ===== ClassTag → Archetype 매핑 =====
-
-    R.MapTag(FGameplayTag::RequestGameplayTag(FName("Entity.Character")), EHktArchetype::Character);
-    R.MapTag(FGameplayTag::RequestGameplayTag(FName("Entity.NPC")),       EHktArchetype::NPC);
-    R.MapTag(FGameplayTag::RequestGameplayTag(FName("Entity.Item")),      EHktArchetype::Item);
-    R.MapTag(FGameplayTag::RequestGameplayTag(FName("Entity.Projectile")), EHktArchetype::Projectile);
-    R.MapTag(FGameplayTag::RequestGameplayTag(FName("Entity.Building")),  EHktArchetype::Building);
 }
