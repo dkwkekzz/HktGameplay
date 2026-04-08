@@ -756,13 +756,17 @@ void FHktMovementSystem::Process(
             float NewZ = CurZ + JumpVZ * FixedDeltaSeconds;
 
             // 착지 판정
-            if (TerrainState)
             {
-                const int32 CurX = WorldState.GetProperty(Id, PropertyId::PosX);
-                const int32 CurY = WorldState.GetProperty(Id, PropertyId::PosY);
-                const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, FMath::RoundToInt(NewZ));
-                const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
-                const float SurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z);
+                float SurfaceCmZ = 0.0f;  // 지형 없을 시 기본 바닥 Z=0
+
+                if (TerrainState)
+                {
+                    const int32 CurX = WorldState.GetProperty(Id, PropertyId::PosX);
+                    const int32 CurY = WorldState.GetProperty(Id, PropertyId::PosY);
+                    const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, FMath::RoundToInt(NewZ));
+                    const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
+                    SurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z);
+                }
 
                 if (NewZ <= SurfaceCmZ)
                 {
