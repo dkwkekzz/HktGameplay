@@ -25,12 +25,12 @@ enum class EHktArchetype : uint8
 // FHktPropertyTrait — 프로퍼티 특성 (Movable, Combatable, Collidable 등)
 //
 // 여러 Archetype이 공유하는 프로퍼티 그룹.
-// 새 프로퍼티를 Trait에 추가하면 해당 Trait을 사용하는 모든 Archetype에 자동 반영.
+// 포인터로 identity 비교. 레지스트리 고정 배열에 저장되어 포인터 안정적.
 // ============================================================================
 
 struct FHktPropertyTrait
 {
-    FName Name;
+    const TCHAR* Name = TEXT("None");
     TArray<uint16> PropertyIds;
 };
 
@@ -42,17 +42,18 @@ struct FHktArchetypeMetadata
 {
     EHktArchetype Type = EHktArchetype::None;
     const TCHAR* Name = TEXT("None");
-    TArray<uint16> PropertyIds;     // 최종 병합된 프로퍼티 목록
-    TArray<FName> TraitNames;       // 이 Archetype이 포함하는 Trait 이름들
+    FGameplayTag ClassTag;                          // ClassTag 직접 내장
+    TArray<uint16> PropertyIds;                     // 최종 병합된 프로퍼티 목록
+    TArray<const FHktPropertyTrait*> Traits;        // 포인터 기반 Trait 목록
 
     bool HasProperty(uint16 PropId) const
     {
         return PropertyIds.Contains(PropId);
     }
 
-    bool HasTrait(FName TraitName) const
+    bool HasTrait(const FHktPropertyTrait* Trait) const
     {
-        return TraitNames.Contains(TraitName);
+        return Traits.Contains(Trait);
     }
 
     const TCHAR* ToString() const { return Name; }
@@ -67,49 +68,47 @@ class HKTCORE_API FHktArchetypeRegistry
 public:
     static FHktArchetypeRegistry& Get();
 
-    /** Trait 정의 — 프로퍼티 그룹에 이름 부여 */
-    void DefineTrait(FName TraitName, std::initializer_list<uint16> Props);
+    /** Trait 정의 — 고정 배열에 저장, 안정적 포인터 반환 */
+    const FHktPropertyTrait* DefineTrait(const TCHAR* DebugName, std::initializer_list<uint16> Props);
 
-    /** Archetype 등록 — Trait 조합 + 추가 프로퍼티 */
+    /** Archetype 등록 — ClassTag + Trait 포인터 조합 + 추가 프로퍼티 */
     void Register(EHktArchetype Type, const TCHAR* Name,
-                  std::initializer_list<FName> Traits,
+                  const FGameplayTag& ClassTag,
+                  std::initializer_list<const FHktPropertyTrait*> TraitList,
                   std::initializer_list<uint16> ExtraProps = {});
-
-    /** ClassTag → Archetype 매핑 */
-    void MapTag(const FGameplayTag& Tag, EHktArchetype Type);
 
     const FHktArchetypeMetadata* Find(EHktArchetype Type) const;
     EHktArchetype FindByTag(const FGameplayTag& Tag) const;
     EHktArchetype FindByName(const TCHAR* Name) const;
-    const FHktPropertyTrait* FindTrait(FName TraitName) const;
 
 private:
     FHktArchetypeMetadata Archetypes[static_cast<int>(EHktArchetype::Max)];
-    TMap<FName, FHktPropertyTrait> Traits;
-    TMap<FGameplayTag, EHktArchetype> TagMapping;
+
+    static constexpr int32 MaxTraits = 16;
+    FHktPropertyTrait TraitStorage[MaxTraits];
+    int32 TraitCount = 0;
 };
 
 // ============================================================================
-// Trait 이름 상수 — 오타 방지
+// HktTrait — Trait 포인터 상수 (InitializeHktArchetypes 에서 설정)
 // ============================================================================
 
 namespace HktTrait
 {
-    inline const FName Spatial    = FName(TEXT("Spatial"));
-    inline const FName Movable    = FName(TEXT("Movable"));
-    inline const FName Collidable = FName(TEXT("Collidable"));
-    inline const FName Combatable = FName(TEXT("Combatable"));
-    inline const FName Animated   = FName(TEXT("Animated"));
-    inline const FName EventParam = FName(TEXT("EventParam"));
-    inline const FName Ownable    = FName(TEXT("Ownable"));
-    inline const FName EquipSlots = FName(TEXT("EquipSlots"));
+    HKTCORE_API extern const FHktPropertyTrait* Spatial;
+    HKTCORE_API extern const FHktPropertyTrait* Movable;
+    HKTCORE_API extern const FHktPropertyTrait* Collidable;
+    HKTCORE_API extern const FHktPropertyTrait* Combatable;
+    HKTCORE_API extern const FHktPropertyTrait* Animated;
+    HKTCORE_API extern const FHktPropertyTrait* EventParam;
+    HKTCORE_API extern const FHktPropertyTrait* Ownable;
+    HKTCORE_API extern const FHktPropertyTrait* EquipSlots;
 
-    /** EquipSlot0~8 PropertyId 배열 — Trait에서 가져옴 (5곳 중복 제거) */
+    /** EquipSlot0~8 PropertyId 배열 — Trait 포인터에서 직접 참조 */
     inline const TArray<uint16>& GetEquipSlotPropertyIds()
     {
-        const FHktPropertyTrait* T = FHktArchetypeRegistry::Get().FindTrait(EquipSlots);
-        check(T);
-        return T->PropertyIds;
+        check(EquipSlots);
+        return EquipSlots->PropertyIds;
     }
 }
 
