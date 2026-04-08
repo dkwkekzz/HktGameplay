@@ -47,12 +47,13 @@ namespace HktStoryCharacterSpawn
 			.Move(Self, Spawned)                        // Self = 새로 생성된 캐릭터
 
 			// 스폰 위치 설정 (IntentEvent에서)
+			// 지형 높이 보정은 MovementSystem이 IsGrounded 엔티티를 자동 스냅
 			.ReadProperty(pos, PropertyId::TargetPosX)
 			.SetPosition(Self, pos)
 
 			// 스폰 이펙트
-			.PlayVFXAttached(Self, VFX_SpawnEffect)
-			.PlaySound(Sound_Spawn)
+				.PlayVFXAttached(Self, VFX_SpawnEffect)
+				.PlaySound(Sound_Spawn)
 
 			// 스폰 상태 태그 추가 → AnimInstance가 태그를 감지하여 스폰 애니메이션 자동 재생
 			.AddTag(Self, Tag_Anim_FullBody_Action_Spawn)

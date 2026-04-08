@@ -8,6 +8,8 @@
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
 #include "VM/HktVMWorldStateProxy.h"
+#include "Terrain/HktTerrainState.h"
+#include "Terrain/HktTerrainGenerator.h"
 #include "Math/UnrealMathUtility.h"
 #include "HAL/IConsoleManager.h"
 #include "HktCoreEventLog.h"
@@ -427,13 +429,134 @@ void FHktVMProcessSystem::Process(
 }
 
 // ============================================================================
+// 3.2 Terrain System
+// ============================================================================
+
+FIntVector FHktTerrainSystem::CmToVoxel(int32 X, int32 Y, int32 Z)
+{
+    // 음수 좌표를 올바르게 처리하기 위해 floor 연산 사용
+    auto FloorDivF = [](float A, float B) -> int32
+    {
+        return FMath::FloorToInt(A / B);
+    };
+    return FIntVector(
+        FloorDivF(static_cast<float>(X), VoxelSizeCm),
+        FloorDivF(static_cast<float>(Y), VoxelSizeCm),
+        FloorDivF(static_cast<float>(Z), VoxelSizeCm));
+}
+
+FIntVector FHktTerrainSystem::CmToVoxel(float X, float Y, float Z)
+{
+    return FIntVector(
+        FMath::FloorToInt(X / VoxelSizeCm),
+        FMath::FloorToInt(Y / VoxelSizeCm),
+        FMath::FloorToInt(Z / VoxelSizeCm));
+}
+
+FIntVector FHktTerrainSystem::VoxelToCm(int32 VX, int32 VY, int32 VZ)
+{
+    // 복셀 중심 좌표 반환
+    const float Half = VoxelSizeCm * 0.5f;
+    return FIntVector(
+        FMath::RoundToInt(VX * VoxelSizeCm + Half),
+        FMath::RoundToInt(VY * VoxelSizeCm + Half),
+        FMath::RoundToInt(VZ * VoxelSizeCm + Half));
+}
+
+void FHktTerrainSystem::Process(
+    const FHktWorldState& WorldState,
+    FHktTerrainState& TerrainState,
+    const FHktTerrainGenerator& Generator,
+    const TArray<FHktEvent>* PendingEvents)
+{
+    RequiredChunks.Reset();
+
+    // 1. 엔티티를 청크 단위로 중복 제거하여 수집
+    //    같은 청크에 있는 엔티티 N개가 동일한 75개 항목을 중복 삽입하지 않도록,
+    //    엔티티의 청크 좌표를 먼저 TSet에 모은 뒤 한 번만 반경 확장한다.
+    TSet<FIntVector> EntityChunks;
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
+    {
+        const FIntVector Pos = WorldState.GetPosition(Id);
+        const FIntVector VoxelPos = CmToVoxel(Pos.X, Pos.Y, Pos.Z);
+        EntityChunks.Add(FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z));
+    });
+
+    // 1b. 이번 프레임 이벤트의 Location도 사전 로드 대상에 포함
+    //     (스폰 이벤트 등에서 GetTerrainHeight 쿼리 시 청크가 준비되도록)
+    if (PendingEvents)
+    {
+        for (const FHktEvent& Evt : *PendingEvents)
+        {
+            if (!Evt.Location.IsNearlyZero())
+            {
+                const FIntVector VoxelPos = CmToVoxel(
+                    static_cast<float>(Evt.Location.X),
+                    static_cast<float>(Evt.Location.Y),
+                    static_cast<float>(Evt.Location.Z));
+                EntityChunks.Add(FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z));
+            }
+        }
+    }
+
+    // 고유 청크 좌표에서만 반경 확장 (엔티티 200개 → 고유 청크 ~10개)
+    for (const FIntVector& ChunkCoord : EntityChunks)
+    {
+        for (int32 DX = -LoadRadiusXY; DX <= LoadRadiusXY; ++DX)
+        {
+            for (int32 DY = -LoadRadiusXY; DY <= LoadRadiusXY; ++DY)
+            {
+                for (int32 DZ = -LoadRadiusZ; DZ <= LoadRadiusZ; ++DZ)
+                {
+                    RequiredChunks.Add(FIntVector(ChunkCoord.X + DX, ChunkCoord.Y + DY, ChunkCoord.Z + DZ));
+                }
+            }
+        }
+    }
+
+    // 2. 필요한 청크 로드 (프레임당 예산 제한으로 스파이크 방지)
+    int32 LoadedThisFrame = 0;
+    for (const FIntVector& Coord : RequiredChunks)
+    {
+        if (!TerrainState.IsChunkLoaded(Coord))
+        {
+            if (TerrainState.GetLoadedChunkCount() >= MaxChunksLoaded)
+            {
+                break;
+            }
+            if (LoadedThisFrame >= MaxChunkLoadsPerFrame)
+            {
+                break;  // 나머지는 다음 프레임에 로드
+            }
+            TerrainState.LoadChunk(Coord, Generator);
+            ++LoadedThisFrame;
+        }
+    }
+
+    // 3. 불필요한 청크 언로드 (필요 목록에 없는 로드된 청크)
+    TArray<FIntVector> ToUnload;
+    for (const auto& Pair : TerrainState.LoadedChunks)
+    {
+        if (!RequiredChunks.Contains(Pair.Key))
+        {
+            ToUnload.Add(Pair.Key);
+        }
+    }
+    for (const FIntVector& Coord : ToUnload)
+    {
+        TerrainState.UnloadChunk(Coord);
+    }
+}
+
+// ============================================================================
 // 3.5 Movement System
 // ============================================================================
 
 void FHktMovementSystem::Process(
     FHktWorldState& WorldState,
     FHktVMWorldStateProxy& VMProxy,
-    TArray<FHktPendingEvent>& OutMoveEndEvents)
+    TArray<FHktPendingEvent>& OutMoveEndEvents,
+    const FHktTerrainState* TerrainState)
 {
     OutMoveEndEvents.Reset();
 
@@ -554,12 +677,49 @@ void FHktMovementSystem::Process(
         float NewY = CurY + VY * FixedDeltaSeconds;
         float NewZ = CurZ + VZ * FixedDeltaSeconds;
 
+        // 지형 스냅: IsGrounded 엔티티가 지면 아래로 내려가지 않도록 보정
+        if (TerrainState && WorldState.GetProperty(Id, PropertyId::IsGrounded) != 0)
+        {
+            const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(NewX, NewY, NewZ);
+            const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
+            const float SurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z);
+            if (NewZ < SurfaceCmZ)
+            {
+                NewZ = SurfaceCmZ;
+            }
+        }
+
         VMProxy.SetPosition(WorldState, Id,
             FMath::RoundToInt(NewX), FMath::RoundToInt(NewY), FMath::RoundToInt(NewZ));
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelX, FMath::RoundToInt(VX));
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelY, FMath::RoundToInt(VY));
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelZ, FMath::RoundToInt(VZ));
     });
+
+    // 정지 상태 접지 엔티티 지면 스냅 (스폰 직후, 지형 변형 후 등)
+    if (TerrainState)
+    {
+        WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
+        {
+            if (WorldState.GetProperty(Id, PropertyId::IsMoving) != 0)
+                return;  // 이동 중인 엔티티는 위에서 이미 처리
+            if (WorldState.GetProperty(Id, PropertyId::IsGrounded) == 0)
+                return;  // 비접지 엔티티 (투사체 등) 스킵
+
+            const int32 CurX = WorldState.GetProperty(Id, PropertyId::PosX);
+            const int32 CurY = WorldState.GetProperty(Id, PropertyId::PosY);
+            const int32 CurZ = WorldState.GetProperty(Id, PropertyId::PosZ);
+
+            const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ);
+            const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
+            const int32 SurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z;
+
+            if (CurZ < SurfaceCmZ)
+            {
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::PosZ, SurfaceCmZ);
+            }
+        });
+    }
 }
 
 

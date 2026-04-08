@@ -1043,6 +1043,66 @@ FHktStoryBuilder& FHktStoryBuilder::DispatchEventFrom(const FGameplayTag& EventT
 }
 
 // ============================================================================
+// Terrain
+// ============================================================================
+
+FHktStoryBuilder& FHktStoryBuilder::GetTerrainHeight(RegisterIndex Dst, RegisterIndex VoxelX, RegisterIndex VoxelY)
+{
+    Emit(FInstruction::Make(EOpCode::GetTerrainHeight, Dst, VoxelX, VoxelY));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::GetVoxelType(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
+{
+    Emit(FInstruction::Make(EOpCode::GetVoxelType, Dst, PosBase, ZReg));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SetVoxel(RegisterIndex PosBase, RegisterIndex TypeReg)
+{
+    Emit(FInstruction::Make(EOpCode::SetVoxel, 0, PosBase, TypeReg));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::IsTerrainSolid(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
+{
+    Emit(FInstruction::Make(EOpCode::IsTerrainSolid, Dst, PosBase, ZReg));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::EntityPosToVoxel(RegisterIndex OutVoxelBase, RegisterIndex Entity)
+{
+    // 조합 연산: 엔티티 cm 위치를 복셀 좌표로 변환
+    // VoxelSizeCm = 15.0f → 정수 나눗셈으로 근사 (15로 나누기)
+    // OutVoxelBase+0 = PosX / 15
+    // OutVoxelBase+1 = PosY / 15
+    // OutVoxelBase+2 = PosZ / 15
+    FHktRegReserve guard(RegAllocator, {OutVoxelBase, Entity});
+    FHktScopedReg divisor(*this);
+
+    LoadStoreEntity(OutVoxelBase, Entity, PropertyId::PosX);
+    LoadStoreEntity(static_cast<RegisterIndex>(OutVoxelBase + 1), Entity, PropertyId::PosY);
+    LoadStoreEntity(static_cast<RegisterIndex>(OutVoxelBase + 2), Entity, PropertyId::PosZ);
+
+    LoadConst(divisor, 15);
+    Div(OutVoxelBase, OutVoxelBase, divisor);
+    Div(static_cast<RegisterIndex>(OutVoxelBase + 1), static_cast<RegisterIndex>(OutVoxelBase + 1), divisor);
+    Div(static_cast<RegisterIndex>(OutVoxelBase + 2), static_cast<RegisterIndex>(OutVoxelBase + 2), divisor);
+
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::DestroyVoxelAt(RegisterIndex PosBase)
+{
+    // TypeID = 0 (빈 공간)
+    FHktRegReserve guard(RegAllocator, {PosBase});
+    FHktScopedReg typeReg(*this);
+    LoadConst(typeReg, 0);
+    SetVoxel(PosBase, typeReg);
+    return *this;
+}
+
+// ============================================================================
 // Utility
 // ============================================================================
 

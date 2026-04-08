@@ -494,6 +494,29 @@ public:
     /** DispatchEvent 변형 — SourceEntity를 지정 레지스터의 엔티티로 오버라이드 (디스패치된 Story의 Self가 됨) */
     FHktStoryBuilder& DispatchEventFrom(const FGameplayTag& EventTag, RegisterIndex SourceEntity);
 
+    // ========== Terrain ==========
+
+    /** 복셀 좌표(X,Y)의 표면 높이 → Dst (복셀 단위) */
+    FHktStoryBuilder& GetTerrainHeight(RegisterIndex Dst, RegisterIndex VoxelX, RegisterIndex VoxelY);
+
+    /** 복셀 좌표(PosBase, PosBase+1)의 Z=ZReg 위치 복셀 타입 → Dst */
+    FHktStoryBuilder& GetVoxelType(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+
+    /** 복셀 좌표(PosBase, PosBase+1, PosBase+2) 위치에 TypeReg의 복셀 설정 (지형 변형) */
+    FHktStoryBuilder& SetVoxel(RegisterIndex PosBase, RegisterIndex TypeReg);
+
+    /** 복셀 좌표(PosBase, PosBase+1)의 Z=ZReg 위치가 고체인지 → Dst (1/0) */
+    FHktStoryBuilder& IsTerrainSolid(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+
+    /**
+     * 엔티티 cm 위치 → 복셀 좌표로 변환 (조합 연산)
+     * OutVoxelBase, OutVoxelBase+1, OutVoxelBase+2 에 복셀 XYZ 저장
+     */
+    FHktStoryBuilder& EntityPosToVoxel(RegisterIndex OutVoxelBase, RegisterIndex Entity);
+
+    /** 복셀 좌표(PosBase, PosBase+1, PosBase+2)에 빈 공간(TypeID=0) 설정 (파괴) */
+    FHktStoryBuilder& DestroyVoxelAt(RegisterIndex PosBase);
+
     // ========== Utility ==========
 
     FHktStoryBuilder& Log(const FString& Message);

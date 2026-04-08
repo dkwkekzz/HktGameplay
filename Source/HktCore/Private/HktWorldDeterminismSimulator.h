@@ -5,6 +5,8 @@
 #include "HktCoreSimulator.h"
 #include "HktSimulationSystems.h"
 #include "VM/HktVMWorldStateProxy.h"
+#include "Terrain/HktTerrainState.h"
+#include "Terrain/HktTerrainGenerator.h"
 
 class FHktVMRuntimePool;
 class FHktVMInterpreter;
@@ -28,6 +30,7 @@ public:
     virtual const FHktWorldState& GetWorldState() const override { return WorldState; }
     virtual void RestoreWorldState(const FHktWorldState& InState) override;
     virtual void UndoDiff(const FHktSimulationDiff& Diff) override;
+    virtual void SetTerrainConfig(const FHktTerrainGeneratorConfig& Config) override;
 
 private:
     void ProcessBatch(const FHktSimulationEvent& Event);
@@ -51,7 +54,13 @@ private:
     FHktEntityArrangeSystem EntityArrangeSystem;
     FHktVMBuildSystem       VMBuildSystem;
     FHktVMProcessSystem     VMProcessSystem;
+    FHktTerrainSystem       TerrainSystem;
     FHktMovementSystem      MovementSystem;
     FHktPhysicsSystem       PhysicsSystem;
     FHktVMCleanupSystem     VMCleanupSystem;
+
+    // 지형 상태
+    FHktTerrainState TerrainState;
+    TUniquePtr<FHktTerrainGenerator> TerrainGenerator;
+    TArray<FHktVoxelDelta> PendingVoxelDeltas;
 };
