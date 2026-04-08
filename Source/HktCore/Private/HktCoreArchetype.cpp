@@ -12,7 +12,18 @@ FHktArchetypeRegistry& FHktArchetypeRegistry::Get()
     return Instance;
 }
 
-void FHktArchetypeRegistry::Register(EHktArchetype Type, const TCHAR* Name, std::initializer_list<uint16> Props)
+void FHktArchetypeRegistry::DefineTrait(FName TraitName, std::initializer_list<uint16> Props)
+{
+    FHktPropertyTrait& T = Traits.FindOrAdd(TraitName);
+    T.Name = TraitName;
+    T.PropertyIds.Reset();
+    T.PropertyIds.Append(Props.begin(), static_cast<int32>(Props.size()));
+}
+
+void FHktArchetypeRegistry::Register(
+    EHktArchetype Type, const TCHAR* Name,
+    std::initializer_list<FName> TraitList,
+    std::initializer_list<uint16> ExtraProps)
 {
     const int32 Idx = static_cast<int32>(Type);
     if (Idx <= 0 || Idx >= static_cast<int32>(EHktArchetype::Max)) return;
@@ -21,7 +32,26 @@ void FHktArchetypeRegistry::Register(EHktArchetype Type, const TCHAR* Name, std:
     Meta.Type = Type;
     Meta.Name = Name;
     Meta.PropertyIds.Reset();
-    Meta.PropertyIds.Append(Props.begin(), static_cast<int32>(Props.size()));
+    Meta.TraitNames.Reset();
+
+    // Trait 프로퍼티 병합 (중복 제거)
+    for (const FName& TName : TraitList)
+    {
+        Meta.TraitNames.Add(TName);
+        if (const FHktPropertyTrait* T = Traits.Find(TName))
+        {
+            for (uint16 PropId : T->PropertyIds)
+            {
+                Meta.PropertyIds.AddUnique(PropId);
+            }
+        }
+    }
+
+    // 추가 프로퍼티 병합
+    for (uint16 PropId : ExtraProps)
+    {
+        Meta.PropertyIds.AddUnique(PropId);
+    }
 }
 
 void FHktArchetypeRegistry::MapTag(const FGameplayTag& Tag, EHktArchetype Type)
@@ -60,6 +90,11 @@ EHktArchetype FHktArchetypeRegistry::FindByTag(const FGameplayTag& Tag) const
     return EHktArchetype::None;
 }
 
+const FHktPropertyTrait* FHktArchetypeRegistry::FindTrait(FName TraitName) const
+{
+    return Traits.Find(TraitName);
+}
+
 // ============================================================================
 // InitializeHktArchetypes
 // ============================================================================
@@ -68,90 +103,87 @@ void InitializeHktArchetypes()
 {
     auto& R = FHktArchetypeRegistry::Get();
 
-    // ----- Character -----
-    R.Register(EHktArchetype::Character, TEXT("Character"), {
-        // Hot
+    // ===== Trait 정의 =====
+
+    R.DefineTrait(HktTrait::Movable, {
         HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
         HktProperty::MoveTargetX, HktProperty::MoveTargetY, HktProperty::MoveTargetZ,
         HktProperty::MoveForce, HktProperty::IsMoving, HktProperty::IsGrounded, HktProperty::MaxSpeed,
-        HktProperty::Health, HktProperty::MaxHealth, HktProperty::AttackPower, HktProperty::Defense,
-        HktProperty::Team, HktProperty::Mana, HktProperty::MaxMana,
-        HktProperty::OwnerEntity, HktProperty::EntitySpawnTag,
-        HktProperty::Stance,
-        HktProperty::CP, HktProperty::MaxCP, HktProperty::AttackSpeed, HktProperty::MotionPlayRate,
-        HktProperty::NextActionFrame,
-        HktProperty::CollisionLayer, HktProperty::CollisionMask, HktProperty::CollisionRadius, HktProperty::Mass,
-        // Cold
-        HktProperty::TargetPosX, HktProperty::TargetPosY, HktProperty::TargetPosZ,
-        HktProperty::Param0, HktProperty::Param1, HktProperty::Param2, HktProperty::Param3,
-        HktProperty::AnimState, HktProperty::VisualState, HktProperty::AnimStateUpper,
-        HktProperty::VelX, HktProperty::VelY, HktProperty::VelZ,
-        HktProperty::BagCapacity,
-        HktProperty::EquipSlot0, HktProperty::EquipSlot1, HktProperty::EquipSlot2,
-        HktProperty::EquipSlot3, HktProperty::EquipSlot4, HktProperty::EquipSlot5,
-        HktProperty::EquipSlot6, HktProperty::EquipSlot7, HktProperty::EquipSlot8,
-        HktProperty::VoxelSkinSet, HktProperty::VoxelPalette,
-    });
-
-    // ----- NPC -----
-    R.Register(EHktArchetype::NPC, TEXT("NPC"), {
-        // Hot
-        HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
-        HktProperty::MoveTargetX, HktProperty::MoveTargetY, HktProperty::MoveTargetZ,
-        HktProperty::MoveForce, HktProperty::IsMoving, HktProperty::IsGrounded, HktProperty::MaxSpeed,
-        HktProperty::Health, HktProperty::MaxHealth, HktProperty::AttackPower, HktProperty::Defense,
-        HktProperty::Team,
-        HktProperty::OwnerEntity, HktProperty::EntitySpawnTag,
-        HktProperty::Stance,
-        HktProperty::CP, HktProperty::MaxCP, HktProperty::AttackSpeed, HktProperty::MotionPlayRate,
-        HktProperty::NextActionFrame,
-        HktProperty::CollisionLayer, HktProperty::CollisionMask, HktProperty::CollisionRadius, HktProperty::Mass,
-        // Cold
-        HktProperty::TargetPosX, HktProperty::TargetPosY, HktProperty::TargetPosZ,
-        HktProperty::Param0, HktProperty::Param1, HktProperty::Param2, HktProperty::Param3,
-        HktProperty::AnimState, HktProperty::VisualState, HktProperty::AnimStateUpper,
-        HktProperty::VelX, HktProperty::VelY, HktProperty::VelZ,
-        HktProperty::IsNPC, HktProperty::SpawnFlowTag,
-        HktProperty::VoxelSkinSet, HktProperty::VoxelPalette,
-    });
-
-    // ----- Item -----
-    R.Register(EHktArchetype::Item, TEXT("Item"), {
-        // Hot
-        HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ,
-        HktProperty::OwnerEntity, HktProperty::EntitySpawnTag,
-        HktProperty::CollisionLayer, HktProperty::CollisionMask, HktProperty::CollisionRadius, HktProperty::Mass,
-        // Cold
-        HktProperty::Param0, HktProperty::Param1, HktProperty::Param2, HktProperty::Param3,
-        HktProperty::ItemState, HktProperty::ItemId, HktProperty::EquipIndex,
-        HktProperty::Equippable,
-        HktProperty::ItemSkillTag, HktProperty::SkillCPCost, HktProperty::RecoveryFrame,
-        HktProperty::SkillTargetRequired, HktProperty::AttackRange, HktProperty::AttackPower,
-    });
-
-    // ----- Projectile -----
-    R.Register(EHktArchetype::Projectile, TEXT("Projectile"), {
-        // Hot
-        HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
-        HktProperty::MoveTargetX, HktProperty::MoveTargetY, HktProperty::MoveTargetZ,
-        HktProperty::MoveForce, HktProperty::IsMoving, HktProperty::MaxSpeed,
-        HktProperty::AttackPower, HktProperty::Team,
-        HktProperty::OwnerEntity, HktProperty::EntitySpawnTag,
-        HktProperty::CollisionLayer, HktProperty::CollisionMask, HktProperty::CollisionRadius, HktProperty::Mass,
-        // Cold
         HktProperty::VelX, HktProperty::VelY, HktProperty::VelZ,
     });
 
-    // ----- Building -----
-    R.Register(EHktArchetype::Building, TEXT("Building"), {
-        HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
+    R.DefineTrait(HktTrait::Collidable, {
+        HktProperty::CollisionLayer, HktProperty::CollisionMask,
+        HktProperty::CollisionRadius, HktProperty::Mass,
+    });
+
+    R.DefineTrait(HktTrait::Combatable, {
         HktProperty::Health, HktProperty::MaxHealth,
-        HktProperty::Team,
-        HktProperty::OwnerEntity, HktProperty::EntitySpawnTag,
-        HktProperty::CollisionLayer, HktProperty::CollisionMask, HktProperty::CollisionRadius, HktProperty::Mass,
+        HktProperty::AttackPower, HktProperty::Defense, HktProperty::Team,
+        HktProperty::CP, HktProperty::MaxCP,
+        HktProperty::AttackSpeed, HktProperty::MotionPlayRate,
+        HktProperty::NextActionFrame, HktProperty::Stance,
     });
 
-    // ----- ClassTag → Archetype 매핑 -----
+    R.DefineTrait(HktTrait::Animated, {
+        HktProperty::AnimState, HktProperty::VisualState, HktProperty::AnimStateUpper,
+        HktProperty::VoxelSkinSet, HktProperty::VoxelPalette,
+    });
+
+    R.DefineTrait(HktTrait::Ownable, {
+        HktProperty::OwnerEntity, HktProperty::EntitySpawnTag,
+    });
+
+    R.DefineTrait(HktTrait::EventParam, {
+        HktProperty::TargetPosX, HktProperty::TargetPosY, HktProperty::TargetPosZ,
+        HktProperty::Param0, HktProperty::Param1, HktProperty::Param2, HktProperty::Param3,
+    });
+
+    // ===== Archetype 등록 (Trait 조합 + 고유 프로퍼티) =====
+
+    R.Register(EHktArchetype::Character, TEXT("Character"),
+        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
+         HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam},
+        {
+            HktProperty::Mana, HktProperty::MaxMana,
+            HktProperty::BagCapacity,
+            HktProperty::EquipSlot0, HktProperty::EquipSlot1, HktProperty::EquipSlot2,
+            HktProperty::EquipSlot3, HktProperty::EquipSlot4, HktProperty::EquipSlot5,
+            HktProperty::EquipSlot6, HktProperty::EquipSlot7, HktProperty::EquipSlot8,
+        });
+
+    R.Register(EHktArchetype::NPC, TEXT("NPC"),
+        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
+         HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam},
+        {
+            HktProperty::IsNPC, HktProperty::SpawnFlowTag,
+        });
+
+    R.Register(EHktArchetype::Item, TEXT("Item"),
+        {HktTrait::Collidable, HktTrait::Ownable, HktTrait::EventParam},
+        {
+            HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ,
+            HktProperty::ItemState, HktProperty::ItemId, HktProperty::EquipIndex,
+            HktProperty::Equippable,
+            HktProperty::ItemSkillTag, HktProperty::SkillCPCost, HktProperty::RecoveryFrame,
+            HktProperty::SkillTargetRequired, HktProperty::AttackRange, HktProperty::AttackPower,
+        });
+
+    R.Register(EHktArchetype::Projectile, TEXT("Projectile"),
+        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Ownable},
+        {
+            HktProperty::AttackPower, HktProperty::Team,
+        });
+
+    R.Register(EHktArchetype::Building, TEXT("Building"),
+        {HktTrait::Collidable, HktTrait::Ownable},
+        {
+            HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
+            HktProperty::Health, HktProperty::MaxHealth, HktProperty::Team,
+        });
+
+    // ===== ClassTag → Archetype 매핑 =====
+
     R.MapTag(FGameplayTag::RequestGameplayTag(FName("Entity.Character")), EHktArchetype::Character);
     R.MapTag(FGameplayTag::RequestGameplayTag(FName("Entity.NPC")),       EHktArchetype::NPC);
     R.MapTag(FGameplayTag::RequestGameplayTag(FName("Entity.Item")),      EHktArchetype::Item);
