@@ -470,14 +470,20 @@ void FHktTerrainSystem::Process(
 {
     RequiredChunks.Reset();
 
-    // 1. 모든 엔티티 위치에서 필요한 청크 좌표를 수집
+    // 1. 엔티티를 청크 단위로 중복 제거하여 수집
+    //    같은 청크에 있는 엔티티 N개가 동일한 75개 항목을 중복 삽입하지 않도록,
+    //    엔티티의 청크 좌표를 먼저 TSet에 모은 뒤 한 번만 반경 확장한다.
+    TSet<FIntVector> EntityChunks;
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
         const FIntVector Pos = WorldState.GetPosition(Id);
         const FIntVector VoxelPos = CmToVoxel(Pos.X, Pos.Y, Pos.Z);
-        const FIntVector ChunkCoord = FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z);
+        EntityChunks.Add(FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z));
+    });
 
-        // 엔티티 주변 반경의 청크를 필요 목록에 추가
+    // 고유 청크 좌표에서만 반경 확장 (엔티티 200개 → 고유 청크 ~10개)
+    for (const FIntVector& ChunkCoord : EntityChunks)
+    {
         for (int32 DX = -LoadRadiusXY; DX <= LoadRadiusXY; ++DX)
         {
             for (int32 DY = -LoadRadiusXY; DY <= LoadRadiusXY; ++DY)
@@ -488,19 +494,24 @@ void FHktTerrainSystem::Process(
                 }
             }
         }
-    });
+    }
 
-    // 2. 필요한 청크 로드
+    // 2. 필요한 청크 로드 (프레임당 예산 제한으로 스파이크 방지)
+    int32 LoadedThisFrame = 0;
     for (const FIntVector& Coord : RequiredChunks)
     {
         if (!TerrainState.IsChunkLoaded(Coord))
         {
-            // 메모리 제한 검사
             if (TerrainState.GetLoadedChunkCount() >= MaxChunksLoaded)
             {
                 break;
             }
+            if (LoadedThisFrame >= MaxChunkLoadsPerFrame)
+            {
+                break;  // 나머지는 다음 프레임에 로드
+            }
             TerrainState.LoadChunk(Coord, Generator);
+            ++LoadedThisFrame;
         }
     }
 

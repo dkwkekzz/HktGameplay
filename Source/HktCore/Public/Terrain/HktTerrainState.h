@@ -40,6 +40,13 @@ struct HKTCORE_API FHktTerrainState
 	 */
 	TMap<FIntVector, TMap<uint16, FHktTerrainVoxel>> Modifications;
 
+	/**
+	 * 하이트맵 캐시: (ChunkX, ChunkY) → 32×32 표면 높이 배열 (월드 복셀 Z)
+	 * LoadChunk/SetVoxel 시 자동 갱신. GetSurfaceHeightAt O(1) 조회 지원.
+	 * Key의 Z 컴포넌트는 항상 0.
+	 */
+	TMap<FIntVector, TArray<int32>> HeightmapCache;
+
 	// ============================================================================
 	// 청크 생명주기
 	// ============================================================================
@@ -71,8 +78,8 @@ struct HKTCORE_API FHktTerrainState
 
 	/**
 	 * 특정 XY 열의 최상단 고체 복셀의 Z+1을 반환 (표면 높이).
-	 * 로드된 청크 범위 내에서만 탐색.
-	 * 고체를 찾지 못하면 0 반환.
+	 * HeightmapCache를 사용하여 O(1) 조회.
+	 * 캐시에 없으면 0 반환.
 	 */
 	int32 GetSurfaceHeightAt(int32 WorldVoxelX, int32 WorldVoxelY) const;
 
@@ -118,4 +125,10 @@ private:
 
 	/** FloorMod: 음수 좌표를 올바르게 처리하는 나머지 (항상 0 이상) */
 	static int32 FloorMod(int32 A, int32 B);
+
+	/** 청크 로드/변형 후 해당 XY 열의 하이트맵 캐시 갱신 */
+	void RebuildHeightmapColumn(int32 WorldVoxelX, int32 WorldVoxelY);
+
+	/** 청크 전체 로드 후 32×32 하이트맵 갱신 */
+	void RebuildHeightmapForChunk(const FIntVector& ChunkCoord);
 };

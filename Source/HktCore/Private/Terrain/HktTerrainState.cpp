@@ -67,12 +67,37 @@ void FHktTerrainState::LoadChunk(const FIntVector& Coord, const FHktTerrainGener
 			ChunkData[Pair.Key] = Pair.Value;
 		}
 	}
+
+	// 하이트맵 캐시 갱신
+	RebuildHeightmapForChunk(Coord);
 }
 
 void FHktTerrainState::UnloadChunk(const FIntVector& Coord)
 {
 	LoadedChunks.Remove(Coord);
 	// Modifications는 유지 — 다시 로드할 때 적용
+
+	// 이 청크 XY에 다른 Z 레벨 청크가 남아 있으면 하이트맵 재계산,
+	// 없으면 하이트맵 항목 제거
+	const FIntVector HmKey(Coord.X, Coord.Y, 0);
+	bool bHasOtherZ = false;
+	for (const auto& Pair : LoadedChunks)
+	{
+		if (Pair.Key.X == Coord.X && Pair.Key.Y == Coord.Y)
+		{
+			bHasOtherZ = true;
+			break;
+		}
+	}
+
+	if (bHasOtherZ)
+	{
+		RebuildHeightmapForChunk(Coord);
+	}
+	else
+	{
+		HeightmapCache.Remove(HmKey);
+	}
 }
 
 bool FHktTerrainState::IsChunkLoaded(const FIntVector& Coord) const
@@ -109,41 +134,19 @@ bool FHktTerrainState::IsSolid(int32 WorldX, int32 WorldY, int32 WorldZ) const
 
 int32 FHktTerrainState::GetSurfaceHeightAt(int32 WorldVoxelX, int32 WorldVoxelY) const
 {
-	// 로드된 청크들의 Z 범위를 파악
-	int32 MinChunkZ = MAX_int32;
-	int32 MaxChunkZ = MIN_int32;
+	const int32 ChunkX = FloorDiv(WorldVoxelX, ChunkSize);
+	const int32 ChunkY = FloorDiv(WorldVoxelY, ChunkSize);
+	const FIntVector HmKey(ChunkX, ChunkY, 0);
 
-	for (const auto& Pair : LoadedChunks)
+	const TArray<int32>* Heightmap = HeightmapCache.Find(HmKey);
+	if (!Heightmap)
 	{
-		const FIntVector& Coord = Pair.Key;
-		// 이 XY 열에 해당하는 청크만 탐색
-		const int32 ChunkX = FloorDiv(WorldVoxelX, ChunkSize);
-		const int32 ChunkY = FloorDiv(WorldVoxelY, ChunkSize);
-		if (Coord.X == ChunkX && Coord.Y == ChunkY)
-		{
-			MinChunkZ = FMath::Min(MinChunkZ, Coord.Z);
-			MaxChunkZ = FMath::Max(MaxChunkZ, Coord.Z);
-		}
+		return 0;
 	}
 
-	if (MinChunkZ > MaxChunkZ)
-	{
-		return 0; // 해당 XY 열에 로드된 청크 없음
-	}
-
-	// 위에서 아래로 탐색하여 첫 번째 고체 복셀 찾기
-	const int32 TopZ = (MaxChunkZ + 1) * ChunkSize - 1;
-	const int32 BottomZ = MinChunkZ * ChunkSize;
-
-	for (int32 Z = TopZ; Z >= BottomZ; --Z)
-	{
-		if (IsSolid(WorldVoxelX, WorldVoxelY, Z))
-		{
-			return Z + 1; // 고체 위의 빈 공간 = 표면
-		}
-	}
-
-	return BottomZ; // 전부 빈 공간
+	const int32 LX = FloorMod(WorldVoxelX, ChunkSize);
+	const int32 LY = FloorMod(WorldVoxelY, ChunkSize);
+	return (*Heightmap)[LX + LY * ChunkSize];
 }
 
 // ============================================================================
@@ -174,6 +177,9 @@ void FHktTerrainState::SetVoxel(int32 WorldX, int32 WorldY, int32 WorldZ,
 	Delta.NewPaletteIndex = Voxel.PaletteIndex;
 	Delta.NewFlags = Voxel.Flags;
 	OutDeltas.Add(Delta);
+
+	// 하이트맵 캐시 부분 갱신 (변형된 열만)
+	RebuildHeightmapColumn(WorldX, WorldY);
 }
 
 // ============================================================================
@@ -234,4 +240,114 @@ void FHktTerrainState::CopyFrom(const FHktTerrainState& Other)
 {
 	LoadedChunks = Other.LoadedChunks;
 	Modifications = Other.Modifications;
+	HeightmapCache = Other.HeightmapCache;
+}
+
+// ============================================================================
+// 하이트맵 캐시 내부 구현
+// ============================================================================
+
+void FHktTerrainState::RebuildHeightmapColumn(int32 WorldVoxelX, int32 WorldVoxelY)
+{
+	const int32 ChunkX = FloorDiv(WorldVoxelX, ChunkSize);
+	const int32 ChunkY = FloorDiv(WorldVoxelY, ChunkSize);
+	const FIntVector HmKey(ChunkX, ChunkY, 0);
+
+	TArray<int32>* Heightmap = HeightmapCache.Find(HmKey);
+	if (!Heightmap)
+	{
+		return; // 아직 하이트맵이 없으면 무시 (청크 로드 시 전체 빌드됨)
+	}
+
+	// 이 XY 열에 해당하는 로드된 청크의 Z 범위 파악
+	int32 MinChunkZ = MAX_int32;
+	int32 MaxChunkZ = MIN_int32;
+	for (const auto& Pair : LoadedChunks)
+	{
+		if (Pair.Key.X == ChunkX && Pair.Key.Y == ChunkY)
+		{
+			MinChunkZ = FMath::Min(MinChunkZ, Pair.Key.Z);
+			MaxChunkZ = FMath::Max(MaxChunkZ, Pair.Key.Z);
+		}
+	}
+
+	if (MinChunkZ > MaxChunkZ)
+	{
+		return;
+	}
+
+	// 위에서 아래로 탐색
+	const int32 TopZ = (MaxChunkZ + 1) * ChunkSize - 1;
+	const int32 BottomZ = MinChunkZ * ChunkSize;
+	int32 SurfaceZ = BottomZ;
+
+	for (int32 Z = TopZ; Z >= BottomZ; --Z)
+	{
+		if (IsSolid(WorldVoxelX, WorldVoxelY, Z))
+		{
+			SurfaceZ = Z + 1;
+			break;
+		}
+	}
+
+	const int32 LX = FloorMod(WorldVoxelX, ChunkSize);
+	const int32 LY = FloorMod(WorldVoxelY, ChunkSize);
+	(*Heightmap)[LX + LY * ChunkSize] = SurfaceZ;
+}
+
+void FHktTerrainState::RebuildHeightmapForChunk(const FIntVector& ChunkCoord)
+{
+	const int32 ChunkX = ChunkCoord.X;
+	const int32 ChunkY = ChunkCoord.Y;
+	const FIntVector HmKey(ChunkX, ChunkY, 0);
+
+	// 이 XY 열의 로드된 Z 범위 파악
+	int32 MinChunkZ = MAX_int32;
+	int32 MaxChunkZ = MIN_int32;
+	for (const auto& Pair : LoadedChunks)
+	{
+		if (Pair.Key.X == ChunkX && Pair.Key.Y == ChunkY)
+		{
+			MinChunkZ = FMath::Min(MinChunkZ, Pair.Key.Z);
+			MaxChunkZ = FMath::Max(MaxChunkZ, Pair.Key.Z);
+		}
+	}
+
+	if (MinChunkZ > MaxChunkZ)
+	{
+		HeightmapCache.Remove(HmKey);
+		return;
+	}
+
+	TArray<int32>& Heightmap = HeightmapCache.FindOrAdd(HmKey);
+	if (Heightmap.Num() != ChunkSize * ChunkSize)
+	{
+		Heightmap.SetNumZeroed(ChunkSize * ChunkSize);
+	}
+
+	const int32 WorldBaseX = ChunkX * ChunkSize;
+	const int32 WorldBaseY = ChunkY * ChunkSize;
+	const int32 TopZ = (MaxChunkZ + 1) * ChunkSize - 1;
+	const int32 BottomZ = MinChunkZ * ChunkSize;
+
+	for (int32 LY = 0; LY < ChunkSize; ++LY)
+	{
+		for (int32 LX = 0; LX < ChunkSize; ++LX)
+		{
+			const int32 WX = WorldBaseX + LX;
+			const int32 WY = WorldBaseY + LY;
+			int32 SurfaceZ = BottomZ;
+
+			for (int32 Z = TopZ; Z >= BottomZ; --Z)
+			{
+				if (IsSolid(WX, WY, Z))
+				{
+					SurfaceZ = Z + 1;
+					break;
+				}
+			}
+
+			Heightmap[LX + LY * ChunkSize] = SurfaceZ;
+		}
+	}
 }
