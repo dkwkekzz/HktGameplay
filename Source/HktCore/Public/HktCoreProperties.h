@@ -192,6 +192,9 @@ namespace HktProperty
 
     // 지형 파편
     HKT_DEFINE_PROPERTY(TerrainTypeId,   Cold)   // 67 — Debris 엔티티의 원래 복셀 TypeID
+    HKT_DEFINE_PROPERTY(DebrisOriginX,   Cold)   // 68 — Debris 원래 복셀 위치 X (cm)
+    HKT_DEFINE_PROPERTY(DebrisOriginY,   Cold)   // 69 — Debris 원래 복셀 위치 Y (cm)
+    HKT_DEFINE_PROPERTY(DebrisOriginZ,   Cold)   // 70 — Debris 원래 복셀 위치 Z (cm)
 
     // ================================================================
     // 메타데이터 질의 — Registry에서 자동 집계
