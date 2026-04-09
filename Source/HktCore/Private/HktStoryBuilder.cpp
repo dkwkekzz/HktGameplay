@@ -1150,6 +1150,18 @@ FHktStoryBuilder& FHktStoryBuilder::GetVoxelMoveModifier(RegisterIndex Dst, Regi
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::GetVoxelDestructible(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
+{
+    Emit(FInstruction::Make(EOpCode::GetVoxelDestructible, Dst, PosBase, ZReg));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::GetVoxelHealth(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
+{
+    Emit(FInstruction::Make(EOpCode::GetVoxelHealth, Dst, PosBase, ZReg));
+    return *this;
+}
+
 FHktStoryBuilder& FHktStoryBuilder::EntityPosToVoxel(RegisterIndex OutVoxelBase, RegisterIndex Entity)
 {
     // 조합 연산: 엔티티 cm 위치를 복셀 좌표로 변환

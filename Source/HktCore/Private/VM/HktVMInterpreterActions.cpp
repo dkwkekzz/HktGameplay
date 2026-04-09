@@ -960,6 +960,44 @@ void FHktVMInterpreter::Op_GetVoxelMoveModifier(FHktVMRuntime& Runtime, Register
         FString::Printf(TEXT("Op_GetVoxelMoveModifier Pos=(%d,%d,%d) TypeID=%d Modifier=%d"), X, Y, Z, TypeID, static_cast<int32>(Modifier)));
 }
 
+void FHktVMInterpreter::Op_GetVoxelDestructible(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
+{
+    if (!TerrainState)
+    {
+        Runtime.SetReg(Dst, 0);
+        return;
+    }
+
+    const int32 X = Runtime.GetReg(PosBase);
+    const int32 Y = Runtime.GetReg(static_cast<RegisterIndex>(PosBase + 1));
+    const int32 Z = Runtime.GetReg(ZReg);
+    const uint16 TypeID = TerrainState->GetVoxelType(X, Y, Z);
+    const bool bDestructible = HktTerrainVoxelDef::GetDef(TypeID).bDestructible;
+    Runtime.SetReg(Dst, bDestructible ? 1 : 0);
+
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_GetVoxelDestructible Pos=(%d,%d,%d) TypeID=%d bDestructible=%d"), X, Y, Z, TypeID, bDestructible));
+}
+
+void FHktVMInterpreter::Op_GetVoxelHealth(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
+{
+    if (!TerrainState)
+    {
+        Runtime.SetReg(Dst, 0);
+        return;
+    }
+
+    const int32 X = Runtime.GetReg(PosBase);
+    const int32 Y = Runtime.GetReg(static_cast<RegisterIndex>(PosBase + 1));
+    const int32 Z = Runtime.GetReg(ZReg);
+    const uint16 TypeID = TerrainState->GetVoxelType(X, Y, Z);
+    const int32 Health = HktTerrainVoxelDef::GetDef(TypeID).Health;
+    Runtime.SetReg(Dst, Health);
+
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_GetVoxelHealth Pos=(%d,%d,%d) TypeID=%d Health=%d"), X, Y, Z, TypeID, Health));
+}
+
 // ============================================================================
 // Utility
 // ============================================================================

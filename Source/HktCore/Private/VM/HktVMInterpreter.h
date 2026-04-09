@@ -147,6 +147,10 @@ private:
     void Op_GetVoxelPhase(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
     /** 복셀 타입의 이동 보정 → Dst (0=Normal, 1=Slippery, 2=Slow, 3=Swim) */
     void Op_GetVoxelMoveModifier(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+    /** 복셀이 파괴 가능한지 → Dst (1=가능, 0=불가) */
+    void Op_GetVoxelDestructible(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+    /** 복셀의 최대 체력 → Dst (파괴 불가이면 0) */
+    void Op_GetVoxelHealth(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
 
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);

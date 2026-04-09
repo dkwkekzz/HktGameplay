@@ -538,6 +538,12 @@ public:
      */
     FHktStoryBuilder& GetVoxelMoveModifier(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
 
+    /** 복셀이 파괴 가능한지 → Dst (1=가능, 0=불가 / Bedrock·Water·Air 등) */
+    FHktStoryBuilder& GetVoxelDestructible(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+
+    /** 복셀의 최대 체력 → Dst (파괴 불가이면 0) */
+    FHktStoryBuilder& GetVoxelHealth(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+
     /**
      * 엔티티 cm 위치 → 복셀 좌표로 변환 (조합 연산)
      * OutVoxelBase, OutVoxelBase+1, OutVoxelBase+2 에 복셀 XYZ 저장
