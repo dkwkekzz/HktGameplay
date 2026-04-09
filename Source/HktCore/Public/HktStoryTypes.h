@@ -301,10 +301,6 @@ struct FHktRegReserve
     X(SetVoxel,              _, R, R) \
     X(IsTerrainSolid,        W, R, R) \
     X(FindTerrainInRadius,   _, R, _) \
-    X(GetVoxelPhase,         W, R, R) \
-    X(GetVoxelMoveModifier,  W, R, R) \
-    X(GetVoxelDestructible,  W, R, R) \
-    X(GetVoxelHealth,        W, R, R) \
     /* Utility */           \
     X(Log,              _, _, _)
 

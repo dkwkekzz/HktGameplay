@@ -1138,29 +1138,6 @@ FHktStoryBuilder& FHktStoryBuilder::IsTerrainSolid(RegisterIndex Dst, RegisterIn
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::GetVoxelPhase(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
-{
-    Emit(FInstruction::Make(EOpCode::GetVoxelPhase, Dst, PosBase, ZReg));
-    return *this;
-}
-
-FHktStoryBuilder& FHktStoryBuilder::GetVoxelMoveModifier(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
-{
-    Emit(FInstruction::Make(EOpCode::GetVoxelMoveModifier, Dst, PosBase, ZReg));
-    return *this;
-}
-
-FHktStoryBuilder& FHktStoryBuilder::GetVoxelDestructible(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
-{
-    Emit(FInstruction::Make(EOpCode::GetVoxelDestructible, Dst, PosBase, ZReg));
-    return *this;
-}
-
-FHktStoryBuilder& FHktStoryBuilder::GetVoxelHealth(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
-{
-    Emit(FInstruction::Make(EOpCode::GetVoxelHealth, Dst, PosBase, ZReg));
-    return *this;
-}
 
 FHktStoryBuilder& FHktStoryBuilder::EntityPosToVoxel(RegisterIndex OutVoxelBase, RegisterIndex Entity)
 {
