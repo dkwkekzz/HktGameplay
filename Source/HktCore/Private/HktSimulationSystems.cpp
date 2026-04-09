@@ -690,15 +690,36 @@ void FHktMovementSystem::Process(
         float NewY = CurY + VY * FixedDeltaSeconds;
         float NewZ = CurZ + VZ * FixedDeltaSeconds;
 
-        // 지형 스냅: IsGrounded 엔티티가 지면 아래로 내려가지 않도록 보정
+        // 지형 충돌 및 스냅: IsGrounded 엔티티가 지형에 맞게 위치 조정
         if (TerrainState && WorldState.GetProperty(Id, PropertyId::IsGrounded) != 0)
         {
-            const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(NewX, NewY, NewZ);
-            const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
-            const float SurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z);
-            if (NewZ < SurfaceCmZ)
+            // 현재 위치의 지표면 높이 (측면 충돌 기준)
+            const FIntVector CurVoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ);
+            const int32 CurSurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(CurVoxelPos.X, CurVoxelPos.Y);
+            const float CurSurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, CurSurfaceVoxelZ).Z);
+
+            // 이동 목표 위치의 지표면 높이
+            const FIntVector NewVoxelPos = FHktTerrainSystem::CmToVoxel(NewX, NewY, NewZ);
+            const int32 NewSurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(NewVoxelPos.X, NewVoxelPos.Y);
+            const float NewSurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, NewSurfaceVoxelZ).Z);
+
+            // 측면 충돌: 최대 계단 높이(2 복셀 = 30cm)를 초과하면 XY 이동 차단
+            constexpr float MaxStepHeightCm = 30.0f;
+            if (NewSurfaceCmZ > CurZ + MaxStepHeightCm)
             {
-                NewZ = SurfaceCmZ;
+                // 벽/절벽: XY 이동 취소, 현재 지면 유지
+                NewX = CurX;
+                NewY = CurY;
+                VX = 0.0f;
+                VY = 0.0f;
+                NewZ = CurSurfaceCmZ;
+                VZ = 0.0f;
+            }
+            else
+            {
+                // 지형 Z 스냅: 지면 위/아래 모두 현재 지표면 높이로 보정
+                NewZ = NewSurfaceCmZ;
+                VZ = 0.0f;
             }
         }
 
@@ -727,7 +748,7 @@ void FHktMovementSystem::Process(
             const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
             const int32 SurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z;
 
-            if (CurZ < SurfaceCmZ)
+            if (CurZ != SurfaceCmZ)
             {
                 VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::PosZ, SurfaceCmZ);
             }
