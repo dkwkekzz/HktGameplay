@@ -64,7 +64,7 @@ namespace HktStoryVoxelShatter
 			.PlayVFX(pos, VFX_VoxelShatter)
 			.PlaySoundAtLocation(pos, Sound_VoxelShatter)
 
-			// === 파편 1 ===
+			// === 파편 1 (지형 복원 책임) ===
 			.SpawnEntity(Entity_Debris_Glass)
 			.SetPosition(Spawned, pos)
 			.SaveStoreEntity(Spawned, PropertyId::TerrainTypeId, typeId)
@@ -77,26 +77,20 @@ namespace HktStoryVoxelShatter
 			.SaveConstEntity(Spawned, PropertyId::JumpVelZ, JumpVelZ_Fragment1)
 			.DispatchEventFrom(Story_Debris_Lifecycle, Spawned)
 
-			// === 파편 2 ===
+			// === 파편 2 (시각 전용 — DebrisOrigin 미설정, 지형 복원 안 함) ===
 			.SpawnEntity(Entity_Debris_Glass)
 			.SetPosition(Spawned, pos)
 			.SaveStoreEntity(Spawned, PropertyId::TerrainTypeId, typeId)
-			.SaveStoreEntity(Spawned, PropertyId::DebrisOriginX, pos)
-			.SaveStoreEntity(Spawned, PropertyId::DebrisOriginY, static_cast<RegisterIndex>(pos + 1))
-			.SaveStoreEntity(Spawned, PropertyId::DebrisOriginZ, static_cast<RegisterIndex>(pos + 2))
 			.SaveConstEntity(Spawned, PropertyId::Health, 1)
 			.SaveConstEntity(Spawned, PropertyId::MaxHealth, 1)
 			.SaveConstEntity(Spawned, PropertyId::IsGrounded, 0)
 			.SaveConstEntity(Spawned, PropertyId::JumpVelZ, JumpVelZ_Fragment2)
 			.DispatchEventFrom(Story_Debris_Lifecycle, Spawned)
 
-			// === 파편 3 ===
+			// === 파편 3 (시각 전용 — DebrisOrigin 미설정, 지형 복원 안 함) ===
 			.SpawnEntity(Entity_Debris_Glass)
 			.SetPosition(Spawned, pos)
 			.SaveStoreEntity(Spawned, PropertyId::TerrainTypeId, typeId)
-			.SaveStoreEntity(Spawned, PropertyId::DebrisOriginX, pos)
-			.SaveStoreEntity(Spawned, PropertyId::DebrisOriginY, static_cast<RegisterIndex>(pos + 1))
-			.SaveStoreEntity(Spawned, PropertyId::DebrisOriginZ, static_cast<RegisterIndex>(pos + 2))
 			.SaveConstEntity(Spawned, PropertyId::Health, 1)
 			.SaveConstEntity(Spawned, PropertyId::MaxHealth, 1)
 			.SaveConstEntity(Spawned, PropertyId::IsGrounded, 0)
