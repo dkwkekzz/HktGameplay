@@ -29,7 +29,7 @@ namespace HktStoryDebrisLifecycle
 	 *
 	 * 자연어로 읽으면:
 	 * "사망 태그(State.Dead)가 부여될 때까지 1초마다 확인한다.
-	 *  최대 10초까지 대기하며, 시간이 초과하면 자동 파괴한다.
+	 *  최대 10초까지 대기하며, 시간이 초과하면 지형을 원복하고 파괴한다.
 	 *  사망이 감지되면 파괴 VFX/사운드를 재생하고
 	 *  위로 살짝 튕긴 뒤 3초 후 엔티티를 제거한다."
 	 *
@@ -43,9 +43,11 @@ namespace HktStoryDebrisLifecycle
 
 		auto B = Story(Story_Debris_Lifecycle);
 
-		FHktScopedReg r0(B);       // HasTag 결과 / 시간 비교
-		FHktScopedReg r1(B);       // 현재 시간
-		FHktScopedReg r2(B);       // 생성 시간
+		FHktScopedReg r0(B);              // HasTag 결과 / 시간 비교 / 나눗셈용 상수
+		FHktScopedReg r1(B);              // 현재 시간
+		FHktScopedReg r2(B);              // 생성 시간
+		FHktScopedRegBlock voxelPos(B, 3); // 복셀 좌표 (X, Y, Z) — expire 시 지형 복원용
+		FHktScopedReg typeReg(B);          // TerrainTypeId — expire 시 지형 복원용
 
 		B	// 생성 시간 기록
 			.GetWorldTime(r2)
@@ -64,12 +66,25 @@ namespace HktStoryDebrisLifecycle
 				.WaitSeconds(1.0f)
 				.Jump(TEXT("check"))
 
-			// 시간 초과 → 조용히 파괴
+			// 시간 초과 → 지형 복원 후 파괴
 			.Label(TEXT("expire"))
+				// 원래 복셀 위치 읽기 (cm)
+				.LoadStoreEntity(voxelPos,                                     Self, PropertyId::DebrisOriginX)
+				.LoadStoreEntity(static_cast<RegisterIndex>(voxelPos + 1),     Self, PropertyId::DebrisOriginY)
+				.LoadStoreEntity(static_cast<RegisterIndex>(voxelPos + 2),     Self, PropertyId::DebrisOriginZ)
+				// cm → 복셀 좌표 변환 (÷15)
+				.LoadConst(r0, 15)
+				.Div(voxelPos,                                     voxelPos,                                     r0)
+				.Div(static_cast<RegisterIndex>(voxelPos + 1),     static_cast<RegisterIndex>(voxelPos + 1),     r0)
+				.Div(static_cast<RegisterIndex>(voxelPos + 2),     static_cast<RegisterIndex>(voxelPos + 2),     r0)
+				// 원래 TypeId 읽기
+				.LoadStoreEntity(typeReg, Self, PropertyId::TerrainTypeId)
+				// 복셀 복원
+				.SetVoxel(voxelPos, typeReg)
 				.DestroyEntity(Self)
 				.Halt()
 
-			// 전투 사망 → VFX + 물리
+			// 전투 사망 → VFX + 물리 (지형 복원 안 함)
 			.Label(TEXT("die"))
 				.PlayVFXAtEntity(Self, VFX_TerrainBreak)
 				.PlaySoundAtEntity(Self, Sound_TerrainBreak)

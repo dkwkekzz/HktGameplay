@@ -60,6 +60,9 @@ namespace HktStoryVoxelBreak
 			.SpawnEntity(HktArchetypeTags::Entity_Debris)
 			.SetPosition(Spawned, pos)
 			.SaveStoreEntity(Spawned, PropertyId::TerrainTypeId, typeId)
+			.SaveStoreEntity(Spawned, PropertyId::DebrisOriginX, pos)
+			.SaveStoreEntity(Spawned, PropertyId::DebrisOriginY, static_cast<RegisterIndex>(pos + 1))
+			.SaveStoreEntity(Spawned, PropertyId::DebrisOriginZ, static_cast<RegisterIndex>(pos + 2))
 			.SaveConstEntity(Spawned, PropertyId::Health, 1)
 			.SaveConstEntity(Spawned, PropertyId::MaxHealth, 1)
 
