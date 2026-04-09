@@ -10,6 +10,7 @@ namespace HktArchetypeTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Building, "Entity.Building", "Building entity.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Projectile, "Entity.Projectile", "Projectile entity.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item, "Entity.Item", "Item entity parent tag.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Debris, "Entity.Debris", "Terrain debris entity.");
 }
 
 namespace HktStance

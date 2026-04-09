@@ -24,6 +24,7 @@ namespace EHktCollisionLayer
         Building   = 1 << 3,
         Item       = 1 << 4,
         Trigger    = 1 << 5,
+        Debris     = 1 << 6,
 
         // 편의 조합
         AllUnits   = Character | NPC,
@@ -60,12 +61,15 @@ inline const TArray<FHktCollisionLayerMapping>& GetHktCollisionLayerMappings()
         Mappings.Add({ FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Building"))),
             EHktCollisionLayer::Building,
             EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile });
+        Mappings.Add({ FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Debris"))),
+            EHktCollisionLayer::Debris,
+            EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile });
         Mappings.Add({ FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.NPC"))),
             EHktCollisionLayer::NPC,
-            EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile | EHktCollisionLayer::Building });
+            EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile | EHktCollisionLayer::Building | EHktCollisionLayer::Debris });
         Mappings.Add({ FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Character"))),
             EHktCollisionLayer::Character,
-            EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile | EHktCollisionLayer::Building });
+            EHktCollisionLayer::Character | EHktCollisionLayer::NPC | EHktCollisionLayer::Projectile | EHktCollisionLayer::Building | EHktCollisionLayer::Debris });
     }
     return Mappings;
 }

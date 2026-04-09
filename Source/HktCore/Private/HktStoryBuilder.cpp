@@ -834,6 +834,20 @@ FHktStoryBuilder& FHktStoryBuilder::ForEachInRadius(RegisterIndex CenterEntity, 
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::ForEachInRadiusTerrain(RegisterIndex CenterEntity, int32 RadiusCm)
+{
+    const int32 Id = ForEachCounter++;
+    ForEachStack.Push({Id});
+
+    // FindTerrainInRadius: entity + terrain 통합 검색
+    Emit(FInstruction::Make(EOpCode::FindTerrainInRadius, Reg::Count, CenterEntity, 0, RadiusCm & 0xFFF));
+    Label(MakeLabelKey(LT_ForEach, Id, 0));          // loop
+    NextFound();
+    JumpIfNot(Reg::Flag, MakeLabelKey(LT_ForEach, Id, 1)); // → end
+
+    return *this;
+}
+
 FHktStoryBuilder& FHktStoryBuilder::ForEachInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask)
 {
     const int32 Id = ForEachCounter++;

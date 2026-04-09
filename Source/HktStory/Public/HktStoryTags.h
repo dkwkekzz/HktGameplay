@@ -29,6 +29,9 @@ namespace HktStoryTags
 	// --- NPC Flow ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_NPC_Lifecycle);            // Story.Flow.NPC.Lifecycle
 
+	// --- Debris Flow ---
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Debris_Lifecycle);         // Story.Flow.Debris.Lifecycle
+
 	// --- Anim ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_Anim_FullBody_Action_Spawn); // Anim.FullBody.Action.Spawn
 
