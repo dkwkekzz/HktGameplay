@@ -1004,6 +1004,29 @@ FHktStoryBuilder& FHktStoryBuilder::HasTag(RegisterIndex Dst, RegisterIndex Enti
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::CheckTrait(RegisterIndex Dst, RegisterIndex Entity, const FHktPropertyTrait* Trait)
+{
+    int32 TraitIdx = FHktArchetypeRegistry::Get().GetTraitIndex(Trait);
+    checkf(TraitIdx >= 0, TEXT("CheckTrait: Trait not registered in FHktArchetypeRegistry"));
+    Emit(FInstruction::Make(EOpCode::CheckTrait, Dst, Entity, 0, TraitIdx & 0xFFF));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::IfHasTrait(RegisterIndex Entity, const FHktPropertyTrait* Trait)
+{
+    FHktScopedReg tmp(*this);
+    CheckTrait(tmp, Entity, Trait);
+    return If(tmp);
+}
+
+FHktStoryBuilder& FHktStoryBuilder::RequiresTrait(const FHktPropertyTrait* Trait)
+{
+    return SetPrecondition([Trait](const FHktWorldState& WS, const FHktEvent& E) -> bool
+    {
+        return WS.HasTrait(E.SourceEntity, Trait);
+    });
+}
+
 // ============================================================================
 // NPC Spawning
 // ============================================================================

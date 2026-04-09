@@ -114,6 +114,21 @@ EHktArchetype FHktArchetypeRegistry::FindByName(const TCHAR* Name) const
     return EHktArchetype::None;
 }
 
+int32 FHktArchetypeRegistry::GetTraitIndex(const FHktPropertyTrait* Trait) const
+{
+    for (int32 i = 0; i < TraitCount; ++i)
+    {
+        if (&TraitStorage[i] == Trait) return i;
+    }
+    return -1;
+}
+
+const FHktPropertyTrait* FHktArchetypeRegistry::GetTraitByIndex(int32 Index) const
+{
+    if (Index < 0 || Index >= TraitCount) return nullptr;
+    return &TraitStorage[Index];
+}
+
 // ============================================================================
 // InitializeHktArchetypes
 // ============================================================================

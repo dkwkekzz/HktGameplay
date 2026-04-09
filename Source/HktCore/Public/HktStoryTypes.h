@@ -279,6 +279,7 @@ struct FHktRegReserve
     X(AddTag,           _, R, _) \
     X(RemoveTag,        _, R, _) \
     X(HasTag,           W, R, _) \
+    X(CheckTrait,       W, R, _) \
     /* NPC Spawning */      \
     X(CountByTag,       W, _, _) \
     X(GetWorldTime,     W, _, _) \

@@ -82,6 +82,12 @@ public:
     EHktArchetype FindByTag(const FGameplayTag& Tag) const;
     EHktArchetype FindByName(const TCHAR* Name) const;
 
+    /** Trait → 레지스트리 인덱스 (bytecode 인코딩용). 미등록 Trait이면 -1 반환 */
+    int32 GetTraitIndex(const FHktPropertyTrait* Trait) const;
+
+    /** 인덱스 → Trait 포인터 (VM 런타임 역조회용). 범위 외이면 nullptr 반환 */
+    const FHktPropertyTrait* GetTraitByIndex(int32 Index) const;
+
 private:
     FHktArchetypeMetadata Archetypes[static_cast<int>(EHktArchetype::Max)];
 

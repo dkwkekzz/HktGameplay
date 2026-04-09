@@ -116,6 +116,7 @@ private:
     void Op_AddTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagIndex);
     void Op_RemoveTag(FHktVMRuntime& Runtime, RegisterIndex Entity, int32 TagIndex);
     void Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 TagIndex);
+    void Op_CheckTrait(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 TraitIndex);
 
     // ===== NPC Spawning =====
     void Op_CountByTag(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 TagIndex);
