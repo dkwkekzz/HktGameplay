@@ -5,6 +5,7 @@
 #include "HktWorldState.h"
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
+#include "HktCoreArchetype.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 #include "Snippets/HktSnippetCombat.h"
@@ -73,8 +74,9 @@ namespace HktStoryBasicAttack
 
 			// === 4. 히트테스트 영역 — 공간 쿼리 + terrain 파괴 포함 ===
 			.ForEachInRadiusTerrain(Self, DefaultAttackRange)
-				// Self 제외
+				// Self 제외 + Hittable 대상만
 				.IfNe(Iter, Self)
+				.IfHasTrait(Iter, HktTrait::Hittable)
 
 					// === Hit! 데미지 + 피격 처리 ===
 					.Move(Target, Iter)
@@ -87,6 +89,7 @@ namespace HktStoryBasicAttack
 				HktSnippetCombat::CheckDeath(B, Target, Tag_State_Dead);
 
 			B.EndIf()
+			.EndIf()
 			.EndForEach();
 
 		// 공격 애니메이션 종료 대기 후 태그 정리

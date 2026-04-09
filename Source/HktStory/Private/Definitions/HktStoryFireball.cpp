@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
+#include "HktCoreArchetype.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 #include "Snippets/HktSnippetCombat.h"
@@ -103,6 +104,7 @@ namespace HktStoryFireball
 			.Log(TEXT("Fireball: 범위 피해 적용"))
 
 			.ForEachInRadius(hitTarget, 300)             // hitTarget 주변 300cm 내 적들
+				.IfHasTrait(Iter, HktTrait::Hittable)
 				.Move(Target, Iter)                      // Target = 현재 순회 대상
 				.ApplyDamageConst(Target, 50)            // 50 피해
 				.ApplyEffect(Target, Effect_Burn);
@@ -110,7 +112,8 @@ namespace HktStoryFireball
 			// AoE 사망 판정
 			HktSnippetCombat::CheckDeath(B, Target, Tag_State_Dead);
 
-		B	.EndForEach()
+		B	.EndIf()
+			.EndForEach()
 
 			// 시전 상태 태그 제거
 			.RemoveTag(Self, Tag_Anim_UpperBody_Cast_Fireball)
