@@ -421,8 +421,8 @@ public:
     FHktStoryBuilder& ForEachInRadius(RegisterIndex CenterEntity, int32 RadiusCm);
     FHktStoryBuilder& ForEachInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask);
 
-    /** ForEach: entity + terrain 통합 검색 (파괴 가능 terrain voxel을 Debris entity로 변환) */
-    FHktStoryBuilder& ForEachInRadiusTerrain(RegisterIndex CenterEntity, int32 RadiusCm);
+    /** 반경 내 terrain voxel 상호작용 — 셀 예측 + Precondition 검증 + Event 발행 (ForEach 아님, 단발 호출) */
+    FHktStoryBuilder& InteractTerrain(RegisterIndex CenterEntity, int32 RadiusCm);
 
     FHktStoryBuilder& EndForEach();
 

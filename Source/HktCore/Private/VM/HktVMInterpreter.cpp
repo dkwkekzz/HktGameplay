@@ -129,7 +129,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::GetVoxelType: Op_GetVoxelType(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     case EOpCode::SetVoxel: Op_SetVoxel(Runtime, Inst.Src1, Inst.Src2); break;
     case EOpCode::IsTerrainSolid: Op_IsTerrainSolid(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
-    case EOpCode::FindTerrainInRadius: Op_FindTerrainInRadius(Runtime, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::InteractTerrain: Op_InteractTerrain(Runtime, Inst.Src1, Inst.Imm12); break;
     // Utility
     case EOpCode::Log: Op_Log(Runtime, Inst.GetSignedImm20()); break;
     default: return EVMStatus::Failed;

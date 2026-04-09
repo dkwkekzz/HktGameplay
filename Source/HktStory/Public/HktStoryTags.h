@@ -44,4 +44,15 @@ namespace HktStoryTags
 
 	// --- Sound ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Sound_Spawn);                  // Sound.Spawn
+
+	// --- Voxel Interaction Stories ---
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Voxel_Break);            // Story.Voxel.Break
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Voxel_Shatter);          // Story.Voxel.Shatter
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Voxel_Crumble);          // Story.Voxel.Crumble
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Voxel_Crack);            // Story.Voxel.Crack
+
+	// --- Debris Entity Sub-Tags ---
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Debris_Glass);          // Entity.Debris.Glass
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Debris_Crumble);        // Entity.Debris.Crumble
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Debris_Ice);            // Entity.Debris.Ice
 }

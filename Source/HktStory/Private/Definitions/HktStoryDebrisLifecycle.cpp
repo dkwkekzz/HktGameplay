@@ -33,7 +33,7 @@ namespace HktStoryDebrisLifecycle
 	 *  사망이 감지되면 파괴 VFX/사운드를 재생하고
 	 *  위로 살짝 튕긴 뒤 3초 후 엔티티를 제거한다."
 	 *
-	 * FindTerrainInRadius opcode에서 Debris 생성 시 자동 dispatch됨.
+	 * InteractTerrain opcode에서 Debris 생성 시 자동 dispatch됨.
 	 * Self = Debris 엔티티
 	 * ================================================================
 	 */

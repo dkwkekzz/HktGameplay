@@ -834,17 +834,10 @@ FHktStoryBuilder& FHktStoryBuilder::ForEachInRadius(RegisterIndex CenterEntity, 
     return *this;
 }
 
-FHktStoryBuilder& FHktStoryBuilder::ForEachInRadiusTerrain(RegisterIndex CenterEntity, int32 RadiusCm)
+FHktStoryBuilder& FHktStoryBuilder::InteractTerrain(RegisterIndex CenterEntity, int32 RadiusCm)
 {
-    const int32 Id = ForEachCounter++;
-    ForEachStack.Push({Id});
-
-    // FindTerrainInRadius: entity + terrain 통합 검색
-    Emit(FInstruction::Make(EOpCode::FindTerrainInRadius, Reg::Count, CenterEntity, 0, RadiusCm & 0xFFF));
-    Label(MakeLabelKey(LT_ForEach, Id, 0));          // loop
-    NextFound();
-    JumpIfNot(Reg::Flag, MakeLabelKey(LT_ForEach, Id, 1)); // → end
-
+    // 단발 호출 — ForEach 구조 아님 (셀 예측 + Precondition + Event 발행)
+    Emit(FInstruction::Make(EOpCode::InteractTerrain, 0, CenterEntity, 0, RadiusCm & 0xFFF));
     return *this;
 }
 
