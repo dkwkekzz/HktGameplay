@@ -143,6 +143,10 @@ private:
     void Op_SetVoxel(FHktVMRuntime& Runtime, RegisterIndex PosBase, RegisterIndex TypeReg);
     void Op_IsTerrainSolid(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
     void Op_FindTerrainInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm);
+    /** 복셀 타입의 물리 상태 → Dst (0=Gas, 1=Fluid, 2=Solid) */
+    void Op_GetVoxelPhase(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+    /** 복셀 타입의 이동 보정 → Dst (0=Normal, 1=Slippery, 2=Slow, 3=Swim) */
+    void Op_GetVoxelMoveModifier(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
 
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);

@@ -11,6 +11,7 @@
 #include "HktCoreEventLog.h"
 #include "Terrain/HktTerrainState.h"
 #include "Terrain/HktTerrainDestructibility.h"
+#include "Terrain/HktTerrainVoxelDef.h"
 #include "HktSimulationSystems.h"
 
 // ============================================================================
@@ -716,8 +717,8 @@ void FHktVMInterpreter::Op_SetVoxel(FHktVMRuntime& Runtime, RegisterIndex PosBas
     const int32 Z = Runtime.GetReg(static_cast<RegisterIndex>(PosBase + 2));
     const uint16 TypeID = static_cast<uint16>(Runtime.GetReg(TypeReg));
 
-    FHktTerrainVoxel Voxel;
-    Voxel.TypeID = TypeID;
+    // VoxelDef에서 Flags 자동 할당 (Translucent/Destructible 등)
+    FHktTerrainVoxel Voxel = HktTerrainVoxelDef::MakeVoxel(TypeID);
     TerrainState->SetVoxel(X, Y, Z, Voxel, *PendingVoxelDeltas);
 
     HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
@@ -791,18 +792,38 @@ void FHktVMInterpreter::Op_FindTerrainInRadius(FHktVMRuntime& Runtime, RegisterI
         static constexpr int32 MaxDebrisPerQuery = 8;  // 한 번의 공격에 생성되는 최대 Debris 수
         int32 DebrisCount = 0;
 
-        // Entity.Debris ClassTag 해석 (정적 캐싱)
-        static FGameplayTag DebrisClassTag;
-        if (!DebrisClassTag.IsValid())
+        // ── ClassTag 캐시 (DestroyEffect별) ─────────────────────────────────
+        // Debris  → Entity.Debris
+        // Shatter → Entity.Debris.Glass
+        // Crumble → Entity.Debris.Crumble
+        // Crack   → Entity.Debris.Ice
+        static FGameplayTag ClassTagByEffect[5];
+        static bool bClassTagsInit = false;
+        if (!bClassTagsInit)
         {
-            DebrisClassTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Debris")));
+            ClassTagByEffect[static_cast<uint8>(EHktVoxelDestroyEffect::None)]    = FGameplayTag{};
+            ClassTagByEffect[static_cast<uint8>(EHktVoxelDestroyEffect::Debris)]  = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Debris")));
+            ClassTagByEffect[static_cast<uint8>(EHktVoxelDestroyEffect::Shatter)] = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Debris.Glass")));
+            ClassTagByEffect[static_cast<uint8>(EHktVoxelDestroyEffect::Crumble)] = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Debris.Crumble")));
+            ClassTagByEffect[static_cast<uint8>(EHktVoxelDestroyEffect::Crack)]   = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Debris.Ice")));
+            bClassTagsInit = true;
         }
 
-        // DebrisLifecycle Story Tag
-        static FGameplayTag DebrisLifecycleTag;
-        if (!DebrisLifecycleTag.IsValid())
+        // ── Lifecycle 이벤트 태그 캐시 (DestroyEffect별) ────────────────────
+        // Debris  → Story.Flow.Debris.Lifecycle
+        // Shatter → Story.Flow.Voxel.Shatter
+        // Crumble → Story.Flow.Voxel.Crumble
+        // Crack   → Story.Flow.Voxel.Crack
+        static FGameplayTag LifecycleTagByEffect[5];
+        static bool bLifecycleTagsInit = false;
+        if (!bLifecycleTagsInit)
         {
-            DebrisLifecycleTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Story.Flow.Debris.Lifecycle")));
+            LifecycleTagByEffect[static_cast<uint8>(EHktVoxelDestroyEffect::None)]    = FGameplayTag{};
+            LifecycleTagByEffect[static_cast<uint8>(EHktVoxelDestroyEffect::Debris)]  = FGameplayTag::RequestGameplayTag(FName(TEXT("Story.Flow.Debris.Lifecycle")));
+            LifecycleTagByEffect[static_cast<uint8>(EHktVoxelDestroyEffect::Shatter)] = FGameplayTag::RequestGameplayTag(FName(TEXT("Story.Flow.Voxel.Shatter")));
+            LifecycleTagByEffect[static_cast<uint8>(EHktVoxelDestroyEffect::Crumble)] = FGameplayTag::RequestGameplayTag(FName(TEXT("Story.Flow.Voxel.Crumble")));
+            LifecycleTagByEffect[static_cast<uint8>(EHktVoxelDestroyEffect::Crack)]   = FGameplayTag::RequestGameplayTag(FName(TEXT("Story.Flow.Voxel.Crack")));
+            bLifecycleTagsInit = true;
         }
 
         for (int32 dz = -VoxelRadius; dz <= VoxelRadius && DebrisCount < MaxDebrisPerQuery; ++dz)
@@ -823,31 +844,41 @@ void FHktVMInterpreter::Op_FindTerrainInRadius(FHktVMRuntime& Runtime, RegisterI
                     if (DDX * DDX + DDY * DDY + DDZ * DDZ > RadiusSq)
                         continue;
 
-                    // 파괴 가능 여부 확인
+                    // 파괴 가능 여부 확인 (VoxelDef 기준)
                     const uint16 TypeId = TerrainState->GetVoxelType(VX, VY, VZ);
-                    if (TypeId == 0 || !HktTerrainDestructibility::IsDestructible(TypeId))
+                    if (TypeId == 0)
+                        continue;
+                    const FHktVoxelDef& VoxelDef = HktTerrainVoxelDef::GetDef(TypeId);
+                    if (!VoxelDef.bDestructible)
                         continue;
 
                     // a. voxel 제거 (Air로 설정)
                     FHktTerrainVoxel EmptyVoxel;
-                    EmptyVoxel.TypeID = 0;
-                    EmptyVoxel.PaletteIndex = 0;
-                    EmptyVoxel.Flags = 0;
                     TerrainState->SetVoxel(VX, VY, VZ, EmptyVoxel, *PendingVoxelDeltas);
 
-                    // b. Debris entity 생성
+                    // b. DestroyEffect에 맞는 ClassTag / Lifecycle 태그 선택
+                    const uint8 EffectIdx = static_cast<uint8>(VoxelDef.DestroyEffect);
+                    const FGameplayTag& DebrisClassTag   = ClassTagByEffect[EffectIdx];
+                    const FGameplayTag& DebrisLifecycleTag = LifecycleTagByEffect[EffectIdx];
+
+                    if (!DebrisClassTag.IsValid() || !DebrisLifecycleTag.IsValid())
+                    {
+                        // DestroyEffect::None 타입은 엔티티 없이 조용히 제거
+                        continue;
+                    }
+
+                    // c. Debris entity 생성
                     const FHktEntityId DebrisId = WorldState->AllocateEntity();
 
                     VMProxy->AddTag(*WorldState, DebrisId, DebrisClassTag);
                     WorldState->SetArchetype(DebrisId, EHktArchetype::Debris);
 
                     // 프로퍼티 설정
-                    const int32 DebrisHealth = HktTerrainDestructibility::GetHealth(TypeId);
                     Runtime.Context->WriteEntity(DebrisId, PropertyId::PosX, VCm.X);
                     Runtime.Context->WriteEntity(DebrisId, PropertyId::PosY, VCm.Y);
                     Runtime.Context->WriteEntity(DebrisId, PropertyId::PosZ, VCm.Z);
-                    Runtime.Context->WriteEntity(DebrisId, PropertyId::Health, DebrisHealth);
-                    Runtime.Context->WriteEntity(DebrisId, PropertyId::MaxHealth, DebrisHealth);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::Health,    VoxelDef.Health);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::MaxHealth, VoxelDef.Health);
                     Runtime.Context->WriteEntity(DebrisId, PropertyId::TerrainTypeId, static_cast<int32>(TypeId));
                     Runtime.Context->WriteEntity(DebrisId, PropertyId::CollisionRadius, 15);
                     Runtime.Context->WriteEntity(DebrisId, PropertyId::Mass, 1);
@@ -861,14 +892,18 @@ void FHktVMInterpreter::Op_FindTerrainInRadius(FHktVMRuntime& Runtime, RegisterI
                     FGameplayTagNetIndex NetIndex = UGameplayTagsManager::Get().GetNetIndexFromTag(DebrisClassTag);
                     Runtime.Context->WriteEntity(DebrisId, PropertyId::EntitySpawnTag, static_cast<int32>(NetIndex));
 
-                    // c. lifecycle dispatch
+                    // d. lifecycle dispatch (타입별 이벤트)
                     FHktEvent LifecycleEvt;
-                    LifecycleEvt.EventTag = DebrisLifecycleTag;
+                    LifecycleEvt.EventTag    = DebrisLifecycleTag;
                     LifecycleEvt.SourceEntity = DebrisId;
-                    LifecycleEvt.PlayerUid = Runtime.PlayerUid;
+                    LifecycleEvt.PlayerUid   = Runtime.PlayerUid;
                     Runtime.PendingDispatchedEvents.Add(LifecycleEvt);
 
-                    // d. SpatialQuery에 추가
+                    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+                        FString::Printf(TEXT("FindTerrainInRadius Debris TypeId=%d Effect=%d Pos=(%d,%d,%d)"),
+                            TypeId, EffectIdx, VX, VY, VZ));
+
+                    // e. SpatialQuery에 추가
                     Runtime.SpatialQuery.Entities.Add(DebrisId);
                     ++DebrisCount;
                 }
@@ -881,6 +916,48 @@ void FHktVMInterpreter::Op_FindTerrainInRadius(FHktVMRuntime& Runtime, RegisterI
             Center, RadiusCm, Runtime.SpatialQuery.Entities.Num()));
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
+}
+
+// ============================================================================
+// Terrain — VoxelDef 쿼리
+// ============================================================================
+
+void FHktVMInterpreter::Op_GetVoxelPhase(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
+{
+    if (!TerrainState)
+    {
+        Runtime.SetReg(Dst, static_cast<int32>(EHktVoxelPhase::Solid));
+        return;
+    }
+
+    const int32 X = Runtime.GetReg(PosBase);
+    const int32 Y = Runtime.GetReg(static_cast<RegisterIndex>(PosBase + 1));
+    const int32 Z = Runtime.GetReg(ZReg);
+    const uint16 TypeID = TerrainState->GetVoxelType(X, Y, Z);
+    const EHktVoxelPhase Phase = HktTerrainVoxelDef::GetDef(TypeID).Phase;
+    Runtime.SetReg(Dst, static_cast<int32>(Phase));
+
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_GetVoxelPhase Pos=(%d,%d,%d) TypeID=%d Phase=%d"), X, Y, Z, TypeID, static_cast<int32>(Phase)));
+}
+
+void FHktVMInterpreter::Op_GetVoxelMoveModifier(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg)
+{
+    if (!TerrainState)
+    {
+        Runtime.SetReg(Dst, static_cast<int32>(EHktVoxelMoveModifier::Normal));
+        return;
+    }
+
+    const int32 X = Runtime.GetReg(PosBase);
+    const int32 Y = Runtime.GetReg(static_cast<RegisterIndex>(PosBase + 1));
+    const int32 Z = Runtime.GetReg(ZReg);
+    const uint16 TypeID = TerrainState->GetVoxelType(X, Y, Z);
+    const EHktVoxelMoveModifier Modifier = HktTerrainVoxelDef::GetDef(TypeID).MoveModifier;
+    Runtime.SetReg(Dst, static_cast<int32>(Modifier));
+
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_GetVoxelMoveModifier Pos=(%d,%d,%d) TypeID=%d Modifier=%d"), X, Y, Z, TypeID, static_cast<int32>(Modifier)));
 }
 
 // ============================================================================

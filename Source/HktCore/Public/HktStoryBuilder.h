@@ -525,6 +525,20 @@ public:
     FHktStoryBuilder& IsTerrainSolid(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
 
     /**
+     * 복셀 물리 상태 → Dst
+     * 0=Gas(Air), 1=Fluid(Water), 2=Solid(Stone 등)
+     * EHktVoxelPhase 참조.
+     */
+    FHktStoryBuilder& GetVoxelPhase(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+
+    /**
+     * 복셀 이동 보정 → Dst
+     * 0=Normal, 1=Slippery(Ice), 2=Slow(Snow/Clay/Sand), 3=Swim(Water)
+     * EHktVoxelMoveModifier 참조.
+     */
+    FHktStoryBuilder& GetVoxelMoveModifier(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+
+    /**
      * 엔티티 cm 위치 → 복셀 좌표로 변환 (조합 연산)
      * OutVoxelBase, OutVoxelBase+1, OutVoxelBase+2 에 복셀 XYZ 저장
      */
