@@ -28,7 +28,7 @@ namespace HktStoryVoxelBreak
 	 *  Debris 엔티티를 복셀 위치에 생성하고 원래 TypeId를 기록한다.
 	 *  체력을 설정하고 Debris Lifecycle Flow를 시작한다."
 	 *
-	 * FindTerrainInRadius에서 복셀 제거 후 자동 dispatch됨.
+	 * InteractTerrain에서 복셀 제거 후 자동 dispatch됨.
 	 * Self = 공격 주체, TargetPos = 복셀 중심, Param0 = TypeId
 	 * ================================================================
 	 */
@@ -37,6 +37,11 @@ namespace HktStoryVoxelBreak
 		using namespace Reg;
 
 		auto B = Story(Story_Voxel_Break);
+
+		// Precondition: 현재는 무조건 통과 (확장점 — 향후 무기 타입, 최소 공격력 등 조건 추가 가능)
+		B.BeginPrecondition()
+			.LoadConst(Flag, 1)
+		.EndPrecondition();
 
 		FHktScopedRegBlock pos(B, 3);   // 복셀 위치 (X, Y, Z)
 		FHktScopedReg typeId(B);        // 원래 TypeId

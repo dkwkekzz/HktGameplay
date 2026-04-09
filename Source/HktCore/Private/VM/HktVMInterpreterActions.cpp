@@ -753,117 +753,89 @@ void FHktVMInterpreter::Op_IsTerrainSolid(FHktVMRuntime& Runtime, RegisterIndex 
 }
 
 // ============================================================================
-// Terrain — FindTerrainInRadius (entity + terrain 통합 검색)
+// Terrain — InteractTerrain (셀 예측 + Precondition + Event 발행)
 // ============================================================================
 
-void FHktVMInterpreter::Op_FindTerrainInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm)
+void FHktVMInterpreter::Op_InteractTerrain(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm)
 {
-    Runtime.SpatialQuery.Reset();
-
-    if (!WorldState || !Runtime.Context)
-    {
-        Runtime.SetReg(Reg::Count, 0);
+    if (!WorldState || !Runtime.Context || !TerrainState || !PendingVoxelDeltas)
         return;
-    }
 
     const FHktEntityId Center = Runtime.GetRegEntity(CenterEntity);
     const int32 CX = Runtime.Context->ReadEntity(Center, PropertyId::PosX);
     const int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
     const int32 CZ = Runtime.Context->ReadEntity(Center, PropertyId::PosZ);
-    const uint32 FilterMask = static_cast<uint32>(Runtime.Context->ReadEntity(Center, PropertyId::CollisionMask));
     const int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
 
-    // --- Phase 1: entity 검색 (기존 FindInRadius 동일) ---
-    WorldState->ForEachEntity([&](FHktEntityId E, int32 /*SlotIndex*/)
+    // 셀 인덱스 예측: 중심 복셀 좌표 + 반경 내 복셀 범위 계산
+    const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(CX, CY, CZ);
+    const int32 VoxelRadius = FMath::CeilToInt(static_cast<float>(RadiusCm) / FHktTerrainSystem::VoxelSizeCm);
+
+    static constexpr int32 MaxVoxelsPerQuery = 8;
+    int32 VoxelCount = 0;
+
+    const FHktVMProgramRegistry& ProgramRegistry = FHktVMProgramRegistry::Get();
+
+    for (int32 dz = -VoxelRadius; dz <= VoxelRadius && VoxelCount < MaxVoxelsPerQuery; ++dz)
     {
-        if (E == Center)
-            return;
-
-        if (FilterMask != 0)
+        for (int32 dy = -VoxelRadius; dy <= VoxelRadius && VoxelCount < MaxVoxelsPerQuery; ++dy)
         {
-            uint32 TargetLayer = static_cast<uint32>(WorldState->GetProperty(E, PropertyId::CollisionLayer));
-            if (TargetLayer != 0 && !(TargetLayer & FilterMask))
-                return;
-        }
-
-        FIntVector EP = WorldState->GetPosition(E);
-        int64 DX = EP.X - CX;
-        int64 DY = EP.Y - CY;
-        int64 DZ = EP.Z - CZ;
-
-        if (DX * DX + DY * DY + DZ * DZ <= RadiusSq)
-            Runtime.SpatialQuery.Entities.Add(E);
-    });
-
-    // --- Phase 2: terrain voxel 스캔 ---
-    // voxel 제거 후 InteractionEventTag로 Story 발행.
-    // 엔티티 생성은 각 Story가 담당. C++는 "제거 + 이벤트 발행"만 한다.
-    //
-    //   FHktEvent.Location     = 복셀 중심 (cm)
-    //   FHktEvent.Param0       = 원래 TypeId
-    //   FHktEvent.SourceEntity = 공격 주체
-    if (TerrainState && PendingVoxelDeltas)
-    {
-        const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(CX, CY, CZ);
-        const int32 VoxelRadius = FMath::CeilToInt(static_cast<float>(RadiusCm) / FHktTerrainSystem::VoxelSizeCm);
-
-        static constexpr int32 MaxVoxelsPerQuery = 8;
-        int32 VoxelCount = 0;
-
-        for (int32 dz = -VoxelRadius; dz <= VoxelRadius && VoxelCount < MaxVoxelsPerQuery; ++dz)
-        {
-            for (int32 dy = -VoxelRadius; dy <= VoxelRadius && VoxelCount < MaxVoxelsPerQuery; ++dy)
+            for (int32 dx = -VoxelRadius; dx <= VoxelRadius && VoxelCount < MaxVoxelsPerQuery; ++dx)
             {
-                for (int32 dx = -VoxelRadius; dx <= VoxelRadius && VoxelCount < MaxVoxelsPerQuery; ++dx)
+                const int32 VX = CenterVoxel.X + dx;
+                const int32 VY = CenterVoxel.Y + dy;
+                const int32 VZ = CenterVoxel.Z + dz;
+
+                // cm 단위 거리 체크
+                const FIntVector VCm = FHktTerrainSystem::VoxelToCm(VX, VY, VZ);
+                const int64 DDX = VCm.X - CX;
+                const int64 DDY = VCm.Y - CY;
+                const int64 DDZ = VCm.Z - CZ;
+                if (DDX * DDX + DDY * DDY + DDZ * DDZ > RadiusSq)
+                    continue;
+
+                // 빈 복셀 스킵
+                const uint16 TypeId = TerrainState->GetVoxelType(VX, VY, VZ);
+                if (TypeId == 0)
+                    continue;
+
+                // InteractionEventTag 없으면 스킵 (상호작용 불가)
+                const FHktVoxelDef& VoxelDef = HktTerrainVoxelDef::GetDef(TypeId);
+                if (VoxelDef.InteractionEventTag.IsNone())
+                    continue;
+
+                // 이벤트 합성 — Precondition 검사용
+                const FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(VoxelDef.InteractionEventTag, false);
+                FHktEvent VoxelEvt;
+                VoxelEvt.EventTag     = EventTag;
+                VoxelEvt.SourceEntity = Center;
+                VoxelEvt.Location     = FVector(VCm.X, VCm.Y, VCm.Z);
+                VoxelEvt.Param0       = static_cast<int32>(TypeId);
+                VoxelEvt.PlayerUid    = Runtime.PlayerUid;
+
+                // Precondition 검사 — Story에 등록된 사전조건 평가
+                if (!ProgramRegistry.ValidateEvent(*WorldState, VoxelEvt))
                 {
-                    const int32 VX = CenterVoxel.X + dx;
-                    const int32 VY = CenterVoxel.Y + dy;
-                    const int32 VZ = CenterVoxel.Z + dz;
-
-                    // cm 단위 거리 체크
-                    const FIntVector VCm = FHktTerrainSystem::VoxelToCm(VX, VY, VZ);
-                    const int64 DDX = VCm.X - CX;
-                    const int64 DDY = VCm.Y - CY;
-                    const int64 DDZ = VCm.Z - CZ;
-                    if (DDX * DDX + DDY * DDY + DDZ * DDZ > RadiusSq)
-                        continue;
-
-                    // 파괴 가능 여부 확인
-                    const uint16 TypeId = TerrainState->GetVoxelType(VX, VY, VZ);
-                    if (TypeId == 0)
-                        continue;
-                    const FHktVoxelDef& VoxelDef = HktTerrainVoxelDef::GetDef(TypeId);
-                    if (!VoxelDef.bDestructible || VoxelDef.InteractionEventTag.IsNone())
-                        continue;
-
-                    // a. voxel 제거
-                    FHktTerrainVoxel EmptyVoxel;
-                    TerrainState->SetVoxel(VX, VY, VZ, EmptyVoxel, *PendingVoxelDeltas);
-
-                    // b. Story 발행 — 엔티티 생성은 Story 책임
-                    FHktEvent VoxelEvt;
-                    VoxelEvt.EventTag    = FGameplayTag::RequestGameplayTag(VoxelDef.InteractionEventTag, false);
-                    VoxelEvt.SourceEntity = Center;
-                    VoxelEvt.Location    = FVector(VCm.X, VCm.Y, VCm.Z);
-                    VoxelEvt.Param0      = static_cast<int32>(TypeId);
-                    VoxelEvt.PlayerUid   = Runtime.PlayerUid;
-                    Runtime.PendingDispatchedEvents.Add(VoxelEvt);
-
                     HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-                        FString::Printf(TEXT("FindTerrainInRadius VoxelBreak TypeId=%d Tag=%s Pos=(%d,%d,%d)"),
+                        FString::Printf(TEXT("InteractTerrain Precondition FAILED TypeId=%d Tag=%s Pos=(%d,%d,%d)"),
                             TypeId, *VoxelDef.InteractionEventTag.ToString(), VX, VY, VZ));
-
-                    ++VoxelCount;
+                    continue;
                 }
+
+                // Precondition 통과 → voxel 제거 + Event 발행
+                FHktTerrainVoxel EmptyVoxel;
+                TerrainState->SetVoxel(VX, VY, VZ, EmptyVoxel, *PendingVoxelDeltas);
+
+                Runtime.PendingDispatchedEvents.Add(VoxelEvt);
+
+                HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+                    FString::Printf(TEXT("InteractTerrain VoxelBreak TypeId=%d Tag=%s Pos=(%d,%d,%d)"),
+                        TypeId, *VoxelDef.InteractionEventTag.ToString(), VX, VY, VZ));
+
+                ++VoxelCount;
             }
         }
     }
-
-    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("FindTerrainInRadius Center=%d Radius=%d Found=%d"),
-            Center, RadiusCm, Runtime.SpatialQuery.Entities.Num()));
-
-    Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
 }
 
 // ============================================================================

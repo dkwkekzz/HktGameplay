@@ -11,7 +11,7 @@
  * 타입별 속성값(Health, Phase 등)은 여기에 두지 않는다.
  * 오직 "이 복셀이 파괴될 때 어떤 Story 이벤트를 발행하는가"만 정의.
  *
- * FindTerrainInRadius가 voxel을 제거한 뒤 InteractionEventTag로
+ * InteractTerrain이 voxel을 제거한 뒤 InteractionEventTag로
  * Story를 발행한다. 엔티티 생성·속성 설정은 해당 Story가 담당.
  *
  *   FHktEvent.Location  = 복셀 중심 위치 (cm)
@@ -22,7 +22,7 @@
  */
 struct FHktVoxelDef
 {
-    bool          bDestructible;        // 파괴 가능 여부 (false → FindTerrainInRadius 스킵)
+    bool          bDestructible;        // 파괴 가능 여부 (false → InteractTerrain 스킵)
     FName         InteractionEventTag;  // 파괴 시 발행할 Story 이벤트 이름 (NAME_None = 없음)
     uint8         AutoFlags;            // FHktTerrainVoxel::Flags 자동 할당 (Translucent 등)
 };

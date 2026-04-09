@@ -36,7 +36,7 @@ namespace HktStoryVoxelShatter
 	 *  3개의 유리 파편 엔티티를 생성한다.
 	 *  각 파편은 공중에서 튕기며 흩어진다."
 	 *
-	 * FindTerrainInRadius에서 유리 복셀 제거 후 자동 dispatch됨.
+	 * InteractTerrain에서 유리 복셀 제거 후 자동 dispatch됨.
 	 * Self = 공격 주체, TargetPos = 복셀 중심, Param0 = TypeId
 	 * ================================================================
 	 */
@@ -45,6 +45,11 @@ namespace HktStoryVoxelShatter
 		using namespace Reg;
 
 		auto B = Story(Story_Voxel_Shatter);
+
+		// Precondition: 현재는 무조건 통과 (확장점 — 향후 "충격 강도 >= N" 등 조건 추가 가능)
+		B.BeginPrecondition()
+			.LoadConst(Flag, 1)
+		.EndPrecondition();
 
 		FHktScopedRegBlock pos(B, 3);   // 복셀 위치 (X, Y, Z)
 		FHktScopedReg typeId(B);        // 원래 TypeId
