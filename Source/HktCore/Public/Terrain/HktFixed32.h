@@ -58,7 +58,8 @@ struct HKTCORE_API FHktFixed32
 	int32 ToInt() const
 	{
 		// 0 방향으로 절삭 (truncate toward zero)
-		return Raw >> FRAC_BITS;
+		if (Raw >= 0) return Raw >> FRAC_BITS;
+		return -((-Raw) >> FRAC_BITS);
 	}
 
 	int32 FloorToInt() const
