@@ -41,6 +41,7 @@ namespace HktProperty
         struct FPropertyRegistry
         {
             const TCHAR* NameTable[256]{};
+            const FHktPropertyDef* DefTable[256]{};     // ID → Def* (O(1) Tier/메타 조회)
             TMap<FName, const FHktPropertyDef*> NameMap;
             uint16 TotalCount = 0;
             uint16 HotCount = 0;
@@ -48,6 +49,7 @@ namespace HktProperty
             void Register(const FHktPropertyDef* P)
             {
                 NameTable[P->Id] = P->Name;
+                DefTable[P->Id] = P;
                 NameMap.Add(FName(P->Name), P);
                 TotalCount = FMath::Max(TotalCount, static_cast<uint16>(P->Id + 1));
                 if (P->IsHot()) ++HotCount;
@@ -203,6 +205,14 @@ namespace HktProperty
     {
         return PropId < Detail::GetRegistry().TotalCount
             ? Detail::GetRegistry().NameTable[PropId]
+            : nullptr;
+    }
+
+    /** PropId → FHktPropertyDef (O(1) 직접 조회) */
+    inline const FHktPropertyDef* GetPropertyDef(uint16 PropId)
+    {
+        return PropId < Detail::GetRegistry().TotalCount
+            ? Detail::GetRegistry().DefTable[PropId]
             : nullptr;
     }
 
