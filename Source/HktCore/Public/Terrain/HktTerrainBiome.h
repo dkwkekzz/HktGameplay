@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Terrain/HktFixed32.h"
 
 class FHktTerrainNoise;
 
@@ -40,6 +41,7 @@ struct FHktBiomeMaterialRule
  *
  * 온도/습도 2축 노이즈로 바이옴을 결정한다.
  * 순수 C++ — VM에서 결정론적으로 실행 가능.
+ * 모든 연산은 FHktFixed32 고정소수점.
  *
  * 바이옴 결정 매트릭스 (Temperature × Humidity):
  *
@@ -53,6 +55,8 @@ struct FHktBiomeMaterialRule
 class HKTCORE_API FHktTerrainBiomeMap
 {
 public:
+	using Fixed = FHktFixed32;
+
 	/**
 	 * 생성자.
 	 * @param TemperatureNoise  온도 노이즈 (별도 시드 권장)
@@ -62,25 +66,25 @@ public:
 
 	/**
 	 * 월드 XY 좌표에서 바이옴 타입 결정.
-	 * @param WorldX, WorldY  월드 좌표 (복셀 단위)
+	 * @param WorldX, WorldY  월드 좌표 (복셀 단위, 고정소수점)
 	 * @return  바이옴 타입
 	 */
-	EHktBiomeType GetBiome(double WorldX, double WorldY) const;
+	EHktBiomeType GetBiome(Fixed WorldX, Fixed WorldY) const;
 
 	/**
 	 * 월드 XY 좌표에서 바이옴 + 높이를 고려한 최종 바이옴.
 	 * 높이가 MountainThreshold 이상이면 Mountain으로 오버라이드.
 	 */
-	EHktBiomeType GetBiomeWithHeight(double WorldX, double WorldY, double Height) const;
+	EHktBiomeType GetBiomeWithHeight(Fixed WorldX, Fixed WorldY, Fixed Height) const;
 
 	/** 바이옴별 재질 규칙 조회 */
 	const FHktBiomeMaterialRule& GetMaterialRule(EHktBiomeType Biome) const;
 
-	/** 산악 판정 높이 임계값 (복셀 단위, 기본 80) */
-	void SetMountainThreshold(double Threshold) { MountainThreshold = Threshold; }
+	/** 산악 판정 높이 임계값 (복셀 단위) */
+	void SetMountainThreshold(Fixed Threshold) { MountainThreshold = Threshold; }
 
-	/** 노이즈 스케일 (값이 작을수록 바이옴이 넓어짐, 기본 0.002) */
-	void SetNoiseScale(double Scale) { NoiseScale = Scale; }
+	/** 노이즈 스케일 (값이 작을수록 바이옴이 넓어짐) */
+	void SetNoiseScale(Fixed Scale) { NoiseScale = Scale; }
 
 	/** 바이옴별 재질 규칙 커스터마이즈 */
 	void SetMaterialRule(EHktBiomeType Biome, const FHktBiomeMaterialRule& Rule);
@@ -89,8 +93,8 @@ private:
 	const FHktTerrainNoise* TempNoise;
 	const FHktTerrainNoise* HumNoise;
 
-	double NoiseScale = 0.002;
-	double MountainThreshold = 80.0;
+	Fixed NoiseScale = Fixed::FromRaw(131);          // 0.002
+	Fixed MountainThreshold = Fixed::FromRaw(80 * 65536); // 80.0
 
 	FHktBiomeMaterialRule MaterialRules[static_cast<int32>(EHktBiomeType::Count)];
 

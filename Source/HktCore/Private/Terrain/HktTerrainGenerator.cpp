@@ -2,6 +2,8 @@
 
 #include "Terrain/HktTerrainGenerator.h"
 
+using Fixed = FHktFixed32;
+
 namespace
 {
 	constexpr uint16 TYPE_AIR   = 0;
@@ -34,29 +36,29 @@ void FHktTerrainGenerator::Reconfigure(const FHktTerrainGeneratorConfig& NewConf
 	BiomeMap.SetMountainThreshold(Config.MountainBiomeThreshold);
 }
 
-double FHktTerrainGenerator::GetSurfaceHeight(double WorldX, double WorldY) const
+Fixed FHktTerrainGenerator::GetSurfaceHeight(Fixed WorldX, Fixed WorldY) const
 {
-	double FBMHeight = HeightNoise.FBM2D(
+	Fixed FBMHeight = HeightNoise.FBM2D(
 		WorldX * Config.TerrainFreq,
 		WorldY * Config.TerrainFreq,
 		Config.TerrainOctaves,
 		Config.Lacunarity,
 		Config.Persistence);
 
-	double RidgeHeight = MountainNoise.RidgedMulti2D(
+	Fixed RidgeHeight = MountainNoise.RidgedMulti2D(
 		WorldX * Config.MountainFreq,
 		WorldY * Config.MountainFreq,
 		Config.TerrainOctaves,
 		Config.Lacunarity,
 		Config.Persistence);
 
-	double Blend = Config.MountainBlend;
-	double Mixed = (1.0 - Blend) * FBMHeight + Blend * RidgeHeight;
+	Fixed Blend = Config.MountainBlend;
+	Fixed Mixed = (Fixed::One() - Blend) * FBMHeight + Blend * RidgeHeight;
 
 	return Mixed * Config.HeightScale + Config.HeightOffset;
 }
 
-bool FHktTerrainGenerator::IsCave(double WorldX, double WorldY, double WorldZ, double SurfaceHeight) const
+bool FHktTerrainGenerator::IsCave(Fixed WorldX, Fixed WorldY, Fixed WorldZ, Fixed SurfaceHeight) const
 {
 	if (!Config.bEnableCaves)
 	{
@@ -64,30 +66,31 @@ bool FHktTerrainGenerator::IsCave(double WorldX, double WorldY, double WorldZ, d
 	}
 
 	// 표면 근처 (3블록 이내)에서는 동굴 생성 안 함
-	if (WorldZ >= SurfaceHeight - 3.0)
+	const Fixed Three = Fixed::FromInt(3);
+	if (WorldZ >= SurfaceHeight - Three)
 	{
 		return false;
 	}
 
-	double CaveValue = CaveNoise.FBM3D(
+	Fixed CaveValue = CaveNoise.FBM3D(
 		WorldX * Config.CaveFreq,
 		WorldY * Config.CaveFreq,
 		WorldZ * Config.CaveFreq,
-		3, 2.0, 0.5);
+		3);
 
 	// 절대값이 작을수록 동굴 (스파게티 동굴)
-	double AbsCave = (CaveValue < 0.0) ? -CaveValue : CaveValue;
-	return AbsCave < (1.0 - Config.CaveThreshold);
+	Fixed AbsCave = CaveValue.Abs();
+	return AbsCave < (Fixed::One() - Config.CaveThreshold);
 }
 
 FHktTerrainVoxel FHktTerrainGenerator::DetermineVoxel(
-	double WorldX, double WorldY, double WorldZ,
-	double SurfaceHeight, EHktBiomeType Biome,
+	Fixed WorldX, Fixed WorldY, Fixed WorldZ,
+	Fixed SurfaceHeight, EHktBiomeType Biome,
 	const FHktBiomeMaterialRule& Rule) const
 {
 	FHktTerrainVoxel Voxel;
 
-	double Depth = SurfaceHeight - WorldZ;
+	Fixed Depth = SurfaceHeight - WorldZ;
 
 	if (WorldZ > SurfaceHeight)
 	{
@@ -104,17 +107,21 @@ FHktTerrainVoxel FHktTerrainGenerator::DetermineVoxel(
 	}
 
 	// 표면 이하: 깊이 기반 재질 결정
-	if (Depth < 1.0)
+	const Fixed FixedOne = Fixed::One();
+	const Fixed FixedFour = Fixed::FromInt(4);
+	const Fixed FixedTwo = Fixed::Two();
+
+	if (Depth < FixedOne)
 	{
 		Voxel.TypeID = Rule.SurfaceType;
 		Voxel.PaletteIndex = 0;
 	}
-	else if (Depth < 4.0)
+	else if (Depth < FixedFour)
 	{
 		Voxel.TypeID = Rule.SubsurfaceType;
 		Voxel.PaletteIndex = 1;
 	}
-	else if (WorldZ <= 2.0)
+	else if (WorldZ <= FixedTwo)
 	{
 		Voxel.TypeID = Rule.BedrockType;
 		Voxel.PaletteIndex = 3;
@@ -132,22 +139,22 @@ void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 Chunk
 {
 	constexpr int32 S = FHktTerrainGeneratorConfig::ChunkSize;
 
-	const double BaseX = static_cast<double>(ChunkX) * S;
-	const double BaseY = static_cast<double>(ChunkY) * S;
-	const double BaseZ = static_cast<double>(ChunkZ) * S;
+	const Fixed BaseX = Fixed::FromInt(ChunkX * S);
+	const Fixed BaseY = Fixed::FromInt(ChunkY * S);
+	const Fixed BaseZ = Fixed::FromInt(ChunkZ * S);
 
 	// XY 컬럼별 높이/바이옴 캐시 (Z 루프에서 재사용 — 32배 절약)
-	double HeightCache[S][S];
+	Fixed HeightCache[S][S];
 	EHktBiomeType BiomeCache[S][S];
 	const FHktBiomeMaterialRule* RuleCache[S][S];
 
 	for (int32 X = 0; X < S; ++X)
 	{
-		const double WorldX = BaseX + X;
+		const Fixed WorldX = BaseX + Fixed::FromInt(X);
 		for (int32 Y = 0; Y < S; ++Y)
 		{
-			const double WorldY = BaseY + Y;
-			double H = GetSurfaceHeight(WorldX, WorldY);
+			const Fixed WorldY = BaseY + Fixed::FromInt(Y);
+			Fixed H = GetSurfaceHeight(WorldX, WorldY);
 			HeightCache[X][Y] = H;
 			BiomeCache[X][Y] = BiomeMap.GetBiomeWithHeight(WorldX, WorldY, H);
 			RuleCache[X][Y] = &BiomeMap.GetMaterialRule(BiomeCache[X][Y]);
@@ -157,18 +164,18 @@ void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 Chunk
 	// 복셀 생성: 인덱스 = X + Y*S + Z*S*S (WorldToLocalIndex와 동일한 Z-major 레이아웃)
 	for (int32 X = 0; X < S; ++X)
 	{
-		const double WorldX = BaseX + X;
+		const Fixed WorldX = BaseX + Fixed::FromInt(X);
 
 		for (int32 Y = 0; Y < S; ++Y)
 		{
-			const double WorldY = BaseY + Y;
-			const double SurfaceH = HeightCache[X][Y];
+			const Fixed WorldY = BaseY + Fixed::FromInt(Y);
+			const Fixed SurfaceH = HeightCache[X][Y];
 			const FHktBiomeMaterialRule& Rule = *RuleCache[X][Y];
 			const EHktBiomeType Biome = BiomeCache[X][Y];
 
 			for (int32 Z = 0; Z < S; ++Z)
 			{
-				const double WorldZ = BaseZ + Z;
+				const Fixed WorldZ = BaseZ + Fixed::FromInt(Z);
 				// WorldToLocalIndex와 동일: X + Y*S + Z*S*S (Z-major 레이아웃)
 				const int32 Index = X + Y * S + Z * S * S;
 

@@ -3,6 +3,8 @@
 #include "Terrain/HktTerrainBiome.h"
 #include "Terrain/HktTerrainNoise.h"
 
+using Fixed = FHktFixed32;
+
 // TypeID는 HktVoxelTerrainTypes.h와 동일 값 (양쪽 모듈에서 공유)
 namespace TerrainTypeID
 {
@@ -32,66 +34,36 @@ void FHktTerrainBiomeMap::InitDefaultRules()
 
 	// Grassland: 초원
 	MaterialRules[static_cast<int32>(EHktBiomeType::Grassland)] = {
-		Grass,    // Surface
-		Dirt,     // Subsurface
-		Stone,    // Deep
-		Bedrock,  // Bedrock
-		Water,    // Water
-		32        // PaletteRow
+		Grass, Dirt, Stone, Bedrock, Water, 32
 	};
 
 	// Desert: 사막
 	MaterialRules[static_cast<int32>(EHktBiomeType::Desert)] = {
-		Sand,
-		Sand,
-		Stone,
-		Bedrock,
-		Air,      // 사막은 물 없음
-		33
+		Sand, Sand, Stone, Bedrock, Air, 33
 	};
 
 	// Tundra: 설원
 	MaterialRules[static_cast<int32>(EHktBiomeType::Tundra)] = {
-		Snow,
-		Dirt,
-		Stone,
-		Bedrock,
-		Ice,
-		34
+		Snow, Dirt, Stone, Bedrock, Ice, 34
 	};
 
 	// Forest: 숲
 	MaterialRules[static_cast<int32>(EHktBiomeType::Forest)] = {
-		Grass,
-		Dirt,
-		Stone,
-		Bedrock,
-		Water,
-		36
+		Grass, Dirt, Stone, Bedrock, Water, 36
 	};
 
 	// Swamp: 늪
 	MaterialRules[static_cast<int32>(EHktBiomeType::Swamp)] = {
-		Clay,
-		Clay,
-		Stone,
-		Bedrock,
-		Water,
-		37
+		Clay, Clay, Stone, Bedrock, Water, 37
 	};
 
 	// Mountain: 산악
 	MaterialRules[static_cast<int32>(EHktBiomeType::Mountain)] = {
-		Gravel,
-		Stone,
-		Stone,
-		Bedrock,
-		Water,
-		35       // Volcanic 팔레트 (HktTerrainPalette::Volcanic)
+		Gravel, Stone, Stone, Bedrock, Water, 35
 	};
 }
 
-EHktBiomeType FHktTerrainBiomeMap::GetBiome(double WorldX, double WorldY) const
+EHktBiomeType FHktTerrainBiomeMap::GetBiome(Fixed WorldX, Fixed WorldY) const
 {
 	if (!TempNoise || !HumNoise)
 	{
@@ -99,16 +71,20 @@ EHktBiomeType FHktTerrainBiomeMap::GetBiome(double WorldX, double WorldY) const
 	}
 
 	// 온도/습도: FBM 2D [-1, 1] → [0, 1], 클램프 적용
-	double Temp = (TempNoise->FBM2D(WorldX * NoiseScale, WorldY * NoiseScale, 4) + 1.0) * 0.5;
-	double Hum  = (HumNoise->FBM2D(WorldX * NoiseScale, WorldY * NoiseScale, 4) + 1.0) * 0.5;
-	if (Temp < 0.0) Temp = 0.0; else if (Temp > 1.0) Temp = 1.0;
-	if (Hum  < 0.0) Hum  = 0.0; else if (Hum  > 1.0) Hum  = 1.0;
+	Fixed Temp = (TempNoise->FBM2D(WorldX * NoiseScale, WorldY * NoiseScale, 4) + Fixed::One()) * Fixed::Half();
+	Fixed Hum  = (HumNoise->FBM2D(WorldX * NoiseScale, WorldY * NoiseScale, 4) + Fixed::One()) * Fixed::Half();
+	Temp = Fixed::Clamp(Temp, Fixed::Zero(), Fixed::One());
+	Hum  = Fixed::Clamp(Hum,  Fixed::Zero(), Fixed::One());
 
 	// 3×3 매트릭스 룩업
 	// Temperature: Low [0, 0.33), Mid [0.33, 0.66), High [0.66, 1.0]
 	// Humidity:    Low [0, 0.33), Mid [0.33, 0.66), High [0.66, 1.0]
-	int32 TempBand = (Temp < 0.33) ? 0 : (Temp < 0.66) ? 1 : 2;
-	int32 HumBand  = (Hum  < 0.33) ? 0 : (Hum  < 0.66) ? 1 : 2;
+	// 0.33 ≈ 21627 raw, 0.66 ≈ 43254 raw
+	const Fixed OneThird = Fixed::FromRaw(21627);
+	const Fixed TwoThirds = Fixed::FromRaw(43254);
+
+	int32 TempBand = (Temp < OneThird) ? 0 : (Temp < TwoThirds) ? 1 : 2;
+	int32 HumBand  = (Hum  < OneThird) ? 0 : (Hum  < TwoThirds) ? 1 : 2;
 
 	// 바이옴 결정 매트릭스
 	static const EHktBiomeType BiomeMatrix[3][3] = {
@@ -121,7 +97,7 @@ EHktBiomeType FHktTerrainBiomeMap::GetBiome(double WorldX, double WorldY) const
 	return BiomeMatrix[TempBand][HumBand];
 }
 
-EHktBiomeType FHktTerrainBiomeMap::GetBiomeWithHeight(double WorldX, double WorldY, double Height) const
+EHktBiomeType FHktTerrainBiomeMap::GetBiomeWithHeight(Fixed WorldX, Fixed WorldY, Fixed Height) const
 {
 	if (Height >= MountainThreshold)
 	{
