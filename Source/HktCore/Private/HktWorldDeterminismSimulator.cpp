@@ -243,6 +243,17 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
                 }
             }
 
+            // Archetype 정보
+            EHktArchetype ArchType = WorldState.EntityArchetypes[Slot];
+            if (ArchType != EHktArchetype::None)
+            {
+                const FHktArchetypeMetadata* Meta = FHktArchetypeRegistry::Get().Find(ArchType);
+                if (Meta)
+                {
+                    PropSummary += FString::Printf(TEXT(" | Archetype=%s"), Meta->Name);
+                }
+            }
+
             const FGameplayTagContainer& SlotTags = WorldState.GetTagsBySlot(Slot);
             PropSummary += FString::Printf(TEXT(" | Tags=%s"), *SlotTags.ToStringSimple());
             PropSummary += FString::Printf(TEXT(" | Owner=%lld"), WorldState.GetOwnerUid(Id));
