@@ -16,6 +16,9 @@ namespace HktStoryTags
 	// --- NPC Flow ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle,             "Story.Flow.NPC.Lifecycle",   "NPC lifecycle management (death/despawn).");
 
+	// --- Debris Flow ---
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Debris_Lifecycle,          "Story.Flow.Debris.Lifecycle", "Terrain debris lifecycle (death/despawn).");
+
 	// --- Anim ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Spawn, "Anim.FullBody.Action.Spawn", "Spawn intro state tag.");
 

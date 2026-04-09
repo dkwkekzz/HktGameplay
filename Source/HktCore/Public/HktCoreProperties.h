@@ -190,6 +190,9 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(VoxelSkinSet,    Cold)   // 65
     HKT_DEFINE_PROPERTY(VoxelPalette,    Cold)   // 66
 
+    // 지형 파편
+    HKT_DEFINE_PROPERTY(TerrainTypeId,   Cold)   // 67 — Debris 엔티티의 원래 복셀 TypeID
+
     // ================================================================
     // 메타데이터 질의 — Registry에서 자동 집계
     // ================================================================

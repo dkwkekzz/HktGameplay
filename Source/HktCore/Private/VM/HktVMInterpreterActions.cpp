@@ -10,6 +10,8 @@
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
 #include "Terrain/HktTerrainState.h"
+#include "Terrain/HktTerrainDestructibility.h"
+#include "HktSimulationSystems.h"
 
 // ============================================================================
 // Helper
@@ -735,6 +737,150 @@ void FHktVMInterpreter::Op_IsTerrainSolid(FHktVMRuntime& Runtime, RegisterIndex 
     const int32 Z = Runtime.GetReg(ZReg);
     const bool bSolid = TerrainState->IsSolid(X, Y, Z);
     Runtime.SetReg(Dst, bSolid ? 1 : 0);
+}
+
+// ============================================================================
+// Terrain — FindTerrainInRadius (entity + terrain 통합 검색)
+// ============================================================================
+
+void FHktVMInterpreter::Op_FindTerrainInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm)
+{
+    Runtime.SpatialQuery.Reset();
+
+    if (!WorldState || !Runtime.Context)
+    {
+        Runtime.SetReg(Reg::Count, 0);
+        return;
+    }
+
+    const FHktEntityId Center = Runtime.GetRegEntity(CenterEntity);
+    const int32 CX = Runtime.Context->ReadEntity(Center, PropertyId::PosX);
+    const int32 CY = Runtime.Context->ReadEntity(Center, PropertyId::PosY);
+    const int32 CZ = Runtime.Context->ReadEntity(Center, PropertyId::PosZ);
+    const uint32 FilterMask = static_cast<uint32>(Runtime.Context->ReadEntity(Center, PropertyId::CollisionMask));
+    const int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
+
+    // --- Phase 1: entity 검색 (기존 FindInRadius 동일) ---
+    WorldState->ForEachEntity([&](FHktEntityId E, int32 /*SlotIndex*/)
+    {
+        if (E == Center)
+            return;
+
+        if (FilterMask != 0)
+        {
+            uint32 TargetLayer = static_cast<uint32>(WorldState->GetProperty(E, PropertyId::CollisionLayer));
+            if (TargetLayer != 0 && !(TargetLayer & FilterMask))
+                return;
+        }
+
+        FIntVector EP = WorldState->GetPosition(E);
+        int64 DX = EP.X - CX;
+        int64 DY = EP.Y - CY;
+        int64 DZ = EP.Z - CZ;
+
+        if (DX * DX + DY * DY + DZ * DZ <= RadiusSq)
+            Runtime.SpatialQuery.Entities.Add(E);
+    });
+
+    // --- Phase 2: terrain voxel 스캔 ---
+    if (TerrainState && PendingVoxelDeltas && VMProxy)
+    {
+        const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(CX, CY, CZ);
+        const int32 VoxelRadius = FMath::CeilToInt(static_cast<float>(RadiusCm) / FHktTerrainSystem::VoxelSizeCm);
+
+        static constexpr int32 MaxDebrisPerQuery = 8;  // 한 번의 공격에 생성되는 최대 Debris 수
+        int32 DebrisCount = 0;
+
+        // Entity.Debris ClassTag 해석 (정적 캐싱)
+        static FGameplayTag DebrisClassTag;
+        if (!DebrisClassTag.IsValid())
+        {
+            DebrisClassTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Debris")));
+        }
+
+        // DebrisLifecycle Story Tag
+        static FGameplayTag DebrisLifecycleTag;
+        if (!DebrisLifecycleTag.IsValid())
+        {
+            DebrisLifecycleTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Story.Flow.Debris.Lifecycle")));
+        }
+
+        for (int32 dz = -VoxelRadius; dz <= VoxelRadius && DebrisCount < MaxDebrisPerQuery; ++dz)
+        {
+            for (int32 dy = -VoxelRadius; dy <= VoxelRadius && DebrisCount < MaxDebrisPerQuery; ++dy)
+            {
+                for (int32 dx = -VoxelRadius; dx <= VoxelRadius && DebrisCount < MaxDebrisPerQuery; ++dx)
+                {
+                    const int32 VX = CenterVoxel.X + dx;
+                    const int32 VY = CenterVoxel.Y + dy;
+                    const int32 VZ = CenterVoxel.Z + dz;
+
+                    // cm 단위 거리 체크
+                    const FIntVector VCm = FHktTerrainSystem::VoxelToCm(VX, VY, VZ);
+                    const int64 DDX = VCm.X - CX;
+                    const int64 DDY = VCm.Y - CY;
+                    const int64 DDZ = VCm.Z - CZ;
+                    if (DDX * DDX + DDY * DDY + DDZ * DDZ > RadiusSq)
+                        continue;
+
+                    // 파괴 가능 여부 확인
+                    const uint16 TypeId = TerrainState->GetVoxelType(VX, VY, VZ);
+                    if (TypeId == 0 || !HktTerrainDestructibility::IsDestructible(TypeId))
+                        continue;
+
+                    // a. voxel 제거 (Air로 설정)
+                    FHktTerrainVoxel EmptyVoxel;
+                    EmptyVoxel.TypeID = 0;
+                    EmptyVoxel.PaletteIndex = 0;
+                    EmptyVoxel.Flags = 0;
+                    TerrainState->SetVoxel(VX, VY, VZ, EmptyVoxel, *PendingVoxelDeltas);
+
+                    // b. Debris entity 생성
+                    const FHktEntityId DebrisId = WorldState->AllocateEntity();
+
+                    VMProxy->AddTag(*WorldState, DebrisId, DebrisClassTag);
+                    WorldState->SetArchetype(DebrisId, EHktArchetype::Debris);
+
+                    // 프로퍼티 설정
+                    const int32 DebrisHealth = HktTerrainDestructibility::GetHealth(TypeId);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::PosX, VCm.X);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::PosY, VCm.Y);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::PosZ, VCm.Z);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::Health, DebrisHealth);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::MaxHealth, DebrisHealth);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::TerrainTypeId, static_cast<int32>(TypeId));
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::CollisionRadius, 15);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::Mass, 1);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::IsGrounded, 1);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::CollisionLayer,
+                        static_cast<int32>(GetDefaultCollisionLayer(DebrisClassTag)));
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::CollisionMask,
+                        static_cast<int32>(GetDefaultCollisionMask(DebrisClassTag)));
+
+                    // EntitySpawnTag for presentation
+                    FGameplayTagNetIndex NetIndex = UGameplayTagsManager::Get().GetNetIndexFromTag(DebrisClassTag);
+                    Runtime.Context->WriteEntity(DebrisId, PropertyId::EntitySpawnTag, static_cast<int32>(NetIndex));
+
+                    // c. lifecycle dispatch
+                    FHktEvent LifecycleEvt;
+                    LifecycleEvt.EventTag = DebrisLifecycleTag;
+                    LifecycleEvt.SourceEntity = DebrisId;
+                    LifecycleEvt.PlayerUid = Runtime.PlayerUid;
+                    Runtime.PendingDispatchedEvents.Add(LifecycleEvt);
+
+                    // d. SpatialQuery에 추가
+                    Runtime.SpatialQuery.Entities.Add(DebrisId);
+                    ++DebrisCount;
+                }
+            }
+        }
+    }
+
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("FindTerrainInRadius Center=%d Radius=%d Found=%d"),
+            Center, RadiusCm, Runtime.SpatialQuery.Entities.Num()));
+
+    Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
 }
 
 // ============================================================================

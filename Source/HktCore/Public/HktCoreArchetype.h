@@ -18,6 +18,7 @@ enum class EHktArchetype : uint8
     Item,
     Projectile,
     Building,
+    Debris,
     Max
 };
 

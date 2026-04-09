@@ -420,6 +420,10 @@ public:
     /** ForEach 편의 메서드 (FindInRadius + 루프) */
     FHktStoryBuilder& ForEachInRadius(RegisterIndex CenterEntity, int32 RadiusCm);
     FHktStoryBuilder& ForEachInRadiusEx(RegisterIndex CenterEntity, int32 RadiusCm, uint32 FilterMask);
+
+    /** ForEach: entity + terrain 통합 검색 (파괴 가능 terrain voxel을 Debris entity로 변환) */
+    FHktStoryBuilder& ForEachInRadiusTerrain(RegisterIndex CenterEntity, int32 RadiusCm);
+
     FHktStoryBuilder& EndForEach();
 
     // ========== Combat (조합 연산) ==========

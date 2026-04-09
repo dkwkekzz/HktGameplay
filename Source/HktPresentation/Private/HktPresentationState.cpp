@@ -110,6 +110,9 @@ namespace
 			T[PropertyId::VoxelPalette] = [](FHktEntityPresentation& E, int32 V, int64 F) { E.VoxelPalette.Set(V, F); };
 			T[PropertyId::Equippable]   = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Equippable.Set(V, F); };
 
+			// --- Terrain Debris ---
+			T[PropertyId::TerrainTypeId] = [](FHktEntityPresentation& E, int32 V, int64 F) { E.TerrainTypeId.Set(V, F); };
+
 			return T;
 		}();
 		return Table;

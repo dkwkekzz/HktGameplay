@@ -212,4 +212,12 @@ void InitializeHktArchetypes()
         {
             HktProperty::Health, HktProperty::MaxHealth, HktProperty::Team,
         });
+
+    R.Register(EHktArchetype::Debris, TEXT("Debris"),
+        HktArchetypeTags::Entity_Debris,
+        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable},
+        {
+            HktProperty::Health, HktProperty::MaxHealth,
+            HktProperty::TerrainTypeId,
+        });
 }

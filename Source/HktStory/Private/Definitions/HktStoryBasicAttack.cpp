@@ -71,8 +71,8 @@ namespace HktStoryBasicAttack
 		B	// === 3. 히트테스트 준비 ===
 			.ReadProperty(atkPow, PropertyId::AttackPower)       // atkPow = 공격력 (루프 내 보존)
 
-			// === 4. 히트테스트 영역 — 공간 쿼리만 수행, 물리 영향 없음 ===
-			.ForEachInRadius(Self, DefaultAttackRange)
+			// === 4. 히트테스트 영역 — 공간 쿼리 + terrain 파괴 포함 ===
+			.ForEachInRadiusTerrain(Self, DefaultAttackRange)
 				// Self 제외
 				.IfNe(Iter, Self)
 
