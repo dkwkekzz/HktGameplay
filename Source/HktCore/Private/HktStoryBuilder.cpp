@@ -1138,6 +1138,7 @@ FHktStoryBuilder& FHktStoryBuilder::IsTerrainSolid(RegisterIndex Dst, RegisterIn
     return *this;
 }
 
+
 FHktStoryBuilder& FHktStoryBuilder::EntityPosToVoxel(RegisterIndex OutVoxelBase, RegisterIndex Entity)
 {
     // 조합 연산: 엔티티 cm 위치를 복셀 좌표로 변환

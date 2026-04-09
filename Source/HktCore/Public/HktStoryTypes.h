@@ -296,11 +296,11 @@ struct FHktRegReserve
     /* Movement */          \
     X(SetForwardTarget, _, R, _) \
     /* Terrain */           \
-    X(GetTerrainHeight, W, R, R) \
-    X(GetVoxelType,     W, R, R) \
-    X(SetVoxel,         _, R, R) \
-    X(IsTerrainSolid,   W, R, R) \
-    X(FindTerrainInRadius, _, R, _) \
+    X(GetTerrainHeight,      W, R, R) \
+    X(GetVoxelType,          W, R, R) \
+    X(SetVoxel,              _, R, R) \
+    X(IsTerrainSolid,        W, R, R) \
+    X(FindTerrainInRadius,   _, R, _) \
     /* Utility */           \
     X(Log,              _, _, _)
 

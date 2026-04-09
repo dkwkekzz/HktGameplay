@@ -21,6 +21,7 @@ namespace HktTerrainType
 	constexpr uint16 Gravel  = 8;
 	constexpr uint16 Clay    = 9;
 	constexpr uint16 Bedrock = 10;
+	constexpr uint16 Glass   = 11;  // FLAG_TRANSLUCENT | FLAG_DESTRUCTIBLE, Shatter 효과
 }
 
 /** 테레인 팔레트 행 (PaletteTexture의 Row 32~63을 테레인용으로 예약) */
