@@ -12,6 +12,7 @@ namespace HktTrait
     const FHktPropertyTrait* Spatial    = nullptr;
     const FHktPropertyTrait* Movable    = nullptr;
     const FHktPropertyTrait* Collidable = nullptr;
+    const FHktPropertyTrait* Hittable   = nullptr;
     const FHktPropertyTrait* Combatable = nullptr;
     const FHktPropertyTrait* Animated   = nullptr;
     const FHktPropertyTrait* EventParam = nullptr;
@@ -114,6 +115,21 @@ EHktArchetype FHktArchetypeRegistry::FindByName(const TCHAR* Name) const
     return EHktArchetype::None;
 }
 
+int32 FHktArchetypeRegistry::GetTraitIndex(const FHktPropertyTrait* Trait) const
+{
+    for (int32 i = 0; i < TraitCount; ++i)
+    {
+        if (&TraitStorage[i] == Trait) return i;
+    }
+    return -1;
+}
+
+const FHktPropertyTrait* FHktArchetypeRegistry::GetTraitByIndex(int32 Index) const
+{
+    if (Index < 0 || Index >= TraitCount) return nullptr;
+    return &TraitStorage[Index];
+}
+
 // ============================================================================
 // InitializeHktArchetypes
 // ============================================================================
@@ -139,6 +155,11 @@ void InitializeHktArchetypes()
     HktTrait::Collidable = R.DefineTrait(TEXT("Collidable"), {
         HktProperty::CollisionLayer, HktProperty::CollisionMask,
         HktProperty::CollisionRadius, HktProperty::Mass,
+    });
+
+    // Hittable: 피격 가능 대상의 최소 조건 (Character, NPC, Building, Debris 공통)
+    HktTrait::Hittable = R.DefineTrait(TEXT("Hittable"), {
+        HktProperty::Health, HktProperty::MaxHealth,
     });
 
     HktTrait::Combatable = R.DefineTrait(TEXT("Combatable"), {
@@ -173,7 +194,7 @@ void InitializeHktArchetypes()
 
     R.Register(EHktArchetype::Character, TEXT("Character"),
         HktArchetypeTags::Entity_Character,
-        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
+        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Combatable,
          HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam, HktTrait::EquipSlots},
         {
             HktProperty::Mana, HktProperty::MaxMana,
@@ -182,7 +203,7 @@ void InitializeHktArchetypes()
 
     R.Register(EHktArchetype::NPC, TEXT("NPC"),
         HktArchetypeTags::Entity_NPC,
-        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
+        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Combatable,
          HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam},
         {
             HktProperty::IsNPC, HktProperty::SpawnFlowTag,
@@ -208,16 +229,15 @@ void InitializeHktArchetypes()
 
     R.Register(EHktArchetype::Building, TEXT("Building"),
         HktArchetypeTags::Entity_Building,
-        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable},
+        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Ownable},
         {
-            HktProperty::Health, HktProperty::MaxHealth, HktProperty::Team,
+            HktProperty::Team,
         });
 
     R.Register(EHktArchetype::Debris, TEXT("Debris"),
         HktArchetypeTags::Entity_Debris,
-        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable},
+        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Ownable},
         {
-            HktProperty::Health, HktProperty::MaxHealth,
             HktProperty::TerrainTypeId,
         });
 }

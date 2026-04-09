@@ -443,6 +443,15 @@ public:
     /** 엔티티가 태그를 가지고 있는지 확인 → Dst (1/0) */
     FHktStoryBuilder& HasTag(RegisterIndex Dst, RegisterIndex Entity, const FGameplayTag& Tag);
 
+    /** 엔티티의 Archetype이 Trait을 포함하면 Dst=1, 아니면 0 */
+    FHktStoryBuilder& CheckTrait(RegisterIndex Dst, RegisterIndex Entity, const FHktPropertyTrait* Trait);
+
+    /** 엔티티의 Archetype이 Trait을 포함하면 블록 진입 (IfHasTrait ~ EndIf) */
+    FHktStoryBuilder& IfHasTrait(RegisterIndex Entity, const FHktPropertyTrait* Trait);
+
+    /** Story 전제조건: Self가 Trait을 가져야 실행 — C++ precondition 자동 등록 */
+    FHktStoryBuilder& RequiresTrait(const FHktPropertyTrait* Trait);
+
     // ========== Presentation ==========
 
     /** 이펙트 적용 (버프/디버프) */

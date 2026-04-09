@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
+#include "HktCoreArchetype.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 #include "Snippets/HktSnippetCombat.h"
@@ -77,6 +78,7 @@ namespace HktStoryLightning
 			.PlaySoundAtLocation(targetPos, Sound_ThunderExplosion)
 
 			.ForEachInRadius(Target, 200)               // Target 주변 200cm 내 적들
+				.IfHasTrait(Iter, HktTrait::Hittable)
 				.Move(r6, Iter)
 				.ApplyDamageConst(r6, 30)               // 30 피해
 				.ApplyEffect(r6, Effect_Shock);
@@ -84,7 +86,8 @@ namespace HktStoryLightning
 			// AoE 사망 판정
 			HktSnippetCombat::CheckDeath(B, r6, Tag_State_Dead);
 
-		B	.EndForEach()
+		B	.EndIf()
+			.EndForEach()
 
 			// 시전 상태 태그 제거
 			.RemoveTag(Self, Tag_Anim_UpperBody_Cast_Lightning)

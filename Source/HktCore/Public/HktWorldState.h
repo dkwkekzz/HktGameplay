@@ -157,6 +157,14 @@ struct HKTCORE_API FHktWorldState
         EntityArchetypes[EntitySlots[Entity]] = Arch;
     }
 
+    /** 엔티티의 Archetype이 해당 Trait을 포함하는지 확인 */
+    FORCEINLINE bool HasTrait(FHktEntityId Entity, const FHktPropertyTrait* Trait) const
+    {
+        if (!IsValidEntity(Entity)) return false;
+        const FHktArchetypeMetadata* Meta = FHktArchetypeRegistry::Get().Find(GetArchetype(Entity));
+        return Meta && Meta->HasTrait(Trait);
+    }
+
     // --- Owner Access ---
     FORCEINLINE int64 GetOwnerUid(FHktEntityId Entity) const
     {

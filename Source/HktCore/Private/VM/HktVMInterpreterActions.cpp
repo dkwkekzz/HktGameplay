@@ -399,6 +399,19 @@ void FHktVMInterpreter::Op_HasTag(FHktVMRuntime& Runtime, RegisterIndex Dst, Reg
     Runtime.SetReg(Dst, bHas ? 1 : 0);
 }
 
+void FHktVMInterpreter::Op_CheckTrait(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Entity, int32 TraitIndex)
+{
+    bool bHas = false;
+    if (WorldState)
+    {
+        FHktEntityId E = Runtime.GetRegEntity(Entity);
+        const FHktPropertyTrait* Trait = FHktArchetypeRegistry::Get().GetTraitByIndex(TraitIndex);
+        if (Trait)
+            bHas = WorldState->HasTrait(E, Trait);
+    }
+    Runtime.SetReg(Dst, bHas ? 1 : 0);
+}
+
 // ============================================================================
 // NPC Spawning
 // ============================================================================

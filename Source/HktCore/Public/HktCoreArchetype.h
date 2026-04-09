@@ -82,6 +82,12 @@ public:
     EHktArchetype FindByTag(const FGameplayTag& Tag) const;
     EHktArchetype FindByName(const TCHAR* Name) const;
 
+    /** Trait → 레지스트리 인덱스 (bytecode 인코딩용). 미등록 Trait이면 -1 반환 */
+    int32 GetTraitIndex(const FHktPropertyTrait* Trait) const;
+
+    /** 인덱스 → Trait 포인터 (VM 런타임 역조회용). 범위 외이면 nullptr 반환 */
+    const FHktPropertyTrait* GetTraitByIndex(int32 Index) const;
+
 private:
     FHktArchetypeMetadata Archetypes[static_cast<int>(EHktArchetype::Max)];
 
@@ -99,6 +105,7 @@ namespace HktTrait
     HKTCORE_API extern const FHktPropertyTrait* Spatial;
     HKTCORE_API extern const FHktPropertyTrait* Movable;
     HKTCORE_API extern const FHktPropertyTrait* Collidable;
+    HKTCORE_API extern const FHktPropertyTrait* Hittable;    // Health/MaxHealth — 피격 가능 대상 (Character, NPC, Building, Debris)
     HKTCORE_API extern const FHktPropertyTrait* Combatable;
     HKTCORE_API extern const FHktPropertyTrait* Animated;
     HKTCORE_API extern const FHktPropertyTrait* EventParam;

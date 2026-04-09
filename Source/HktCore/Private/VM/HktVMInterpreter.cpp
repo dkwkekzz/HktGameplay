@@ -106,7 +106,8 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     // Tags
     case EOpCode::AddTag:    Op_AddTag(Runtime, Inst.Src1, Inst.Imm12); break;
     case EOpCode::RemoveTag: Op_RemoveTag(Runtime, Inst.Src1, Inst.Imm12); break;
-    case EOpCode::HasTag:    Op_HasTag(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::HasTag:     Op_HasTag(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
+    case EOpCode::CheckTrait: Op_CheckTrait(Runtime, Inst.Dst, Inst.Src1, Inst.Imm12); break;
     // NPC Spawning
     case EOpCode::CountByTag: Op_CountByTag(Runtime, Inst.Dst, Inst.Imm12); break;
     case EOpCode::GetWorldTime: Op_GetWorldTime(Runtime, Inst.Dst); break;
