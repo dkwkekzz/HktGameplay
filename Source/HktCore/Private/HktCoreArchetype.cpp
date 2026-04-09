@@ -12,6 +12,7 @@ namespace HktTrait
     const FHktPropertyTrait* Spatial    = nullptr;
     const FHktPropertyTrait* Movable    = nullptr;
     const FHktPropertyTrait* Collidable = nullptr;
+    const FHktPropertyTrait* Hittable   = nullptr;
     const FHktPropertyTrait* Combatable = nullptr;
     const FHktPropertyTrait* Animated   = nullptr;
     const FHktPropertyTrait* EventParam = nullptr;
@@ -156,6 +157,11 @@ void InitializeHktArchetypes()
         HktProperty::CollisionRadius, HktProperty::Mass,
     });
 
+    // Hittable: 피격 가능 대상의 최소 조건 (Character, NPC, Building, Debris 공통)
+    HktTrait::Hittable = R.DefineTrait(TEXT("Hittable"), {
+        HktProperty::Health, HktProperty::MaxHealth,
+    });
+
     HktTrait::Combatable = R.DefineTrait(TEXT("Combatable"), {
         HktProperty::Health, HktProperty::MaxHealth,
         HktProperty::AttackPower, HktProperty::Defense, HktProperty::Team,
@@ -188,7 +194,7 @@ void InitializeHktArchetypes()
 
     R.Register(EHktArchetype::Character, TEXT("Character"),
         HktArchetypeTags::Entity_Character,
-        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
+        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Combatable,
          HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam, HktTrait::EquipSlots},
         {
             HktProperty::Mana, HktProperty::MaxMana,
@@ -197,7 +203,7 @@ void InitializeHktArchetypes()
 
     R.Register(EHktArchetype::NPC, TEXT("NPC"),
         HktArchetypeTags::Entity_NPC,
-        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Combatable,
+        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Combatable,
          HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam},
         {
             HktProperty::IsNPC, HktProperty::SpawnFlowTag,
@@ -223,16 +229,15 @@ void InitializeHktArchetypes()
 
     R.Register(EHktArchetype::Building, TEXT("Building"),
         HktArchetypeTags::Entity_Building,
-        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable},
+        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Ownable},
         {
-            HktProperty::Health, HktProperty::MaxHealth, HktProperty::Team,
+            HktProperty::Team,
         });
 
     R.Register(EHktArchetype::Debris, TEXT("Debris"),
         HktArchetypeTags::Entity_Debris,
-        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable},
+        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Ownable},
         {
-            HktProperty::Health, HktProperty::MaxHealth,
             HktProperty::TerrainTypeId,
         });
 }

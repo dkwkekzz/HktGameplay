@@ -105,6 +105,7 @@ namespace HktTrait
     HKTCORE_API extern const FHktPropertyTrait* Spatial;
     HKTCORE_API extern const FHktPropertyTrait* Movable;
     HKTCORE_API extern const FHktPropertyTrait* Collidable;
+    HKTCORE_API extern const FHktPropertyTrait* Hittable;    // Health/MaxHealth — 피격 가능 대상 (Character, NPC, Building, Debris)
     HKTCORE_API extern const FHktPropertyTrait* Combatable;
     HKTCORE_API extern const FHktPropertyTrait* Animated;
     HKTCORE_API extern const FHktPropertyTrait* EventParam;
