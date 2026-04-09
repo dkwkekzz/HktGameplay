@@ -21,8 +21,8 @@ enum class EHktVoxelPhase : uint8
 /**
  * EHktVoxelMoveModifier - 이 복셀 위/안에 있을 때 이동 보정
  *
- * Movement system이 매 틱 발판 또는 현재 위치의 복셀을 조회하여
- * 엔티티의 속도 / 마찰을 조정한다. VM에서 조회 가능.
+ * HktSimulationSystems(C++)의 Movement system이 매 틱 발판 복셀을 조회하여
+ * 엔티티의 속도 / 마찰을 조정한다.
  *
  * 실제 속도 계산 예:
  *   최종속도 = (MoveSpeedPct / 100) * 기본속도
@@ -64,11 +64,10 @@ enum class EHktVoxelDestroyEffect : uint8
  * HktCore 내 복셀 처리의 단일 진실 소스(Single Source of Truth).
  *
  * 각 시스템이 이 구조체를 참조한다:
- *   TerrainState::SetVoxel            — AutoFlags 자동 설정
- *   VM::Op_GetVoxelPhase              — Phase 쿼리
- *   VM::Op_GetVoxelMoveModifier       — MoveModifier 쿼리
- *   VM::Op_FindTerrainInRadius        — DestroyEffect 기반 이벤트 디스패치
- *   HktTerrainDestructibility         — bDestructible / Health 위임
+ *   TerrainState::SetVoxel       — AutoFlags 자동 설정
+ *   VM::FindTerrainInRadius      — bDestructible 체크 + DestroyEffect 기반 이벤트 디스패치
+ *   HktTerrainDestructibility    — bDestructible / Health 위임 (하위 호환)
+ *   HktSimulationSystems         — Phase / MoveModifier / bGravity / bFlowable 참조
  *
  * 순수 C++ — UObject/UWorld 참조 없음.
  */

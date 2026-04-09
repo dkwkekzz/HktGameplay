@@ -10,7 +10,6 @@
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
 #include "Terrain/HktTerrainState.h"
-#include "Terrain/HktTerrainDestructibility.h"
 #include "Terrain/HktTerrainVoxelDef.h"
 #include "HktSimulationSystems.h"
 
