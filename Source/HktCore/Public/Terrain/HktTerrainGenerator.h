@@ -11,34 +11,37 @@
  * FHktTerrainGeneratorConfig
  *
  * 지형 생성 파라미터. 시드 + 지형 형태 + 수면 높이 등을 정의한다.
+ * 모든 연속 값은 FHktFixed32 (Q16.16) — 결정론 보장.
  */
 struct HKTCORE_API FHktTerrainGeneratorConfig
 {
+	using Fixed = FHktFixed32;
+
 	int64 Seed = 42;
 
 	// 지형 형태
-	double HeightScale     = 64.0;   // 최대 높이 (복셀 단위)
-	double HeightOffset    = 32.0;   // 기본 해수면 높이
-	double TerrainFreq     = 0.008;  // 지형 노이즈 주파수 (작을수록 완만)
-	int32  TerrainOctaves  = 6;      // FBM 옥타브 수
-	double Lacunarity      = 2.0;
-	double Persistence     = 0.5;
+	Fixed HeightScale     = Fixed::FromRaw(64 * 65536);    // 64.0
+	Fixed HeightOffset    = Fixed::FromRaw(32 * 65536);    // 32.0
+	Fixed TerrainFreq     = Fixed::FromRaw(524);           // 0.008 * 65536 ≈ 524
+	int32 TerrainOctaves  = 6;
+	Fixed Lacunarity      = Fixed::FromRaw(2 * 65536);     // 2.0
+	Fixed Persistence     = Fixed::FromRaw(32768);          // 0.5
 
 	// 산악
-	double MountainFreq    = 0.004;  // 산악 리지 주파수
-	double MountainBlend   = 0.4;    // FBM과 Ridged 혼합 비율 (0=FBM only, 1=Ridge only)
+	Fixed MountainFreq    = Fixed::FromRaw(262);           // 0.004 * 65536 ≈ 262
+	Fixed MountainBlend   = Fixed::FromRaw(26214);         // 0.4 * 65536 ≈ 26214
 
 	// 수면
-	double WaterLevel      = 30.0;   // 해수면 높이 (복셀 단위)
+	Fixed WaterLevel      = Fixed::FromRaw(30 * 65536);    // 30.0
 
 	// 동굴
-	bool   bEnableCaves    = true;
-	double CaveFreq        = 0.03;   // 동굴 노이즈 주파수
-	double CaveThreshold   = 0.6;    // 이 값 이상이면 동굴 공간
+	bool  bEnableCaves    = true;
+	Fixed CaveFreq        = Fixed::FromRaw(1966);          // 0.03 * 65536 ≈ 1966
+	Fixed CaveThreshold   = Fixed::FromRaw(39322);         // 0.6 * 65536 ≈ 39322
 
 	// 바이옴
-	double BiomeNoiseScale = 0.002;  // 바이옴 노이즈 스케일
-	double MountainBiomeThreshold = 80.0;
+	Fixed BiomeNoiseScale = Fixed::FromRaw(131);           // 0.002 * 65536 ≈ 131
+	Fixed MountainBiomeThreshold = Fixed::FromRaw(80 * 65536); // 80.0
 
 	// 청크 크기 (HktVoxelCore와 동일)
 	static constexpr int32 ChunkSize = 32;
@@ -51,6 +54,7 @@ struct HKTCORE_API FHktTerrainGeneratorConfig
  * 청크 좌표를 입력하면 32×32×32 FHktVoxel 배열을 채운다.
  *
  * 순수 C++ — VM(HktCore)에서 실행 가능.
+ * 모든 연산은 FHktFixed32 고정소수점 → cross-platform 결정론 보장.
  *
  * 생성 파이프라인:
  *   1. 하이트맵: FBM + RidgedMulti 혼합 → 표면 높이 결정
@@ -62,6 +66,8 @@ struct HKTCORE_API FHktTerrainGeneratorConfig
 class HKTCORE_API FHktTerrainGenerator
 {
 public:
+	using Fixed = FHktFixed32;
+
 	explicit FHktTerrainGenerator(const FHktTerrainGeneratorConfig& Config);
 
 	/**
@@ -74,10 +80,10 @@ public:
 
 	/**
 	 * 특정 월드 좌표의 표면 높이를 반환한다.
-	 * @param WorldX, WorldY  월드 복셀 좌표
-	 * @return  표면 높이 (복셀 단위)
+	 * @param WorldX, WorldY  월드 복셀 좌표 (고정소수점)
+	 * @return  표면 높이 (고정소수점, 복셀 단위)
 	 */
-	double GetSurfaceHeight(double WorldX, double WorldY) const;
+	Fixed GetSurfaceHeight(Fixed WorldX, Fixed WorldY) const;
 
 	/** 설정 변경 (노이즈 재생성) */
 	void Reconfigure(const FHktTerrainGeneratorConfig& NewConfig);
@@ -99,10 +105,10 @@ private:
 
 	/** 높이 기반 재질 결정 */
 	FHktTerrainVoxel DetermineVoxel(
-		double WorldX, double WorldY, double WorldZ,
-		double SurfaceHeight, EHktBiomeType Biome,
+		Fixed WorldX, Fixed WorldY, Fixed WorldZ,
+		Fixed SurfaceHeight, EHktBiomeType Biome,
 		const FHktBiomeMaterialRule& Rule) const;
 
 	/** 동굴 여부 판정 */
-	bool IsCave(double WorldX, double WorldY, double WorldZ, double SurfaceHeight) const;
+	bool IsCave(Fixed WorldX, Fixed WorldY, Fixed WorldZ, Fixed SurfaceHeight) const;
 };
