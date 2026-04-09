@@ -31,4 +31,15 @@ namespace HktStoryTags
 
 	// --- Sound ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sound_Spawn,                  "Sound.Spawn",              "Character spawn sound.");
+
+	// --- Voxel Interaction Stories ---
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Voxel_Break,            "Story.Voxel.Break",        "Voxel break interaction (Grass/Dirt/Stone/Snow/Clay).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Voxel_Shatter,          "Story.Voxel.Shatter",      "Voxel shatter interaction (Glass — multiple fragments).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Voxel_Crumble,          "Story.Voxel.Crumble",      "Voxel crumble interaction (Sand/Gravel — gravity).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Voxel_Crack,            "Story.Voxel.Crack",        "Voxel crack interaction (Ice — pop-up chunk).");
+
+	// --- Debris Entity Sub-Tags ---
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Debris_Glass,          "Entity.Debris.Glass",      "Glass debris entity (shatter fragments).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Debris_Crumble,        "Entity.Debris.Crumble",    "Crumble debris entity (gravity-based).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Debris_Ice,            "Entity.Debris.Ice",        "Ice debris entity (crack chunk).");
 }
