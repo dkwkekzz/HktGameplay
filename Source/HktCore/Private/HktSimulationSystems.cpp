@@ -49,6 +49,12 @@ static TAutoConsoleVariable<float> CVarJumpMaxFallSpeed(
     TEXT("Maximum falling speed for jumping entities (cm/s)."),
     ECVF_Default);
 
+static TAutoConsoleVariable<float> CVarTerrainMaxStepHeight(
+    TEXT("hkt.Terrain.MaxStepHeight"),
+    30.0f, // 2 복셀 × 15cm — 이 높이 이하의 단차는 자동으로 올라감
+    TEXT("Maximum terrain step height an entity can walk over (cm). Steps above this block movement."),
+    ECVF_Default);
+
 static TAutoConsoleVariable<float> CVarPhysicsSoftPushRatio(
     TEXT("hkt.Physics.SoftPushRatio"),
     0.5f, // 프레임당 겹침의 10%만 보정 — 일반 이동 시 거의 안 밀림
@@ -733,8 +739,8 @@ void FHktMovementSystem::Process(
             const int32 NewSurfaceVoxelZ = FindFloorVoxelZ(*TerrainState, NewVoxelPos.X, NewVoxelPos.Y, NewVoxelPos.Z);
             const float NewSurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, NewSurfaceVoxelZ).Z);
 
-            // 측면 충돌: 최대 계단 높이(2 복셀 = 30cm)를 초과하면 XY 이동 차단
-            constexpr float MaxStepHeightCm = 30.0f;
+            // 측면 충돌: 최대 계단 높이를 초과하면 XY 이동 차단
+            const float MaxStepHeightCm = CVarTerrainMaxStepHeight.GetValueOnAnyThread();
             if (NewSurfaceCmZ > CurZ + MaxStepHeightCm)
             {
                 // 벽/절벽: XY 이동 취소, 현재 지면 유지
