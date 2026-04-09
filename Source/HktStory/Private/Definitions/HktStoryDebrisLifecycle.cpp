@@ -68,22 +68,19 @@ namespace HktStoryDebrisLifecycle
 
 			// 시간 초과 → 지형 복원 후 파괴
 			.Label(TEXT("expire"))
-				// 원본 위치 확인 — DebrisOriginX가 0이면 복원 책임 없음 (다중 파편의 시각 전용 Debris)
-				// Note: VoxelToCm은 항상 ±7.5 오프셋을 가지므로 유효한 복셀의 cm X는 0이 될 수 없다.
-				.LoadStoreEntity(voxelPos, Self, PropertyId::DebrisOriginX)
-				.IfNeConst(voxelPos, 0)
-					.LoadStoreEntity(static_cast<RegisterIndex>(voxelPos + 1), Self, PropertyId::DebrisOriginY)
-					.LoadStoreEntity(static_cast<RegisterIndex>(voxelPos + 2), Self, PropertyId::DebrisOriginZ)
-					// cm → 복셀 좌표 변환 (÷15)
-					.LoadConst(r0, 15)
-					.Div(voxelPos,                                     voxelPos,                                     r0)
-					.Div(static_cast<RegisterIndex>(voxelPos + 1),     static_cast<RegisterIndex>(voxelPos + 1),     r0)
-					.Div(static_cast<RegisterIndex>(voxelPos + 2),     static_cast<RegisterIndex>(voxelPos + 2),     r0)
-					// 원래 TypeId 읽기
-					.LoadStoreEntity(typeReg, Self, PropertyId::TerrainTypeId)
-					// 복셀 복원
-					.SetVoxel(voxelPos, typeReg)
-				.EndIf()
+				// 원래 복셀 위치 읽기 (cm)
+				.LoadStoreEntity(voxelPos,                                     Self, PropertyId::DebrisOriginX)
+				.LoadStoreEntity(static_cast<RegisterIndex>(voxelPos + 1),     Self, PropertyId::DebrisOriginY)
+				.LoadStoreEntity(static_cast<RegisterIndex>(voxelPos + 2),     Self, PropertyId::DebrisOriginZ)
+				// cm → 복셀 좌표 변환 (÷15)
+				.LoadConst(r0, 15)
+				.Div(voxelPos,                                     voxelPos,                                     r0)
+				.Div(static_cast<RegisterIndex>(voxelPos + 1),     static_cast<RegisterIndex>(voxelPos + 1),     r0)
+				.Div(static_cast<RegisterIndex>(voxelPos + 2),     static_cast<RegisterIndex>(voxelPos + 2),     r0)
+				// 원래 TypeId 읽기
+				.LoadStoreEntity(typeReg, Self, PropertyId::TerrainTypeId)
+				// 복셀 복원
+				.SetVoxel(voxelPos, typeReg)
 				.DestroyEntity(Self)
 				.Halt()
 
