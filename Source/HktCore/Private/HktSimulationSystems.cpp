@@ -565,6 +565,36 @@ void FHktTerrainSystem::Process(
 // 3.5 Movement System
 // ============================================================================
 
+// 현재 위치에서 아래로 스캔하여 서 있을 바닥 복셀 Z를 반환한다.
+// GetSurfaceHeightAt(최상단 전용)과 달리 동굴·다층 지형에서 올바르게 동작한다.
+// - 현재 복셀이 솔리드 안이면 위로 탈출 (MaxScanUp 복셀 한도)
+// - 현재 복셀이 에어면 아래로 스캔하여 바닥 탐색 (MaxScanDown 복셀 한도)
+// - 범위 내 바닥 없으면 StartVoxelZ 반환 (청크 미로드 보호)
+static int32 FindFloorVoxelZ(const FHktTerrainState& Terrain,
+                              int32 VoxelX, int32 VoxelY, int32 StartVoxelZ,
+                              int32 MaxScanUp = 8, int32 MaxScanDown = 64)
+{
+    if (Terrain.IsSolid(VoxelX, VoxelY, StartVoxelZ))
+    {
+        // 솔리드 내부 → 위로 탈출
+        for (int32 Z = StartVoxelZ + 1; Z <= StartVoxelZ + MaxScanUp; ++Z)
+        {
+            if (!Terrain.IsSolid(VoxelX, VoxelY, Z))
+                return Z;
+        }
+        return StartVoxelZ;
+    }
+
+    // 에어 → 아래로 바닥 탐색
+    for (int32 Z = StartVoxelZ - 1; Z >= StartVoxelZ - MaxScanDown; --Z)
+    {
+        if (Terrain.IsSolid(VoxelX, VoxelY, Z))
+            return Z + 1;
+    }
+
+    return StartVoxelZ;  // 바닥 없음 (청크 미로드 등)
+}
+
 void FHktMovementSystem::Process(
     FHktWorldState& WorldState,
     FHktVMWorldStateProxy& VMProxy,
@@ -693,14 +723,14 @@ void FHktMovementSystem::Process(
         // 지형 충돌 및 스냅: IsGrounded 엔티티가 지형에 맞게 위치 조정
         if (TerrainState && WorldState.GetProperty(Id, PropertyId::IsGrounded) != 0)
         {
-            // 현재 위치의 지표면 높이 (측면 충돌 기준)
+            // 현재 위치의 실제 바닥 높이 (동굴·다층 지원: 현재 Z 기준 아래 스캔)
             const FIntVector CurVoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ);
-            const int32 CurSurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(CurVoxelPos.X, CurVoxelPos.Y);
+            const int32 CurSurfaceVoxelZ = FindFloorVoxelZ(*TerrainState, CurVoxelPos.X, CurVoxelPos.Y, CurVoxelPos.Z);
             const float CurSurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, CurSurfaceVoxelZ).Z);
 
-            // 이동 목표 위치의 지표면 높이
+            // 이동 목표 위치의 실제 바닥 높이 (동굴·다층 지원: 목표 Z 기준 아래 스캔)
             const FIntVector NewVoxelPos = FHktTerrainSystem::CmToVoxel(NewX, NewY, NewZ);
-            const int32 NewSurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(NewVoxelPos.X, NewVoxelPos.Y);
+            const int32 NewSurfaceVoxelZ = FindFloorVoxelZ(*TerrainState, NewVoxelPos.X, NewVoxelPos.Y, NewVoxelPos.Z);
             const float NewSurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, NewSurfaceVoxelZ).Z);
 
             // 측면 충돌: 최대 계단 높이(2 복셀 = 30cm)를 초과하면 XY 이동 차단
@@ -745,7 +775,7 @@ void FHktMovementSystem::Process(
             const int32 CurZ = WorldState.GetProperty(Id, PropertyId::PosZ);
 
             const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ);
-            const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
+            const int32 SurfaceVoxelZ = FindFloorVoxelZ(*TerrainState, VoxelPos.X, VoxelPos.Y, VoxelPos.Z);
             const int32 SurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z;
 
             if (CurZ != SurfaceCmZ)
